@@ -9,37 +9,42 @@ sur les comptes RS associés à ce site.
 ## Informations à collecter avant de coder
 
 ### CNT-SO Confédération (site principal)
-- **Bluesky** : `cnt-so.bsky.social` ✅ (compte trouvé)
-  - [ ] Générer un **App Password** : Paramètres → App Passwords → Ajouter
-  - [ ] Noter le handle exact et l'app password
-- **Mastodon** : compte existant ?
-  - [ ] Instance (ex: kolektiva.social, social.coop…)
-  - [ ] Générer un token : Paramètres → Développement → Nouvelle application
+- **Bluesky** : `cnt-so.bsky.social` ✅
+  - [ ] App Password : Paramètres → App Passwords → Ajouter → copier le mot de passe
+- **Telegram** : channel/groupe existant ?
+  - [ ] Créer un bot via @BotFather → copier le token
+  - [ ] Ajouter le bot au channel et récupérer le `chat_id`
 - **Facebook** : page existante ?
   - [ ] URL de la page
-  - [ ] Token (via Meta for Developers — plus complexe)
+  - [ ] Token (via Meta for Developers)
+- **Instagram** : compte existant ?
+  - [ ] Lié à la page Facebook ? (obligatoire pour l'API)
+  - [ ] Token (même app Meta que Facebook)
+- **X/Twitter** : ❌ API payante, on skip
 
 ### Syndicat du Numérique
 - **Bluesky** : compte existant ? handle ?
   - [ ] App Password
-- **Mastodon** : compte existant ?
-- **Discord** : déjà configuré (lien existant dans le menu)
-  - [ ] Webhook URL pour poster automatiquement dans un salon ?
+- **Telegram** : channel existant ?
+  - [ ] Token bot + chat_id
+- **Facebook/Instagram** : comptes existants ?
 
-### Autres sous-sites (Rhône-Alpes, STAA, etc.)
-- [ ] Lister les comptes RS de chaque sous-site actif
+### Autres sous-sites actifs
+- [ ] Faire la même liste pour chaque sous-site qui a des RS
 
 ---
 
-## Réseaux supportés (et coût)
+## Réseaux confirmés
 
-| Réseau   | API        | Coût    | Priorité |
-|----------|------------|---------|----------|
-| Bluesky  | AT Proto   | Gratuit | ★★★      |
-| Mastodon | REST       | Gratuit | ★★★      |
-| Facebook | Graph API  | Gratuit | ★★       |
-| X/Twitter | v2 API   | 100$/mois | ✗ (skip) |
-| LinkedIn | REST       | Gratuit | ★        |
+| Réseau    | API              | Coût      | Faisabilité |
+|-----------|------------------|-----------|-------------|
+| Bluesky   | AT Protocol      | Gratuit   | ✅ Facile   |
+| Telegram  | Bot API          | Gratuit   | ✅ Facile   |
+| Facebook  | Meta Graph API   | Gratuit   | ⚠️ Moyen   |
+| Instagram | Meta Graph API   | Gratuit   | ⚠️ Moyen   |
+| X/Twitter | v2 API           | 100$/mois | ❌ Trop cher |
+
+> **X/Twitter** : l'API de publication coûte 100$/mois minimum. À éviter sauf si vous avez le budget.
 
 ---
 
@@ -47,8 +52,9 @@ sur les comptes RS associés à ce site.
 
 1. **Champs par site** dans le modèle `Site` (ou modèle `SiteSettings` lié) :
    - `bsky_handle`, `bsky_app_password`
-   - `mastodon_instance`, `mastodon_token`
+   - `telegram_bot_token`, `telegram_chat_id`
    - `facebook_page_id`, `facebook_token`
+   - `instagram_account_id` (lié à Facebook)
 
 2. **Signal Django** sur `Article.status → publish` :
    - Construit le message : titre + extrait + URL de l'article
@@ -67,11 +73,12 @@ sur les comptes RS associés à ce site.
 2. Paramètres → App Passwords → Ajouter une application
 3. Nom : "CNT-SO CMS", copier le mot de passe généré
 
-### Mastodon
-1. Connecte-toi sur ton instance
-2. Préférences → Développement → Nouvelle application
-3. Permissions nécessaires : `write:statuses`
-4. Copier le token d'accès
+### Telegram
+1. Ouvrir Telegram → chercher @BotFather
+2. `/newbot` → suivre les instructions → copier le token
+3. Ajouter le bot comme admin du channel
+4. Récupérer le `chat_id` : envoyer un message dans le channel puis appeler
+   `https://api.telegram.org/bot<TOKEN>/getUpdates`
 
 ### Facebook
 1. developers.facebook.com → Créer une app
