@@ -14,7 +14,7 @@ from django.views.generic import (
 )
 
 from content.models import Article, Author, Category, Tag, Comment, Media, Site, MenuItem
-from .forms import ArticleForm, CategoryForm, TagForm, UserCreateForm, UserEditForm, MenuItemForm
+from .forms import ArticleForm, CategoryForm, TagForm, UserCreateForm, UserEditForm, MenuItemForm, SiteForm
 from .mixins import RedacLoginRequiredMixin, ChefRequiredMixin, SuperuserRequiredMixin
 
 
@@ -835,4 +835,202 @@ class MenuReorderView(ChefRequiredMixin, View):
         for menu_key, nodes in data.items():
             process(nodes, None)
 
+        return JsonResponse({'ok': True})
+
+
+# ── Gestion des sous-sites ─────────────────────────────────────────────────────
+
+class SiteListView(SuperuserRequiredMixin, ListView):
+    template_name = 'redaction/site_list.html'
+    context_object_name = 'sites'
+
+    def get_queryset(self):
+        return Site.objects.exclude(slug='principal').order_by('site_type', 'name')
+
+
+class SiteCreateView(SuperuserRequiredMixin, CreateView):
+    template_name = 'redaction/site_form.html'
+    form_class = SiteForm
+    success_url = reverse_lazy('redaction:site_list')
+
+    def form_valid(self, response):
+        messages.success(self.request, 'Sous-site créé avec succès.')
+        return super().form_valid(response)
+
+
+class SiteEditView(SuperuserRequiredMixin, UpdateView):
+    model = Site
+    template_name = 'redaction/site_form.html'
+    form_class = SiteForm
+    success_url = reverse_lazy('redaction:site_list')
+
+    def form_valid(self, response):
+        messages.success(self.request, 'Sous-site modifié avec succès.')
+        return super().form_valid(response)
+
+
+class SiteToggleView(SuperuserRequiredMixin, View):
+    def post(self, request, pk):
+        site = get_object_or_404(Site, pk=pk)
+        site.is_active = not site.is_active
+        site.save(update_fields=['is_active'])
+        status = 'activé' if site.is_active else 'masqué'
+        messages.success(request, f'Sous-site « {site.name} » {status}.')
+        return redirect('redaction:site_list')
+
+
+# ── Footer (gestion par site) ──────────────────────────────────────────────────
+
+class FooterListView(ChefRequiredMixin, TemplateView):
+    template_name = 'redaction/footer_list.html'
+
+    def get(self, request, *args, **kwargs):
+        current_site = _get_current_site_for_view(request)
+        if not current_site:
+            messages.warning(request, 'Veuillez sélectionner un site pour gérer son footer.')
+            return redirect('redaction:dashboard')
+        return super().get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        current_site = _get_current_site_for_view(self.request)
+        items = MenuItem.objects.filter(
+            site=current_site, menu='footer'
+        ).select_related('parent', 'category', 'article', 'page', 'target_site').order_by('order')
+
+        def _destination(item):
+            if item.link_type == 'url': return item.url or '—'
+            if item.link_type == 'category': return str(item.category) if item.category else '—'
+            if item.link_type == 'site': return str(item.target_site) if item.target_site else '—'
+            if item.link_type == 'article': return str(item.article) if item.article else '—'
+            if item.link_type == 'page': return str(item.page) if item.page else '—'
+            return '—'
+
+        items_data = []
+        for item in items:
+            items_data.append({
+                'id': item.pk,
+                'title': item.title,
+                'link_type': item.link_type,
+                'link_type_display': item.get_link_type_display(),
+                'destination': _destination(item)[:60],
+                'parent_id': item.parent_id,
+                'order': item.order,
+                'is_active': item.is_active,
+                'opens_new_tab': item.opens_new_tab,
+                'edit_url': reverse('redaction:footer_item_edit', args=[item.pk]),
+                'delete_url': reverse('redaction:footer_item_delete', args=[item.pk]),
+            })
+
+        ctx['items_json'] = json.dumps(items_data, ensure_ascii=False)
+        ctx['reorder_url'] = reverse('redaction:footer_reorder')
+        ctx['current_site'] = current_site
+        return ctx
+
+
+class FooterItemCreateView(ChefRequiredMixin, CreateView):
+    model = MenuItem
+    form_class = MenuItemForm
+    template_name = 'redaction/footer_item_form.html'
+    success_url = reverse_lazy('redaction:footer_list')
+
+    def get(self, request, *args, **kwargs):
+        if not _get_current_site_for_view(request):
+            messages.warning(request, 'Veuillez sélectionner un site.')
+            return redirect('redaction:dashboard')
+        return super().get(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['site'] = _get_current_site_for_view(self.request)
+        kwargs['menu_type'] = 'footer'
+        return kwargs
+
+    def get_initial(self):
+        return {'menu': 'footer'}
+
+    def form_valid(self, form):
+        item = form.save(commit=False)
+        item.site = _get_current_site_for_view(self.request)
+        item.menu = 'footer'
+        item.save()
+        messages.success(self.request, 'Élément de footer créé.')
+        return redirect(self.success_url)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['action'] = 'Créer'
+        ctx['current_site'] = _get_current_site_for_view(self.request)
+        return ctx
+
+
+class FooterItemEditView(ChefRequiredMixin, UpdateView):
+    model = MenuItem
+    form_class = MenuItemForm
+    template_name = 'redaction/footer_item_form.html'
+    success_url = reverse_lazy('redaction:footer_list')
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        if obj.site != _get_current_site_for_view(self.request):
+            raise PermissionDenied
+        return obj
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['site'] = _get_current_site_for_view(self.request)
+        kwargs['menu_type'] = 'footer'
+        return kwargs
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Élément de footer modifié.')
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['action'] = 'Modifier'
+        ctx['current_site'] = _get_current_site_for_view(self.request)
+        return ctx
+
+
+class FooterItemDeleteView(ChefRequiredMixin, DeleteView):
+    model = MenuItem
+    template_name = 'redaction/confirm_delete.html'
+    success_url = reverse_lazy('redaction:footer_list')
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        if obj.site != _get_current_site_for_view(self.request):
+            raise PermissionDenied
+        return obj
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Élément de footer supprimé.')
+        return super().form_valid(form)
+
+
+class FooterReorderView(ChefRequiredMixin, View):
+    def post(self, request):
+        current_site = _get_current_site_for_view(request)
+        if not current_site:
+            return JsonResponse({'ok': False, 'error': 'Aucun site sélectionné.'}, status=400)
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({'ok': False, 'error': 'JSON invalide.'}, status=400)
+
+        all_items = {item.pk: item for item in MenuItem.objects.filter(site=current_site, menu='footer')}
+
+        def process(nodes, parent_id):
+            for idx, node in enumerate(nodes, start=1):
+                item = all_items.get(node.get('id'))
+                if item is None:
+                    continue
+                item.parent_id = parent_id
+                item.order = idx
+                item.save(update_fields=['parent_id', 'order'])
+                if node.get('children'):
+                    process(node['children'], item.pk)
+
+        process(data.get('footer', []), None)
         return JsonResponse({'ok': True})

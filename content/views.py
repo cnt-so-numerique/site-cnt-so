@@ -94,6 +94,15 @@ class SiteHomeView(ListView):
         self.current_site = get_object_or_404(Site, slug=self.kwargs['site_slug'])
         if self.current_site.external_url:
             return redirect(self.current_site.external_url)
+        self.home_page = Page.objects.filter(
+            site=self.current_site, slug='home', status='publish'
+        ).first()
+        if self.home_page:
+            from django.shortcuts import render
+            return render(request, 'content/site_home_page.html', {
+                'site': self.current_site,
+                'page': self.home_page,
+            })
         return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -164,6 +173,15 @@ class SiteArticleDetailView(ArticleDetailView):
             site=self.current_site,
             status='publish'
         ).select_related('author', 'site', 'featured_image')
+
+    def get_object(self, queryset=None):
+        self.current_site = get_object_or_404(Site, slug=self.kwargs['site_slug'])
+        return get_object_or_404(
+            Article.objects.select_related('author', 'site', 'featured_image'),
+            slug=self.kwargs['slug'],
+            site=self.current_site,
+            status='publish',
+        )
 
 
 class PageDetailView(DetailView):
@@ -312,6 +330,11 @@ class ContactView(CreateView):
     template_name = 'content/contact.html'
     success_url = reverse_lazy('content:contact_success')
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['site'] = Site.objects.filter(slug='principal').first()
+        return context
+
     def form_valid(self, form):
         messages.success(self.request, 'Votre message a été envoyé avec succès !')
         return super().form_valid(form)
@@ -330,7 +353,7 @@ class SiteContactView(CreateView):
 
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
-        self.site_obj = get_object_or_404(Site, slug=kwargs['site_slug'], site_type='regional')
+        self.site_obj = get_object_or_404(Site, slug=kwargs['site_slug'])
 
     def get_success_url(self):
         return reverse_lazy('content:site_contact_success', kwargs={'site_slug': self.site_obj.slug})

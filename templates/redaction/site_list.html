@@ -1,0 +1,54 @@
+{% extends "redaction/base.html" %}
+{% block title %}Sous-sites — Rédaction{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Sous-sites</h1>
+  <a href="{% url 'redaction:site_create' %}" class="btn btn-primary">+ Nouveau sous-site</a>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Nom</th>
+          <th>Slug</th>
+          <th>Type</th>
+          <th>URL externe</th>
+          <th>État</th>
+          <th style="text-align:right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for site in sites %}
+        <tr style="{% if not site.is_active %}opacity:.5;{% endif %}">
+          <td><strong>{{ site.name }}</strong></td>
+          <td style="color:#94a3b8; font-size:.85rem;">{{ site.slug }}</td>
+          <td style="font-size:.85rem;">{{ site.get_site_type_display }}</td>
+          <td style="font-size:.8rem; color:#94a3b8;">{{ site.external_url|default:"—" }}</td>
+          <td>
+            {% if site.is_active %}
+              <span class="badge badge-publish">Visible</span>
+            {% else %}
+              <span class="badge badge-draft">Masqué</span>
+            {% endif %}
+          </td>
+          <td style="text-align:right">
+            <a href="{% url 'redaction:site_edit' site.pk %}" class="btn btn-secondary btn-sm">Modifier</a>
+            <form method="post" action="{% url 'redaction:site_toggle' site.pk %}" style="display:inline">
+              {% csrf_token %}
+              <button class="btn btn-sm" style="{% if site.is_active %}background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3);{% else %}background:rgba(74,222,128,.15);color:#4ade80;border:1px solid rgba(74,222,128,.3);{% endif %}">
+                {% if site.is_active %}Masquer{% else %}Activer{% endif %}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="color:#94a3b8; text-align:center;">Aucun sous-site.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

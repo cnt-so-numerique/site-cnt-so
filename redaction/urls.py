@@ -43,6 +43,19 @@ urlpatterns = [
     path('site/selectionner/', views.SiteSelectView.as_view(), name='site_select'),
     path('site/effacer/', views.SiteClearView.as_view(), name='site_clear'),
 
+    # Footer
+    path('footer/', views.FooterListView.as_view(), name='footer_list'),
+    path('footer/nouveau/', views.FooterItemCreateView.as_view(), name='footer_item_create'),
+    path('footer/<int:pk>/modifier/', views.FooterItemEditView.as_view(), name='footer_item_edit'),
+    path('footer/<int:pk>/supprimer/', views.FooterItemDeleteView.as_view(), name='footer_item_delete'),
+    path('footer/reorder/', views.FooterReorderView.as_view(), name='footer_reorder'),
+
+    # Sous-sites
+    path('sous-sites/', views.SiteListView.as_view(), name='site_list'),
+    path('sous-sites/nouveau/', views.SiteCreateView.as_view(), name='site_create'),
+    path('sous-sites/<int:pk>/modifier/', views.SiteEditView.as_view(), name='site_edit'),
+    path('sous-sites/<int:pk>/toggle/', views.SiteToggleView.as_view(), name='site_toggle'),
+
     # Menus
     path('menus/', views.MenuListView.as_view(), name='menu_list'),
     path('menus/nouveau/', views.MenuItemCreateView.as_view(), name='menu_item_create'),

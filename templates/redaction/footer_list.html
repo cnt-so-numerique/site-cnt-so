@@ -1,0 +1,153 @@
+{% extends "redaction/base.html" %}
+{% block title %}Footer — {{ current_site.name }}{% endblock %}
+
+{% block content %}
+<style>
+  .menu-tree { list-style:none; padding:0; margin:0; min-height:2rem; }
+  .menu-tree .menu-tree { margin-left:1.75rem; border-left:2px solid #2d3139; padding-left:.85rem; margin-top:.2rem; padding-bottom:.2rem; }
+  .menu-node { margin-bottom:.25rem; }
+  .menu-item-row { display:flex; align-items:center; gap:.5rem; background:#1e2129; border:1px solid #2d3139; border-radius:6px; padding:.35rem .65rem; transition:border-color .15s,background .15s; user-select:none; }
+  .menu-item-row:hover { border-color:#4a5568; background:#252932; }
+  .drag-handle { cursor:grab; color:#4a5568; font-size:1.1rem; padding:0 .15rem; flex-shrink:0; line-height:1; letter-spacing:-.05em; }
+  .drag-handle:active { cursor:grabbing; }
+  .item-badge { font-size:.68rem; padding:.1rem .35rem; border-radius:4px; flex-shrink:0; white-space:nowrap; }
+  .item-title { flex:1; font-size:.875rem; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .item-dest { font-size:.73rem; color:#64748b; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0; }
+  .item-inactive { opacity:.45; }
+  .item-actions { display:flex; gap:.3rem; flex-shrink:0; }
+  .sortable-ghost .menu-item-row { opacity:.25; background:#e63946 !important; border-color:#e63946 !important; }
+  .sortable-chosen .menu-item-row { border-color:#e63946 !important; box-shadow:0 0 0 2px rgba(230,57,70,.3); }
+  .save-topbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; position:sticky; top:0; z-index:50; background:#13151a; border-bottom:1px solid #2d3139; padding:.65rem 0; margin:-.5rem 0 1.5rem; }
+  .save-topbar h1 { margin:0; font-size:1.25rem; }
+  .unsaved-pill { display:none; background:#fbbf24; color:#1e2129; font-size:.72rem; font-weight:700; padding:.15rem .55rem; border-radius:99px; }
+  .footer-hint { background:#1e2129; border:1px dashed #2d3139; border-radius:6px; padding:1rem; color:#94a3b8; font-size:.85rem; margin-bottom:1rem; }
+</style>
+
+<div class="save-topbar">
+  <div style="display:flex; align-items:center; gap:.75rem;">
+    <h1>Footer — {{ current_site.name }}</h1>
+    <span class="unsaved-pill" id="unsaved-pill">● Non enregistré</span>
+  </div>
+  <div style="display:flex; gap:.5rem;">
+    <button id="save-btn" class="btn btn-primary" onclick="saveOrder()">Enregistrer</button>
+    <a href="{% url 'redaction:footer_item_create' %}" class="btn btn-secondary">+ Colonne / Lien</a>
+  </div>
+</div>
+
+<div class="footer-hint">
+  <strong>Structure :</strong> les éléments <em>racines</em> (sans parent) deviennent des <strong>titres de colonne</strong>.
+  Leurs enfants sont les <strong>liens</strong> affichés sous chaque colonne.
+</div>
+
+<div class="card">
+  <ul class="menu-tree" id="footer-tree"></ul>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+const ITEMS = {{ items_json|safe }};
+const REORDER_URL = "{{ reorder_url }}";
+const CSRF = "{{ csrf_token }}";
+let isDirty = false;
+
+function markDirty() {
+  if (!isDirty) { isDirty = true; document.getElementById('unsaved-pill').style.display = 'inline-block'; }
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+const BADGE_STYLE = {
+  url:      'background:rgba(59,130,246,.15);color:#60a5fa;',
+  category: 'background:rgba(34,197,94,.15);color:#4ade80;',
+  site:     'background:rgba(251,191,36,.15);color:#fbbf24;',
+  article:  'background:rgba(168,85,247,.15);color:#c084fc;',
+  page:     'background:rgba(239,68,68,.15);color:#f87171;',
+};
+
+function buildTree(flat) {
+  const map = {};
+  flat.forEach(i => { map[i.id] = {...i, children:[]}; });
+  const roots = [];
+  flat.forEach(i => {
+    if (i.parent_id && map[i.parent_id]) map[i.parent_id].children.push(map[i.id]);
+    else roots.push(map[i.id]);
+  });
+  function sort(n) { n.sort((a,b)=>a.order-b.order); n.forEach(x=>sort(x.children)); }
+  sort(roots);
+  return roots;
+}
+
+function createNode(item) {
+  const li = document.createElement('li');
+  li.className = 'menu-node';
+  li.dataset.id = item.id;
+  const row = document.createElement('div');
+  row.className = 'menu-item-row' + (item.is_active ? '' : ' item-inactive');
+  row.innerHTML =
+    '<span class="drag-handle">⠿</span>' +
+    '<span class="item-badge" style="' + (BADGE_STYLE[item.link_type]||BADGE_STYLE.url) + '">' + esc(item.link_type_display) + '</span>' +
+    '<span class="item-title">' + esc(item.title) + '</span>' +
+    '<span class="item-dest">' + esc(item.destination) + '</span>' +
+    '<div class="item-actions">' +
+      '<a href="' + esc(item.edit_url) + '" class="btn btn-secondary btn-sm">Modifier</a>' +
+      '<a href="' + esc(item.delete_url) + '" class="btn btn-danger btn-sm" onclick="return confirm(\'Supprimer ?\')">Supprimer</a>' +
+    '</div>';
+  li.appendChild(row);
+  const ul = document.createElement('ul');
+  ul.className = 'menu-tree';
+  item.children.forEach(c => ul.appendChild(createNode(c)));
+  li.appendChild(ul);
+  return li;
+}
+
+function initSortable(ul) {
+  if (ul._si) return; ul._si = true;
+  new Sortable(ul, {
+    group:{name:'footer',pull:true,put:true}, handle:'.drag-handle', animation:150,
+    ghostClass:'sortable-ghost', chosenClass:'sortable-chosen',
+    onSort: markDirty,
+    onAdd: function(e) { e.item.querySelectorAll('.menu-tree').forEach(initSortable); markDirty(); }
+  });
+  Array.from(ul.children).forEach(li => { const c = li.querySelector(':scope>.menu-tree'); if(c) initSortable(c); });
+}
+
+function serialize(ul) {
+  return Array.from(ul.children).filter(li=>li.dataset.id).map((li,i)=>({
+    id: parseInt(li.dataset.id),
+    order: i+1,
+    children: serialize(li.querySelector(':scope>.menu-tree') || document.createElement('ul'))
+  }));
+}
+
+async function saveOrder() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = 'Enregistrement…';
+  const tree = document.getElementById('footer-tree');
+  try {
+    const resp = await fetch(REORDER_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},
+      body: JSON.stringify({footer: serialize(tree)})
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      isDirty = false;
+      document.getElementById('unsaved-pill').style.display = 'none';
+      btn.textContent = '✓ Enregistré'; btn.style.background = '#22c55e';
+      setTimeout(()=>{ btn.textContent='Enregistrer'; btn.style.background=''; btn.disabled=false; }, 2000);
+    } else { alert('Erreur'); btn.textContent='Enregistrer'; btn.disabled=false; }
+  } catch(e) { alert('Erreur réseau'); btn.textContent='Enregistrer'; btn.disabled=false; }
+}
+
+window.addEventListener('beforeunload', e => { if(isDirty){e.preventDefault();e.returnValue='';} });
+
+const tree = document.getElementById('footer-tree');
+buildTree(ITEMS).forEach(item => tree.appendChild(createNode(item)));
+initSortable(tree);
+if (ITEMS.length === 0) {
+  tree.innerHTML = '<p style="color:#94a3b8;font-size:.85rem;padding:.5rem 0;">Aucun élément. <a href="{% url "redaction:footer_item_create" %}" style="color:#e63946;">Ajouter une colonne</a></p>';
+}
+</script>
+{% endblock %}

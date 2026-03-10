@@ -366,16 +366,6 @@
           {% endfor %}
         </select>
       </form>
-      {% if current_site %}
-      <a href="{{ current_site.get_absolute_url }}" target="_blank" rel="noopener"
-         style="display:flex; align-items:center; gap:.35rem; margin-top:.4rem;
-                font-size:.78rem; color:#60a5fa; text-decoration:none; padding:.25rem .5rem;
-                border-radius:4px; transition:background .15s;"
-         onmouseover="this.style.background='rgba(59,130,246,.1)'"
-         onmouseout="this.style.background='transparent'">
-        ↗ Voir le site
-      </a>
-      {% endif %}
     </div>
     {% endif %}
 
@@ -393,7 +383,10 @@
       </a>
       {% if current_site %}
       <a href="{% url 'redaction:menu_list' %}" {% if 'menu' in request.resolver_match.url_name %}class="active"{% endif %}>
-        ⊟ Menus
+        ☰ Menus
+      </a>
+      <a href="{% url 'redaction:footer_list' %}" {% if 'footer' in request.resolver_match.url_name %}class="active"{% endif %}>
+        ⊟ Footer
       </a>
       {% endif %}
       {% if is_chef %}
@@ -420,6 +413,9 @@
       <div class="sidebar-section-label">Administration</div>
       <a href="{% url 'redaction:user_list' %}" {% if 'user' in request.resolver_match.url_name %}class="active"{% endif %}>
         ✦ Utilisateurs
+      </a>
+      <a href="{% url 'redaction:site_list' %}" {% if 'site' in request.resolver_match.url_name %}class="active"{% endif %}>
+        ✦ Sous-sites
       </a>
     </div>
     {% endif %}

@@ -1,0 +1,250 @@
+{% comment %}
+Partial partagé pour les pages de listing d'articles.
+Variables attendues : articles (queryset/list), empty_message (optionnel)
+{% endcomment %}
+
+<style>
+.listing-featured {
+    display: grid;
+    grid-template-columns: 2fr 3fr;
+    gap: 0;
+    border: 1px solid var(--border-color);
+    margin-bottom: 2rem;
+    background: var(--white);
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow .2s;
+}
+.listing-featured:hover { box-shadow: 0 4px 20px rgba(0,0,0,.08); }
+
+.listing-featured-img {
+    overflow: hidden;
+    min-height: 280px;
+    background: var(--white);
+}
+.listing-featured-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center center;
+    display: block;
+    transition: transform .3s;
+}
+.listing-featured:hover .listing-featured-img img { transform: scale(1.03); }
+
+.listing-featured-body {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.listing-featured-meta {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: .75rem;
+    font-size: .78rem;
+    color: var(--text-muted);
+}
+.listing-featured-meta .cat-badge {
+    background: var(--primary-color);
+    color: #fff;
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: .15rem .45rem;
+    text-decoration: none;
+}
+.listing-featured-meta .cat-badge:hover { background: var(--primary-dark); }
+
+.listing-featured-title {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    line-height: 1.25;
+    margin-bottom: .75rem;
+}
+.listing-featured-title a { color: var(--text-color); }
+.listing-featured-title a:hover { color: var(--primary-color); }
+
+.listing-featured-excerpt {
+    font-size: .9rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    margin-bottom: 1rem;
+}
+
+.listing-featured-link {
+    font-size: .8rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+
+/* Grille 2 colonnes */
+.listing-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.listing-card {
+    border: 1px solid var(--border-color);
+    background: var(--white);
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow .2s;
+}
+.listing-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.07); }
+
+.listing-card-img {
+    height: 180px;
+    overflow: hidden;
+    background: var(--white);
+}
+.listing-card-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center center;
+    display: block;
+    transition: transform .3s;
+}
+.listing-card:hover .listing-card-img img { transform: scale(1.04); }
+
+.listing-card-body {
+    padding: 1rem 1.1rem 1.2rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.listing-card-meta {
+    font-size: .75rem;
+    color: var(--text-muted);
+    margin-bottom: .45rem;
+    display: flex;
+    gap: .4rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.listing-card-meta a {
+    color: var(--primary-color);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: .68rem;
+}
+
+.listing-card-title {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    line-height: 1.3;
+    margin-bottom: .5rem;
+    flex: 1;
+}
+.listing-card-title a { color: var(--text-color); }
+.listing-card-title a:hover { color: var(--primary-color); }
+
+.listing-card-excerpt {
+    font-size: .82rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .listing-featured { grid-template-columns: 1fr; }
+    .listing-featured-img { min-height: 200px; }
+    .listing-grid { grid-template-columns: 1fr; }
+}
+</style>
+
+{% if articles %}
+  {% for article in articles %}
+    {% if forloop.first %}
+    {# --- Article principal --- #}
+    <div class="listing-featured">
+        <div class="listing-featured-img">
+            {% if article.featured_image %}
+            <a href="{{ article.get_absolute_url }}">
+                <img src="{{ article.featured_image.url }}" alt="{{ article.title }}">
+            </a>
+            {% endif %}
+        </div>
+        <div class="listing-featured-body">
+            <div class="listing-featured-meta">
+                {% for cat in article.categories.all|slice:":2" %}
+                <a href="{{ cat.get_absolute_url }}" class="cat-badge">{{ cat.name }}</a>
+                {% endfor %}
+                <span>{{ article.published_at|date:"d F Y" }}</span>
+            </div>
+            <h2 class="listing-featured-title">
+                <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+            </h2>
+            {% if article.excerpt %}
+            <p class="listing-featured-excerpt">{{ article.excerpt|striptags|truncatewords:35 }}</p>
+            {% endif %}
+            <a href="{{ article.get_absolute_url }}" class="listing-featured-link">Lire la suite →</a>
+        </div>
+    </div>
+    {# --- Début de la grille --- #}
+    {% if not forloop.last %}<div class="listing-grid">{% endif %}
+    {% elif forloop.last and not forloop.first %}
+    {# Dernier article de la grille #}
+    <article class="listing-card">
+        {% if article.featured_image %}
+        <div class="listing-card-img">
+            <a href="{{ article.get_absolute_url }}">
+                <img src="{{ article.featured_image.url }}" alt="{{ article.title }}">
+            </a>
+        </div>
+        {% endif %}
+        <div class="listing-card-body">
+            <div class="listing-card-meta">
+                {% for cat in article.categories.all|slice:":1" %}
+                <a href="{{ cat.get_absolute_url }}">{{ cat.name }}</a>
+                {% endfor %}
+                <span>{{ article.published_at|date:"d F Y" }}</span>
+            </div>
+            <h3 class="listing-card-title">
+                <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+            </h3>
+            {% if article.excerpt %}
+            <p class="listing-card-excerpt">{{ article.excerpt|striptags|truncatewords:20 }}</p>
+            {% endif %}
+        </div>
+    </article>
+    </div>{# Fermeture grille #}
+    {% else %}
+    {# Articles de la grille (ni premier ni dernier) #}
+    <article class="listing-card">
+        {% if article.featured_image %}
+        <div class="listing-card-img">
+            <a href="{{ article.get_absolute_url }}">
+                <img src="{{ article.featured_image.url }}" alt="{{ article.title }}">
+            </a>
+        </div>
+        {% endif %}
+        <div class="listing-card-body">
+            <div class="listing-card-meta">
+                {% for cat in article.categories.all|slice:":1" %}
+                <a href="{{ cat.get_absolute_url }}">{{ cat.name }}</a>
+                {% endfor %}
+                <span>{{ article.published_at|date:"d F Y" }}</span>
+            </div>
+            <h3 class="listing-card-title">
+                <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+            </h3>
+            {% if article.excerpt %}
+            <p class="listing-card-excerpt">{{ article.excerpt|striptags|truncatewords:20 }}</p>
+            {% endif %}
+        </div>
+    </article>
+    {% endif %}
+  {% endfor %}
+{% else %}
+<p style="color:var(--text-muted);">{{ empty_message|default:"Aucun article." }}</p>
+{% endif %}

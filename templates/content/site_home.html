@@ -11,11 +11,6 @@
             <p class="hero-excerpt">{{ site.description }}</p>
             {% endif %}
         </div>
-        <div class="hero-image">
-            {% if articles.first.featured_image %}
-            <img src="{{ articles.first.featured_image.url }}" alt="{{ site.name }}">
-            {% endif %}
-        </div>
     </div>
 </section>
 {% endblock %}
@@ -23,30 +18,9 @@
 {% block content %}
 <h2 class="section-title">Dernières actualités</h2>
 
-<div class="article-grid">
-    {% for article in articles %}
-    <article class="article-card">
-        <div class="article-card-image">
-            {% if article.featured_image %}
-            <a href="{{ article.get_absolute_url }}">
-                <img src="{{ article.featured_image.url }}" alt="{{ article.title }}">
-            </a>
-            {% endif %}
-        </div>
-        <div class="article-card-content">
-            <div class="article-card-meta">{{ article.published_at|date:"d F Y" }}</div>
-            <h3 class="article-card-title">
-                <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
-            </h3>
-            {% if article.excerpt %}
-            <p class="article-card-excerpt">{{ article.excerpt|striptags|truncatewords:20 }}</p>
-            {% endif %}
-        </div>
-    </article>
-    {% empty %}
-    <p>Aucun article pour le moment.</p>
-    {% endfor %}
-</div>
+{% with empty_message="Aucun article pour le moment." %}
+{% include "content/_article_listing.html" %}
+{% endwith %}
 
 {% with query_string="" %}{% include "content/_pagination.html" %}{% endwith %}
 {% endblock %}

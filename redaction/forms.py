@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User, Group
+from django.db import models
 from content.models import Article, Category, Tag, Site, MenuItem, Page
 
 
@@ -173,6 +174,30 @@ class UserEditForm(forms.ModelForm):
         return user
 
 
+class SiteForm(forms.ModelForm):
+    class Meta:
+        model = Site
+        fields = ['name', 'slug', 'site_type', 'description', 'external_url', 'is_active']
+        widgets = {
+            'name':         forms.TextInput(attrs={'class': 'form-input'}),
+            'slug':         forms.TextInput(attrs={'class': 'form-input'}),
+            'site_type':    forms.Select(attrs={'class': 'form-select'}),
+            'description':  forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
+            'external_url': forms.URLInput(attrs={'class': 'form-input'}),
+        }
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if not instance.pk and not instance.wp_blog_id:
+            max_id = Site.objects.aggregate(m=models.Max('wp_blog_id'))['m'] or 0
+            instance.wp_blog_id = max_id + 1
+        if not instance.path:
+            instance.path = f'/{instance.slug}/'
+        if commit:
+            instance.save()
+        return instance
+
+
 class MenuItemForm(forms.ModelForm):
     class Meta:
         model = MenuItem
@@ -194,13 +219,18 @@ class MenuItemForm(forms.ModelForm):
             'order':       forms.NumberInput(attrs={'class': 'form-input'}),
         }
 
-    def __init__(self, *args, site=None, **kwargs):
+    def __init__(self, *args, site=None, menu_type=None, **kwargs):
         super().__init__(*args, **kwargs)
         if site:
             self.fields['category'].queryset = Category.objects.filter(site=site).order_by('name')
             self.fields['article'].queryset = Article.objects.filter(site=site).order_by('title')
             self.fields['page'].queryset = Page.objects.filter(site=site).order_by('title')
-            self.fields['parent'].queryset = MenuItem.objects.filter(site=site).order_by('menu', 'order')
+            parent_qs = MenuItem.objects.filter(site=site)
+            if menu_type:
+                parent_qs = parent_qs.filter(menu=menu_type, parent__isnull=True)
+            else:
+                parent_qs = parent_qs.order_by('menu', 'order')
+            self.fields['parent'].queryset = parent_qs
         else:
             self.fields['category'].queryset = Category.objects.none()
             self.fields['article'].queryset = Article.objects.none()

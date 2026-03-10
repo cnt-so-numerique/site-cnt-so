@@ -1,0 +1,53 @@
+{% extends "redaction/base.html" %}
+{% block title %}{% if object %}Modifier{% else %}Nouveau{% endif %} sous-site — Rédaction{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{% if object %}Modifier « {{ object.name }} »{% else %}Nouveau sous-site{% endif %}</h1>
+  <a href="{% url 'redaction:site_list' %}" class="btn btn-secondary">← Retour</a>
+</div>
+
+<div class="card" style="max-width:600px;">
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="form-group">
+      <label>Nom</label>
+      {{ form.name }}
+      {% if form.name.errors %}<div style="color:#f87171;font-size:.85rem;">{{ form.name.errors }}</div>{% endif %}
+    </div>
+
+    <div class="form-group">
+      <label>Slug <span style="color:#94a3b8;font-size:.8rem;">(utilisé dans l'URL, ex&nbsp;: numerique)</span></label>
+      {{ form.slug }}
+      {% if form.slug.errors %}<div style="color:#f87171;font-size:.85rem;">{{ form.slug.errors }}</div>{% endif %}
+    </div>
+
+    <div class="form-group">
+      <label>Type</label>
+      {{ form.site_type }}
+      {% if form.site_type.errors %}<div style="color:#f87171;font-size:.85rem;">{{ form.site_type.errors }}</div>{% endif %}
+    </div>
+
+    <div class="form-group">
+      <label>Description</label>
+      {{ form.description }}
+    </div>
+
+    <div class="form-group">
+      <label>URL externe <span style="color:#94a3b8;font-size:.8rem;">(si renseigné, redirige vers ce site)</span></label>
+      {{ form.external_url }}
+    </div>
+
+    <div class="form-group" style="display:flex;align-items:center;gap:.75rem;">
+      {{ form.is_active }}
+      <label style="margin:0;">Visible sur le site</label>
+    </div>
+
+    <div style="margin-top:1.5rem;">
+      <button type="submit" class="btn btn-primary">Enregistrer</button>
+      <a href="{% url 'redaction:site_list' %}" class="btn btn-secondary" style="margin-left:.5rem;">Annuler</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

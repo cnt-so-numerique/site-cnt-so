@@ -801,8 +801,8 @@
 
         /* Footer */
         .footer {
-            background: var(--dark-bg);
-            color: #c4c4c4;
+            background: #2a2a2a;
+            color: #b0b0b0;
             padding: 3rem 0 0;
             margin-top: 3rem;
         }
@@ -810,29 +810,27 @@
         .footer-content {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 0 1rem;
+            padding: 0 2rem;
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 2rem;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 3rem;
         }
 
         @media (max-width: 900px) {
-            .footer-content {
-                grid-template-columns: repeat(2, 1fr);
-            }
+            .footer-content { grid-template-columns: 1fr 1fr; gap: 2rem; }
         }
-
         @media (max-width: 600px) {
-            .footer-content {
-                grid-template-columns: 1fr;
-            }
+            .footer-content { grid-template-columns: 1fr; }
         }
 
         .footer-section h4 {
             color: var(--white);
-            font-family: var(--font-heading);
-            font-size: 18px;
-            margin-bottom: 1rem;
+            font-family: var(--font-body);
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 1.25rem;
+            text-transform: none;
+            letter-spacing: 0;
         }
 
         .footer-section ul {
@@ -844,33 +842,36 @@
         }
 
         .footer-section a {
-            color: #c4c4c4;
-            font-size: 14px;
+            color: #b0b0b0;
+            font-size: 13px;
+            font-family: var(--font-body);
         }
 
         .footer-section a:hover {
             color: var(--white);
+            text-decoration: none;
         }
 
         .footer-bottom {
-            border-top: 1px solid #555;
-            margin-top: 2rem;
-            padding: 1.5rem 0;
-            text-align: center;
+            border-top: 1px solid #444;
+            margin-top: 2.5rem;
+            padding: 1.25rem 2rem;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .footer-bottom p {
-            font-size: 12px;
+            font-size: 11px;
+            color: #888;
         }
 
         .footer-bottom a {
-            color: #c4c4c4;
+            color: #888;
             margin: 0 0.5rem;
         }
 
-        .footer-bottom a:hover {
-            color: var(--white);
-        }
+        .footer-bottom a:hover { color: var(--white); }
 
         /* ── Blocs PDF (wp-block-file) ── */
         .wp-block-file {
@@ -1366,71 +1367,28 @@
     {% block pre_footer %}{% endblock %}
 
     <!-- Footer -->
+    {% load menu_tags %}
+    {% get_menu site 'footer' as footer_columns %}
     <footer class="footer">
-        <div class="footer-content">
+        {% if footer_columns %}
+        <div class="footer-content" style="grid-template-columns: repeat({{ footer_columns|length }}, auto);">
+            {% for col in footer_columns %}
             <div class="footer-section">
-                <h4>CNT-SO</h4>
-                <p style="font-size: 14px; line-height: 1.6;">
-                    Confédération Nationale du Travail<br>
-                    Solidarité Ouvrière
-                </p>
-                <div class="social-icons">
-                    <a href="#" class="social-icon" title="Facebook">f</a>
-                    <a href="#" class="social-icon" title="Twitter">t</a>
-                    <a href="{% url 'content:rss_feed' %}" class="social-icon" title="RSS">R</a>
-                </div>
-            </div>
-
-            <div class="footer-section">
-                <h4>Unions locales</h4>
+                {% if col.title %}<h4>{{ col.title }}</h4>{% endif %}
                 <ul>
-                    {% for s in regional_sites %}
-                    <li><a href="{{ s.get_absolute_url }}">{{ s.name }}</a></li>
-                    {% endfor %}
-                </ul>
-            </div>
-
-            <div class="footer-section">
-                <h4>Syndicats</h4>
-                <ul>
-                    {% for s in sectoral_sites %}
-                    <li><a href="{{ s.get_absolute_url }}">{{ s.name }}</a></li>
-                    {% endfor %}
-                </ul>
-            </div>
-
-            {% get_menu site 'footer' as footer_nav %}
-            {% if footer_nav %}
-            <div class="footer-section">
-                <h4>Liens utiles</h4>
-                <ul>
-                    {% for item in footer_nav %}
-                    <li>
-                        <a href="{{ item.get_url }}"{% if item.opens_new_tab %} target="_blank" rel="noopener"{% endif %}>
-                            {{ item.title }}
-                        </a>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% else %}
-            <div class="footer-section">
-                <h4>Liens utiles</h4>
-                <ul>
-                    <li><a href="{% url 'content:contact' %}">Contact</a></li>
-                    <li><a href="{% url 'content:rss_feed' %}">Flux RSS</a></li>
-                    {% if site and site.slug != 'principal' %}
-                    <li><a href="{% url 'content:site_plan_du_site' site_slug=site.slug %}">Plan du site</a></li>
-                    {% else %}
-                    <li><a href="{% url 'content:plan_du_site' %}">Plan du site</a></li>
+                    {% for item in col.children.all %}
+                    {% if item.is_active %}
+                    <li><a href="{{ item.get_url }}"{% if item.opens_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ item.title }}</a></li>
                     {% endif %}
+                    {% endfor %}
                 </ul>
             </div>
-            {% endif %}
+            {% endfor %}
         </div>
+        {% endif %}
 
         <div class="footer-bottom">
-            <p>© 2026, Confédération Nationale du Travail — Site web réalisé par le Studio Bamiu</p>
+            <p>© 2026, Confédération Nationale du Travail — Solidarité Ouvrière</p>
         </div>
     </footer>
 
