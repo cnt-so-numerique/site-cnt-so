@@ -1,0 +1,8385 @@
+[
+{
+  "model": "content.site",
+  "pk": 1,
+  "fields": {
+    "wp_blog_id": 1,
+    "name": "CNT-SO confédération",
+    "slug": "principal",
+    "path": "/",
+    "site_type": "main",
+    "description": "",
+    "is_active": true,
+    "external_url": ""
+  }
+},
+{
+  "model": "content.site",
+  "pk": 2,
+  "fields": {
+    "wp_blog_id": 2,
+    "name": "CNT-SO 13 (Marseille)",
+    "slug": "13",
+    "path": "/13/",
+    "site_type": "regional",
+    "description": "",
+    "is_active": true,
+    "external_url": ""
+  }
+},
+{
+  "model": "content.site",
+  "pk": 3,
+  "fields": {
+    "wp_blog_id": 3,
+    "name": "CNT-SO Rhône-Alpes",
+    "slug": "rhone-alpes",
+    "path": "/rhone-alpes/",
+    "site_type": "regional",
+    "description": "",
+    "is_active": false,
+    "external_url": ""
+  }
+},
+{
+  "model": "content.site",
+  "pk": 4,
+  "fields": {
+    "wp_blog_id": 5,
+    "name": "CNT-SO Auvergne",
+    "slug": "auvergne",
+    "path": "/auvergne/",
+    "site_type": "regional",
+    "description": "",
+    "is_active": true,
+    "external_url": ""
+  }
+},
+{
+  "model": "content.site",
+  "pk": 5,
+  "fields": {
+    "wp_blog_id": 6,
+    "name": "STAA (Artistes-Auteurs)",
+    "slug": "staa",
+    "path": "/staa/",
+    "site_type": "sectoral",
+    "description": "",
+    "is_active": false,
+    "external_url": "https://staa-cnt-so.org/"
+  }
+},
+{
+  "model": "content.site",
+  "pk": 6,
+  "fields": {
+    "wp_blog_id": 7,
+    "name": "CNT-SO Poitiers",
+    "slug": "poitiers",
+    "path": "/poitiers/",
+    "site_type": "regional",
+    "description": "",
+    "is_active": true,
+    "external_url": ""
+  }
+},
+{
+  "model": "content.site",
+  "pk": 7,
+  "fields": {
+    "wp_blog_id": 8,
+    "name": "CNT-SO Numérique",
+    "slug": "numerique",
+    "path": "/numerique/",
+    "site_type": "sectoral",
+    "description": "",
+    "is_active": true,
+    "external_url": ""
+  }
+},
+{
+  "model": "content.site",
+  "pk": 9,
+  "fields": {
+    "wp_blog_id": 9,
+    "name": "CNT-SO Éducation",
+    "slug": "education",
+    "path": "/education/",
+    "site_type": "sectoral",
+    "description": "",
+    "is_active": false,
+    "external_url": ""
+  }
+},
+{
+  "model": "content.site",
+  "pk": 10,
+  "fields": {
+    "wp_blog_id": 10,
+    "name": "CNT-SO STUCS",
+    "slug": "stucs",
+    "path": "/stucs/",
+    "site_type": "sectoral",
+    "description": "stucs",
+    "is_active": true,
+    "external_url": ""
+  }
+},
+{
+  "model": "content.category",
+  "pk": 1,
+  "fields": {
+    "site": 1,
+    "wp_id": 1,
+    "name": "Non classé",
+    "slug": "non-classe",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 2,
+  "fields": {
+    "site": 1,
+    "wp_id": 7,
+    "name": "Campagne",
+    "slug": "campagne",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 31,
+  "fields": {
+    "site": 1,
+    "wp_id": 139,
+    "name": "CNT-SO",
+    "slug": "cnt-so",
+    "description": "<strong><em>\n\n<a href=\"http://www.cnt-so.org/-Cydel-\">Actualités - luttes</a>\n\n<a href=\"http://www.cnt-so.org/-Orientations-\">Orientations - Présentation</a>\n\n\n",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 32,
+  "fields": {
+    "site": 1,
+    "wp_id": 140,
+    "name": "Solidarités",
+    "slug": "solidarites",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 33,
+  "fields": {
+    "site": 1,
+    "wp_id": 141,
+    "name": "Droit",
+    "slug": "droit",
+    "description": "Droit des travailleurs et informations utiles aux syndicats.",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 34,
+  "fields": {
+    "site": 1,
+    "wp_id": 142,
+    "name": "Bâtiment - Travaux publics - Bois - Carrières & matériaux",
+    "slug": "batiment-travaux-publics-bois-carrieres-materiaux",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 35,
+  "fields": {
+    "site": 1,
+    "wp_id": 143,
+    "name": "Nettoyage",
+    "slug": "nettoyage",
+    "description": "\n",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 36,
+  "fields": {
+    "site": 1,
+    "wp_id": 144,
+    "name": "Hôtellerie - restauration - tourisme",
+    "slug": "hotellerie-restauration-tourisme",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 37,
+  "fields": {
+    "site": 1,
+    "wp_id": 145,
+    "name": "Education & Recherche",
+    "slug": "education",
+    "description": "Fédération des travailleurs de l’enseignement, de la recherche scientifique, des fonctions publiques et des associations.",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 39,
+  "fields": {
+    "site": 1,
+    "wp_id": 147,
+    "name": "Syndicalisme",
+    "slug": "syndicalisme",
+    "description": "Actualité des syndicats et des fédérations de la <strong>C</strong>onfédération <strong>N</strong>ationale des <strong>T</strong>ravailleurs - Solidarité Ouvrière",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 40,
+  "fields": {
+    "site": 1,
+    "wp_id": 148,
+    "name": "Orientations - Présentation",
+    "slug": "orientations-presentation",
+    "description": "",
+    "parent": 31
+  }
+},
+{
+  "model": "content.category",
+  "pk": 41,
+  "fields": {
+    "site": 1,
+    "wp_id": 149,
+    "name": "CNT-SO Marseille",
+    "slug": "cnt-so-marseille",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 42,
+  "fields": {
+    "site": 1,
+    "wp_id": 150,
+    "name": "International",
+    "slug": "international",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 43,
+  "fields": {
+    "site": 1,
+    "wp_id": 151,
+    "name": "CNT-SO Rhône-Alpes",
+    "slug": "cnt-so-rhone-alpes",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 44,
+  "fields": {
+    "site": 1,
+    "wp_id": 152,
+    "name": "Réflexions",
+    "slug": "reflexions",
+    "description": "",
+    "parent": 31
+  }
+},
+{
+  "model": "content.category",
+  "pk": 46,
+  "fields": {
+    "site": 1,
+    "wp_id": 154,
+    "name": "Syndicat national des transports et de l'aménagement du territoire",
+    "slug": "syndicat-national-des-transports-et-de-lamenagement-du-territoire",
+    "description": "Syndicat national des travailleurs du rail, des transports, de la logistique et de l’aménagement du territoire.",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 47,
+  "fields": {
+    "site": 1,
+    "wp_id": 155,
+    "name": "Syndicat des travailleur·euses uni·es de la culture et du spectacle (STUCS)",
+    "slug": "communication-culture-spectacle",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 51,
+  "fields": {
+    "site": 1,
+    "wp_id": 159,
+    "name": "Actualités - luttes",
+    "slug": "actualites-luttes",
+    "description": "",
+    "parent": 31
+  }
+},
+{
+  "model": "content.category",
+  "pk": 52,
+  "fields": {
+    "site": 1,
+    "wp_id": 160,
+    "name": "T.P.E",
+    "slug": "t-p-e",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 53,
+  "fields": {
+    "site": 1,
+    "wp_id": 161,
+    "name": "Services à la personne",
+    "slug": "services-a-la-personne",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 54,
+  "fields": {
+    "site": 1,
+    "wp_id": 162,
+    "name": "Commerce",
+    "slug": "commerce",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 55,
+  "fields": {
+    "site": 1,
+    "wp_id": 163,
+    "name": "CNT-SO Poitou",
+    "slug": "cnt-so-poitou",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 56,
+  "fields": {
+    "site": 1,
+    "wp_id": 164,
+    "name": "Santé & social",
+    "slug": "sante-social",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 57,
+  "fields": {
+    "site": 1,
+    "wp_id": 165,
+    "name": "Travailleurs.euses sans-papiers",
+    "slug": "travailleurs-euses-sans-papiers",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 58,
+  "fields": {
+    "site": 1,
+    "wp_id": 166,
+    "name": "Banque d'image",
+    "slug": "banque-dimage",
+    "description": "Dans cette rubrique à disposition des militant.e.s et structures de la CNT-SO, vous trouverez des visuels par thématiques. ",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 59,
+  "fields": {
+    "site": 1,
+    "wp_id": 167,
+    "name": "Livreurs & travailleurs.euses des plateformes",
+    "slug": "livreurs-travailleurs-euses-des-plateformes",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 60,
+  "fields": {
+    "site": 1,
+    "wp_id": 168,
+    "name": "Syndicat des Travailleur.euse.s Artistes-Auteurs (STAA)",
+    "slug": "syndicat-des-travailleur-euse-s-artistes-auteurs-staa",
+    "description": "",
+    "parent": 47
+  }
+},
+{
+  "model": "content.category",
+  "pk": 61,
+  "fields": {
+    "site": 1,
+    "wp_id": 169,
+    "name": "Industrie",
+    "slug": "industrie",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 62,
+  "fields": {
+    "site": 1,
+    "wp_id": 171,
+    "name": "Transport - logistique",
+    "slug": "transport-logistique",
+    "description": "",
+    "parent": 46
+  }
+},
+{
+  "model": "content.category",
+  "pk": 63,
+  "fields": {
+    "site": 1,
+    "wp_id": 172,
+    "name": "Librairie",
+    "slug": "librairie",
+    "description": "",
+    "parent": 47
+  }
+},
+{
+  "model": "content.category",
+  "pk": 65,
+  "fields": {
+    "site": 1,
+    "wp_id": 177,
+    "name": "Numérique",
+    "slug": "numerique",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 66,
+  "fields": {
+    "site": 1,
+    "wp_id": 178,
+    "name": "Activités postales et Télécommunications",
+    "slug": "activites-postales-et-telecommunications",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 67,
+  "fields": {
+    "site": 1,
+    "wp_id": 179,
+    "name": "Animation & Education Popuplaire",
+    "slug": "animation-education-popuplaire",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 68,
+  "fields": {
+    "site": 1,
+    "wp_id": 181,
+    "name": "Gard",
+    "slug": "gard",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 69,
+  "fields": {
+    "site": 1,
+    "wp_id": 182,
+    "name": "Culture",
+    "slug": "culture",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 70,
+  "fields": {
+    "site": 1,
+    "wp_id": 183,
+    "name": "CNT-SO Occitanie",
+    "slug": "cnt-so-occitanie",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 71,
+  "fields": {
+    "site": 1,
+    "wp_id": 184,
+    "name": "Gard",
+    "slug": "gard-cnt-so-occitanie",
+    "description": "",
+    "parent": 70
+  }
+},
+{
+  "model": "content.category",
+  "pk": 72,
+  "fields": {
+    "site": 1,
+    "wp_id": 185,
+    "name": "CNT-SO 66",
+    "slug": "cnt-so-66",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 73,
+  "fields": {
+    "site": 1,
+    "wp_id": 187,
+    "name": "Intérim",
+    "slug": "interim",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 74,
+  "fields": {
+    "site": 1,
+    "wp_id": 188,
+    "name": "Travailleur-euses de la terre",
+    "slug": "travailleur-euses-de-la-terre",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 75,
+  "fields": {
+    "site": 1,
+    "wp_id": 190,
+    "name": "Etudiant-es",
+    "slug": "etudiant-es",
+    "description": "",
+    "parent": 37
+  }
+},
+{
+  "model": "content.category",
+  "pk": 76,
+  "fields": {
+    "site": 1,
+    "wp_id": 191,
+    "name": "Institutions financières et Assurances",
+    "slug": "institutions-financieres-et-assurances",
+    "description": "",
+    "parent": 39
+  }
+},
+{
+  "model": "content.category",
+  "pk": 77,
+  "fields": {
+    "site": 2,
+    "wp_id": 1,
+    "name": "Non classé",
+    "slug": "non-classe",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 78,
+  "fields": {
+    "site": 2,
+    "wp_id": 63,
+    "name": "Santé & social",
+    "slug": "sante-social",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 79,
+  "fields": {
+    "site": 2,
+    "wp_id": 64,
+    "name": "Education - Recherche",
+    "slug": "education-recherche",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 80,
+  "fields": {
+    "site": 2,
+    "wp_id": 65,
+    "name": "Actualités - luttes",
+    "slug": "actualites-luttes",
+    "description": "",
+    "parent": 79
+  }
+},
+{
+  "model": "content.category",
+  "pk": 81,
+  "fields": {
+    "site": 2,
+    "wp_id": 66,
+    "name": "Se syndiquer",
+    "slug": "se-syndiquer",
+    "description": "",
+    "parent": 79
+  }
+},
+{
+  "model": "content.category",
+  "pk": 82,
+  "fields": {
+    "site": 2,
+    "wp_id": 67,
+    "name": "Interpro",
+    "slug": "interpro",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 83,
+  "fields": {
+    "site": 2,
+    "wp_id": 68,
+    "name": "- CNT-Solidarité Ouvrière",
+    "slug": "cnt-solidarite-ouvriere",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 84,
+  "fields": {
+    "site": 2,
+    "wp_id": 69,
+    "name": "Bulletin d'info",
+    "slug": "bulletin-dinfo",
+    "description": "",
+    "parent": 83
+  }
+},
+{
+  "model": "content.category",
+  "pk": 85,
+  "fields": {
+    "site": 2,
+    "wp_id": 70,
+    "name": "Soutiens",
+    "slug": "soutiens",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 86,
+  "fields": {
+    "site": 2,
+    "wp_id": 71,
+    "name": "BTP",
+    "slug": "btp",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 87,
+  "fields": {
+    "site": 2,
+    "wp_id": 72,
+    "name": "Revendiquons !",
+    "slug": "revendiquons",
+    "description": "",
+    "parent": 86
+  }
+},
+{
+  "model": "content.category",
+  "pk": 88,
+  "fields": {
+    "site": 2,
+    "wp_id": 73,
+    "name": "Nettoyage",
+    "slug": "nettoyage",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 89,
+  "fields": {
+    "site": 2,
+    "wp_id": 74,
+    "name": "Vos droits",
+    "slug": "vos-droits",
+    "description": "",
+    "parent": 86
+  }
+},
+{
+  "model": "content.category",
+  "pk": 90,
+  "fields": {
+    "site": 2,
+    "wp_id": 75,
+    "name": "Actualités - luttes",
+    "slug": "actualites-luttes-nettoyage",
+    "description": "",
+    "parent": 88
+  }
+},
+{
+  "model": "content.category",
+  "pk": 91,
+  "fields": {
+    "site": 2,
+    "wp_id": 76,
+    "name": "Actualités - luttes",
+    "slug": "actualites-luttes-interpro",
+    "description": "",
+    "parent": 82
+  }
+},
+{
+  "model": "content.category",
+  "pk": 92,
+  "fields": {
+    "site": 2,
+    "wp_id": 77,
+    "name": "Web - Liens",
+    "slug": "web-liens",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 93,
+  "fields": {
+    "site": 2,
+    "wp_id": 78,
+    "name": "CNT-Solidarité Ouvrière",
+    "slug": "cnt-solidarite-ouvriere-web-liens",
+    "description": "",
+    "parent": 92
+  }
+},
+{
+  "model": "content.category",
+  "pk": 94,
+  "fields": {
+    "site": 2,
+    "wp_id": 79,
+    "name": "Solidarité",
+    "slug": "solidarite",
+    "description": "",
+    "parent": 85
+  }
+},
+{
+  "model": "content.category",
+  "pk": 95,
+  "fields": {
+    "site": 2,
+    "wp_id": 80,
+    "name": "Sites à consulter",
+    "slug": "sites-a-consulter",
+    "description": "",
+    "parent": 92
+  }
+},
+{
+  "model": "content.category",
+  "pk": 96,
+  "fields": {
+    "site": 2,
+    "wp_id": 81,
+    "name": "- Permanences syndicales",
+    "slug": "permanences-syndicales",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 97,
+  "fields": {
+    "site": 2,
+    "wp_id": 82,
+    "name": "Infos - Dates des permanences",
+    "slug": "infos-dates-des-permanences",
+    "description": "",
+    "parent": 96
+  }
+},
+{
+  "model": "content.category",
+  "pk": 98,
+  "fields": {
+    "site": 2,
+    "wp_id": 83,
+    "name": "International",
+    "slug": "international",
+    "description": "",
+    "parent": 85
+  }
+},
+{
+  "model": "content.category",
+  "pk": 99,
+  "fields": {
+    "site": 2,
+    "wp_id": 84,
+    "name": "- Droit du travail",
+    "slug": "droit-du-travail",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 100,
+  "fields": {
+    "site": 2,
+    "wp_id": 85,
+    "name": "Brèves, infos",
+    "slug": "breves-infos",
+    "description": "",
+    "parent": 99
+  }
+},
+{
+  "model": "content.category",
+  "pk": 101,
+  "fields": {
+    "site": 2,
+    "wp_id": 86,
+    "name": "Présentation - Orientations",
+    "slug": "presentation-orientations",
+    "description": "",
+    "parent": 83
+  }
+},
+{
+  "model": "content.category",
+  "pk": 102,
+  "fields": {
+    "site": 2,
+    "wp_id": 87,
+    "name": "Actualités syndicales",
+    "slug": "actualites-syndicales",
+    "description": "",
+    "parent": 83
+  }
+},
+{
+  "model": "content.category",
+  "pk": 103,
+  "fields": {
+    "site": 2,
+    "wp_id": 88,
+    "name": "Se syndiquer",
+    "slug": "se-syndiquer-cnt-solidarite-ouvriere",
+    "description": "",
+    "parent": 83
+  }
+},
+{
+  "model": "content.category",
+  "pk": 105,
+  "fields": {
+    "site": 2,
+    "wp_id": 90,
+    "name": "Réflexion(s)",
+    "slug": "reflexions",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 106,
+  "fields": {
+    "site": 2,
+    "wp_id": 91,
+    "name": "Réflexion(s) et analyse",
+    "slug": "reflexions-et-analyse",
+    "description": "",
+    "parent": 105
+  }
+},
+{
+  "model": "content.category",
+  "pk": 107,
+  "fields": {
+    "site": 2,
+    "wp_id": 92,
+    "name": "Vos droits",
+    "slug": "vos-droits-education-recherche",
+    "description": "",
+    "parent": 79
+  }
+},
+{
+  "model": "content.category",
+  "pk": 108,
+  "fields": {
+    "site": 2,
+    "wp_id": 93,
+    "name": "Actualités - luttes",
+    "slug": "actualites-luttes-btp",
+    "description": "",
+    "parent": 86
+  }
+},
+{
+  "model": "content.category",
+  "pk": 109,
+  "fields": {
+    "site": 2,
+    "wp_id": 94,
+    "name": "Revendiquons !",
+    "slug": "revendiquons-nettoyage",
+    "description": "",
+    "parent": 88
+  }
+},
+{
+  "model": "content.category",
+  "pk": 110,
+  "fields": {
+    "site": 2,
+    "wp_id": 95,
+    "name": "Vos droits",
+    "slug": "vos-droits-nettoyage",
+    "description": "",
+    "parent": 88
+  }
+},
+{
+  "model": "content.category",
+  "pk": 111,
+  "fields": {
+    "site": 2,
+    "wp_id": 96,
+    "name": "Revendiquons !",
+    "slug": "revendiquons-interpro",
+    "description": "",
+    "parent": 82
+  }
+},
+{
+  "model": "content.category",
+  "pk": 112,
+  "fields": {
+    "site": 2,
+    "wp_id": 97,
+    "name": "Commerce et services",
+    "slug": "commerce-et-services",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 113,
+  "fields": {
+    "site": 2,
+    "wp_id": 98,
+    "name": "Vos droits",
+    "slug": "vos-droits-commerce-et-services",
+    "description": "",
+    "parent": 112
+  }
+},
+{
+  "model": "content.category",
+  "pk": 115,
+  "fields": {
+    "site": 2,
+    "wp_id": 100,
+    "name": "Revendiquons !",
+    "slug": "revendiquons-commerce-et-services",
+    "description": "",
+    "parent": 112
+  }
+},
+{
+  "model": "content.category",
+  "pk": 116,
+  "fields": {
+    "site": 2,
+    "wp_id": 101,
+    "name": "Inspection du travail",
+    "slug": "inspection-du-travail",
+    "description": "",
+    "parent": 99
+  }
+},
+{
+  "model": "content.category",
+  "pk": 117,
+  "fields": {
+    "site": 2,
+    "wp_id": 102,
+    "name": "Restauration - Hôtellerie",
+    "slug": "restauration-hotellerie",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 118,
+  "fields": {
+    "site": 2,
+    "wp_id": 103,
+    "name": "Vos droits",
+    "slug": "vos-droits-restauration-hotellerie",
+    "description": "",
+    "parent": 117
+  }
+},
+{
+  "model": "content.category",
+  "pk": 119,
+  "fields": {
+    "site": 2,
+    "wp_id": 104,
+    "name": "Élections TPE 2016",
+    "slug": "elections-tpe-2016",
+    "description": "",
+    "parent": 83
+  }
+},
+{
+  "model": "content.category",
+  "pk": 120,
+  "fields": {
+    "site": 2,
+    "wp_id": 105,
+    "name": "Transports",
+    "slug": "transports",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 121,
+  "fields": {
+    "site": 2,
+    "wp_id": 106,
+    "name": "Actualités - luttes",
+    "slug": "actualites-luttes-transports",
+    "description": "",
+    "parent": 120
+  }
+},
+{
+  "model": "content.category",
+  "pk": 123,
+  "fields": {
+    "site": 2,
+    "wp_id": 108,
+    "name": "Bulletin",
+    "slug": "bulletin",
+    "description": "",
+    "parent": 88
+  }
+},
+{
+  "model": "content.category",
+  "pk": 125,
+  "fields": {
+    "site": 2,
+    "wp_id": 110,
+    "name": "Services à la personne (SAP)",
+    "slug": "services-a-la-personne-sap",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 126,
+  "fields": {
+    "site": 2,
+    "wp_id": 111,
+    "name": "Revendiquons !",
+    "slug": "revendiquons-services-a-la-personne-sap",
+    "description": "",
+    "parent": 125
+  }
+},
+{
+  "model": "content.category",
+  "pk": 128,
+  "fields": {
+    "site": 2,
+    "wp_id": 113,
+    "name": "Actualité et luttes",
+    "slug": "actualite-et-luttes",
+    "description": "",
+    "parent": 78
+  }
+},
+{
+  "model": "content.category",
+  "pk": 129,
+  "fields": {
+    "site": 2,
+    "wp_id": 114,
+    "name": "Actualité - luttes",
+    "slug": "actualite-luttes",
+    "description": "",
+    "parent": 117
+  }
+},
+{
+  "model": "content.category",
+  "pk": 130,
+  "fields": {
+    "site": 2,
+    "wp_id": 115,
+    "name": "Fonction publique",
+    "slug": "fonction-publique",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 131,
+  "fields": {
+    "site": 2,
+    "wp_id": 116,
+    "name": "Luttes",
+    "slug": "luttes",
+    "description": "",
+    "parent": 112
+  }
+},
+{
+  "model": "content.category",
+  "pk": 132,
+  "fields": {
+    "site": 2,
+    "wp_id": 117,
+    "name": "Livreurs et salarié.e.s des plateformes",
+    "slug": "livreurs-et-salarie-e-s-des-plateformes",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 133,
+  "fields": {
+    "site": 2,
+    "wp_id": 118,
+    "name": "Revendiquons !",
+    "slug": "revendiquons-livreurs-et-salarie-e-s-des-plateformes",
+    "description": "",
+    "parent": 132
+  }
+},
+{
+  "model": "content.category",
+  "pk": 134,
+  "fields": {
+    "site": 2,
+    "wp_id": 119,
+    "name": "Revendiquons !",
+    "slug": "revendiquons-restauration-hotellerie",
+    "description": "",
+    "parent": 117
+  }
+},
+{
+  "model": "content.category",
+  "pk": 135,
+  "fields": {
+    "site": 2,
+    "wp_id": 120,
+    "name": "Industrie",
+    "slug": "industrie",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 136,
+  "fields": {
+    "site": 2,
+    "wp_id": 121,
+    "name": "Secteur culture et spectacle",
+    "slug": "secteur-culture-et-spectacle",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 137,
+  "fields": {
+    "site": 2,
+    "wp_id": 122,
+    "name": "Elections TPE 2021",
+    "slug": "elections-tpe-2021",
+    "description": "",
+    "parent": 83
+  }
+},
+{
+  "model": "content.category",
+  "pk": 138,
+  "fields": {
+    "site": 2,
+    "wp_id": 138,
+    "name": "Activités postales et télécommunications",
+    "slug": "activites-postales-et-telecommunications",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 139,
+  "fields": {
+    "site": 2,
+    "wp_id": 139,
+    "name": "Activités - luttes",
+    "slug": "activites-luttes",
+    "description": "",
+    "parent": 138
+  }
+},
+{
+  "model": "content.category",
+  "pk": 140,
+  "fields": {
+    "site": 2,
+    "wp_id": 140,
+    "name": "Vos droits",
+    "slug": "vos-droits-2",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 142,
+  "fields": {
+    "site": 2,
+    "wp_id": 151,
+    "name": "Elections livreurs 2022",
+    "slug": "elections-livreurs-2022",
+    "description": "",
+    "parent": 132
+  }
+},
+{
+  "model": "content.category",
+  "pk": 143,
+  "fields": {
+    "site": 2,
+    "wp_id": 158,
+    "name": "Animation - Education populaire",
+    "slug": "animation-education-populaire",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 145,
+  "fields": {
+    "site": 2,
+    "wp_id": 163,
+    "name": "Analyses",
+    "slug": "analyses",
+    "description": "",
+    "parent": 83
+  }
+},
+{
+  "model": "content.category",
+  "pk": 146,
+  "fields": {
+    "site": 3,
+    "wp_id": 1,
+    "name": "Non classé",
+    "slug": "non-classe",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 147,
+  "fields": {
+    "site": 3,
+    "wp_id": 16,
+    "name": "Actualités",
+    "slug": "actualites",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 148,
+  "fields": {
+    "site": 3,
+    "wp_id": 17,
+    "name": "Nettoyage",
+    "slug": "nettoyage",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 149,
+  "fields": {
+    "site": 3,
+    "wp_id": 18,
+    "name": "Construction - BTP",
+    "slug": "construction-btp",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 150,
+  "fields": {
+    "site": 3,
+    "wp_id": 19,
+    "name": "Hôtellerie - Restauration",
+    "slug": "hotellerie-restauration",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 151,
+  "fields": {
+    "site": 3,
+    "wp_id": 20,
+    "name": "TPE - salariés du particuliers",
+    "slug": "tpe-salaries-du-particuliers",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 152,
+  "fields": {
+    "site": 3,
+    "wp_id": 21,
+    "name": "Elections TPE 2016",
+    "slug": "elections-tpe-2016",
+    "description": "",
+    "parent": 151
+  }
+},
+{
+  "model": "content.category",
+  "pk": 153,
+  "fields": {
+    "site": 3,
+    "wp_id": 22,
+    "name": "CNT-SO",
+    "slug": "cnt-so",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 154,
+  "fields": {
+    "site": 3,
+    "wp_id": 23,
+    "name": "Contacts",
+    "slug": "contacts",
+    "description": "",
+    "parent": 153
+  }
+},
+{
+  "model": "content.category",
+  "pk": 155,
+  "fields": {
+    "site": 3,
+    "wp_id": 24,
+    "name": "Présentation - orientations",
+    "slug": "presentation-orientations",
+    "description": "",
+    "parent": 153
+  }
+},
+{
+  "model": "content.category",
+  "pk": 156,
+  "fields": {
+    "site": 3,
+    "wp_id": 25,
+    "name": "Publications",
+    "slug": "publications",
+    "description": "",
+    "parent": 153
+  }
+},
+{
+  "model": "content.category",
+  "pk": 157,
+  "fields": {
+    "site": 3,
+    "wp_id": 26,
+    "name": "Commerce",
+    "slug": "commerce",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 158,
+  "fields": {
+    "site": 3,
+    "wp_id": 27,
+    "name": "Services à la personne",
+    "slug": "services-a-la-personne",
+    "description": "",
+    "parent": 151
+  }
+},
+{
+  "model": "content.category",
+  "pk": 159,
+  "fields": {
+    "site": 4,
+    "wp_id": 1,
+    "name": "Non classé",
+    "slug": "non-classe",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 160,
+  "fields": {
+    "site": 4,
+    "wp_id": 4,
+    "name": "CNT-SO 03",
+    "slug": "cnt-so-03",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 161,
+  "fields": {
+    "site": 4,
+    "wp_id": 5,
+    "name": "UR CNT-SO Auvergne",
+    "slug": "ur-cnt-so-auvergne",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 162,
+  "fields": {
+    "site": 4,
+    "wp_id": 6,
+    "name": "Bâtiment-Travaux publics (BTP)",
+    "slug": "btp",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 163,
+  "fields": {
+    "site": 4,
+    "wp_id": 7,
+    "name": "Culture et Spectacle",
+    "slug": "stucs",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 164,
+  "fields": {
+    "site": 4,
+    "wp_id": 8,
+    "name": "Section Syndicale France Incendie",
+    "slug": "syndicat-france-incendie",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 165,
+  "fields": {
+    "site": 4,
+    "wp_id": 9,
+    "name": "Covid-19",
+    "slug": "covaid-19",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 166,
+  "fields": {
+    "site": 4,
+    "wp_id": 10,
+    "name": "Infos Salariales",
+    "slug": "minimas-salariaux",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 167,
+  "fields": {
+    "site": 4,
+    "wp_id": 11,
+    "name": "Commerce de Gros",
+    "slug": "commerce-de-gros",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 169,
+  "fields": {
+    "site": 4,
+    "wp_id": 15,
+    "name": "TPE 2021",
+    "slug": "tpe-2021",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 170,
+  "fields": {
+    "site": 4,
+    "wp_id": 17,
+    "name": "CNT-SO Montluçon",
+    "slug": "cnt-so-montlucon",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 171,
+  "fields": {
+    "site": 4,
+    "wp_id": 18,
+    "name": "CNT-SO 63",
+    "slug": "cnt-so-63",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 172,
+  "fields": {
+    "site": 4,
+    "wp_id": 19,
+    "name": "CNT-SO 43",
+    "slug": "cnt-so-43",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 173,
+  "fields": {
+    "site": 4,
+    "wp_id": 20,
+    "name": "CNT-SO 15",
+    "slug": "cnt-so-15",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 174,
+  "fields": {
+    "site": 4,
+    "wp_id": 21,
+    "name": "Éducation",
+    "slug": "federation-education-recherche",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 175,
+  "fields": {
+    "site": 4,
+    "wp_id": 22,
+    "name": "CNT-SO",
+    "slug": "cnt-so",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 176,
+  "fields": {
+    "site": 4,
+    "wp_id": 23,
+    "name": "Artistes et Auteur.e.s",
+    "slug": "staa",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 177,
+  "fields": {
+    "site": 4,
+    "wp_id": 24,
+    "name": "Poste et Télécommunications (PTT)",
+    "slug": "syndicat-des-activites-postales-et-telecommunications",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 178,
+  "fields": {
+    "site": 4,
+    "wp_id": 25,
+    "name": "Droits",
+    "slug": "droits",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 179,
+  "fields": {
+    "site": 4,
+    "wp_id": 26,
+    "name": "Métiers du numérique",
+    "slug": "syndicat-des-metiers-du-numerique",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 180,
+  "fields": {
+    "site": 4,
+    "wp_id": 27,
+    "name": "Nettoyage",
+    "slug": "nettoyage",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 181,
+  "fields": {
+    "site": 4,
+    "wp_id": 28,
+    "name": "CNT-SO 13",
+    "slug": "cnt-so-13",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 182,
+  "fields": {
+    "site": 4,
+    "wp_id": 29,
+    "name": "Service à la personne",
+    "slug": "service-a-la-personne",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 184,
+  "fields": {
+    "site": 4,
+    "wp_id": 31,
+    "name": "Livreurs & travailleurs.euses des plateformes",
+    "slug": "livreurs-travailleurs-euses-des-plateformes",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 185,
+  "fields": {
+    "site": 4,
+    "wp_id": 32,
+    "name": "Transports et aménagement du territoire",
+    "slug": "syndicat-national-des-transports-et-de-lamenagement-du-territoire",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 186,
+  "fields": {
+    "site": 4,
+    "wp_id": 33,
+    "name": "Santé & social",
+    "slug": "sante-social",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 191,
+  "fields": {
+    "site": 4,
+    "wp_id": 38,
+    "name": "SCUM - Syndicat de Combat Universitaire de Montpellier",
+    "slug": "scum-syndicat-de-combat-universitaire-de-montpellier",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 192,
+  "fields": {
+    "site": 4,
+    "wp_id": 39,
+    "name": "Industrie",
+    "slug": "industrie",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 193,
+  "fields": {
+    "site": 4,
+    "wp_id": 40,
+    "name": "Le brasero",
+    "slug": "le-brasero",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 194,
+  "fields": {
+    "site": 4,
+    "wp_id": 41,
+    "name": "L'incendiaire",
+    "slug": "lincendiaire",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 195,
+  "fields": {
+    "site": 4,
+    "wp_id": 42,
+    "name": "Bulletin \"Solidarité Ouvrière\"",
+    "slug": "solidarite-ouvriere",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 196,
+  "fields": {
+    "site": 4,
+    "wp_id": 43,
+    "name": "VISA",
+    "slug": "visa",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 197,
+  "fields": {
+    "site": 4,
+    "wp_id": 44,
+    "name": "Réseau Syndical International de Solidarité et de Luttes",
+    "slug": "reseau-syndical-international-de-solidarite-et-de-luttes",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 198,
+  "fields": {
+    "site": 4,
+    "wp_id": 45,
+    "name": "Agro-alimentaire",
+    "slug": "agro-alimentaire",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 199,
+  "fields": {
+    "site": 4,
+    "wp_id": 46,
+    "name": "Commerce",
+    "slug": "commerce",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 200,
+  "fields": {
+    "site": 4,
+    "wp_id": 47,
+    "name": "Restauration",
+    "slug": "restauration",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 201,
+  "fields": {
+    "site": 4,
+    "wp_id": 48,
+    "name": "Hôtellerie",
+    "slug": "hotellerie",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 202,
+  "fields": {
+    "site": 4,
+    "wp_id": 49,
+    "name": "Fonction publique territoriale",
+    "slug": "fonction-publique-territoriale",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 204,
+  "fields": {
+    "site": 4,
+    "wp_id": 51,
+    "name": "Pharmacie d'officine",
+    "slug": "pharmacie-dofficine",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 205,
+  "fields": {
+    "site": 4,
+    "wp_id": 52,
+    "name": "Coiffure/Esthétique",
+    "slug": "coiffure-esthetique",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 206,
+  "fields": {
+    "site": 4,
+    "wp_id": 53,
+    "name": "Librairie",
+    "slug": "librairie",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 208,
+  "fields": {
+    "site": 4,
+    "wp_id": 55,
+    "name": "Sans Papiers",
+    "slug": "sans-papiers",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 209,
+  "fields": {
+    "site": 4,
+    "wp_id": 56,
+    "name": "Petite enfance",
+    "slug": "petite-enfance",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 210,
+  "fields": {
+    "site": 4,
+    "wp_id": 57,
+    "name": "Activités Postales et Télécommunications",
+    "slug": "activites-postales-et-telecommunications",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 211,
+  "fields": {
+    "site": 4,
+    "wp_id": 58,
+    "name": "Connexions Directes",
+    "slug": "connexions-directes",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 212,
+  "fields": {
+    "site": 4,
+    "wp_id": 59,
+    "name": "CNT-SO Vichy",
+    "slug": "cnt-so-vichy",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 213,
+  "fields": {
+    "site": 4,
+    "wp_id": 60,
+    "name": "CNT-SO Moulins",
+    "slug": "cnt-so-moulins",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 214,
+  "fields": {
+    "site": 4,
+    "wp_id": 61,
+    "name": "CNT-SO Clermont-Ferrand",
+    "slug": "cnt-so-clermont-ferrand",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 217,
+  "fields": {
+    "site": 5,
+    "wp_id": 6,
+    "name": "annonces",
+    "slug": "annonces",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 218,
+  "fields": {
+    "site": 5,
+    "wp_id": 7,
+    "name": "toolbox",
+    "slug": "toolbox",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 219,
+  "fields": {
+    "site": 5,
+    "wp_id": 8,
+    "name": "fiche",
+    "slug": "fiche",
+    "description": "",
+    "parent": 218
+  }
+},
+{
+  "model": "content.category",
+  "pk": 222,
+  "fields": {
+    "site": 5,
+    "wp_id": 11,
+    "name": "administratif",
+    "slug": "administratif",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 223,
+  "fields": {
+    "site": 5,
+    "wp_id": 12,
+    "name": "publications",
+    "slug": "publications",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 226,
+  "fields": {
+    "site": 5,
+    "wp_id": 15,
+    "name": "CAF",
+    "slug": "caf",
+    "description": "",
+    "parent": 222
+  }
+},
+{
+  "model": "content.category",
+  "pk": 228,
+  "fields": {
+    "site": 5,
+    "wp_id": 25,
+    "name": "Nouvelles technologies",
+    "slug": "nouvelles-technologies",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 229,
+  "fields": {
+    "site": 6,
+    "wp_id": 1,
+    "name": "Non classé",
+    "slug": "non-classe",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 230,
+  "fields": {
+    "site": 6,
+    "wp_id": 2,
+    "name": "La CNT-SO à Poitiers",
+    "slug": "la-cnt-so-a-poitiers",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 231,
+  "fields": {
+    "site": 6,
+    "wp_id": 3,
+    "name": "Espace des syndicats",
+    "slug": "espace-des-syndicats",
+    "description": "Retrouvez tous les communiqués et tracts des syndicats CNT-SO du Poitou-Charentes",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 232,
+  "fields": {
+    "site": 6,
+    "wp_id": 4,
+    "name": "Qui sommes nous ?",
+    "slug": "qui-sommes-nous",
+    "description": "Notre histoire syndicale récente ou plus ancienne",
+    "parent": 230
+  }
+},
+{
+  "model": "content.category",
+  "pk": 233,
+  "fields": {
+    "site": 6,
+    "wp_id": 5,
+    "name": "Le coin juridique",
+    "slug": "le-coin-juridique",
+    "description": "Au quotidien, l'information juridique essentielle pour tous les salariés",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 234,
+  "fields": {
+    "site": 6,
+    "wp_id": 6,
+    "name": "Mémoires des luttes",
+    "slug": "memoires-des-luttes",
+    "description": " Culture historique sur l'anarcho-syndicalisme et le syndicaliste révolutionnaire",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 235,
+  "fields": {
+    "site": 6,
+    "wp_id": 7,
+    "name": "Liens",
+    "slug": "liens",
+    "description": "Les sites que nous aimons et recommandons... ",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 236,
+  "fields": {
+    "site": 6,
+    "wp_id": 8,
+    "name": "National et international",
+    "slug": "national-et-international",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 237,
+  "fields": {
+    "site": 6,
+    "wp_id": 9,
+    "name": "Actualités locales",
+    "slug": "actualites-locales",
+    "description": "La CNT-SO, au plus près de nos vies, au plus près des luttes sociales ",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 238,
+  "fields": {
+    "site": 6,
+    "wp_id": 10,
+    "name": "On recommande",
+    "slug": "on-recommande",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 239,
+  "fields": {
+    "site": 6,
+    "wp_id": 11,
+    "name": "Agenda",
+    "slug": "agenda",
+    "description": "<a href=\"https://poitiers.demosphere.net\">agenda</a>",
+    "parent": null
+  }
+},
+{
+  "model": "content.category",
+  "pk": 240,
+  "fields": {
+    "site": 6,
+    "wp_id": 12,
+    "name": "SUBBTPI",
+    "slug": "subbtpi",
+    "description": "Syndicat Unifié du Bois, de Bâtiment, des Travaux Publics et de l'Industrie",
+    "parent": 231
+  }
+},
+{
+  "model": "content.category",
+  "pk": 241,
+  "fields": {
+    "site": 6,
+    "wp_id": 13,
+    "name": "STER",
+    "slug": "ster",
+    "description": "Syndicat des Travailleuses et travailleurs de l'Éducation et de la Recherche",
+    "parent": 231
+  }
+},
+{
+  "model": "content.category",
+  "pk": 242,
+  "fields": {
+    "site": 6,
+    "wp_id": 14,
+    "name": "STUCS",
+    "slug": "stucs",
+    "description": "Syndicat des Travailleuses et travailleurs Uni·es de la Culture et du Spectacle",
+    "parent": 231
+  }
+},
+{
+  "model": "content.category",
+  "pk": 243,
+  "fields": {
+    "site": 6,
+    "wp_id": 15,
+    "name": "Restauration",
+    "slug": "restauration",
+    "description": "Syndicat de travailleuses et travailleurs de la restauration",
+    "parent": 231
+  }
+},
+{
+  "model": "content.category",
+  "pk": 244,
+  "fields": {
+    "site": 6,
+    "wp_id": 16,
+    "name": "Santé-Social",
+    "slug": "sante-social",
+    "description": "",
+    "parent": 231
+  }
+},
+{
+  "model": "content.category",
+  "pk": 246,
+  "fields": {
+    "site": 6,
+    "wp_id": 18,
+    "name": "Sites / Blogs",
+    "slug": "sites-blogs",
+    "description": "",
+    "parent": 235
+  }
+},
+{
+  "model": "content.category",
+  "pk": 247,
+  "fields": {
+    "site": 6,
+    "wp_id": 19,
+    "name": "National",
+    "slug": "national",
+    "description": "",
+    "parent": 236
+  }
+},
+{
+  "model": "content.category",
+  "pk": 248,
+  "fields": {
+    "site": 6,
+    "wp_id": 20,
+    "name": "International",
+    "slug": "international",
+    "description": "",
+    "parent": 236
+  }
+},
+{
+  "model": "content.category",
+  "pk": 250,
+  "fields": {
+    "site": 7,
+    "wp_id": 1,
+    "name": "Non classé",
+    "slug": "non-classe",
+    "description": "",
+    "parent": null
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 1,
+  "fields": {
+    "site": null,
+    "wp_id": 3,
+    "name": "manchette",
+    "slug": "manchette"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 2,
+  "fields": {
+    "site": null,
+    "wp_id": 6,
+    "name": "carrousel",
+    "slug": "carrousel"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 3,
+  "fields": {
+    "site": null,
+    "wp_id": 108,
+    "name": "manchette-staa",
+    "slug": "manchette-staa"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 4,
+  "fields": {
+    "site": null,
+    "wp_id": 109,
+    "name": "staa",
+    "slug": "staa"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 12,
+  "fields": {
+    "site": null,
+    "wp_id": 127,
+    "name": "Service à la personne",
+    "slug": "service-a-la-personne"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 13,
+  "fields": {
+    "site": null,
+    "wp_id": 128,
+    "name": "Aides à domice",
+    "slug": "aides-a-domice"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 14,
+  "fields": {
+    "site": null,
+    "wp_id": 129,
+    "name": "Nettoyage",
+    "slug": "nettoyage"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 15,
+  "fields": {
+    "site": null,
+    "wp_id": 130,
+    "name": "Education",
+    "slug": "education"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 16,
+  "fields": {
+    "site": null,
+    "wp_id": 131,
+    "name": "Covid19",
+    "slug": "covid19"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 17,
+  "fields": {
+    "site": null,
+    "wp_id": 132,
+    "name": "caroussel",
+    "slug": "caroussel"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 18,
+  "fields": {
+    "site": null,
+    "wp_id": 133,
+    "name": "éducation",
+    "slug": "education-2"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 19,
+  "fields": {
+    "site": null,
+    "wp_id": 134,
+    "name": "vos droits",
+    "slug": "vos-droits"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 20,
+  "fields": {
+    "site": null,
+    "wp_id": 135,
+    "name": "AESH",
+    "slug": "aesh"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 21,
+  "fields": {
+    "site": null,
+    "wp_id": 136,
+    "name": "réforme de l&#039;assurance chômage",
+    "slug": "reforme-de-lassurance-chomage"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 22,
+  "fields": {
+    "site": null,
+    "wp_id": 137,
+    "name": "animation",
+    "slug": "animation"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 23,
+  "fields": {
+    "site": null,
+    "wp_id": 142,
+    "name": "Activités postales et télécommunications",
+    "slug": "activites-postales-et-telecommunications"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 24,
+  "fields": {
+    "site": null,
+    "wp_id": 143,
+    "name": "Pédagogie",
+    "slug": "pedagogie"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 25,
+  "fields": {
+    "site": null,
+    "wp_id": 144,
+    "name": "Stage syndicale",
+    "slug": "stage-syndicale"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 26,
+  "fields": {
+    "site": null,
+    "wp_id": 145,
+    "name": "grève",
+    "slug": "greve"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 27,
+  "fields": {
+    "site": null,
+    "wp_id": 146,
+    "name": "salaires",
+    "slug": "salaires"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 28,
+  "fields": {
+    "site": null,
+    "wp_id": 147,
+    "name": "interpro",
+    "slug": "interpro"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 29,
+  "fields": {
+    "site": null,
+    "wp_id": 148,
+    "name": "féminisme",
+    "slug": "feminisme"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 30,
+  "fields": {
+    "site": null,
+    "wp_id": 149,
+    "name": "lutte des femmes",
+    "slug": "lutte-des-femmes"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 31,
+  "fields": {
+    "site": null,
+    "wp_id": 150,
+    "name": "internationalisme",
+    "slug": "internationalisme"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 32,
+  "fields": {
+    "site": null,
+    "wp_id": 152,
+    "name": "Livreurs plateformes",
+    "slug": "livreurs-plateformes"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 33,
+  "fields": {
+    "site": null,
+    "wp_id": 153,
+    "name": "Ukraine",
+    "slug": "ukraine"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 34,
+  "fields": {
+    "site": null,
+    "wp_id": 154,
+    "name": "Solidarité",
+    "slug": "solidarite"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 35,
+  "fields": {
+    "site": null,
+    "wp_id": 155,
+    "name": "Soutien",
+    "slug": "soutien"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 36,
+  "fields": {
+    "site": null,
+    "wp_id": 156,
+    "name": "premier mai",
+    "slug": "premier-mai"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 37,
+  "fields": {
+    "site": null,
+    "wp_id": 157,
+    "name": "social",
+    "slug": "social"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 38,
+  "fields": {
+    "site": null,
+    "wp_id": 159,
+    "name": "Education populaire",
+    "slug": "education-populaire"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 39,
+  "fields": {
+    "site": null,
+    "wp_id": 160,
+    "name": "Nos droits",
+    "slug": "nos-droits"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 40,
+  "fields": {
+    "site": null,
+    "wp_id": 161,
+    "name": "canicule",
+    "slug": "canicule"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 41,
+  "fields": {
+    "site": null,
+    "wp_id": 164,
+    "name": "analyses",
+    "slug": "analyses"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 42,
+  "fields": {
+    "site": null,
+    "wp_id": 165,
+    "name": "saisonniers",
+    "slug": "saisonniers"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 43,
+  "fields": {
+    "site": null,
+    "wp_id": 166,
+    "name": "vie chère",
+    "slug": "vie-chere"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 44,
+  "fields": {
+    "site": null,
+    "wp_id": 167,
+    "name": "inflation",
+    "slug": "inflation"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 45,
+  "fields": {
+    "site": null,
+    "wp_id": 168,
+    "name": "petite enfance",
+    "slug": "petite-enfance"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 46,
+  "fields": {
+    "site": null,
+    "wp_id": 169,
+    "name": "droits syndicaux",
+    "slug": "droits-syndicaux"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 47,
+  "fields": {
+    "site": null,
+    "wp_id": 170,
+    "name": "livreurs",
+    "slug": "livreurs"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 48,
+  "fields": {
+    "site": null,
+    "wp_id": 171,
+    "name": "restauration",
+    "slug": "restauration"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 49,
+  "fields": {
+    "site": null,
+    "wp_id": 172,
+    "name": "livreurs des plateformes",
+    "slug": "livreurs-des-plateformes"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 50,
+  "fields": {
+    "site": null,
+    "wp_id": 173,
+    "name": "retraites",
+    "slug": "retraites"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 51,
+  "fields": {
+    "site": null,
+    "wp_id": 174,
+    "name": "culture et spectacle",
+    "slug": "culture-et-spectacle"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 52,
+  "fields": {
+    "site": null,
+    "wp_id": 175,
+    "name": "congrès",
+    "slug": "congres"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 53,
+  "fields": {
+    "site": null,
+    "wp_id": 176,
+    "name": "CSE",
+    "slug": "cse"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 54,
+  "fields": {
+    "site": null,
+    "wp_id": 177,
+    "name": "assurance chômage",
+    "slug": "assurance-chomage"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 56,
+  "fields": {
+    "site": null,
+    "wp_id": 179,
+    "name": "Artistes Auteurices",
+    "slug": "artistes-auteurices"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 57,
+  "fields": {
+    "site": null,
+    "wp_id": 180,
+    "name": "CNT-SO STAA",
+    "slug": "cnt-so-staa"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 58,
+  "fields": {
+    "site": null,
+    "wp_id": 181,
+    "name": "enseignement supérieur et recherche",
+    "slug": "enseignement-superieur-et-recherche"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 59,
+  "fields": {
+    "site": null,
+    "wp_id": 182,
+    "name": "lycée pro",
+    "slug": "lycee-pro"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 60,
+  "fields": {
+    "site": null,
+    "wp_id": 183,
+    "name": "8 mars",
+    "slug": "8-mars"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 61,
+  "fields": {
+    "site": null,
+    "wp_id": 184,
+    "name": "grève féministe",
+    "slug": "greve-feministe"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 62,
+  "fields": {
+    "site": null,
+    "wp_id": 185,
+    "name": "sans-papiers",
+    "slug": "sans-papiers"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 63,
+  "fields": {
+    "site": null,
+    "wp_id": 186,
+    "name": "travailleurs sans-papiers",
+    "slug": "travailleurs-sans-papiers"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 64,
+  "fields": {
+    "site": null,
+    "wp_id": 187,
+    "name": "travailleurs immigrés",
+    "slug": "travailleurs-immigres"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 65,
+  "fields": {
+    "site": null,
+    "wp_id": 188,
+    "name": "jeunesse",
+    "slug": "jeunesse"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 66,
+  "fields": {
+    "site": null,
+    "wp_id": 189,
+    "name": "antimilitarisme",
+    "slug": "antimilitarisme"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 67,
+  "fields": {
+    "site": null,
+    "wp_id": 190,
+    "name": "SNU",
+    "slug": "snu"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 68,
+  "fields": {
+    "site": null,
+    "wp_id": 191,
+    "name": "éducation populaire",
+    "slug": "education-populaire-2"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 69,
+  "fields": {
+    "site": null,
+    "wp_id": 192,
+    "name": "répression",
+    "slug": "repression"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 70,
+  "fields": {
+    "site": null,
+    "wp_id": 193,
+    "name": "voie pro",
+    "slug": "voie-pro"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 72,
+  "fields": {
+    "site": null,
+    "wp_id": 195,
+    "name": "BTP",
+    "slug": "btp"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 73,
+  "fields": {
+    "site": null,
+    "wp_id": 196,
+    "name": "travailleurs saisonniers",
+    "slug": "travailleurs-saisonniers"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 74,
+  "fields": {
+    "site": null,
+    "wp_id": 197,
+    "name": "darmanin",
+    "slug": "darmanin"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 75,
+  "fields": {
+    "site": null,
+    "wp_id": 198,
+    "name": "stage",
+    "slug": "stage"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 76,
+  "fields": {
+    "site": null,
+    "wp_id": 199,
+    "name": "amiante",
+    "slug": "amiante"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 77,
+  "fields": {
+    "site": null,
+    "wp_id": 200,
+    "name": "extreme droite",
+    "slug": "extreme-droite"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 78,
+  "fields": {
+    "site": null,
+    "wp_id": 201,
+    "name": "3043",
+    "slug": "3043"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 79,
+  "fields": {
+    "site": null,
+    "wp_id": 202,
+    "name": "Grille de salaire",
+    "slug": "grille-de-salaire"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 82,
+  "fields": {
+    "site": null,
+    "wp_id": 17,
+    "name": "droit d&#039;auteur",
+    "slug": "droit-dauteur"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 83,
+  "fields": {
+    "site": null,
+    "wp_id": 18,
+    "name": "cotisations",
+    "slug": "cotisations"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 84,
+  "fields": {
+    "site": null,
+    "wp_id": 19,
+    "name": "artiste-auteur",
+    "slug": "artiste-auteur"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 85,
+  "fields": {
+    "site": null,
+    "wp_id": 20,
+    "name": "IRCEC",
+    "slug": "ircec"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 86,
+  "fields": {
+    "site": null,
+    "wp_id": 21,
+    "name": "BNC",
+    "slug": "bnc"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 87,
+  "fields": {
+    "site": null,
+    "wp_id": 22,
+    "name": "revenu de remplacement",
+    "slug": "revenu-de-remplacement"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 88,
+  "fields": {
+    "site": null,
+    "wp_id": 23,
+    "name": "chomage",
+    "slug": "chomage"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 89,
+  "fields": {
+    "site": null,
+    "wp_id": 24,
+    "name": "intermittence",
+    "slug": "intermittence"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 90,
+  "fields": {
+    "site": null,
+    "wp_id": 24,
+    "name": "covid",
+    "slug": "covid"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 91,
+  "fields": {
+    "site": null,
+    "wp_id": 25,
+    "name": "pass sanitaire",
+    "slug": "pass-sanitaire"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 92,
+  "fields": {
+    "site": null,
+    "wp_id": 26,
+    "name": "santé",
+    "slug": "sante"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 93,
+  "fields": {
+    "site": null,
+    "wp_id": 27,
+    "name": "vaccination",
+    "slug": "vaccination"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 94,
+  "fields": {
+    "site": null,
+    "wp_id": 29,
+    "name": "permamence",
+    "slug": "permamence"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 95,
+  "fields": {
+    "site": null,
+    "wp_id": 30,
+    "name": "numérique",
+    "slug": "numerique"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 96,
+  "fields": {
+    "site": null,
+    "wp_id": 31,
+    "name": "santé social",
+    "slug": "sante-social"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 97,
+  "fields": {
+    "site": null,
+    "wp_id": 32,
+    "name": "communiqué de presse",
+    "slug": "communique-de-presse"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 98,
+  "fields": {
+    "site": null,
+    "wp_id": 33,
+    "name": "droit du travail",
+    "slug": "droit-du-travail"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 99,
+  "fields": {
+    "site": null,
+    "wp_id": 34,
+    "name": "communiqué",
+    "slug": "communique"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 100,
+  "fields": {
+    "site": null,
+    "wp_id": 35,
+    "name": "STER",
+    "slug": "ster"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 101,
+  "fields": {
+    "site": null,
+    "wp_id": 36,
+    "name": "Manifestation",
+    "slug": "manifestation"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 102,
+  "fields": {
+    "site": null,
+    "wp_id": 37,
+    "name": "Féminisme & patriarcat",
+    "slug": "feminisme-patriarcat"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 103,
+  "fields": {
+    "site": null,
+    "wp_id": 38,
+    "name": "voeux",
+    "slug": "voeux"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 104,
+  "fields": {
+    "site": null,
+    "wp_id": 40,
+    "name": "Éducation / Recherche",
+    "slug": "education-recherche"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 105,
+  "fields": {
+    "site": null,
+    "wp_id": 42,
+    "name": "caisse de grève",
+    "slug": "caisse-de-greve"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 106,
+  "fields": {
+    "site": null,
+    "wp_id": 44,
+    "name": "immigration",
+    "slug": "immigration"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 107,
+  "fields": {
+    "site": null,
+    "wp_id": 45,
+    "name": "BNM",
+    "slug": "bnm"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 108,
+  "fields": {
+    "site": null,
+    "wp_id": 46,
+    "name": "agriculture",
+    "slug": "agriculture"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 109,
+  "fields": {
+    "site": null,
+    "wp_id": 47,
+    "name": "Repression syndicale",
+    "slug": "repression-syndicale"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 110,
+  "fields": {
+    "site": null,
+    "wp_id": 48,
+    "name": "Amazone",
+    "slug": "amazone"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 111,
+  "fields": {
+    "site": null,
+    "wp_id": 50,
+    "name": "violences policières",
+    "slug": "violences-policieres"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 112,
+  "fields": {
+    "site": null,
+    "wp_id": 51,
+    "name": "Solidarité avec S",
+    "slug": "solidarite-avec-s"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 113,
+  "fields": {
+    "site": null,
+    "wp_id": 52,
+    "name": "sainte-soline",
+    "slug": "sainte-soline"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 114,
+  "fields": {
+    "site": null,
+    "wp_id": 53,
+    "name": "CNT-SO",
+    "slug": "cnt-so"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 115,
+  "fields": {
+    "site": null,
+    "wp_id": 54,
+    "name": "Répression syndicale",
+    "slug": "repression-syndicale-2"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 116,
+  "fields": {
+    "site": null,
+    "wp_id": 55,
+    "name": "Brice de Nice",
+    "slug": "brice-de-nice"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 117,
+  "fields": {
+    "site": null,
+    "wp_id": 57,
+    "name": "Réforme des retraites",
+    "slug": "reforme-des-retraites"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 118,
+  "fields": {
+    "site": null,
+    "wp_id": 58,
+    "name": "1er mai",
+    "slug": "1er-mai"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 119,
+  "fields": {
+    "site": null,
+    "wp_id": 59,
+    "name": "accord",
+    "slug": "accord"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 120,
+  "fields": {
+    "site": null,
+    "wp_id": 60,
+    "name": "livreurs à vélo",
+    "slug": "livreurs-a-velo"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 121,
+  "fields": {
+    "site": null,
+    "wp_id": 62,
+    "name": "Forum",
+    "slug": "forum"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 122,
+  "fields": {
+    "site": null,
+    "wp_id": 66,
+    "name": "Poitiers",
+    "slug": "poitiers"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 123,
+  "fields": {
+    "site": null,
+    "wp_id": 67,
+    "name": "Maison des Luttes",
+    "slug": "maison-des-luttes"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 125,
+  "fields": {
+    "site": null,
+    "wp_id": 69,
+    "name": "Mouvement social",
+    "slug": "mouvement-social"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 126,
+  "fields": {
+    "site": null,
+    "wp_id": 70,
+    "name": "rencontres",
+    "slug": "rencontres"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 127,
+  "fields": {
+    "site": null,
+    "wp_id": 71,
+    "name": "IRTS",
+    "slug": "irts"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 128,
+  "fields": {
+    "site": null,
+    "wp_id": 72,
+    "name": "Gaza",
+    "slug": "gaza"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 129,
+  "fields": {
+    "site": null,
+    "wp_id": 73,
+    "name": "Palestine",
+    "slug": "palestine"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 130,
+  "fields": {
+    "site": null,
+    "wp_id": 74,
+    "name": "Saint-Léger-la-Pallu",
+    "slug": "saint-leger-la-pallu"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 131,
+  "fields": {
+    "site": null,
+    "wp_id": 75,
+    "name": "Antiracisme",
+    "slug": "antiracisme"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 132,
+  "fields": {
+    "site": null,
+    "wp_id": 76,
+    "name": "LoiDarmanin",
+    "slug": "loidarmanin"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 133,
+  "fields": {
+    "site": null,
+    "wp_id": 77,
+    "name": "Extreme-droite",
+    "slug": "extreme-droite-2"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 134,
+  "fields": {
+    "site": null,
+    "wp_id": 78,
+    "name": "Violence",
+    "slug": "violence"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 135,
+  "fields": {
+    "site": null,
+    "wp_id": 79,
+    "name": "enseignement professionnel",
+    "slug": "enseignement-professionnel"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 136,
+  "fields": {
+    "site": null,
+    "wp_id": 80,
+    "name": "#France",
+    "slug": "france"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 137,
+  "fields": {
+    "site": null,
+    "wp_id": 81,
+    "name": "#Mortalité",
+    "slug": "mortalite"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 138,
+  "fields": {
+    "site": null,
+    "wp_id": 82,
+    "name": "#Travail",
+    "slug": "travail"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 139,
+  "fields": {
+    "site": null,
+    "wp_id": 83,
+    "name": "#Handicap",
+    "slug": "handicap"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 140,
+  "fields": {
+    "site": null,
+    "wp_id": 84,
+    "name": "Filmer le travail",
+    "slug": "filmer-le-travail"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 141,
+  "fields": {
+    "site": null,
+    "wp_id": 85,
+    "name": "Autogestion",
+    "slug": "autogestion"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 142,
+  "fields": {
+    "site": null,
+    "wp_id": 87,
+    "name": "Medecine du Travail",
+    "slug": "medecine-du-travail"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 143,
+  "fields": {
+    "site": null,
+    "wp_id": 88,
+    "name": "Accidents & maladies professionnelles",
+    "slug": "accidents-maladies-professionnelles"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 144,
+  "fields": {
+    "site": null,
+    "wp_id": 89,
+    "name": "ESAT",
+    "slug": "esat"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 146,
+  "fields": {
+    "site": null,
+    "wp_id": 91,
+    "name": "#pologne",
+    "slug": "pologne"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 147,
+  "fields": {
+    "site": null,
+    "wp_id": 93,
+    "name": "#syndicalisme révolutionnaire",
+    "slug": "syndicalisme-revolutionnaire"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 148,
+  "fields": {
+    "site": null,
+    "wp_id": 94,
+    "name": "# anarcho syndicalisme",
+    "slug": "anarcho-syndicalisme"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 150,
+  "fields": {
+    "site": null,
+    "wp_id": 96,
+    "name": "#grève",
+    "slug": "greve-2"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 151,
+  "fields": {
+    "site": null,
+    "wp_id": 97,
+    "name": "#IRTS",
+    "slug": "irts-2"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 152,
+  "fields": {
+    "site": null,
+    "wp_id": 98,
+    "name": "défense salariale",
+    "slug": "defense-salariale"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 153,
+  "fields": {
+    "site": null,
+    "wp_id": 99,
+    "name": "prud&#039;homme",
+    "slug": "prudhomme"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 154,
+  "fields": {
+    "site": null,
+    "wp_id": 100,
+    "name": "#STER86",
+    "slug": "ster86"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 155,
+  "fields": {
+    "site": null,
+    "wp_id": 101,
+    "name": "#Education nationale",
+    "slug": "education-nationale"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 156,
+  "fields": {
+    "site": null,
+    "wp_id": 102,
+    "name": "#Groupe de niveau",
+    "slug": "groupe-de-niveau"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 157,
+  "fields": {
+    "site": null,
+    "wp_id": 103,
+    "name": "#Tri social",
+    "slug": "tri-social"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 159,
+  "fields": {
+    "site": null,
+    "wp_id": 105,
+    "name": "choc des savoirs",
+    "slug": "choc-des-savoirs"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 160,
+  "fields": {
+    "site": null,
+    "wp_id": 106,
+    "name": "Deux-Sèvres",
+    "slug": "deux-sevres"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 161,
+  "fields": {
+    "site": null,
+    "wp_id": 107,
+    "name": "STUCS",
+    "slug": "stucs"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 162,
+  "fields": {
+    "site": null,
+    "wp_id": 108,
+    "name": "Marseille",
+    "slug": "marseille"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 163,
+  "fields": {
+    "site": null,
+    "wp_id": 109,
+    "name": "hôtellerie",
+    "slug": "hotellerie"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 164,
+  "fields": {
+    "site": null,
+    "wp_id": 110,
+    "name": "antifacisme",
+    "slug": "antifacisme"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 165,
+  "fields": {
+    "site": null,
+    "wp_id": 111,
+    "name": "libertés",
+    "slug": "libertes"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 166,
+  "fields": {
+    "site": null,
+    "wp_id": 112,
+    "name": "syndicalisme",
+    "slug": "syndicalisme"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 167,
+  "fields": {
+    "site": null,
+    "wp_id": 113,
+    "name": "Nouvelle-Calédonie",
+    "slug": "nouvelle-caledonie"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 168,
+  "fields": {
+    "site": null,
+    "wp_id": 114,
+    "name": "Kanaky",
+    "slug": "kanaky"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 169,
+  "fields": {
+    "site": null,
+    "wp_id": 115,
+    "name": "Colonialisme",
+    "slug": "colonialisme"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 170,
+  "fields": {
+    "site": null,
+    "wp_id": 116,
+    "name": "INRS",
+    "slug": "inrs"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 171,
+  "fields": {
+    "site": null,
+    "wp_id": 117,
+    "name": "La poste",
+    "slug": "la-poste"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 172,
+  "fields": {
+    "site": null,
+    "wp_id": 118,
+    "name": "Services publics",
+    "slug": "services-publics"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 173,
+  "fields": {
+    "site": null,
+    "wp_id": 119,
+    "name": "Espagne",
+    "slug": "espagne"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 174,
+  "fields": {
+    "site": null,
+    "wp_id": 120,
+    "name": "Solidarité Internationale",
+    "slug": "solidarite-internationale"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 175,
+  "fields": {
+    "site": null,
+    "wp_id": 121,
+    "name": "camping",
+    "slug": "camping"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 177,
+  "fields": {
+    "site": null,
+    "wp_id": 124,
+    "name": "Histoire",
+    "slug": "histoire"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 178,
+  "fields": {
+    "site": null,
+    "wp_id": 125,
+    "name": "mémoire",
+    "slug": "memoire"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 179,
+  "fields": {
+    "site": null,
+    "wp_id": 126,
+    "name": "Gréce",
+    "slug": "grece"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 180,
+  "fields": {
+    "site": null,
+    "wp_id": 127,
+    "name": "Paris",
+    "slug": "paris"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 181,
+  "fields": {
+    "site": null,
+    "wp_id": 128,
+    "name": "grêve",
+    "slug": "greve-3"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 182,
+  "fields": {
+    "site": null,
+    "wp_id": 129,
+    "name": "art",
+    "slug": "art"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 183,
+  "fields": {
+    "site": null,
+    "wp_id": 130,
+    "name": "fresque",
+    "slug": "fresque"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 184,
+  "fields": {
+    "site": null,
+    "wp_id": 131,
+    "name": "antifascisme",
+    "slug": "antifascisme"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 185,
+  "fields": {
+    "site": null,
+    "wp_id": 132,
+    "name": "Corée du Sud",
+    "slug": "coree-du-sud"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 186,
+  "fields": {
+    "site": null,
+    "wp_id": 133,
+    "name": "Samsung",
+    "slug": "samsung"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 187,
+  "fields": {
+    "site": null,
+    "wp_id": 134,
+    "name": "Bassines",
+    "slug": "bassines"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 188,
+  "fields": {
+    "site": null,
+    "wp_id": 135,
+    "name": "code du travail",
+    "slug": "code-du-travail"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 189,
+  "fields": {
+    "site": null,
+    "wp_id": 138,
+    "name": "feminisme",
+    "slug": "feminisme-2"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 190,
+  "fields": {
+    "site": null,
+    "wp_id": 139,
+    "name": "#austérité",
+    "slug": "austerite"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 191,
+  "fields": {
+    "site": null,
+    "wp_id": 140,
+    "name": "#SCUM",
+    "slug": "scum"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 192,
+  "fields": {
+    "site": null,
+    "wp_id": 141,
+    "name": "#Montpellier",
+    "slug": "montpellier"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 193,
+  "fields": {
+    "site": null,
+    "wp_id": 142,
+    "name": "études supérieures",
+    "slug": "etudes-superieures"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 194,
+  "fields": {
+    "site": null,
+    "wp_id": 143,
+    "name": "Valence",
+    "slug": "valence"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 195,
+  "fields": {
+    "site": null,
+    "wp_id": 144,
+    "name": "CGT espagnol",
+    "slug": "cgt-espagnol"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 196,
+  "fields": {
+    "site": null,
+    "wp_id": 145,
+    "name": "inondations",
+    "slug": "inondations"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 197,
+  "fields": {
+    "site": null,
+    "wp_id": 146,
+    "name": "TPE2024",
+    "slug": "tpe2024"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 198,
+  "fields": {
+    "site": null,
+    "wp_id": 147,
+    "name": "Travail à Domicile",
+    "slug": "travail-a-domicile"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 199,
+  "fields": {
+    "site": null,
+    "wp_id": 148,
+    "name": "SAP",
+    "slug": "sap"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 200,
+  "fields": {
+    "site": null,
+    "wp_id": 149,
+    "name": "Santé-Social",
+    "slug": "sante-social-2"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 201,
+  "fields": {
+    "site": null,
+    "wp_id": 150,
+    "name": "TPE 2024",
+    "slug": "tpe-2024"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 202,
+  "fields": {
+    "site": null,
+    "wp_id": 151,
+    "name": "CInema",
+    "slug": "cinema"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 203,
+  "fields": {
+    "site": null,
+    "wp_id": 152,
+    "name": "Spectacle Vivant",
+    "slug": "spectacle-vivant"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 204,
+  "fields": {
+    "site": null,
+    "wp_id": 153,
+    "name": "permanence",
+    "slug": "permanence"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 205,
+  "fields": {
+    "site": null,
+    "wp_id": 154,
+    "name": "salarié.e.s du secteur agricole",
+    "slug": "salarie-e-s-du-secteur-agricole"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 206,
+  "fields": {
+    "site": null,
+    "wp_id": 155,
+    "name": "TPE",
+    "slug": "tpe"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 207,
+  "fields": {
+    "site": null,
+    "wp_id": 156,
+    "name": "Elections",
+    "slug": "elections"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 208,
+  "fields": {
+    "site": null,
+    "wp_id": 157,
+    "name": "Syndicalisation",
+    "slug": "syndicalisation"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 209,
+  "fields": {
+    "site": null,
+    "wp_id": 158,
+    "name": "secteur privé",
+    "slug": "secteur-prive"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 210,
+  "fields": {
+    "site": null,
+    "wp_id": 161,
+    "name": "guerre",
+    "slug": "guerre"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 211,
+  "fields": {
+    "site": null,
+    "wp_id": 162,
+    "name": "hôtelerie",
+    "slug": "hotelerie"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 212,
+  "fields": {
+    "site": null,
+    "wp_id": 163,
+    "name": "Walter",
+    "slug": "walter"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 213,
+  "fields": {
+    "site": null,
+    "wp_id": 164,
+    "name": "lutte",
+    "slug": "lutte"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 214,
+  "fields": {
+    "site": null,
+    "wp_id": 165,
+    "name": "medico-social",
+    "slug": "medico-social"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 215,
+  "fields": {
+    "site": null,
+    "wp_id": 166,
+    "name": "#noz",
+    "slug": "noz"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 216,
+  "fields": {
+    "site": null,
+    "wp_id": 167,
+    "name": "prud&#039;hommes",
+    "slug": "prudhommes"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 217,
+  "fields": {
+    "site": null,
+    "wp_id": 168,
+    "name": "commerce",
+    "slug": "commerce"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 218,
+  "fields": {
+    "site": null,
+    "wp_id": 169,
+    "name": "Rouillé",
+    "slug": "rouille"
+  }
+},
+{
+  "model": "content.tag",
+  "pk": 219,
+  "fields": {
+    "site": null,
+    "wp_id": 170,
+    "name": "LRA",
+    "slug": "lra"
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 105,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Accueil",
+    "url": "/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 106,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "url",
+    "title": "La Confédération",
+    "url": "#",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 107,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Réflexions",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 44,
+    "target_site": null,
+    "parent": 106,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 108,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Orientations & Présentation",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 40,
+    "target_site": null,
+    "parent": 106,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 109,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Actualités – Luttes",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 51,
+    "target_site": null,
+    "parent": 106,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 112,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Nos droits",
+    "url": "#",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 113,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Droit du travail",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 33,
+    "target_site": null,
+    "parent": 112,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 114,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Sans-papiers",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 57,
+    "target_site": null,
+    "parent": 112,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 115,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "T.P.E.",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 52,
+    "target_site": null,
+    "parent": 112,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 116,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Nos actions",
+    "url": "#",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 117,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "International",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 42,
+    "target_site": null,
+    "parent": 116,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 118,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Solidarités",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 32,
+    "target_site": null,
+    "parent": 116,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 119,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Campagnes",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 2,
+    "target_site": null,
+    "parent": 116,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 120,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Banque d'images",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 58,
+    "target_site": null,
+    "parent": 116,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 121,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Syndicats",
+    "url": "#",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 6,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 122,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Transport – Logistique",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 62,
+    "target_site": null,
+    "parent": 121,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 123,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Bâtiment – TP – Bois",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 34,
+    "target_site": null,
+    "parent": 121,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 124,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Commerce",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 54,
+    "target_site": null,
+    "parent": 121,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 125,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Hôtellerie – Restauration",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 36,
+    "target_site": null,
+    "parent": 121,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 126,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Industrie",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 61,
+    "target_site": null,
+    "parent": 121,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 127,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Nettoyage",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 35,
+    "target_site": null,
+    "parent": 121,
+    "order": 6,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 128,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "site",
+    "title": "Numérique",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 65,
+    "target_site": 7,
+    "parent": 121,
+    "order": 7,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 129,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Santé & Social",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 56,
+    "target_site": null,
+    "parent": 121,
+    "order": 8,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 130,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Éducation & Recherche",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 37,
+    "target_site": null,
+    "parent": 121,
+    "order": 9,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 131,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Activités postales",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 66,
+    "target_site": null,
+    "parent": 121,
+    "order": 10,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 132,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Livreurs & Plateformes",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 59,
+    "target_site": null,
+    "parent": 121,
+    "order": 11,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 133,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Services à la personne",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 53,
+    "target_site": null,
+    "parent": 121,
+    "order": 12,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 134,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Librairie",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 63,
+    "target_site": null,
+    "parent": 121,
+    "order": 13,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 135,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "url",
+    "title": "STAA (Artistes-Auteurs)",
+    "url": "https://staa-cnt-so.org/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 121,
+    "order": 14,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 136,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "category",
+    "title": "STUCS (Culture & Spectacle)",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 47,
+    "target_site": null,
+    "parent": 121,
+    "order": 15,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 137,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Contact",
+    "url": "/contact/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 7,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 138,
+  "fields": {
+    "site": 1,
+    "menu": "secondary",
+    "link_type": "url",
+    "title": "Unions locales",
+    "url": "#",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 139,
+  "fields": {
+    "site": 1,
+    "menu": "secondary",
+    "link_type": "site",
+    "title": "CNT-SO 13 (Marseille)",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 2,
+    "parent": 138,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 140,
+  "fields": {
+    "site": 1,
+    "menu": "secondary",
+    "link_type": "site",
+    "title": "CNT-SO Auvergne",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 4,
+    "parent": 138,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 141,
+  "fields": {
+    "site": 1,
+    "menu": "secondary",
+    "link_type": "site",
+    "title": "CNT-SO Poitiers",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 6,
+    "parent": 138,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 142,
+  "fields": {
+    "site": 1,
+    "menu": "secondary",
+    "link_type": "site",
+    "title": "CNT-SO Rhône-Alpes",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 3,
+    "parent": 138,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 143,
+  "fields": {
+    "site": 1,
+    "menu": "secondary",
+    "link_type": "url",
+    "title": "Syndicats sectoriels",
+    "url": "#",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 144,
+  "fields": {
+    "site": 1,
+    "menu": "secondary",
+    "link_type": "url",
+    "title": "CNT-SO Numérique",
+    "url": "/numerique/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 7,
+    "parent": 143,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 145,
+  "fields": {
+    "site": 1,
+    "menu": "secondary",
+    "link_type": "site",
+    "title": "CNT-SO Éducation",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 9,
+    "parent": 143,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 146,
+  "fields": {
+    "site": 1,
+    "menu": "secondary",
+    "link_type": "site",
+    "title": "STAA (Artistes-Auteurs)",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 5,
+    "parent": 143,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 150,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "site",
+    "title": "Accueil",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 2,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 151,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "La CNT-SO 13",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 83,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 152,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Présentation – Orientations",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 101,
+    "target_site": null,
+    "parent": 151,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 153,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Actualités syndicales",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 102,
+    "target_site": null,
+    "parent": 151,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 154,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Bulletin d'info",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 84,
+    "target_site": null,
+    "parent": 151,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 155,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Se syndiquer",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 103,
+    "target_site": null,
+    "parent": 151,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 156,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Élections TPE 2021",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 137,
+    "target_site": null,
+    "parent": 151,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 157,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Secteurs d'activité",
+    "url": "#",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 158,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "BTP",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 86,
+    "target_site": null,
+    "parent": 157,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 159,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Commerce & Services",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 112,
+    "target_site": null,
+    "parent": 157,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 160,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Éducation – Recherche",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 79,
+    "target_site": null,
+    "parent": 157,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 161,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Industrie",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 135,
+    "target_site": null,
+    "parent": 157,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 162,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Interpro",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 82,
+    "target_site": null,
+    "parent": 157,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 163,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Livreurs & Plateformes",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 132,
+    "target_site": null,
+    "parent": 157,
+    "order": 6,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 164,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Nettoyage",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 88,
+    "target_site": null,
+    "parent": 157,
+    "order": 7,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 165,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Restauration – Hôtellerie",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 117,
+    "target_site": null,
+    "parent": 157,
+    "order": 8,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 166,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Santé & Social",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 78,
+    "target_site": null,
+    "parent": 157,
+    "order": 9,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 167,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Services à la personne",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 125,
+    "target_site": null,
+    "parent": 157,
+    "order": 10,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 168,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Transports",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 120,
+    "target_site": null,
+    "parent": 157,
+    "order": 11,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 169,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Activités postales & Télécom",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 138,
+    "target_site": null,
+    "parent": 157,
+    "order": 12,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 170,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Fonction publique",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 130,
+    "target_site": null,
+    "parent": 157,
+    "order": 13,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 171,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Culture & Spectacle",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 136,
+    "target_site": null,
+    "parent": 157,
+    "order": 14,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 172,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Ressources",
+    "url": "#",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 173,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Réflexions & Analyses",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 105,
+    "target_site": null,
+    "parent": 172,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 174,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Droit du travail",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 99,
+    "target_site": null,
+    "parent": 172,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 175,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Permanences syndicales",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 96,
+    "target_site": null,
+    "parent": 172,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 176,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Animation & Éducation populaire",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 143,
+    "target_site": null,
+    "parent": 172,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 177,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Soutiens & Solidarité",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 85,
+    "target_site": null,
+    "parent": 172,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 178,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Web – Liens",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 92,
+    "target_site": null,
+    "parent": 172,
+    "order": 6,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 179,
+  "fields": {
+    "site": 2,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Contact",
+    "url": "/contact/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 180,
+  "fields": {
+    "site": 2,
+    "menu": "footer",
+    "link_type": "site",
+    "title": "CNT-SO national",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 1,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 181,
+  "fields": {
+    "site": 2,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Contact",
+    "url": "/contact/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 182,
+  "fields": {
+    "site": 2,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Flux RSS",
+    "url": "/rss/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 183,
+  "fields": {
+    "site": 3,
+    "menu": "main",
+    "link_type": "site",
+    "title": "Accueil",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 3,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 184,
+  "fields": {
+    "site": 3,
+    "menu": "main",
+    "link_type": "category",
+    "title": "CNT-SO Rhône-Alpes",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 153,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 185,
+  "fields": {
+    "site": 3,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Présentation – Orientations",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 155,
+    "target_site": null,
+    "parent": 184,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 186,
+  "fields": {
+    "site": 3,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Publications",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 156,
+    "target_site": null,
+    "parent": 184,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 187,
+  "fields": {
+    "site": 3,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Contacts",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 154,
+    "target_site": null,
+    "parent": 184,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 188,
+  "fields": {
+    "site": 3,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Secteurs",
+    "url": "#",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 189,
+  "fields": {
+    "site": 3,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Commerce",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 157,
+    "target_site": null,
+    "parent": 188,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 190,
+  "fields": {
+    "site": 3,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Construction – BTP",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 149,
+    "target_site": null,
+    "parent": 188,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 191,
+  "fields": {
+    "site": 3,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Hôtellerie – Restauration",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 150,
+    "target_site": null,
+    "parent": 188,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 192,
+  "fields": {
+    "site": 3,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Nettoyage",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 148,
+    "target_site": null,
+    "parent": 188,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 193,
+  "fields": {
+    "site": 3,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Services à la personne",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 158,
+    "target_site": null,
+    "parent": 188,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 194,
+  "fields": {
+    "site": 3,
+    "menu": "main",
+    "link_type": "category",
+    "title": "TPE – Salariés du particulier",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 151,
+    "target_site": null,
+    "parent": 188,
+    "order": 6,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 195,
+  "fields": {
+    "site": 3,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Actualités",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 147,
+    "target_site": null,
+    "parent": null,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 196,
+  "fields": {
+    "site": 3,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Contact",
+    "url": "/contact/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 197,
+  "fields": {
+    "site": 3,
+    "menu": "footer",
+    "link_type": "site",
+    "title": "CNT-SO national",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 1,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 198,
+  "fields": {
+    "site": 3,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Contact",
+    "url": "/contact/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 199,
+  "fields": {
+    "site": 3,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Flux RSS",
+    "url": "/rss/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 200,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "site",
+    "title": "Accueil",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 4,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 201,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "CNT-SO Auvergne",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 161,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 202,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "CNT-SO Clermont-Ferrand",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 214,
+    "target_site": null,
+    "parent": 201,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 203,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "CNT-SO Moulins",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 213,
+    "target_site": null,
+    "parent": 201,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 204,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "CNT-SO Montluçon",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 170,
+    "target_site": null,
+    "parent": 201,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 205,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "CNT-SO Vichy",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 212,
+    "target_site": null,
+    "parent": 201,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 206,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "CNT-SO Thiers",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 201,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 207,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "L'incendiaire",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 194,
+    "target_site": null,
+    "parent": 201,
+    "order": 6,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 208,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Connexions Directes",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 211,
+    "target_site": null,
+    "parent": 201,
+    "order": 7,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 209,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Secteurs d'activité",
+    "url": "#",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 210,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Agro-alimentaire",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 198,
+    "target_site": null,
+    "parent": 209,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 211,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Bâtiment – TP",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 162,
+    "target_site": null,
+    "parent": 209,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 212,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Commerce",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 199,
+    "target_site": null,
+    "parent": 209,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 213,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Coiffure / Esthétique",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 205,
+    "target_site": null,
+    "parent": 209,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 214,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Hôtellerie",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 201,
+    "target_site": null,
+    "parent": 209,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 215,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Industrie",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 192,
+    "target_site": null,
+    "parent": 209,
+    "order": 6,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 216,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Livreurs & Plateformes",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 184,
+    "target_site": null,
+    "parent": 209,
+    "order": 7,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 217,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Métiers du numérique",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 179,
+    "target_site": null,
+    "parent": 209,
+    "order": 8,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 218,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Nettoyage",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 180,
+    "target_site": null,
+    "parent": 209,
+    "order": 9,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 219,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Petite enfance",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 209,
+    "target_site": null,
+    "parent": 209,
+    "order": 10,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 220,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Poste & Télécom",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 177,
+    "target_site": null,
+    "parent": 209,
+    "order": 11,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 221,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Restauration",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 200,
+    "target_site": null,
+    "parent": 209,
+    "order": 12,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 222,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Santé & Social",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 186,
+    "target_site": null,
+    "parent": 209,
+    "order": 13,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 223,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Service à la personne",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 182,
+    "target_site": null,
+    "parent": 209,
+    "order": 14,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 224,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Transports",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 185,
+    "target_site": null,
+    "parent": 209,
+    "order": 15,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 225,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Artistes & Auteur·es (STAA)",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 176,
+    "target_site": null,
+    "parent": 209,
+    "order": 16,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 226,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Culture & Spectacle (STUCS)",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 163,
+    "target_site": null,
+    "parent": 209,
+    "order": 17,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 227,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Éducation",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 174,
+    "target_site": null,
+    "parent": 209,
+    "order": 18,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 228,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Ressources",
+    "url": "#",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 229,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Sans Papiers",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 208,
+    "target_site": null,
+    "parent": 228,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 230,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "TPE",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 228,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 231,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Droits",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 178,
+    "target_site": null,
+    "parent": 228,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 232,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Infos salariales",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 166,
+    "target_site": null,
+    "parent": 228,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 233,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "category",
+    "title": "RSISL",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 197,
+    "target_site": null,
+    "parent": 228,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 234,
+  "fields": {
+    "site": 4,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Contact",
+    "url": "/contact/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 235,
+  "fields": {
+    "site": 4,
+    "menu": "footer",
+    "link_type": "site",
+    "title": "CNT-SO national",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 1,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 236,
+  "fields": {
+    "site": 4,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Contact",
+    "url": "/contact/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 237,
+  "fields": {
+    "site": 4,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Flux RSS",
+    "url": "/rss/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 238,
+  "fields": {
+    "site": 5,
+    "menu": "main",
+    "link_type": "site",
+    "title": "Accueil",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 5,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 239,
+  "fields": {
+    "site": 5,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Démarches administratives",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 222,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 240,
+  "fields": {
+    "site": 5,
+    "menu": "main",
+    "link_type": "category",
+    "title": "URSSAF",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 239,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 241,
+  "fields": {
+    "site": 5,
+    "menu": "main",
+    "link_type": "category",
+    "title": "CAF",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 226,
+    "target_site": null,
+    "parent": 239,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 242,
+  "fields": {
+    "site": 5,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Pôle Emploi",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 239,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 243,
+  "fields": {
+    "site": 5,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Boîte à outils",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 218,
+    "target_site": null,
+    "parent": null,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 244,
+  "fields": {
+    "site": 5,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Fiches",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 219,
+    "target_site": null,
+    "parent": 243,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 245,
+  "fields": {
+    "site": 5,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Lexique",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 243,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 246,
+  "fields": {
+    "site": 5,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Tableurs",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 243,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 247,
+  "fields": {
+    "site": 5,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Ressources",
+    "url": "#",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 248,
+  "fields": {
+    "site": 5,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Publications",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 223,
+    "target_site": null,
+    "parent": 247,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 249,
+  "fields": {
+    "site": 5,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Annonces",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 217,
+    "target_site": null,
+    "parent": 247,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 250,
+  "fields": {
+    "site": 5,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Nouvelles technologies",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 228,
+    "target_site": null,
+    "parent": 247,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 251,
+  "fields": {
+    "site": 5,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Liens utiles",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 247,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 252,
+  "fields": {
+    "site": 5,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Contact",
+    "url": "/contact/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 253,
+  "fields": {
+    "site": 5,
+    "menu": "footer",
+    "link_type": "site",
+    "title": "CNT-SO national",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 1,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 254,
+  "fields": {
+    "site": 5,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Contact",
+    "url": "/contact/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 255,
+  "fields": {
+    "site": 5,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Flux RSS",
+    "url": "/rss/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 256,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "site",
+    "title": "Accueil",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 6,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 257,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Qui sommes-nous ?",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 230,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 258,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Qui sommes-nous ?",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 232,
+    "target_site": null,
+    "parent": 257,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 259,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Actualités",
+    "url": "#",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 260,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Actualités locales",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 237,
+    "target_site": null,
+    "parent": 259,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 261,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "category",
+    "title": "National & International",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 236,
+    "target_site": null,
+    "parent": 259,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 262,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Mémoires des luttes",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 234,
+    "target_site": null,
+    "parent": 259,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 263,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Espace des syndicats",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 231,
+    "target_site": null,
+    "parent": null,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 264,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Restauration",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 243,
+    "target_site": null,
+    "parent": 263,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 265,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Santé-Social",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 244,
+    "target_site": null,
+    "parent": 263,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 266,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "category",
+    "title": "STER",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 241,
+    "target_site": null,
+    "parent": 263,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 267,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "category",
+    "title": "STUCS",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 242,
+    "target_site": null,
+    "parent": 263,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 268,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "category",
+    "title": "SUBBTPI",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 240,
+    "target_site": null,
+    "parent": 263,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 269,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Ressources",
+    "url": "#",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 270,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Coin juridique",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 233,
+    "target_site": null,
+    "parent": 269,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 271,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Liens",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 235,
+    "target_site": null,
+    "parent": 269,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 272,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "category",
+    "title": "On recommande",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 238,
+    "target_site": null,
+    "parent": 269,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 273,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Radio / Podcasts",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 269,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 274,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "category",
+    "title": "Agenda",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 239,
+    "target_site": null,
+    "parent": null,
+    "order": 6,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 275,
+  "fields": {
+    "site": 6,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Contact",
+    "url": "/contact/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 7,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 276,
+  "fields": {
+    "site": 6,
+    "menu": "footer",
+    "link_type": "site",
+    "title": "CNT-SO national",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 1,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 277,
+  "fields": {
+    "site": 6,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Contact",
+    "url": "/contact/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 278,
+  "fields": {
+    "site": 6,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Flux RSS",
+    "url": "/rss/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 279,
+  "fields": {
+    "site": 7,
+    "menu": "main",
+    "link_type": "site",
+    "title": "Accueil",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 7,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 280,
+  "fields": {
+    "site": 7,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Contact",
+    "url": "/contact/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 281,
+  "fields": {
+    "site": 7,
+    "menu": "footer",
+    "link_type": "site",
+    "title": "CNT-SO national",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 1,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 282,
+  "fields": {
+    "site": 7,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Contact",
+    "url": "/contact/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 283,
+  "fields": {
+    "site": 7,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Flux RSS",
+    "url": "/rss/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 284,
+  "fields": {
+    "site": 9,
+    "menu": "main",
+    "link_type": "site",
+    "title": "Accueil",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 9,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 285,
+  "fields": {
+    "site": 9,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Contact",
+    "url": "/contact/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 286,
+  "fields": {
+    "site": 9,
+    "menu": "footer",
+    "link_type": "site",
+    "title": "CNT-SO national",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": 1,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 287,
+  "fields": {
+    "site": 9,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Contact",
+    "url": "/contact/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 288,
+  "fields": {
+    "site": 9,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Flux RSS",
+    "url": "/rss/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 289,
+  "fields": {
+    "site": 1,
+    "menu": "main",
+    "link_type": "url",
+    "title": "Qui sommes-nous ?",
+    "url": "/qui-sommes-nous/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 290,
+  "fields": {
+    "site": 2,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Plan du site",
+    "url": "/13/plan-du-site/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 291,
+  "fields": {
+    "site": 3,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Plan du site",
+    "url": "/rhone-alpes/plan-du-site/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 292,
+  "fields": {
+    "site": 4,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Plan du site",
+    "url": "/auvergne/plan-du-site/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 293,
+  "fields": {
+    "site": 5,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Plan du site",
+    "url": "https://staa-cnt-so.org/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 294,
+  "fields": {
+    "site": 6,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Plan du site",
+    "url": "/poitiers/plan-du-site/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 295,
+  "fields": {
+    "site": 7,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Plan du site",
+    "url": "/numerique/plan-du-site/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 296,
+  "fields": {
+    "site": 9,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Plan du site",
+    "url": "/education/plan-du-site/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 297,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Tous nos sujets",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 298,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "category",
+    "title": "Droit",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 33,
+    "target_site": null,
+    "parent": 297,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 299,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Luttes actuelles",
+    "url": "/luttes-actuelles/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 297,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 300,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "category",
+    "title": "International",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 42,
+    "target_site": null,
+    "parent": 297,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 301,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "category",
+    "title": "Solidarités",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": 32,
+    "target_site": null,
+    "parent": 297,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 302,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Sans papiers",
+    "url": "/sans-papiers/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 297,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 303,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "A propos",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 304,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Syndicats et fédérations",
+    "url": "/syndicats/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 303,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 305,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Vos droits",
+    "url": "/vos-droits/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 303,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 306,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Qui sommes-nous ?",
+    "url": "/qui-sommes-nous/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 303,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 307,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Nos actions",
+    "url": "/nos-actions/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 303,
+    "order": 4,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 308,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Plan du site",
+    "url": "/plan-du-site/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 303,
+    "order": 5,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 309,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Mentions légales",
+    "url": "/mentions-legales/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 303,
+    "order": 6,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 310,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "CGU",
+    "url": "/cgu/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 303,
+    "order": 7,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 311,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Suivez-nous",
+    "url": "",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": null,
+    "order": 3,
+    "is_active": true,
+    "opens_new_tab": false
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 312,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Facebook",
+    "url": "https://www.facebook.com/cntso/",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 311,
+    "order": 1,
+    "is_active": true,
+    "opens_new_tab": true
+  }
+},
+{
+  "model": "content.menuitem",
+  "pk": 313,
+  "fields": {
+    "site": 1,
+    "menu": "footer",
+    "link_type": "url",
+    "title": "Twitter",
+    "url": "https://twitter.com/cnt_so",
+    "article": null,
+    "page": null,
+    "category": null,
+    "target_site": null,
+    "parent": 311,
+    "order": 2,
+    "is_active": true,
+    "opens_new_tab": true
+  }
+},
+{
+  "model": "auth.group",
+  "pk": 1,
+  "fields": {
+    "name": "redacteur_en_chef",
+    "permissions": [
+      25,
+      26,
+      27,
+      28,
+      33,
+      34,
+      35,
+      36,
+      62,
+      63,
+      64,
+      58,
+      60,
+      45,
+      46,
+      47,
+      48,
+      41,
+      42,
+      43,
+      44
+    ]
+  }
+},
+{
+  "model": "auth.group",
+  "pk": 2,
+  "fields": {
+    "name": "redacteur",
+    "permissions": [
+      25,
+      26,
+      28,
+      36,
+      45,
+      46,
+      48,
+      44
+    ]
+  }
+}
+]
