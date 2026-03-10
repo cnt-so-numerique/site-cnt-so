@@ -1,0 +1,137 @@
+{% extends "redaction/base.html" %}
+{% block title %}{{ action }} un élément de menu — {{ current_site.name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .link-field { display: none; }
+  .link-field.visible { display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{{ action }} un élément de menu</h1>
+  <a href="{% url 'redaction:menu_list' %}" class="btn btn-secondary">← Retour aux menus</a>
+</div>
+
+{% if form.errors %}
+<div class="form-errors card" style="margin-bottom:1rem;">
+  <ul class="errorlist">
+    {% for field in form %}{% for error in field.errors %}<li>{{ field.label }} : {{ error }}</li>{% endfor %}{% endfor %}
+    {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<form method="post">
+  {% csrf_token %}
+  <div style="display:grid; grid-template-columns: 1fr 280px; gap:1.5rem; align-items:start;">
+
+    <!-- Colonne principale -->
+    <div class="card">
+
+      <div class="field">
+        <label for="{{ form.title.id_for_label }}">Titre *</label>
+        {{ form.title }}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.menu.id_for_label }}">Menu *</label>
+        {{ form.menu }}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.link_type.id_for_label }}">Type de lien *</label>
+        {{ form.link_type }}
+      </div>
+
+      <!-- Champs conditionnels selon link_type -->
+      <div class="field link-field" id="field-url">
+        <label for="{{ form.url.id_for_label }}">URL</label>
+        {{ form.url }}
+        <small style="color:#94a3b8; font-size:.75rem;">Ex: https://exemple.org/page ou /chemin/relatif/</small>
+      </div>
+
+      <div class="field link-field" id="field-category">
+        <label for="{{ form.category.id_for_label }}">Catégorie</label>
+        {{ form.category }}
+      </div>
+
+      <div class="field link-field" id="field-target_site">
+        <label for="{{ form.target_site.id_for_label }}">Site CNT</label>
+        {{ form.target_site }}
+      </div>
+
+      <div class="field link-field" id="field-article">
+        <label for="{{ form.article.id_for_label }}">Article</label>
+        {{ form.article }}
+      </div>
+
+      <div class="field link-field" id="field-page">
+        <label for="{{ form.page.id_for_label }}">Page</label>
+        {{ form.page }}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.parent.id_for_label }}">Élément parent</label>
+        {{ form.parent }}
+        <small style="color:#94a3b8; font-size:.75rem;">Laisser vide pour un élément de premier niveau.</small>
+      </div>
+
+    </div>
+
+    <!-- Colonne latérale -->
+    <div style="display:flex; flex-direction:column; gap:1rem;">
+      <div class="card">
+        <div class="field">
+          <label for="{{ form.order.id_for_label }}">Ordre</label>
+          {{ form.order }}
+        </div>
+        <div class="field" style="display:flex; align-items:center; gap:.5rem; margin-bottom:0;">
+          {{ form.is_active }}
+          <label for="{{ form.is_active.id_for_label }}" style="margin-bottom:0;">Actif</label>
+        </div>
+        <div class="field" style="display:flex; align-items:center; gap:.5rem; margin-bottom:0; margin-top:.75rem;">
+          {{ form.opens_new_tab }}
+          <label for="{{ form.opens_new_tab.id_for_label }}" style="margin-bottom:0;">Ouvrir dans un nouvel onglet</label>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:.5rem;">
+        <button type="submit" class="btn btn-primary" style="flex:1;">{{ action }}</button>
+        <a href="{% url 'redaction:menu_list' %}" class="btn btn-secondary">Annuler</a>
+      </div>
+    </div>
+
+  </div>
+</form>
+
+<script>
+(function () {
+  const linkTypeMap = {
+    'url':      ['field-url'],
+    'category': ['field-category'],
+    'site':     ['field-target_site'],
+    'article':  ['field-article'],
+    'page':     ['field-page'],
+  };
+
+  function updateFields(val) {
+    document.querySelectorAll('.link-field').forEach(function (el) {
+      el.classList.remove('visible');
+    });
+    const toShow = linkTypeMap[val] || [];
+    toShow.forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('visible');
+    });
+  }
+
+  const select = document.getElementById('id_link_type');
+  if (select) {
+    updateFields(select.value);
+    select.addEventListener('change', function () { updateFields(this.value); });
+  }
+})();
+</script>
+{% endblock %}

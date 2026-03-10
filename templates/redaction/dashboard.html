@@ -1,0 +1,160 @@
+{% extends "redaction/base.html" %}
+{% block title %}Tableau de bord — Rédaction{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>
+    Tableau de bord
+    {% if current_site %}
+    <span style="font-size:.9rem; font-weight:400; color:#fbbf24;">— {{ current_site.name }}</span>
+    {% endif %}
+  </h1>
+  <a href="{% url 'redaction:article_create' %}" class="btn btn-primary">+ Nouvel article</a>
+</div>
+
+<!-- Stats principales -->
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));">
+  <div class="card">
+    <div class="card-title">Total articles</div>
+    <div class="card-value">{{ nb_total }}</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Publiés</div>
+    <div class="card-value" style="color:#4ade80">{{ nb_published }}</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Brouillons</div>
+    <div class="card-value" style="color:#94a3b8">{{ nb_draft }}</div>
+  </div>
+  <div class="card">
+    <div class="card-title">En attente</div>
+    <div class="card-value" style="color:#fbbf24">{{ nb_pending }}</div>
+  </div>
+  {% if is_chef %}
+  <div class="card">
+    <div class="card-title">Commentaires</div>
+    <div class="card-value" style="color:#f87171">
+      <a href="{% url 'redaction:comment_list' %}?status=pending" style="color:inherit; text-decoration:none;">
+        {{ nb_comments_pending }}
+        <span style="font-size:.9rem; font-weight:400; color:#94a3b8;"> en attente</span>
+      </a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% if is_chef %}
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1.5rem; margin-bottom:1.5rem;">
+
+  {% if stats_by_site %}
+  <!-- Stats par site (vue tous-sites) -->
+  <div class="card">
+    <div style="margin-bottom:1rem;">
+      <h2 style="font-size:1rem; font-weight:600;">Articles publiés par site</h2>
+    </div>
+    {% for stat in stats_by_site %}
+    <div style="margin-bottom:.6rem;">
+      <div style="display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:.2rem;">
+        <span>{{ stat.site__name|default:"Sans site"|truncatechars:35 }}</span>
+        <span style="color:#94a3b8;">{{ stat.total }}</span>
+      </div>
+      <div style="background:#2d3139; border-radius:4px; height:6px; overflow:hidden;">
+        <div style="background:#e63946; height:100%; width:{% widthratio stat.total stats_by_site.0.total 100 %}%; border-radius:4px;"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Top catégories -->
+  <div class="card">
+    <div style="margin-bottom:1rem;">
+      <h2 style="font-size:1rem; font-weight:600;">Top catégories</h2>
+    </div>
+    {% if top_categories %}
+    {% for cat in top_categories %}
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:.4rem 0; border-bottom:1px solid #2d3139;">
+      <span style="font-size:.875rem;">{{ cat.name|truncatechars:30 }}</span>
+      <span style="font-size:.8rem; color:#94a3b8; background:#252932; padding:.15rem .5rem; border-radius:4px;">{{ cat.nb }}</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color:#94a3b8; font-size:.875rem;">Aucune donnée.</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Commentaires en attente -->
+{% if recent_comments %}
+<div class="card" style="margin-bottom:1.5rem;">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+    <h2 style="font-size:1rem; font-weight:600;">Commentaires en attente <span style="color:#fbbf24;">{{ nb_comments_pending }}</span></h2>
+    <a href="{% url 'redaction:comment_list' %}?status=pending" class="btn btn-secondary btn-sm">Voir tout</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Auteur</th><th>Extrait</th><th>Article</th><th style="text-align:right">Actions</th></tr></thead>
+      <tbody>
+        {% for comment in recent_comments %}
+        <tr>
+          <td style="font-size:.85rem;"><strong>{{ comment.author_name }}</strong></td>
+          <td style="color:#94a3b8; font-size:.85rem;">{{ comment.content|truncatechars:80 }}</td>
+          <td style="color:#94a3b8; font-size:.8rem;">{{ comment.article.title|truncatechars:35 }}</td>
+          <td style="text-align:right">
+            <form method="post" action="{% url 'redaction:comment_moderate' comment.pk %}" style="display:inline">
+              {% csrf_token %}<input type="hidden" name="action" value="approve">
+              <button class="btn btn-sm" style="background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3);">✓</button>
+            </form>
+            <form method="post" action="{% url 'redaction:comment_moderate' comment.pk %}" style="display:inline">
+              {% csrf_token %}<input type="hidden" name="action" value="delete">
+              <button class="btn btn-danger btn-sm">✕</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- Derniers articles -->
+<div class="card">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+    <h2 style="font-size:1rem; font-weight:600;">Derniers articles</h2>
+    <a href="{% url 'redaction:article_list' %}" class="btn btn-secondary btn-sm">Voir tout</a>
+  </div>
+  {% if recent_articles %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Titre</th>
+          {% if is_chef %}<th>Auteur</th>{% endif %}
+          {% if not current_site %}<th>Site</th>{% endif %}
+          <th>Statut</th><th>Date</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for article in recent_articles %}
+        <tr>
+          <td>{{ article.title|truncatechars:55 }}</td>
+          {% if is_chef %}<td style="color:#94a3b8; font-size:.8rem;">{{ article.author|default:"—" }}</td>{% endif %}
+          {% if not current_site %}<td style="color:#94a3b8; font-size:.8rem;">{{ article.site|default:"—" }}</td>{% endif %}
+          <td><span class="badge badge-{{ article.status }}">{{ article.get_status_display }}</span></td>
+          <td style="color:#94a3b8; font-size:.8rem;">{{ article.created_at|date:"d/m/Y" }}</td>
+          <td>
+            <a href="{% url 'redaction:article_edit' article.pk %}" class="btn btn-secondary btn-sm">Modifier</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p style="color:#94a3b8; font-size:.875rem;">Aucun article.</p>
+  {% endif %}
+</div>
+{% endblock %}

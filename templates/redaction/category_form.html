@@ -1,0 +1,24 @@
+{% extends "redaction/base.html" %}
+{% block title %}{{ action }} catégorie — Rédaction{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{{ action }} une catégorie</h1>
+  <a href="{% url 'redaction:category_list' %}" class="btn btn-secondary">← Retour</a>
+</div>
+
+<form method="post" style="max-width:560px">
+  {% csrf_token %}
+  {% for field in form %}
+  <div class="field">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+    {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+  {% endfor %}
+  <div style="display:flex; gap:.75rem; margin-top:.5rem;">
+    <button type="submit" class="btn btn-primary">{{ action }}</button>
+    <a href="{% url 'redaction:category_list' %}" class="btn btn-secondary">Annuler</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "redaction/base.html" %}
+{% block title %}{{ action }} utilisateur — Rédaction{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{{ action }} un utilisateur</h1>
+  <a href="{% url 'redaction:user_list' %}" class="btn btn-secondary">← Retour</a>
+</div>
+
+<form method="post" style="max-width:520px">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+  <div class="form-errors" style="margin-bottom:1rem;">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  {% for field in form %}
+  {% if field.name == 'groups' %}
+  <div class="field">
+    <label>{{ field.label }}</label>
+    <ul class="checkbox-list">
+      {% for choice in field %}
+      <li>{{ choice.tag }} <label for="{{ choice.id_for_label }}">{{ choice.choice_label }}</label></li>
+      {% endfor %}
+    </ul>
+    {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+  {% elif field.name == 'site' %}
+  {% if request.user.is_superuser %}
+  <div class="field">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+    {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="field">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+    {% if field.help_text %}<p style="color:var(--text-muted); font-size:.75rem; margin-top:.2rem;">{{ field.help_text }}</p>{% endif %}
+    {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+  {% endif %}
+  {% endfor %}
+
+  <div style="display:flex; gap:.75rem; margin-top:.5rem;">
+    <button type="submit" class="btn btn-primary">{{ action }}</button>
+    <a href="{% url 'redaction:user_list' %}" class="btn btn-secondary">Annuler</a>
+  </div>
+</form>
+{% endblock %}

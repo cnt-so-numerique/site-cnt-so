@@ -1,0 +1,45 @@
+{% comment %}
+Vignettes CTA réutilisables — 2 cartes cliquables full-width.
+Variables attendues (optionnelles, avec valeurs par défaut) :
+  cta1_title, cta1_arrow, cta1_desc, cta1_url
+  cta2_title, cta2_arrow, cta2_desc, cta2_url
+{% endcomment %}
+{% load static %}
+
+<div class="cta-vignettes-outer">
+
+    <a href="{{ cta1_url|default_if_none:'#' }}" class="cta-vignette">
+        <div class="cta-vignette-body">
+            <h2 class="cta-vignette-title">
+                {{ cta1_title|default:"Qui sommes-nous ?" }}
+            </h2>
+            <span class="cta-vignette-arrow">
+                {{ cta1_arrow|default:"Voir qui nous sommes →" }}
+            </span>
+            <p class="cta-vignette-desc">
+                {{ cta1_desc|default:"La CNT-SO est un syndicat anarcho-syndicaliste qui prône l'action directe, l'autonomie ouvrière et la solidarité entre travailleur·euse·s." }}
+            </p>
+        </div>
+        <div class="cta-vignette-circle">
+            <img src="{% static 'image/logocntso.png' %}" alt="CNT-SO" style="width:100%;height:100%;object-fit:cover;display:block;">
+        </div>
+    </a>
+
+    <a href="{{ cta2_url|default_if_none:'#' }}" class="cta-vignette">
+        <div class="cta-vignette-body">
+            <h2 class="cta-vignette-title">
+                {{ cta2_title|default:"Quel est notre champ d'action ?" }}
+            </h2>
+            <span class="cta-vignette-arrow">
+                {{ cta2_arrow|default:"Découvrir nos actions →" }}
+            </span>
+            <p class="cta-vignette-desc">
+                {{ cta2_desc|default:"De la défense des travailleur·euse·s sans-papiers aux luttes dans le nettoyage, l'éducation, le commerce, la santé…" }}
+            </p>
+        </div>
+        <div class="cta-vignette-circle">
+            <img src="{% static 'image/logocntso.png' %}" alt="CNT-SO" style="width:100%;height:100%;object-fit:cover;display:block;">
+        </div>
+    </a>
+
+</div>

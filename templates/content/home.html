@@ -1,0 +1,771 @@
+{% extends 'base.html' %}
+
+{% block title %}CNT-SO - Confédération Nationale du Travail - Solidarité Ouvrière{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ============================================================
+   PAGE D'ACCUEIL — fidèle au wireframe Figma
+   Wireframe : 1440px — colonne gauche (~75%) + sidebar droite (288px)
+   ============================================================ */
+
+/* ----------------------------------------------------------
+   LAYOUT GLOBAL : 2 colonnes persistantes
+   ---------------------------------------------------------- */
+.hp-layout {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 0 24px;
+    align-items: start;
+}
+
+@media (max-width: 960px) {
+    .hp-layout { grid-template-columns: 1fr; }
+}
+
+/* ----------------------------------------------------------
+   COLONNE GAUCHE — HERO "À la une"
+   ---------------------------------------------------------- */
+.hp-hero {
+    position: relative;
+    min-height: 440px;
+    overflow: hidden;
+    background: #111;
+    margin-bottom: 0;
+}
+
+.hp-hero-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+}
+
+.hp-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 45%, rgba(0,0,0,0.2) 100%);
+}
+
+.hp-hero-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 440px;
+    padding: 2rem;
+    box-sizing: border-box;
+}
+
+.hp-alaune {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.hp-alaune-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    flex-shrink: 0;
+}
+
+.hp-alaune-label {
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+.hp-hero-meta {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+
+.hp-badge-type {
+    background: var(--primary-color);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.2rem 0.5rem;
+}
+
+.hp-badge-cat {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 0.2rem 0.5rem;
+}
+
+.hp-badge-cat:hover {
+    background: rgba(255,255,255,0.3);
+    text-decoration: none;
+    color: #fff;
+}
+
+.hp-hero-title {
+    font-family: var(--font-heading);
+    font-size: 30px;
+    color: #fff;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.hp-hero-title a { color: #fff; }
+.hp-hero-title a:hover { text-decoration: underline; }
+
+/* ----------------------------------------------------------
+   MINI CARTES TEXTE (3 sous le hero)
+   ---------------------------------------------------------- */
+.hp-mini-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border-top: 3px solid var(--primary-color);
+}
+
+@media (max-width: 640px) {
+    .hp-mini-cards { grid-template-columns: 1fr; }
+}
+
+.hp-mini-card {
+    padding: 1rem;
+    border-right: 1px solid var(--bg-lighter);
+    border-bottom: 1px solid var(--bg-lighter);
+    background: var(--white);
+}
+
+.hp-mini-card:last-child { border-right: none; }
+
+.hp-mini-card-meta {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    margin-bottom: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.hp-mini-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    flex-shrink: 0;
+}
+
+.hp-mini-card-title {
+    font-family: var(--font-heading);
+    font-size: 14px;
+    line-height: 1.3;
+}
+
+.hp-mini-card-title a { color: var(--text-color); }
+.hp-mini-card-title a:hover { color: var(--primary-color); }
+
+/* ----------------------------------------------------------
+   SECTIONS AVEC LABEL VERTICAL
+   ---------------------------------------------------------- */
+.hp-labeled-section.hp-section-grey {
+    background: var(--bg-light);
+    margin: 0 -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+.hp-labeled-section {
+    display: flex;
+    gap: 0;
+    padding: 1.5rem 0;
+    border-bottom: 1px solid var(--bg-lighter);
+}
+
+.hp-vert-label {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    width: 28px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-bottom: 0.5rem;
+}
+
+.hp-section-body {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ----------------------------------------------------------
+   GRILLE 3 CARTES AVEC IMAGES
+   ---------------------------------------------------------- */
+.hp-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+}
+
+@media (max-width: 640px) {
+    .hp-grid-3 { grid-template-columns: 1fr; }
+}
+
+.hp-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.hp-card-img {
+    width: 100%;
+    height: 160px;
+    background: var(--white);
+    overflow: hidden;
+    margin-bottom: 0;
+}
+
+.hp-card-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+}
+
+.hp-card-body {
+    padding: 0.6rem 0;
+    flex: 1;
+}
+
+.hp-card-meta {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 0.4rem;
+}
+
+.hp-card-title {
+    font-family: var(--font-heading);
+    font-size: 14px;
+    line-height: 1.3;
+}
+
+.hp-card-title a { color: var(--text-color); }
+.hp-card-title a:hover { color: var(--primary-color); }
+
+.hp-card-cat {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+/* ----------------------------------------------------------
+   GRAND ARTICLE (image gauche + texte droite)
+   ---------------------------------------------------------- */
+.hp-big-article {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+@media (max-width: 640px) {
+    .hp-big-article { grid-template-columns: 1fr; }
+}
+
+.hp-big-article-img {
+    height: 260px;
+    background: var(--white);
+    overflow: hidden;
+}
+
+.hp-big-article-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+}
+
+.hp-big-article-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 0.5rem 0;
+}
+
+.hp-big-article-title {
+    font-family: var(--font-heading);
+    font-size: 19px;
+    line-height: 1.3;
+    margin-top: 0.5rem;
+}
+
+.hp-big-article-title a { color: var(--text-color); }
+.hp-big-article-title a:hover { color: var(--primary-color); }
+
+/* Cartes texte sous le grand article */
+.hp-text-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border-top: 1px solid var(--bg-lighter);
+}
+
+@media (max-width: 640px) {
+    .hp-text-cards { grid-template-columns: 1fr; }
+}
+
+.hp-text-card {
+    padding: 0.75rem;
+    border-right: 1px solid var(--bg-lighter);
+}
+
+.hp-text-card:last-child { border-right: none; }
+
+.hp-text-card-title {
+    font-family: var(--font-heading);
+    font-size: 13px;
+    line-height: 1.3;
+}
+
+.hp-text-card-title a { color: var(--text-color); }
+.hp-text-card-title a:hover { color: var(--primary-color); }
+
+/* ----------------------------------------------------------
+   DROITS + SANS-PAPIERS (2 colonnes dans la colonne gauche)
+   ---------------------------------------------------------- */
+.hp-two-col-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+@media (max-width: 640px) {
+    .hp-two-col-section { grid-template-columns: 1fr; }
+}
+
+.hp-col-section {
+    display: flex;
+    gap: 0;
+}
+
+.hp-col-title-block {
+    flex: 1;
+    min-width: 0;
+}
+
+.hp-col-title {
+    font-family: var(--font-heading);
+    font-size: 17px;
+    padding-bottom: 0.4rem;
+    border-bottom: 3px solid var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.hp-col-article {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--bg-lighter);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+}
+
+.hp-col-article:last-child { border-bottom: none; }
+
+.hp-col-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    margin-top: 0.4rem;
+    flex-shrink: 0;
+}
+
+.hp-col-article-title {
+    font-family: var(--font-heading);
+    font-size: 13px;
+    line-height: 1.3;
+    margin-bottom: 0.15rem;
+}
+
+.hp-col-article-title a { color: var(--text-color); }
+.hp-col-article-title a:hover { color: var(--primary-color); }
+
+.hp-col-article-cat {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+/* ----------------------------------------------------------
+   COLONNE DROITE — SIDEBAR
+   ---------------------------------------------------------- */
+.hp-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+
+/* ----------------------------------------------------------
+   QUI SOMMES-NOUS + CHAMP D'ACTION (full width) — vignettes
+   ---------------------------------------------------------- */
+.hp-qui-outer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    border-top: 1px solid var(--bg-lighter);
+}
+
+@media (max-width: 640px) {
+    .hp-qui-outer { grid-template-columns: 1fr; }
+}
+
+.hp-qui-col {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    padding: 1.5rem;
+    border: 1px solid var(--bg-lighter);
+    background: var(--bg-light);
+    text-decoration: none;
+    color: inherit;
+    transition: border-color .2s, box-shadow .2s, background .2s;
+}
+
+.hp-qui-col:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 12px rgba(196,30,58,.1);
+    background: var(--white);
+    text-decoration: none;
+    color: inherit;
+}
+
+.hp-qui-col:hover .hp-qui-title { color: var(--primary-color); }
+.hp-qui-col:hover .hp-qui-arrow { color: var(--primary-dark); }
+
+.hp-qui-text { flex: 1; min-width: 0; }
+
+.hp-qui-title {
+    font-family: var(--font-heading);
+    font-size: 20px;
+    margin-bottom: 0.4rem;
+    transition: color .2s;
+}
+
+.hp-qui-arrow {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 0.6rem;
+    letter-spacing: .3px;
+    transition: color .2s;
+}
+
+.hp-qui-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.hp-qui-circle {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--dark-bg);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,.5);
+    font-size: 28px;
+    font-family: var(--font-heading);
+}
+
+/* ----------------------------------------------------------
+   NEWSLETTER (full width)
+   ---------------------------------------------------------- */
+.hp-newsletter {
+    background: var(--dark-bg);
+    padding: 2.5rem 1rem;
+}
+
+.hp-newsletter-inner {
+    max-width: 520px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.hp-newsletter h2 {
+    font-family: var(--font-heading);
+    font-size: 22px;
+    color: #fff;
+    margin-bottom: 1.25rem;
+}
+
+.hp-newsletter-form {
+    display: flex;
+}
+
+.hp-newsletter-form input {
+    flex: 1;
+    padding: 0.7rem 1rem;
+    border: none;
+    font-family: var(--font-body);
+    font-size: 14px;
+    background: #fff;
+}
+
+.hp-newsletter-form input:focus { outline: none; }
+
+.hp-newsletter-form button {
+    padding: 0.7rem 1.25rem;
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    font-family: var(--font-body);
+}
+
+.hp-newsletter-form button:hover { background: var(--primary-dark); }
+
+@media (max-width: 600px) {
+    .hp-vert-label { display: none; }
+    .hp-labeled-section { padding: 1rem 0; }
+}
+</style>
+{% endblock %}
+
+{% block full_content %}
+
+<!-- ============================================================
+     LAYOUT 2 COLONNES : gauche (contenu) + droite (sidebar 280px)
+     ============================================================ -->
+<div class="hp-layout">
+
+    <!-- ======================================================
+         COLONNE GAUCHE
+         ====================================================== -->
+    <div>
+
+        <!-- 1. HERO "À LA UNE" -->
+        <section class="hp-hero">
+            {% if featured_article %}
+            {% if featured_article.featured_image %}
+            <div class="hp-hero-bg" style="background-image: url('{{ featured_article.featured_image.url }}')"></div>
+            {% else %}
+            <div class="hp-hero-bg" style="background: var(--dark-bg)"></div>
+            {% endif %}
+            <div class="hp-hero-overlay"></div>
+            <div class="hp-hero-content">
+                <div class="hp-alaune">
+                    <span class="hp-alaune-dot"></span>
+                    <span class="hp-alaune-label">À la une</span>
+                </div>
+                <div class="hp-hero-meta">
+                    <span class="hp-badge-type">Article</span>
+                    {% for cat in featured_article.categories.all|slice:":2" %}
+                    <a href="{{ cat.get_absolute_url }}" class="hp-badge-cat">{{ cat.name }}</a>
+                    {% endfor %}
+                </div>
+                <h1 class="hp-hero-title">
+                    <a href="{{ featured_article.get_absolute_url }}">{{ featured_article.title }}</a>
+                </h1>
+            </div>
+            {% endif %}
+        </section>
+
+        <!-- 2. MINI CARTES TEXTE (3 sous le hero) -->
+        {% if hero_mini_cards %}
+        <div class="hp-mini-cards">
+            {% for article in hero_mini_cards %}
+            <div class="hp-mini-card">
+                <div class="hp-mini-card-meta">
+                    <span class="hp-mini-dot"></span>
+                    {% for cat in article.categories.all|slice:":1" %}
+                    <span style="font-size:10px; color:var(--text-muted); font-weight:600; text-transform:uppercase;">{{ cat.name }}</span>
+                    {% endfor %}
+                </div>
+                <div class="hp-mini-card-title">
+                    <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- 3. NOTRE FLUX D'ACTU (label vertical + 3 cartes images) -->
+        <div class="hp-labeled-section hp-section-grey">
+            <span class="hp-vert-label">Notre flux d'actu</span>
+            <div class="hp-section-body">
+                {% if flux_grid %}
+                <div class="hp-grid-3">
+                    {% for article in flux_grid %}
+                    <article class="hp-card">
+                        <div class="hp-card-img">
+                            {% if article.featured_image %}
+                            <a href="{{ article.get_absolute_url }}">
+                                <img src="{{ article.featured_image.url }}" alt="{{ article.title }}">
+                            </a>
+                            {% endif %}
+                        </div>
+                        <div class="hp-card-body">
+                            <div class="hp-card-meta">
+                                <span class="hp-badge-type">Article</span>
+                                {% for cat in article.categories.all|slice:":1" %}
+                                <a href="{{ cat.get_absolute_url }}" class="hp-card-cat">{{ cat.name }}</a>
+                                {% endfor %}
+                            </div>
+                            <h3 class="hp-card-title">
+                                <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                            </h3>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 4. LES LUTTES ACTUELLES (label vertical + grand article + 3 cartes texte) -->
+        <div class="hp-labeled-section">
+            <span class="hp-vert-label">Les luttes actuelles</span>
+            <div class="hp-section-body">
+                {% if luttes_featured %}
+                <div class="hp-big-article">
+                    <div class="hp-big-article-img">
+                        {% if luttes_featured.featured_image %}
+                        <a href="{{ luttes_featured.get_absolute_url }}">
+                            <img src="{{ luttes_featured.featured_image.url }}" alt="{{ luttes_featured.title }}">
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="hp-big-article-text">
+                        <div class="hp-card-meta">
+                            <span class="hp-badge-type">Article</span>
+                            {% for cat in luttes_featured.categories.all|slice:":1" %}
+                            <a href="{{ cat.get_absolute_url }}" class="hp-card-cat">{{ cat.name }}</a>
+                            {% endfor %}
+                        </div>
+                        <h3 class="hp-big-article-title">
+                            <a href="{{ luttes_featured.get_absolute_url }}">{{ luttes_featured.title }}</a>
+                        </h3>
+                    </div>
+                </div>
+                {% endif %}
+                {% if luttes_text_cards %}
+                <div class="hp-text-cards">
+                    {% for article in luttes_text_cards %}
+                    <div class="hp-text-card">
+                        <div class="hp-card-meta">
+                            <span class="hp-mini-dot"></span>
+                            {% for cat in article.categories.all|slice:":1" %}
+                            <span class="hp-card-cat">{{ cat.name }}</span>
+                            {% endfor %}
+                        </div>
+                        <div class="hp-text-card-title">
+                            <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 5. DROITS + SANS-PAPIERS (2 colonnes dans la colonne gauche) -->
+        <div class="hp-labeled-section hp-section-grey">
+            <span class="hp-vert-label" style="visibility:hidden;"></span>
+            <div class="hp-section-body">
+                <div class="hp-two-col-section">
+
+                    <div class="hp-col-section">
+                        <span class="hp-vert-label" style="font-size:9px;">Droits</span>
+                        <div class="hp-col-title-block">
+                            <h2 class="hp-col-title">Droits</h2>
+                            {% for article in droits_articles %}
+                            <div class="hp-col-article">
+                                <span class="hp-col-dot"></span>
+                                <div>
+                                    <div class="hp-col-article-title">
+                                        <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                                    </div>
+                                    <div class="hp-col-article-cat">
+                                        {% for cat in article.categories.all|slice:":1" %}{{ cat.name }}{% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <p style="font-size:12px;color:var(--text-muted);">Aucun article.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="hp-col-section">
+                        <span class="hp-vert-label" style="font-size:9px;">Sans-papiers</span>
+                        <div class="hp-col-title-block">
+                            <h2 class="hp-col-title">Sans-papiers</h2>
+                            {% for article in sanspapiers_articles %}
+                            <div class="hp-col-article">
+                                <span class="hp-col-dot"></span>
+                                <div>
+                                    <div class="hp-col-article-title">
+                                        <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                                    </div>
+                                    <div class="hp-col-article-cat">
+                                        {% for cat in article.categories.all|slice:":1" %}{{ cat.name }}{% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <p style="font-size:12px;color:var(--text-muted);">Aucun article.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+
+    </div><!-- /.colonne gauche -->
+
+    <!-- ======================================================
+         COLONNE DROITE — SIDEBAR (288px)
+         ====================================================== -->
+    <aside class="hp-sidebar">
+        {% include "content/_sidebar.html" %}
+    </aside>
+
+</div><!-- /.hp-layout -->
+
+<!-- ============================================================
+     QUI SOMMES-NOUS + CHAMP D'ACTION (full width)
+     ============================================================ -->
+{% with cta1_title="Qui sommes-nous ?" cta1_arrow="Voir qui nous sommes →" cta1_url="/qui-sommes-nous/" cta1_icon="?" cta1_desc="La CNT-SO est un syndicat anarcho-syndicaliste qui prône l'action directe, l'autonomie ouvrière et la solidarité entre travailleur·euse·s." cta2_title="Quel est notre champ d'action ?" cta2_arrow="Découvrir nos actions →" cta2_url="/categorie/actualites-luttes/" cta2_icon="→" cta2_desc="De la défense des sans-papiers aux luttes dans le nettoyage, l'éducation, la restauration… Nous intervenons dans tous les secteurs." %}
+{% include "content/_cta_vignettes.html" %}
+{% endwith %}
+{% include "content/_newsletter.html" %}
+
+{% endblock full_content %}

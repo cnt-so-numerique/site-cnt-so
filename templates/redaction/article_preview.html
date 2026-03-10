@@ -1,0 +1,105 @@
+{% load content_tags %}<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aperçu — {{ article.title }}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; color: #1e293b; }
+
+  .preview-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: #1a1d23; border-bottom: 1px solid #2d3139;
+    display: flex; align-items: center; gap: 1rem;
+    padding: .6rem 1.5rem; font-size: .85rem;
+  }
+  .preview-bar-label { color: #e63946; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; font-size: .7rem; }
+  .preview-bar-title { color: #e2e8f0; }
+  .preview-bar-status { margin-left: auto; }
+  .badge { display:inline-block; padding:.2rem .5rem; border-radius:4px; font-size:.7rem; font-weight:600; text-transform:uppercase; }
+  .badge-publish { background:rgba(34,197,94,.15); color:#4ade80; }
+  .badge-draft   { background:rgba(148,163,184,.1); color:#94a3b8; }
+  .badge-pending { background:rgba(245,158,11,.15); color:#fbbf24; }
+  .badge-private { background:rgba(59,130,246,.15); color:#60a5fa; }
+  .preview-close { color:#94a3b8; font-size:.8rem; cursor:pointer; text-decoration:none; padding:.3rem .6rem; border:1px solid #2d3139; border-radius:4px; }
+  .preview-close:hover { color:#e2e8f0; border-color:#e2e8f0; }
+
+  .preview-wrap {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 5rem 2rem 4rem;
+  }
+
+  .article-meta {
+    display: flex; align-items: center; gap: .75rem;
+    margin-bottom: 1.5rem; flex-wrap: wrap;
+    font-size: .85rem; color: #64748b;
+  }
+  .article-featured-image { margin-bottom: 2rem; border-radius: 10px; overflow: hidden; }
+  .article-featured-image img { width: 100%; display: block; }
+
+  h1 { font-size: 2.2rem; font-weight: 800; line-height: 1.2; margin-bottom: 1rem; color: #0f172a; }
+
+  .article-content { line-height: 1.8; font-size: 1.05rem; color: #334155; }
+  .article-content h2 { font-size: 1.5rem; font-weight: 700; margin: 2rem 0 .75rem; color: #0f172a; }
+  .article-content h3 { font-size: 1.25rem; font-weight: 600; margin: 1.5rem 0 .5rem; color: #0f172a; }
+  .article-content h4 { font-size: 1.1rem; font-weight: 600; margin: 1.25rem 0 .4rem; color: #0f172a; }
+  .article-content p { margin-bottom: 1rem; }
+  .article-content ul, .article-content ol { margin: 1rem 0 1rem 1.5rem; }
+  .article-content li { margin-bottom: .3rem; }
+  .article-content blockquote {
+    border-left: 4px solid #e63946; padding: .75rem 1.25rem;
+    margin: 1.5rem 0; background: #f1f5f9; border-radius: 0 6px 6px 0;
+    font-style: italic; color: #475569;
+  }
+  .article-content blockquote cite { display: block; font-size: .85rem; margin-top: .5rem; color: #94a3b8; font-style: normal; }
+  .article-content pre { background: #0f172a; color: #7ee787; padding: 1.25rem; border-radius: 8px; overflow-x: auto; margin: 1.5rem 0; font-size: .9rem; }
+  .article-content code { background: #e2e8f0; padding: .1rem .35rem; border-radius: 3px; font-size: .9em; color: #e63946; }
+  .article-content pre code { background: none; padding: 0; color: inherit; }
+  .article-content hr { border: none; border-top: 2px solid #e2e8f0; margin: 2rem 0; }
+  .article-content figure { margin: 1.5rem 0; }
+  .article-content figure img { max-width: 100%; border-radius: 8px; }
+  .article-content figcaption { font-size: .85rem; color: #94a3b8; margin-top: .4rem; text-align: center; }
+  .article-content table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; }
+  .article-content th, .article-content td { border: 1px solid #e2e8f0; padding: .6rem .9rem; }
+  .article-content th { background: #f1f5f9; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="preview-bar">
+  <span class="preview-bar-label">👁 Aperçu</span>
+  <span class="preview-bar-title">{{ article.title|truncatechars:60 }}</span>
+  <span class="preview-bar-status">
+    <span class="badge badge-{{ article.status }}">{{ article.get_status_display }}</span>
+  </span>
+  <a href="{% url 'redaction:article_edit' article.pk %}" class="preview-close">← Retour à l'édition</a>
+</div>
+
+<div class="preview-wrap">
+  <div class="article-meta">
+    {% if article.site %}<span>{{ article.site.name }}</span> ·{% endif %}
+    {% if article.author %}<span>{{ article.author }}</span> ·{% endif %}
+    <span>{{ article.created_at|date:"d/m/Y" }}</span>
+    {% for cat in article.categories.all %}<span>{{ cat.name }}</span>{% endfor %}
+  </div>
+
+  <h1>{{ article.title }}</h1>
+
+  {% if article.featured_image and article.featured_image.file %}
+  <div class="article-featured-image">
+    <img src="{{ article.featured_image.file.url }}" alt="{{ article.featured_image.alt_text }}">
+  </div>
+  {% endif %}
+
+  {% if is_live_preview %}
+  <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:6px;padding:.5rem 1rem;margin-bottom:1.5rem;font-size:.8rem;color:#fbbf24;">
+    ⚡ Aperçu en direct — ce contenu n'est pas encore sauvegardé
+  </div>
+  {% endif %}
+  <div class="article-content">
+    {{ article.content|render_content }}
+  </div>
+</div>
+</body>
+</html>

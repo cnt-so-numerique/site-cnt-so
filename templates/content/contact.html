@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% block title %}Contact - {{ site.name|default:'CNT-SO' }}{% endblock %}
+
+{% block nav %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .contact-form {
+        max-width: 600px;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--text-color);
+    }
+
+    .form-input, .form-textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+        font-family: inherit;
+    }
+
+    .form-input:focus, .form-textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px rgba(205, 38, 83, 0.1);
+    }
+
+    .form-textarea {
+        resize: vertical;
+        min-height: 150px;
+    }
+
+    .btn-submit {
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 0.75rem 2rem;
+        font-size: 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .btn-submit:hover {
+        background: var(--primary-dark);
+    }
+
+    .error-list {
+        color: #c00;
+        font-size: 0.9rem;
+        margin-top: 0.25rem;
+        list-style: none;
+    }
+
+    .required-note {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        margin-bottom: 1.5rem;
+    }
+
+    .required-note span {
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    {% if site and site.slug != 'principal' %}
+    <a href="{% url 'content:home' %}">Accueil</a> /
+    <a href="{{ site.get_absolute_url }}">{{ site.name }}</a> /
+    {% else %}
+    <a href="{% url 'content:home' %}">Accueil</a> /
+    {% endif %}
+    <span>Contact</span>
+</div>
+
+<h1 class="section-title">Contacter {{ site.name|default:'la CNT-SO' }}</h1>
+
+<p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+    Vous avez une question, une demande d'information ou souhaitez rejoindre
+    {% if site and site.slug != 'principal' %}{{ site.name }}{% else %}la CNT-SO{% endif %} ?
+    Utilisez le formulaire ci-dessous pour nous contacter.
+</p>
+
+<p class="required-note">Les champs marqués d'un <span>*</span> sont obligatoires.</p>
+
+<form method="post" class="contact-form">
+    {% csrf_token %}
+
+    <div class="form-group">
+        <label for="id_name">Votre nom *</label>
+        {{ form.name }}
+        {% if form.name.errors %}
+        <ul class="error-list">
+            {% for error in form.name.errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="id_email">Votre adresse de messagerie *</label>
+        {{ form.email }}
+        {% if form.email.errors %}
+        <ul class="error-list">
+            {% for error in form.email.errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="id_phone">Votre téléphone *</label>
+        {{ form.phone }}
+        {% if form.phone.errors %}
+        <ul class="error-list">
+            {% for error in form.phone.errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="id_city">Votre ville *</label>
+        {{ form.city }}
+        {% if form.city.errors %}
+        <ul class="error-list">
+            {% for error in form.city.errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="id_sector">Votre secteur professionnel *</label>
+        {{ form.sector }}
+        {% if form.sector.errors %}
+        <ul class="error-list">
+            {% for error in form.sector.errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="id_subject">Objet</label>
+        {{ form.subject }}
+        {% if form.subject.errors %}
+        <ul class="error-list">
+            {% for error in form.subject.errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="id_message">Votre message</label>
+        {{ form.message }}
+        {% if form.message.errors %}
+        <ul class="error-list">
+            {% for error in form.message.errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <button type="submit" class="btn-submit">Envoyer</button>
+</form>
+{% endblock %}

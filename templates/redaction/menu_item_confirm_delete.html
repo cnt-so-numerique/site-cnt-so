@@ -1,0 +1,19 @@
+{% extends "redaction/base.html" %}
+{% block title %}Supprimer l'élément de menu{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Supprimer un élément de menu</h1>
+</div>
+<div class="card" style="max-width:500px;">
+  <p style="margin-bottom:1.5rem;">
+    Voulez-vous vraiment supprimer l'élément <strong>« {{ object.title }} »</strong> du menu <em>{{ object.get_menu_display }}</em> ?
+    Cette action est irréversible.
+  </p>
+  <form method="post" style="display:flex; gap:.75rem;">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Oui, supprimer</button>
+    <a href="{% url 'redaction:menu_list' %}" class="btn btn-secondary">Annuler</a>
+  </form>
+</div>
+{% endblock %}

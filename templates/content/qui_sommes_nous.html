@@ -1,0 +1,439 @@
+{% extends 'base.html' %}
+
+{% block title %}Qui sommes-nous ? — CNT-SO{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ============================================================
+   PAGE QUI SOMMES-NOUS — fidèle au wireframe Figma
+   Layout : colonne gauche (~72%) + sidebar droite (280px)
+   ============================================================ */
+
+/* ── Layout global ── */
+.qsn-layout {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 0 24px;
+    align-items: start;
+}
+@media (max-width: 960px) { .qsn-layout { grid-template-columns: 1fr; } }
+
+/* ── Hero : cercle + titre + intro ── */
+.qsn-hero {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+    padding: 2.5rem 0 2rem;
+    border-bottom: 3px solid var(--primary-color);
+}
+.qsn-hero-circle {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: var(--dark-bg);
+    flex-shrink: 0;
+    overflow: hidden;
+}
+.qsn-hero-circle img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.qsn-hero-body { flex: 1; min-width: 0; }
+.qsn-hero h1 {
+    font-family: var(--font-heading);
+    font-size: 34px;
+    line-height: 1.15;
+    margin-bottom: 0.75rem;
+}
+.qsn-hero-intro {
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--text-secondary);
+    max-width: 640px;
+}
+
+/* ── Sections de contenu ── */
+.qsn-section {
+    padding: 2rem 0;
+    border-bottom: 1px solid var(--bg-lighter);
+}
+.qsn-section-title {
+    font-family: var(--font-heading);
+    font-size: 24px;
+    margin-bottom: 1.25rem;
+    line-height: 1.2;
+}
+.qsn-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+}
+@media (max-width: 640px) { .qsn-two-col { grid-template-columns: 1fr; } }
+
+.qsn-text {
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--text-secondary);
+}
+.qsn-text p { margin-bottom: 0.75rem; }
+.qsn-text p:last-child { margin-bottom: 0; }
+.qsn-text a { color: var(--primary-color); font-weight: 600; }
+
+.qsn-image {
+    width: 100%;
+    background: var(--dark-bg);
+    overflow: hidden;
+    margin-top: 1.5rem;
+}
+.qsn-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.qsn-image-tall  { height: 300px; }
+.qsn-image-short { height: 220px; }
+
+/* Contenu libre depuis la DB */
+.qsn-content {
+    padding: 2rem 0;
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--text-secondary);
+}
+.qsn-content h2 {
+    font-family: var(--font-heading);
+    font-size: 24px;
+    margin: 2rem 0 1rem;
+    color: var(--text-color);
+    padding-bottom: 0.4rem;
+    border-bottom: 2px solid var(--bg-lighter);
+}
+.qsn-content h3 {
+    font-family: var(--font-heading);
+    font-size: 19px;
+    margin: 1.5rem 0 0.6rem;
+    color: var(--text-color);
+}
+.qsn-content p { margin-bottom: 1rem; }
+.qsn-content a { color: var(--primary-color); }
+.qsn-content img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1.5rem 0;
+}
+.qsn-content ul, .qsn-content ol {
+    margin: 0.5rem 0 1rem 1.5rem;
+}
+.qsn-content li { margin-bottom: 0.3rem; }
+
+/* ── Sidebar (identique à la HP) ── */
+.qsn-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: sticky;
+    top: 1rem;
+}
+/* On réutilise les classes hp- de home.html */
+
+/* ── CTA bas de page (full-width) ── */
+.qsn-cta-outer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2.5rem 1rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    border-top: 1px solid var(--bg-lighter);
+}
+@media (max-width: 640px) { .qsn-cta-outer { grid-template-columns: 1fr; gap: 2rem; } }
+
+.qsn-cta-col {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+.qsn-cta-circle {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--dark-bg);
+    flex-shrink: 0;
+}
+.qsn-cta-body { flex: 1; }
+.qsn-cta-title {
+    font-family: var(--font-heading);
+    font-size: 20px;
+    margin-bottom: 0.4rem;
+}
+.qsn-cta-link {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 0.6rem;
+}
+.qsn-cta-link:hover { color: var(--primary-dark); text-decoration: none; }
+.qsn-cta-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+/* ── Newsletter ── */
+.qsn-newsletter {
+    background: var(--dark-bg);
+    padding: 2.5rem 1rem;
+}
+.qsn-newsletter-inner {
+    max-width: 520px;
+    margin: 0 auto;
+    text-align: center;
+}
+.qsn-newsletter h2 {
+    font-family: var(--font-heading);
+    font-size: 22px;
+    color: #fff;
+    margin-bottom: 1.25rem;
+}
+.qsn-newsletter-form { display: flex; }
+.qsn-newsletter-form input {
+    flex: 1;
+    padding: 0.7rem 1rem;
+    border: none;
+    font-family: var(--font-body);
+    font-size: 14px;
+    background: #fff;
+}
+.qsn-newsletter-form input:focus { outline: none; }
+.qsn-newsletter-form button {
+    padding: 0.7rem 1.25rem;
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    font-family: var(--font-body);
+}
+.qsn-newsletter-form button:hover { background: var(--primary-dark); }
+
+/* ── Utilitaires sidebar ── */
+.hp-bloc-soutenir { background: var(--primary-color); padding: 1.25rem; }
+.hp-bloc-soutenir h3 { color: #fff; font-family: var(--font-heading); font-size: 17px; margin-bottom: 0.5rem; line-height: 1.2; }
+.hp-bloc-soutenir p { color: rgba(255,255,255,.85); font-size: 12px; line-height: 1.5; margin-bottom: 0.75rem; }
+.hp-btn-outline { display: inline-block; padding: .4rem .9rem; font-size: 12px; font-weight: 600; border: 1px solid rgba(255,255,255,.6); color: #fff; }
+.hp-btn-outline:hover { background: rgba(255,255,255,.15); text-decoration: none; color: #fff; }
+.hp-bloc-campagnes, .hp-bloc-loupe { background: var(--white); border: 1px solid var(--bg-lighter); border-top: none; }
+.hp-sidebar-header { display: flex; align-items: center; justify-content: space-between; padding: .6rem 1rem; background: var(--dark-bg); }
+.hp-sidebar-header h3 { font-family: var(--font-heading); font-size: 14px; color: #fff; margin: 0; }
+.hp-sidebar-header a { font-size: 11px; color: #c4c4c4; }
+.hp-sidebar-header a:hover { color: #fff; }
+.hp-sidebar-list { padding: .5rem 1rem; }
+.hp-sidebar-item { padding: .6rem 0; border-bottom: 1px solid var(--bg-lighter); display: flex; align-items: flex-start; gap: .5rem; }
+.hp-sidebar-item:last-child { border-bottom: none; }
+.hp-sidebar-item-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary-color); margin-top: .4rem; flex-shrink: 0; }
+.hp-sidebar-item-title { font-family: var(--font-heading); font-size: 12px; line-height: 1.3; margin-bottom: .15rem; }
+.hp-sidebar-item-title a { color: var(--text-color); }
+.hp-sidebar-item-title a:hover { color: var(--primary-color); }
+.hp-sidebar-item-cat { font-size: 10px; color: var(--text-muted); }
+.hp-bloc-galerie { background: var(--dark-bg); padding: 1.25rem; border-top: 3px solid var(--primary-color); }
+.hp-bloc-galerie h3 { color: #fff; font-family: var(--font-heading); font-size: 17px; margin-bottom: .5rem; line-height: 1.2; }
+.hp-bloc-galerie p { color: rgba(255,255,255,.7); font-size: 12px; line-height: 1.5; margin-bottom: .75rem; }
+.hp-badge-type { background: var(--primary-color); color: #fff; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: .2rem .5rem; }
+</style>
+{% endblock %}
+
+{% block full_content %}
+
+<!-- ============================================================
+     LAYOUT 2 COLONNES
+     ============================================================ -->
+<div class="qsn-layout">
+
+    <!-- ══════════════════════════════════════════════════════
+         COLONNE GAUCHE
+         ══════════════════════════════════════════════════════ -->
+    <div>
+
+        <!-- 1. HERO -->
+        <div class="qsn-hero">
+            <div class="qsn-hero-circle">
+                {% load static %}
+                <img src="{% static 'image/logocntso.png' %}" alt="Logo CNT-SO">
+            </div>
+            <div class="qsn-hero-body">
+                <h1>Qui sommes-nous&nbsp;?</h1>
+                <p class="qsn-hero-intro">
+                    {% if page and page.excerpt %}
+                        {{ page.excerpt }}
+                    {% else %}
+                        La CNT-SO (Confédération Nationale du Travail — Solidarité Ouvrière) est un syndicat
+                        anarcho-syndicaliste fondé sur l'action directe, l'autonomie ouvrière et la solidarité
+                        entre travailleuses et travailleurs. Nous luttons pour l'émancipation de toutes les
+                        personnes exploitées, sans distinction d'origine, de genre ou de statut.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+
+        <!-- 2. CONTENU DE LA PAGE (depuis la DB si disponible) -->
+        {% if page and page.content %}
+
+        <div class="qsn-content">
+            {{ page.content|safe }}
+        </div>
+
+        {% else %}
+
+        <!-- Sections placeholder fidèles au wireframe -->
+
+        <!-- Section 1 : 2 colonnes de texte + image full-width -->
+        <div class="qsn-section">
+            <h2 class="qsn-section-title">Notre histoire</h2>
+            <div class="qsn-two-col">
+                <div class="qsn-text">
+                    <p>
+                        Fondée en 1946, la CNT-SO regroupe des syndicats professionnels et des unions locales
+                        sur l'ensemble du territoire. Notre organisation est construite sur des principes
+                        fédéralistes : chaque syndicat conserve son autonomie tout en participant à la vie
+                        collective de la confédération.
+                    </p>
+                    <p>
+                        Nous refusons toute collaboration de classe et défendons une syndicalisme de combat,
+                        ancré dans les réalités des milieux de travail les plus précaires.
+                    </p>
+                </div>
+                <div class="qsn-text">
+                    <p>
+                        Contrairement aux grandes centrales syndicales, la CNT-SO n'accepte aucune subvention
+                        de l'État ni des patronats. Notre indépendance financière garantit notre indépendance
+                        politique et stratégique dans toutes nos actions.
+                    </p>
+                    <p>
+                        Nous sommes présents dans de nombreux secteurs : nettoyage, restauration, éducation,
+                        livraison, culture, santé, et bien d'autres encore.
+                    </p>
+                </div>
+            </div>
+            <div class="qsn-image qsn-image-short"
+                 style="background-image:url(''); background-size:cover; background-position:center;">
+            </div>
+        </div>
+
+        <!-- Section 2 : texte centré + grande image -->
+        <div class="qsn-section">
+            <h2 class="qsn-section-title">Nos principes</h2>
+            <div class="qsn-text" style="max-width:620px;">
+                <p>
+                    L'action directe, la solidarité de classe, le fédéralisme et l'autogestion sont les piliers
+                    de notre pratique syndicale. Nous agissons collectivement, sans déléguer nos intérêts à des
+                    représentants professionnels déconnectés du terrain. <a href="#">En savoir plus sur nos orientations →</a>
+                </p>
+                <p>
+                    Chaque décision importante est prise en assemblée générale par les membres directement
+                    concernés. Nous refusons la bureaucratisation et les hiérarchies figées.
+                </p>
+            </div>
+            <div class="qsn-image qsn-image-tall"
+                 style="background-image:url(''); background-size:cover; background-position:center;">
+            </div>
+        </div>
+
+        <!-- Section 3 : texte seul -->
+        <div class="qsn-section">
+            <h2 class="qsn-section-title">Nous rejoindre</h2>
+            <div class="qsn-text" style="max-width:640px;">
+                <p>
+                    Rejoindre la CNT-SO, c'est intégrer un réseau de militant·e·s qui agissent au quotidien
+                    pour défendre les travailleuses et travailleurs. Que tu sois salarié·e, précaire,
+                    indépendant·e ou sans emploi, tu as ta place ici.
+                </p>
+                <p>
+                    Contacte l'union locale la plus proche de toi, ou <a href="{% url 'content:contact' %}">écris-nous directement</a>
+                    pour en savoir plus sur comment adhérer.
+                </p>
+            </div>
+        </div>
+
+        {% endif %}
+
+    </div><!-- /colonne gauche -->
+
+    <!-- ══════════════════════════════════════════════════════
+         COLONNE DROITE — SIDEBAR
+         ══════════════════════════════════════════════════════ -->
+    <aside class="qsn-sidebar">
+
+        <!-- Vous voulez nous soutenir ? -->
+        <div class="hp-bloc-soutenir">
+            <h3>Vous voulez nous soutenir&nbsp;?</h3>
+            <p>Rejoignez-nous ou faites un don pour soutenir nos actions syndicales.</p>
+            <a href="{% url 'content:souscription' %}" class="hp-btn-outline">Nous soutenir</a>
+        </div>
+
+        <!-- Les dernières campagnes -->
+        <div class="hp-bloc-campagnes">
+            <div class="hp-sidebar-header">
+                <h3>Les dernières campagnes</h3>
+                <a href="{% url 'content:category_detail' slug='international' %}">Tout voir</a>
+            </div>
+            <div class="hp-sidebar-list">
+                {% for article in campagnes_articles %}
+                <div class="hp-sidebar-item">
+                    <span class="hp-sidebar-item-dot"></span>
+                    <div>
+                        <div class="hp-sidebar-item-title">
+                            <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                        </div>
+                        <div class="hp-sidebar-item-cat">
+                            {% for cat in article.categories.all|slice:":1" %}{{ cat.name }}{% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p style="font-size:12px;color:var(--text-muted);padding:.5rem 0;">Aucun article.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Notre banque d'images -->
+        <div class="hp-bloc-galerie">
+            <h3>Notre banque d'images</h3>
+            <p>Découvrez nos archives photographiques des luttes ouvrières.</p>
+            <a href="{% url 'content:category_detail' slug='banque-dimage' %}" class="hp-btn-outline">Voir la galerie</a>
+        </div>
+
+        <!-- Ce que vous avez loupé -->
+        <div class="hp-bloc-loupe">
+            <div class="hp-sidebar-header">
+                <h3>Ce que vous avez loupé</h3>
+                <a href="{% url 'content:home' %}">Tout voir</a>
+            </div>
+            <div class="hp-sidebar-list">
+                {% for article in manques_articles %}
+                <div class="hp-sidebar-item">
+                    <span class="hp-sidebar-item-dot"></span>
+                    <div>
+                        <div class="hp-sidebar-item-title">
+                            <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                        </div>
+                        <div class="hp-sidebar-item-cat">
+                            {% for cat in article.categories.all|slice:":1" %}{{ cat.name }}{% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p style="font-size:12px;color:var(--text-muted);padding:.5rem 0;">Aucun article.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+    </aside>
+
+</div><!-- /.qsn-layout -->
+
+{% with cta1_title="Quel est notre champ d'action ?" cta1_arrow="Découvrir nos actions →" cta1_url="/categorie/actualites-luttes/" cta1_icon="→" cta1_desc="De la défense des sans-papiers aux luttes dans le nettoyage, l'éducation, la restauration… Nous intervenons dans tous les secteurs." cta2_title="Quels sont vos droits ?" cta2_arrow="Découvrez vos droits →" cta2_url="/categorie/droit/" cta2_icon="§" cta2_desc="Licenciement abusif, heures sup non payées, harcèlement… Retrouvez nos fiches pratiques pour défendre vos droits au travail." %}
+{% include "content/_cta_vignettes.html" %}
+{% endwith %}
+{% include "content/_newsletter.html" %}
+
+{% endblock full_content %}

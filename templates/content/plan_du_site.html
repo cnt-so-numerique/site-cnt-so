@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+
+{% block title %}Plan du site — {{ plan_site.name }}{% endblock %}
+
+{% block content %}
+<h1 class="section-title">Plan du site — {{ plan_site.name }}</h1>
+
+<style>
+  .sitemap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+  }
+  .sitemap-section {
+    background: var(--card-bg, #1a1a1a);
+    border: 1px solid var(--border, #333);
+    border-top: 3px solid var(--accent, #c00);
+    border-radius: 4px;
+    padding: 1.25rem 1.5rem;
+  }
+  .sitemap-section h2 {
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--accent, #c00);
+    margin: 0 0 1rem;
+  }
+  .sitemap-section ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .sitemap-section ul li {
+    padding: .3rem 0;
+    border-bottom: 1px solid var(--border, #333);
+  }
+  .sitemap-section ul li:last-child { border-bottom: none; }
+  .sitemap-section ul li a {
+    color: var(--text, #ddd);
+    text-decoration: none;
+    font-size: .95rem;
+  }
+  .sitemap-section ul li a:hover { color: var(--accent, #c00); }
+  .sitemap-section ul li.sub {
+    padding-left: 1rem;
+    font-size: .9rem;
+  }
+  .sitemap-section ul li.sub a { color: var(--text-muted, #888); }
+</style>
+
+<div class="sitemap-grid">
+
+  <!-- Navigation -->
+  <div class="sitemap-section">
+    <h2>Navigation</h2>
+    <ul>
+      {% if plan_site.slug == 'principal' %}
+      <li><a href="{% url 'content:home' %}">Accueil</a></li>
+      <li><a href="{% url 'content:qui_sommes_nous' %}">Qui sommes-nous ?</a></li>
+      <li><a href="{% url 'content:search' %}">Recherche</a></li>
+      <li><a href="{% url 'content:contact' %}">Contact</a></li>
+      {% else %}
+      <li><a href="{{ plan_site.get_absolute_url }}">Accueil — {{ plan_site.name }}</a></li>
+      {% if plan_site.site_type == 'regional' %}
+      <li><a href="{% url 'content:site_contact' site_slug=plan_site.slug %}">Contact</a></li>
+      {% endif %}
+      <li><a href="{% url 'content:home' %}">Retour site principal</a></li>
+      {% endif %}
+      {% for page in pages %}
+      <li><a href="{{ page.get_absolute_url }}">{{ page.title }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- Thématiques / catégories -->
+  {% if categories %}
+  <div class="sitemap-section">
+    <h2>Thématiques</h2>
+    <ul>
+      {% for cat in categories %}
+      <li><a href="{{ cat.get_absolute_url }}">{{ cat.name }}</a></li>
+      {% for child in cat.children.all %}
+      <li class="sub"><a href="{{ child.get_absolute_url }}">{{ child.name }}</a></li>
+      {% endfor %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <!-- Unions régionales (site principal uniquement) -->
+  {% if unions_regionales %}
+  <div class="sitemap-section">
+    <h2>Unions régionales</h2>
+    <ul>
+      {% for s in unions_regionales %}
+      <li><a href="{% url 'content:site_plan_du_site' site_slug=s.slug %}">{{ s.name }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <!-- Syndicats sectoriels (site principal uniquement) -->
+  {% if syndicats_sectoriels %}
+  <div class="sitemap-section">
+    <h2>Syndicats et structures</h2>
+    <ul>
+      {% for s in syndicats_sectoriels %}
+      <li><a href="{% url 'content:site_plan_du_site' site_slug=s.slug %}">{{ s.name }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <!-- Flux -->
+  <div class="sitemap-section">
+    <h2>Flux &amp; données</h2>
+    <ul>
+      {% if plan_site.slug == 'principal' %}
+      <li><a href="{% url 'content:rss_feed' %}">Flux RSS — site principal</a></li>
+      {% else %}
+      <li><a href="{% url 'content:site_rss_feed' site_slug=plan_site.slug %}">Flux RSS — {{ plan_site.name }}</a></li>
+      {% endif %}
+      <li><a href="/sitemap.xml">Sitemap XML (robots)</a></li>
+    </ul>
+  </div>
+
+</div>
+{% endblock %}

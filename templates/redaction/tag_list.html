@@ -1,0 +1,49 @@
+{% extends "redaction/base.html" %}
+{% block title %}Tags{% if current_site %} — {{ current_site.name }}{% endif %} — Rédaction{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Tags{% if current_site %} <span style="font-size:.9rem; font-weight:400; color:#94a3b8;">— {{ current_site.name }}</span>{% endif %}</h1>
+  <a href="{% url 'redaction:tag_create' %}" class="btn btn-primary">+ Nouveau tag</a>
+</div>
+
+{% if not current_site %}
+<div style="background:rgba(59,130,246,.1); border:1px solid rgba(59,130,246,.3); border-radius:6px; padding:.6rem 1rem; margin-bottom:1rem; font-size:.85rem; color:#60a5fa;">
+  Tous les tags tous sites confondus. Sélectionnez un site pour travailler sur ses tags.
+</div>
+{% endif %}
+
+{% if tags %}
+<div class="card table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Nom</th>
+        <th>Slug</th>
+        {% if not current_site %}<th>Site</th>{% endif %}
+        <th>Articles</th>
+        <th style="text-align:right">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tag in tags %}
+      <tr>
+        <td><strong>{{ tag.name }}</strong></td>
+        <td style="color:var(--text-muted); font-size:.8rem; font-family:monospace">{{ tag.slug }}</td>
+        {% if not current_site %}<td style="color:var(--text-muted); font-size:.8rem;">{{ tag.site|default:"—" }}</td>{% endif %}
+        <td style="color:var(--text-muted)">{{ tag.articles.count }}</td>
+        <td style="text-align:right">
+          <a href="{% url 'redaction:tag_edit' tag.pk %}" class="btn btn-secondary btn-sm">Modifier</a>
+          <a href="{% url 'redaction:tag_delete' tag.pk %}" class="btn btn-danger btn-sm">Supprimer</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card">
+  <p style="color:var(--text-muted)">Aucun tag{% if current_site %} pour {{ current_site.name }}{% endif %}.</p>
+</div>
+{% endif %}
+{% endblock %}

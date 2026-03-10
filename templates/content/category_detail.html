@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ category.name }} - {{ site.name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="{% url 'content:home' %}">Accueil</a> /
+    <span>{{ category.name }}</span>
+</div>
+
+<h1 class="section-title">{{ category.name }}</h1>
+
+{% if category.description %}
+<p style="color: var(--text-muted); margin-bottom: 2rem;">{{ category.description }}</p>
+{% endif %}
+
+<div class="article-list">
+    {% for article in articles %}
+    <article class="article-list-item">
+        <div class="article-list-image">
+            {% if article.featured_image %}
+            <a href="{{ article.get_absolute_url }}">
+                <img src="{{ article.featured_image.url }}" alt="{{ article.title }}">
+            </a>
+            {% endif %}
+        </div>
+        <div class="article-list-content">
+            <h2 class="article-list-title">
+                <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+            </h2>
+            <div class="article-card-meta">
+                {{ article.published_at|date:"d F Y" }}
+                {% if article.site.slug != 'principal' %}
+                | <span class="site-badge">{{ article.site.name }}</span>
+                {% endif %}
+            </div>
+            {% if article.excerpt %}
+            <p class="article-card-excerpt">{{ article.excerpt|striptags|truncatewords:30 }}</p>
+            {% endif %}
+        </div>
+    </article>
+    {% empty %}
+    <p>Aucun article dans cette catégorie.</p>
+    {% endfor %}
+</div>
+
+{% with query_string="" %}{% include "content/_pagination.html" %}{% endwith %}
+{% endblock %}

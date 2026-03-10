@@ -1,0 +1,76 @@
+{% extends "redaction/base.html" %}
+{% block title %}Articles — Rédaction{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Articles</h1>
+  <a href="{% url 'redaction:article_create' %}" class="btn btn-primary">+ Nouvel article</a>
+</div>
+
+<form method="get" class="filters">
+  <input type="text" name="q" value="{{ q }}" placeholder="Rechercher par titre…"
+    class="form-input" style="max-width:280px; padding:.35rem .7rem; font-size:.85rem;">
+  <select name="status" onchange="this.form.submit()" class="form-select" style="width:auto;">
+    <option value="">Tous les statuts</option>
+    {% for val, label in status_choices %}
+    <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn-secondary btn-sm">Filtrer</button>
+  {% if q or status_filter %}
+  <a href="{% url 'redaction:article_list' %}" class="btn btn-secondary btn-sm">✕ Réinitialiser</a>
+  {% endif %}
+</form>
+
+{% if q %}
+<p style="color:#94a3b8; font-size:.85rem; margin-bottom:.75rem;">
+  {{ page_obj.paginator.count }} résultat{{ page_obj.paginator.count|pluralize }} pour « <strong style="color:#e2e8f0;">{{ q }}</strong> »
+</p>
+{% endif %}
+
+{% if articles %}
+<div class="card table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Titre</th>
+        {% if is_chef %}<th>Auteur</th>{% endif %}
+        <th>Site</th>
+        <th>Statut</th>
+        <th>Modifié</th>
+        <th style="text-align:right">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for article in articles %}
+      <tr>
+        <td><strong>{{ article.title|truncatechars:70 }}</strong></td>
+        {% if is_chef %}<td style="color:#94a3b8">{{ article.author|default:"—" }}</td>{% endif %}
+        <td style="color:#94a3b8; font-size:.8rem;">{{ article.site|default:"—" }}</td>
+        <td><span class="badge badge-{{ article.status }}">{{ article.get_status_display }}</span></td>
+        <td style="color:#94a3b8; font-size:.8rem;">{{ article.updated_at|date:"d/m/Y H:i" }}</td>
+        <td style="text-align:right">
+          <a href="{% url 'redaction:article_preview' article.pk %}" target="_blank" class="btn btn-secondary btn-sm" title="Aperçu">👁</a>
+          <a href="{% url 'redaction:article_edit' article.pk %}" class="btn btn-secondary btn-sm">Modifier</a>
+          {% if is_chef %}
+          <a href="{% url 'redaction:article_delete' article.pk %}" class="btn btn-danger btn-sm">Supprimer</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if is_paginated %}
+<div class="pagination">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if q %}&q={{ q }}{% endif %}">&laquo;</a>{% endif %}
+  <span class="current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if q %}&q={{ q }}{% endif %}">&raquo;</a>{% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="card"><p style="color:#94a3b8;">Aucun article trouvé.</p></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Recherche : {{ query }} - CNT-SO{% endblock %}
+
+{% block content %}
+<h1 class="section-title">Recherche : "{{ query }}"</h1>
+
+{% if query %}
+<p style="color: var(--text-muted); margin-bottom: 2rem;">{{ articles|length }} résultat(s) trouvé(s)</p>
+
+<div class="article-list">
+    {% for article in articles %}
+    <article class="article-list-item">
+        <div class="article-list-image">
+            {% if article.featured_image %}
+            <a href="{{ article.get_absolute_url }}">
+                <img src="{{ article.featured_image.url }}" alt="{{ article.title }}">
+            </a>
+            {% endif %}
+        </div>
+        <div class="article-list-content">
+            <h2 class="article-list-title">
+                <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+            </h2>
+            <div class="article-card-meta">
+                {{ article.published_at|date:"d F Y" }}
+                | <span class="site-badge">{{ article.site.name }}</span>
+            </div>
+            {% if article.excerpt %}
+            <p class="article-card-excerpt">{{ article.excerpt|striptags|truncatewords:30 }}</p>
+            {% endif %}
+        </div>
+    </article>
+    {% empty %}
+    <p>Aucun résultat pour "{{ query }}".</p>
+    {% endfor %}
+</div>
+
+{% with query_string="q="|add:query|add:"&" %}{% include "content/_pagination.html" %}{% endwith %}
+
+{% else %}
+<p>Entrez un terme de recherche.</p>
+{% endif %}
+{% endblock %}

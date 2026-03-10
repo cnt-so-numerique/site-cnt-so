@@ -1,0 +1,20 @@
+{% extends "redaction/base.html" %}
+{% block title %}Supprimer l'article — Rédaction{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Supprimer l'article</h1>
+</div>
+
+<div class="card" style="max-width:500px">
+  <p style="margin-bottom:1.5rem;">
+    Êtes-vous sûr de vouloir supprimer l'article <strong>« {{ object.title }} »</strong> ?<br>
+    <span style="color:var(--text-muted); font-size:.85rem;">Cette action est irréversible.</span>
+  </p>
+  <form method="post" style="display:flex; gap:.75rem;">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Supprimer définitivement</button>
+    <a href="{% url 'redaction:article_list' %}" class="btn btn-secondary">Annuler</a>
+  </form>
+</div>
+{% endblock %}

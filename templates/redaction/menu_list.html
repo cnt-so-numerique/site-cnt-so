@@ -1,0 +1,373 @@
+{% extends "redaction/base.html" %}
+{% block title %}Menus — {{ current_site.name }}{% endblock %}
+
+{% block content %}
+<style>
+  /* ── Arbre de menus ───────────────────────────────────────────────────── */
+  .menu-tree {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    min-height: 2rem;
+  }
+  .menu-tree .menu-tree {
+    margin-left: 1.75rem;
+    border-left: 2px solid #2d3139;
+    padding-left: .85rem;
+    margin-top: .2rem;
+    padding-bottom: .2rem;
+  }
+  .menu-node {
+    margin-bottom: .25rem;
+  }
+  .menu-item-row {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    background: #1e2129;
+    border: 1px solid #2d3139;
+    border-radius: 6px;
+    padding: .35rem .65rem;
+    transition: border-color .15s, background .15s;
+    user-select: none;
+  }
+  .menu-item-row:hover {
+    border-color: #4a5568;
+    background: #252932;
+  }
+  .drag-handle {
+    cursor: grab;
+    color: #4a5568;
+    font-size: 1.1rem;
+    padding: 0 .15rem;
+    flex-shrink: 0;
+    line-height: 1;
+    letter-spacing: -.05em;
+  }
+  .drag-handle:active { cursor: grabbing; }
+  .item-badge {
+    font-size: .68rem;
+    padding: .1rem .35rem;
+    border-radius: 4px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .item-title {
+    flex: 1;
+    font-size: .875rem;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .item-dest {
+    font-size: .73rem;
+    color: #64748b;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .item-inactive { opacity: .45; }
+  .item-actions { display: flex; gap: .3rem; flex-shrink: 0; }
+  /* Drag states */
+  .sortable-ghost .menu-item-row {
+    opacity: .25;
+    background: #e63946 !important;
+    border-color: #e63946 !important;
+  }
+  .sortable-chosen .menu-item-row {
+    border-color: #e63946 !important;
+    box-shadow: 0 0 0 2px rgba(230,57,70,.3);
+  }
+  .sortable-drag .menu-item-row {
+    background: #2d3139 !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  }
+  /* Barre de sauvegarde */
+  .save-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: #13151a;
+    border-bottom: 1px solid #2d3139;
+    padding: .65rem 0;
+    margin: -.5rem 0 1.5rem;
+  }
+  .save-topbar h1 { margin: 0; font-size: 1.25rem; }
+  .unsaved-pill {
+    display: none;
+    background: #fbbf24;
+    color: #1e2129;
+    font-size: .72rem;
+    font-weight: 700;
+    padding: .15rem .55rem;
+    border-radius: 99px;
+    letter-spacing: .02em;
+  }
+  .menu-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+  .menu-section-header h2 { font-size: 1rem; font-weight: 600; margin: 0; }
+  .empty-hint {
+    color: #64748b;
+    font-size: .85rem;
+    padding: .5rem 0;
+  }
+</style>
+
+<!-- Barre de sauvegarde sticky -->
+<div class="save-topbar">
+  <div style="display:flex; align-items:center; gap:.75rem;">
+    <h1>Menus — {{ current_site.name }}</h1>
+    <span class="unsaved-pill" id="unsaved-pill">● Non enregistré</span>
+  </div>
+  <div style="display:flex; gap:.5rem; align-items:center;">
+    <button id="save-btn" class="btn btn-primary" onclick="saveOrder()">Enregistrer</button>
+    <a href="{% url 'redaction:menu_item_create' %}" class="btn btn-secondary">+ Élément</a>
+  </div>
+</div>
+
+<!-- Conteneur des sections de menus (généré par JS) -->
+<div id="menus-container"></div>
+
+<!-- SortableJS -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+// ── Données ──────────────────────────────────────────────────────────────────
+const ITEMS   = {{ items_json|safe }};
+const MENUS   = {{ menus_json|safe }};   // {main: "Menu principal", ...}
+const REORDER_URL = "{{ reorder_url }}";
+const CSRF    = "{{ csrf_token }}";
+
+// ── État ─────────────────────────────────────────────────────────────────────
+let isDirty = false;
+function markDirty() {
+  if (!isDirty) {
+    isDirty = true;
+    document.getElementById('unsaved-pill').style.display = 'inline-block';
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+const BADGE_STYLE = {
+  url:      'background:rgba(59,130,246,.15); color:#60a5fa;',
+  category: 'background:rgba(34,197,94,.15);  color:#4ade80;',
+  site:     'background:rgba(251,191,36,.15);  color:#fbbf24;',
+  article:  'background:rgba(168,85,247,.15);  color:#c084fc;',
+  page:     'background:rgba(239,68,68,.15);   color:#f87171;',
+};
+
+// ── Construction de l'arbre ──────────────────────────────────────────────────
+function buildTree(flatItems) {
+  const map = {};
+  const roots = [];
+  flatItems.forEach(item => { map[item.id] = { ...item, children: [] }; });
+  flatItems.forEach(item => {
+    if (item.parent_id && map[item.parent_id]) {
+      map[item.parent_id].children.push(map[item.id]);
+    } else {
+      roots.push(map[item.id]);
+    }
+  });
+  function sort(nodes) {
+    nodes.sort((a, b) => a.order - b.order);
+    nodes.forEach(n => sort(n.children));
+  }
+  sort(roots);
+  return roots;
+}
+
+// ── Création d'un élément <li> ───────────────────────────────────────────────
+function createNode(item) {
+  const li = document.createElement('li');
+  li.className = 'menu-node';
+  li.dataset.id = item.id;
+
+  const badgeStyle = BADGE_STYLE[item.link_type] || BADGE_STYLE.url;
+  const inactiveClass = item.is_active ? '' : ' item-inactive';
+  const tabIcon = item.opens_new_tab
+    ? ' <span style="font-size:.68rem; color:#60a5fa;" title="Ouvre dans un nouvel onglet">↗</span>'
+    : '';
+
+  const row = document.createElement('div');
+  row.className = 'menu-item-row' + inactiveClass;
+  row.innerHTML =
+    '<span class="drag-handle" title="Glisser pour réordonner">⠿</span>' +
+    '<span class="item-badge" style="' + badgeStyle + '">' + esc(item.link_type_display) + '</span>' +
+    '<span class="item-title">' + esc(item.title) + tabIcon + '</span>' +
+    '<span class="item-dest" title="' + esc(item.destination) + '">' + esc(item.destination) + '</span>' +
+    '<div class="item-actions">' +
+      '<a href="' + esc(item.edit_url) + '" class="btn btn-secondary btn-sm">Modifier</a>' +
+      '<a href="' + esc(item.delete_url) + '" class="btn btn-danger btn-sm" ' +
+        'onclick="return confirm(\'Supprimer « ' + esc(item.title) + ' » ?\')">Supprimer</a>' +
+    '</div>';
+  li.appendChild(row);
+
+  // Liste enfants (toujours présente, même vide, pour accepter les dépôts)
+  const childUl = document.createElement('ul');
+  childUl.className = 'menu-tree';
+  item.children.forEach(child => childUl.appendChild(createNode(child)));
+  li.appendChild(childUl);
+
+  return li;
+}
+
+// ── Initialisation de Sortable (récursive) ───────────────────────────────────
+function initSortable(ul, groupName) {
+  if (ul._sortableInited) return;
+  ul._sortableInited = true;
+
+  new Sortable(ul, {
+    group: { name: groupName, pull: true, put: true },
+    handle: '.drag-handle',
+    animation: 150,
+    fallbackOnBody: true,
+    swapThreshold: 0.55,
+    ghostClass:  'sortable-ghost',
+    chosenClass: 'sortable-chosen',
+    dragClass:   'sortable-drag',
+    onSort: markDirty,
+    onAdd: function(evt) {
+      // S'assurer que les enfants du nœud déplacé ont Sortable
+      evt.item.querySelectorAll('.menu-tree').forEach(childUl => {
+        initSortable(childUl, groupName);
+      });
+      markDirty();
+    },
+  });
+
+  // Récursion sur tous les <ul.menu-tree> enfants immédiats
+  Array.from(ul.children).forEach(li => {
+    const childUl = li.querySelector(':scope > .menu-tree');
+    if (childUl) initSortable(childUl, groupName);
+  });
+}
+
+// ── Rendu des sections ───────────────────────────────────────────────────────
+function render() {
+  const container = document.getElementById('menus-container');
+  container.innerHTML = '';
+
+  // Grouper les items par menu
+  const groups = {};
+  Object.keys(MENUS).forEach(k => { groups[k] = []; });
+  ITEMS.forEach(item => { if (groups[item.menu]) groups[item.menu].push(item); });
+
+  Object.entries(MENUS).forEach(([key, label]) => {
+    const flatItems = groups[key] || [];
+    const tree = buildTree(flatItems);
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.menuKey = key;
+    card.style.marginBottom = '1.5rem';
+
+    const header = document.createElement('div');
+    header.className = 'menu-section-header';
+    header.innerHTML =
+      '<h2>' + esc(label) + '</h2>' +
+      '<span style="font-size:.8rem; color:#94a3b8;">' + flatItems.length +
+      ' élément' + (flatItems.length !== 1 ? 's' : '') + '</span>';
+    card.appendChild(header);
+
+    const ul = document.createElement('ul');
+    ul.className = 'menu-tree';
+    if (tree.length === 0) {
+      const hint = document.createElement('p');
+      hint.className = 'empty-hint';
+      hint.innerHTML =
+        'Aucun élément. <a href="{% url "redaction:menu_item_create" %}" style="color:#e63946;">Ajouter</a>';
+      card.appendChild(hint);
+    }
+    tree.forEach(item => ul.appendChild(createNode(item)));
+    card.appendChild(ul);
+
+    container.appendChild(card);
+    initSortable(ul, 'menu-' + key);
+  });
+}
+
+// ── Sérialisation du DOM → JSON ──────────────────────────────────────────────
+function serializeList(ul) {
+  const result = [];
+  Array.from(ul.children).forEach((li, idx) => {
+    if (!li.dataset.id) return;
+    const childUl = li.querySelector(':scope > .menu-tree');
+    result.push({
+      id: parseInt(li.dataset.id),
+      order: idx + 1,
+      children: childUl ? serializeList(childUl) : [],
+    });
+  });
+  return result;
+}
+
+// ── Sauvegarde ───────────────────────────────────────────────────────────────
+async function saveOrder() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Enregistrement…';
+
+  const payload = {};
+  document.querySelectorAll('[data-menu-key]').forEach(card => {
+    const key = card.dataset.menuKey;
+    const ul = card.querySelector(':scope > .menu-tree');
+    payload[key] = ul ? serializeList(ul) : [];
+  });
+
+  try {
+    const resp = await fetch(REORDER_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': CSRF,
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      isDirty = false;
+      document.getElementById('unsaved-pill').style.display = 'none';
+      btn.textContent = '✓ Enregistré';
+      btn.style.background = '#22c55e';
+      setTimeout(() => {
+        btn.textContent = 'Enregistrer';
+        btn.style.background = '';
+        btn.disabled = false;
+      }, 2000);
+    } else {
+      alert('Erreur : ' + (data.error || 'Inconnue'));
+      btn.textContent = 'Enregistrer';
+      btn.disabled = false;
+    }
+  } catch (e) {
+    alert('Erreur réseau : ' + e.message);
+    btn.textContent = 'Enregistrer';
+    btn.disabled = false;
+  }
+}
+
+// Avertissement si on quitte sans sauvegarder
+window.addEventListener('beforeunload', e => {
+  if (isDirty) { e.preventDefault(); e.returnValue = ''; }
+});
+
+// ── Lancement ────────────────────────────────────────────────────────────────
+render();
+</script>
+{% endblock %}

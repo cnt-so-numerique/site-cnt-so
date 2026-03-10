@@ -1,0 +1,601 @@
+{% extends "redaction/base.html" %}
+{% block title %}{{ action }} article — Rédaction{% endblock %}
+
+{% block extra_head %}
+<style>
+  .editor-layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 1.5rem;
+    align-items: start;
+  }
+  .editor-title-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid #2d3139;
+    color: #e2e8f0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    padding: .5rem 0;
+    margin-bottom: 1.5rem;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .editor-title-input:focus { border-color: #e63946; }
+  .editor-title-input::placeholder { color: #475569; }
+
+  #editorjs {
+    background: #1e2229;
+    border: 1px solid #2d3139;
+    border-radius: 8px;
+    min-height: 600px;
+    padding: 2rem 2rem 2rem 4rem;
+    color: #e2e8f0;
+    overflow: visible;
+  }
+
+  @media (max-width: 768px) {
+    .editor-layout { grid-template-columns: 1fr; }
+    .editor-sidebar { position: static; }
+    .editor-title-input { font-size: 1.3rem; }
+    #editorjs { padding: 1rem; min-height: 400px; }
+  }
+  .ce-block__content, .ce-toolbar__content { max-width: 100% !important; }
+  .codex-editor__redactor { padding-bottom: 3rem !important; }
+  .ce-toolbar__plus, .ce-toolbar__settings-btn {
+    background: #252932 !important; border: 1px solid #2d3139 !important; color: #94a3b8 !important;
+  }
+  .ce-toolbar__plus:hover, .ce-toolbar__settings-btn:hover { background: #e63946 !important; color: #fff !important; }
+  .ce-popover, .ce-popover__container {
+    background: #252932 !important; border: 1px solid #2d3139 !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5) !important;
+  }
+  .ce-popover-item__title { color: #e2e8f0 !important; }
+  .ce-popover-item__secondary-title { color: #94a3b8 !important; }
+  .ce-popover-item:hover, .ce-popover-item--focused { background: #2d3139 !important; }
+  .cdx-search-field { background: #1e2229 !important; border-color: #2d3139 !important; }
+  .cdx-search-field__input { background: transparent !important; color: #e2e8f0 !important; }
+  .ce-inline-toolbar { background: #252932 !important; border: 1px solid #2d3139 !important; box-shadow: 0 4px 12px rgba(0,0,0,.5) !important; }
+  .ce-inline-tool { color: #94a3b8 !important; }
+  .ce-inline-tool:hover, .ce-inline-tool--active { color: #e63946 !important; }
+  .ce-conversion-toolbar { background: #252932 !important; border-color: #2d3139 !important; }
+  .ce-conversion-tool:hover { background: #2d3139 !important; }
+  .ce-conversion-tool__title { color: #e2e8f0 !important; }
+  .cdx-block, .ce-paragraph, .ce-header { color: #e2e8f0 !important; }
+  .ce-paragraph[data-placeholder]:empty::before { color: #475569 !important; }
+  .cdx-input { background: #252932 !important; border-color: #2d3139 !important; color: #e2e8f0 !important; }
+  .cdx-quote__text, .cdx-quote__caption { color: #e2e8f0 !important; background: #252932 !important; border-color: #e63946 !important; }
+  .cdx-list__item { color: #e2e8f0 !important; }
+  .tc-table, .tc-cell, .tc-row { border-color: #2d3139 !important; }
+  .tc-cell { color: #e2e8f0 !important; }
+  .tc-popover { background: #252932 !important; border-color: #2d3139 !important; }
+  .ce-code__textarea { background: #0d1117 !important; color: #7ee787 !important; border-color: #2d3139 !important; }
+  .ce-settings { background: #252932 !important; border: 1px solid #2d3139 !important; box-shadow: 0 8px 24px rgba(0,0,0,.5) !important; }
+  .ce-settings__button { color: #94a3b8 !important; }
+  .ce-settings__button:hover { background: #2d3139 !important; color: #e2e8f0 !important; }
+  /* Image tool */
+  .image-tool__image { border-radius: 6px; overflow: hidden; }
+  .image-tool__caption { background: #252932 !important; color: #94a3b8 !important; border-color: #2d3139 !important; }
+  .cdx-button { background: #252932 !important; border-color: #2d3139 !important; color: #e2e8f0 !important; }
+  .cdx-button:hover { background: #2d3139 !important; }
+
+  /* Checkboxes */
+  .checkbox-scroll { max-height: 200px; overflow-y: auto; padding-right: .25rem; }
+  .checkbox-scroll::-webkit-scrollbar { width: 4px; }
+  .checkbox-scroll::-webkit-scrollbar-thumb { background: #2d3139; border-radius: 2px; }
+  .checkbox-scroll ul { list-style: none; padding: 0; margin: 0; }
+  .checkbox-scroll ul li { display: flex; align-items: center; gap: .5rem; padding: .3rem .25rem; border-radius: 4px; transition: background .1s; }
+  .checkbox-scroll ul li:hover { background: #252932; }
+  .checkbox-scroll ul li label { font-size: .85rem; color: #e2e8f0; cursor: pointer; flex: 1; margin: 0; }
+  .checkbox-scroll ul li input[type=checkbox] { accent-color: #e63946; width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; }
+  .tag-search { width: 100%; background: #252932; border: 1px solid #2d3139; border-radius: 5px; color: #e2e8f0; font-size: .8rem; padding: .35rem .6rem; margin-bottom: .6rem; outline: none; }
+  .tag-search:focus { border-color: #e63946; }
+  .tag-search::placeholder { color: #475569; }
+
+  /* Featured image */
+  .featured-image-zone {
+    border: 2px dashed #2d3139;
+    border-radius: 8px;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    position: relative;
+  }
+  .featured-image-zone:hover { border-color: #e63946; background: rgba(230,57,70,.04); }
+  .featured-image-zone.has-image { border-style: solid; border-color: #2d3139; padding: 0; overflow: hidden; }
+  .featured-image-zone img { width: 100%; display: block; border-radius: 6px; }
+  .featured-image-actions {
+    display: flex; gap: .5rem; margin-top: .5rem;
+  }
+  .featured-image-placeholder { color: #475569; font-size: .85rem; }
+  .featured-image-placeholder svg { display: block; margin: 0 auto .5rem; opacity: .4; }
+  #featured-image-input { display: none; }
+
+  /* Excerpt */
+  .excerpt-field { margin-top: 1.5rem; }
+  .excerpt-field label { display: block; font-size: .8rem; font-weight: 500; color: #94a3b8; margin-bottom: .4rem; }
+
+  /* Barre d'actions sticky */
+  .editor-topbar {
+    position: sticky;
+    top: 52px;
+    z-index: 50;
+    background: #13151a;
+    border-bottom: 1px solid #2d3139;
+    padding: .75rem 0;
+    margin: -1.5rem 0 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Sidebar */
+  .editor-sidebar {
+    position: sticky;
+    top: calc(52px + 60px);
+    max-height: calc(100vh - 52px - 80px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #2d3139 transparent;
+  }
+  .editor-sidebar::-webkit-scrollbar { width: 4px; }
+  .editor-sidebar::-webkit-scrollbar-thumb { background: #2d3139; border-radius: 2px; }
+  .sidebar-panel { background: #1e2229; border: 1px solid #2d3139; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
+  .sidebar-panel-title { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; padding: .75rem 1rem; border-bottom: 1px solid #2d3139; background: #13151a; }
+  .sidebar-panel-body { padding: 1rem; }
+  .upload-progress { display:none; font-size:.75rem; color:#94a3b8; margin-top:.4rem; text-align:center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="editor-topbar">
+  <a href="{% url 'redaction:article_list' %}" class="btn btn-secondary btn-sm">← Articles</a>
+  <div style="display:flex; gap:.75rem; align-items:center;">
+    {% if object %}
+    <a href="{{ object.get_absolute_url }}" target="_blank" class="btn btn-secondary btn-sm">🌐 Voir publié</a>
+    <button type="button" class="btn btn-secondary btn-sm" id="btn-preview">👁 Aperçu</button>
+    {% endif %}
+    <button type="submit" form="article-form" class="btn btn-primary">{{ action }} l'article</button>
+  </div>
+</div>
+
+<form method="post" id="article-form">
+  {% csrf_token %}
+  {{ form.content }}
+  {{ form.featured_image }}
+
+  {% if form.non_field_errors %}
+  <div style="margin-bottom:1rem; color:#f87171; font-size:.875rem;">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <div class="editor-layout">
+
+    <!-- Colonne principale -->
+    <div>
+      <input type="text" name="title" id="id_title" class="editor-title-input"
+        placeholder="Titre de l'article"
+        value="{{ form.title.value|default:'' }}" required>
+      {% if form.title.errors %}
+      <p style="color:#f87171;font-size:.8rem;margin-top:-.75rem;margin-bottom:.75rem;">{{ form.title.errors.0 }}</p>
+      {% endif %}
+
+      <div id="editorjs"></div>
+
+      <div class="excerpt-field">
+        <label for="{{ form.excerpt.id_for_label }}">Extrait (optionnel)</label>
+        {{ form.excerpt }}
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="editor-sidebar">
+
+      <div class="sidebar-panel">
+        <div class="sidebar-panel-title">Publication</div>
+        <div class="sidebar-panel-body">
+          <div class="field">
+            <label for="{{ form.status.id_for_label }}" style="font-size:.8rem;color:#94a3b8;display:block;margin-bottom:.3rem;">Statut</label>
+            {{ form.status }}
+          </div>
+          <div class="field" style="margin-top:.75rem;">
+            <label for="{{ form.site.id_for_label }}" style="font-size:.8rem;color:#94a3b8;display:block;margin-bottom:.3rem;">Site</label>
+            {% if is_chef %}
+            {{ form.site }}
+            {% else %}
+            <span style="font-size:.875rem; color:#e2e8f0;">{{ user_site.name|default:"—" }}</span>
+            {{ form.site }}
+            {% endif %}
+          </div>
+          <div class="field" style="margin-top:.75rem; padding-top:.75rem; border-top:1px solid #2d3139;">
+            <label style="display:flex; align-items:center; gap:.5rem; cursor:pointer;">
+              {{ form.is_sticky }}
+              <span style="font-size:.85rem; color:#e2e8f0; font-weight:500;">⭐ À la une</span>
+            </label>
+            <p style="font-size:.75rem; color:#475569; margin-top:.3rem; line-height:1.4;">
+              1er coché → hero principal. 2e, 3e, 4e cochés → mini-cartes sous le hero.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aide au placement -->
+      <div class="sidebar-panel">
+        <div class="sidebar-panel-title">💡 Comment placer un article ?</div>
+        <div class="sidebar-panel-body" style="font-size:.78rem; color:#64748b; line-height:1.6;">
+          <p style="margin-bottom:.6rem;"><strong style="color:#94a3b8;">⭐ Hero + mini-cartes</strong><br>Cocher "À la une" — le 1er article coché = hero, les 3 suivants = mini-cartes sous le hero</p>
+          <p style="margin-bottom:.6rem;"><strong style="color:#94a3b8;">⚔️ Section Luttes</strong><br>Catégorie : <code style="color:#e63946;">actualites-luttes</code></p>
+          <p style="margin-bottom:.6rem;"><strong style="color:#94a3b8;">⚖️ Section Droits</strong><br>Catégorie : <code style="color:#e63946;">droit</code></p>
+          <p style="margin-bottom:.6rem;"><strong style="color:#94a3b8;">🌍 Section Campagnes</strong><br>Catégorie : <code style="color:#e63946;">international</code>, <code style="color:#e63946;">solidarites</code> ou <code style="color:#e63946;">campagne</code></p>
+          <p><strong style="color:#94a3b8;">👷 Sans-papiers</strong><br>Catégorie : <code style="color:#e63946;">travailleurs-euses-sans-papiers</code></p>
+        </div>
+      </div>
+
+      <!-- Image mise en avant -->
+      <div class="sidebar-panel">
+        <div class="sidebar-panel-title">Image mise en avant</div>
+        <div class="sidebar-panel-body">
+          <div class="featured-image-zone" id="featured-image-zone" onclick="document.getElementById('featured-image-input').click()">
+            {% if object and object.featured_image and object.featured_image.file %}
+            <img src="{{ object.featured_image.file.url }}" alt="" id="featured-image-preview">
+            {% else %}
+            <div class="featured-image-placeholder" id="featured-image-placeholder">
+              <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              Cliquer pour choisir une image
+            </div>
+            <img src="" alt="" id="featured-image-preview" style="display:none; width:100%; border-radius:6px;">
+            {% endif %}
+          </div>
+          <p class="upload-progress" id="upload-progress">Envoi en cours…</p>
+          <input type="file" id="featured-image-input" accept="image/*">
+          {% if object and object.featured_image %}
+          <div class="featured-image-actions">
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeFeaturedImage()" style="width:100%;">Supprimer l'image</button>
+          </div>
+          {% else %}
+          <div class="featured-image-actions" id="featured-image-actions" style="display:none;">
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeFeaturedImage()" style="width:100%;">Supprimer l'image</button>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="sidebar-panel">
+        <div class="sidebar-panel-title">Catégories</div>
+        <div class="sidebar-panel-body">
+          <input type="text" class="tag-search" placeholder="Filtrer…" oninput="filterCheckboxes(this,'categories-list')">
+          <div class="checkbox-scroll" id="categories-list">{{ form.categories }}</div>
+        </div>
+      </div>
+
+      <div class="sidebar-panel">
+        <div class="sidebar-panel-title">Tags</div>
+        <div class="sidebar-panel-body">
+          <input type="text" class="tag-search" placeholder="Filtrer…" oninput="filterCheckboxes(this,'tags-list')">
+          <div class="checkbox-scroll" id="tags-list">{{ form.tags }}</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</form>
+
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@2.28.2/dist/editorjs.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/header@2.8.1/dist/header.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/list@1.9.0/dist/list.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/quote@2.6.0/dist/quote.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/code@2.9.0/dist/code.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/delimiter@1.4.0/dist/delimiter.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/table@2.3.0/dist/table.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/inline-code@1.5.0/dist/inline-code.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/image@2.9.0/dist/image.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/embed@2.7.4/dist/embed.umd.min.js"></script>
+
+<script>
+const UPLOAD_URL = "{% url 'redaction:image_upload' %}";
+const CSRF_TOKEN = "{{ csrf_token }}";
+
+// ── Outil Galerie custom ──────────────────────────────────────────────────────
+class GalleryTool {
+  static get toolbox() {
+    return {
+      title: 'Galerie',
+      icon: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>'
+    };
+  }
+
+  static get isReadOnlySupported() { return true; }
+
+  constructor({ data, config, api, readOnly }) {
+    this.data = { images: data.images || [], columns: data.columns || 3 };
+    this.api = api;
+    this.readOnly = readOnly;
+    this.wrapper = null;
+  }
+
+  render() {
+    this.wrapper = document.createElement('div');
+    this._buildUI();
+    return this.wrapper;
+  }
+
+  _buildUI() {
+    this.wrapper.innerHTML = '';
+    this.wrapper.style.cssText = 'border:1px solid #2d3139;border-radius:8px;padding:1rem;background:#1a1d23;';
+
+    // En-tête avec sélecteur de colonnes
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;';
+    header.innerHTML = `
+      <span style="font-size:.75rem;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">
+        📷 Galerie — ${this.data.images.length} image(s)
+      </span>
+      ${!this.readOnly ? `
+      <div style="display:flex;gap:.5rem;align-items:center;">
+        <label style="font-size:.8rem;color:#94a3b8;">Colonnes :</label>
+        <select class="gal-cols" style="background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.8rem;padding:.2rem .5rem;">
+          ${[2,3,4].map(n => `<option value="${n}" ${this.data.columns==n?'selected':''}>${n}</option>`).join('')}
+        </select>
+      </div>` : ''}
+    `;
+    this.wrapper.appendChild(header);
+
+    // Grille d'images
+    const grid = document.createElement('div');
+    grid.style.cssText = `display:grid;grid-template-columns:repeat(${this.data.columns},1fr);gap:6px;margin-bottom:.75rem;`;
+    this.data.images.forEach((img, idx) => grid.appendChild(this._makeThumb(img, idx)));
+    this.wrapper.appendChild(grid);
+
+    // Bouton ajout
+    if (!this.readOnly) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = '+ Ajouter des images';
+      btn.style.cssText = 'width:100%;padding:.5rem;background:#252932;border:1px dashed #2d3139;border-radius:6px;color:#94a3b8;cursor:pointer;font-size:.85rem;transition:border-color .2s,color .2s;';
+      btn.onmouseover = () => { btn.style.borderColor='#e63946'; btn.style.color='#e63946'; };
+      btn.onmouseout  = () => { btn.style.borderColor='#2d3139'; btn.style.color='#94a3b8'; };
+      btn.onclick = () => this._pickFiles();
+      this.wrapper.appendChild(btn);
+
+      // Écouteur colonnes
+      const sel = this.wrapper.querySelector('.gal-cols');
+      if (sel) sel.onchange = (e) => {
+        this.data.columns = parseInt(e.target.value);
+        grid.style.gridTemplateColumns = `repeat(${this.data.columns},1fr)`;
+        header.querySelector('span').textContent = `📷 Galerie — ${this.data.images.length} image(s)`;
+      };
+    }
+  }
+
+  _makeThumb(img, idx) {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;aspect-ratio:1;overflow:hidden;border-radius:4px;background:#252932;';
+    const image = document.createElement('img');
+    image.src = img.url;
+    image.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+    wrap.appendChild(image);
+    if (!this.readOnly) {
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.textContent = '×';
+      del.style.cssText = 'position:absolute;top:3px;right:3px;width:20px;height:20px;background:rgba(230,57,70,.9);border:none;border-radius:50%;color:#fff;font-size:14px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;';
+      del.onclick = () => { this.data.images.splice(idx, 1); this._buildUI(); };
+      wrap.appendChild(del);
+    }
+    return wrap;
+  }
+
+  _pickFiles() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const files = Array.from(e.target.files);
+      for (const file of files) await this._upload(file);
+      this._buildUI();
+    };
+    input.click();
+  }
+
+  async _upload(file) {
+    const fd = new FormData();
+    fd.append('image', file);
+    try {
+      const r = await fetch(UPLOAD_URL, { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN }, body: fd });
+      const d = await r.json();
+      if (d.success) this.data.images.push({ url: d.file.url, caption: '' });
+    } catch (err) { console.error('Upload galerie:', err); }
+  }
+
+  save() {
+    return { images: this.data.images, columns: this.data.columns };
+  }
+}
+
+// ── Editor.js ────────────────────────────────────────────────────────────────
+(function () {
+  const hiddenField = document.getElementById('id_content');
+  const raw = hiddenField ? hiddenField.value.trim() : '';
+  let initialData = { blocks: [] };
+  if (raw) {
+    if (raw.startsWith('{')) {
+      try { initialData = JSON.parse(raw); } catch (e) {}
+    } else {
+      initialData = { blocks: [{ type: 'paragraph', data: { text: raw } }] };
+    }
+  }
+
+  const editor = window._editorInstance = new EditorJS({
+    holder: 'editorjs',
+    placeholder: 'Cliquez ici pour commencer à rédiger…',
+    data: initialData,
+    tools: {
+      header: { class: Header, config: { levels: [2, 3, 4], defaultLevel: 2 } },
+      list: { class: List, inlineToolbar: true, config: { defaultStyle: 'unordered' } },
+      quote: { class: Quote, inlineToolbar: true, config: { quotePlaceholder: 'Citation…', captionPlaceholder: 'Source' } },
+      code: { class: CodeTool },
+      delimiter: Delimiter,
+      table: { class: Table, inlineToolbar: true, config: { rows: 2, cols: 3 } },
+      inlineCode: { class: InlineCode },
+      gallery: { class: GalleryTool },
+      image: {
+        class: ImageTool,
+        config: {
+          endpoints: { byFile: UPLOAD_URL },
+          additionalRequestHeaders: { 'X-CSRFToken': CSRF_TOKEN },
+          captionPlaceholder: 'Légende de l\'image',
+          buttonContent: 'Choisir une image',
+        },
+      },
+      embed: {
+        class: Embed,
+        config: {
+          services: {
+            youtube: true,
+            vimeo: true,
+            instagram: true,
+            twitter: true,
+            codepen: true,
+            pinterest: true,
+          },
+        },
+      },
+    },
+    i18n: {
+      messages: {
+        toolNames: {
+          Text: 'Paragraphe', Heading: 'Titre', List: 'Liste',
+          Quote: 'Citation', Code: 'Code', Delimiter: 'Séparateur',
+          Table: 'Tableau', Image: 'Image', Bold: 'Gras',
+          Italic: 'Italique', InlineCode: 'Code inline', Embed: 'Vidéo / Embed',
+          Gallery: 'Galerie',
+        },
+        ui: {
+          blockTunes: { toggler: { 'Click to tune': 'Options', 'or drag to move': 'ou glisser' } },
+          toolbar: { toolbox: { Add: 'Ajouter un bloc' } },
+          popover: { Filter: 'Rechercher…', 'Nothing found': 'Aucun résultat' },
+        },
+        blockTunes: {
+          delete: { Delete: 'Supprimer', 'Click to delete': 'Confirmer' },
+          moveUp: { 'Move up': 'Monter' },
+          moveDown: { 'Move down': 'Descendre' },
+        },
+      },
+    },
+  });
+
+  document.getElementById('article-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    try {
+      const saved = await editor.save();
+      hiddenField.value = JSON.stringify(saved);
+    } catch (err) { console.error('Editor.js save error:', err); }
+    this.submit();
+  });
+})();
+
+// ── Image mise en avant ───────────────────────────────────────────────────────
+document.getElementById('featured-image-input').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+
+  const progress = document.getElementById('upload-progress');
+  progress.style.display = 'block';
+
+  const formData = new FormData();
+  formData.append('image', file);
+
+  fetch(UPLOAD_URL, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF_TOKEN },
+    body: formData,
+  })
+  .then(r => r.json())
+  .then(data => {
+    progress.style.display = 'none';
+    if (data.success) {
+      document.getElementById('id_featured_image').value = data.file.id;
+      const preview = document.getElementById('featured-image-preview');
+      const placeholder = document.getElementById('featured-image-placeholder');
+      preview.src = data.file.url;
+      preview.style.display = 'block';
+      if (placeholder) placeholder.style.display = 'none';
+      document.getElementById('featured-image-zone').classList.add('has-image');
+      const actions = document.getElementById('featured-image-actions');
+      if (actions) actions.style.display = 'flex';
+    }
+  })
+  .catch(() => { progress.style.display = 'none'; });
+});
+
+function removeFeaturedImage() {
+  document.getElementById('id_featured_image').value = '';
+  const preview = document.getElementById('featured-image-preview');
+  preview.src = ''; preview.style.display = 'none';
+  const placeholder = document.getElementById('featured-image-placeholder');
+  if (placeholder) placeholder.style.display = 'block';
+  document.getElementById('featured-image-zone').classList.remove('has-image');
+  const actions = document.getElementById('featured-image-actions');
+  if (actions) actions.style.display = 'none';
+}
+
+// ── Filtre checkboxes ─────────────────────────────────────────────────────────
+function filterCheckboxes(input, containerId) {
+  const filter = input.value.toLowerCase();
+  document.querySelectorAll('#' + containerId + ' li').forEach(function (li) {
+    const label = li.querySelector('label');
+    if (label) li.style.display = label.textContent.toLowerCase().includes(filter) ? '' : 'none';
+  });
+}
+
+// ── Aperçu en direct ──────────────────────────────────────────────────────────
+const btnPreview = document.getElementById('btn-preview');
+if (btnPreview) {
+  btnPreview.addEventListener('click', async function () {
+    // 1. Récupérer le contenu actuel de l'éditeur
+    const hiddenField = document.getElementById('id_content');
+    if (window._editorInstance) {
+      try {
+        const saved = await window._editorInstance.save();
+        hiddenField.value = JSON.stringify(saved);
+      } catch (e) {}
+    }
+
+    // 2. Créer un formulaire temporaire POST vers la vue preview (nouvel onglet)
+    const previewUrl = "{% if object %}{% url 'redaction:article_preview' object.pk %}{% endif %}";
+    const tmpForm = document.createElement('form');
+    tmpForm.method = 'POST';
+    tmpForm.action = previewUrl;
+    tmpForm.target = '_blank';
+
+    // CSRF
+    const csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = 'csrfmiddlewaretoken';
+    csrf.value = CSRF_TOKEN;
+    tmpForm.appendChild(csrf);
+
+    // Titre et contenu
+    ['title', 'content', 'status'].forEach(function (name) {
+      const src = document.querySelector('[name="' + name + '"]');
+      if (src) {
+        const inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = name;
+        inp.value = src.value;
+        tmpForm.appendChild(inp);
+      }
+    });
+
+    document.body.appendChild(tmpForm);
+    tmpForm.submit();
+    document.body.removeChild(tmpForm);
+  });
+}
+</script>
+{% endblock %}

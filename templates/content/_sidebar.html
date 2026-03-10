@@ -1,0 +1,63 @@
+<!-- Vous voulez nous soutenir ? -->
+<div class="hp-bloc-soutenir">
+    <h3>Vous voulez nous soutenir ?</h3>
+    <p>Rejoignez-nous ou faites un don pour soutenir nos actions syndicales.</p>
+    <a href="{% url 'content:souscription' %}" class="hp-btn-outline">Nous soutenir</a>
+</div>
+
+<!-- Les dernières campagnes -->
+<div class="hp-bloc-campagnes">
+    <div class="hp-sidebar-header">
+        <h3>Les dernières campagnes</h3>
+        <a href="{% url 'content:category_detail' slug='international' %}">Tout voir</a>
+    </div>
+    <div class="hp-sidebar-list">
+        {% for article in campagnes_articles %}
+        <div class="hp-sidebar-item">
+            <span class="hp-sidebar-item-dot"></span>
+            <div>
+                <div class="hp-sidebar-item-title">
+                    <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                </div>
+                <div class="hp-sidebar-item-cat">
+                    {% for cat in article.categories.all|slice:":1" %}{{ cat.name }}{% endfor %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <p style="font-size:12px;color:var(--text-muted);padding:0.5rem 0;">Aucun article.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Notre banque d'images -->
+<div class="hp-bloc-galerie">
+    <h3>Notre banque d'images</h3>
+    <p>Découvrez nos archives photographiques des luttes ouvrières.</p>
+    <a href="{% url 'content:category_detail' slug='banque-dimage' %}" class="hp-btn-outline">Voir la galerie</a>
+</div>
+
+<!-- Ce que vous avez loupé -->
+<div class="hp-bloc-loupe">
+    <div class="hp-sidebar-header">
+        <h3>Ce que vous avez loupé</h3>
+        <a href="{% url 'content:home' %}">Tout voir</a>
+    </div>
+    <div class="hp-sidebar-list">
+        {% for article in manques_articles %}
+        <div class="hp-sidebar-item">
+            <span class="hp-sidebar-item-dot"></span>
+            <div>
+                <div class="hp-sidebar-item-title">
+                    <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                </div>
+                <div class="hp-sidebar-item-cat">
+                    {% for cat in article.categories.all|slice:":1" %}{{ cat.name }}{% endfor %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <p style="font-size:12px;color:var(--text-muted);padding:0.5rem 0;">Aucun article.</p>
+        {% endfor %}
+    </div>
+</div>

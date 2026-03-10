@@ -1,0 +1,59 @@
+{% extends "redaction/base.html" %}
+{% block title %}Utilisateurs — Rédaction{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Utilisateurs</h1>
+  <a href="{% url 'redaction:user_create' %}" class="btn btn-primary">+ Nouvel utilisateur</a>
+</div>
+
+{% if users %}
+<div class="card table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Nom d'utilisateur</th>
+        <th>Nom complet</th>
+        <th>Email</th>
+        <th>Site</th>
+        <th>Rôle</th>
+        <th>Actif</th>
+        <th style="text-align:right">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>
+          <strong>{{ u.username }}</strong>
+          {% if u.is_superuser %}<span class="badge badge-publish" style="margin-left:.4rem">Superuser</span>{% endif %}
+        </td>
+        <td style="color:var(--text-muted)">{{ u.get_full_name|default:"—" }}</td>
+        <td style="color:var(--text-muted); font-size:.85rem;">{{ u.email|default:"—" }}</td>
+        <td style="color:var(--text-muted); font-size:.85rem;">{{ u.author_profile.site.name|default:"—" }}</td>
+        <td>
+          {% for g in u.groups.all %}
+          <span class="badge badge-info" style="background:rgba(59,130,246,.15); color:#60a5fa;">{{ g.name }}</span>
+          {% empty %}—{% endfor %}
+        </td>
+        <td>
+          {% if u.is_active %}
+          <span style="color:#4ade80; font-size:.8rem;">✓ Actif</span>
+          {% else %}
+          <span style="color:#f87171; font-size:.8rem;">✗ Inactif</span>
+          {% endif %}
+        </td>
+        <td style="text-align:right">
+          <a href="{% url 'redaction:user_edit' u.pk %}" class="btn btn-secondary btn-sm">Modifier</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card">
+  <p style="color:var(--text-muted)">Aucun utilisateur.</p>
+</div>
+{% endif %}
+{% endblock %}

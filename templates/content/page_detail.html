@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page.title }} - {{ site.name }}{% endblock %}
+
+{% block content %}
+<article>
+    <header class="article-header">
+        <div class="breadcrumb">
+            <a href="{% url 'content:home' %}">Accueil</a> /
+            {% if site.slug != 'principal' %}
+            <a href="{{ site.get_absolute_url }}">{{ site.name }}</a> /
+            {% endif %}
+            <span>{{ page.title }}</span>
+        </div>
+
+        <h1 class="article-title">{{ page.title }}</h1>
+    </header>
+
+    {% if page.featured_image %}
+    <div class="article-featured-image">
+        <img src="{{ page.featured_image.url }}" alt="{{ page.title }}">
+    </div>
+    {% endif %}
+
+    <div class="article-content">
+        {{ page.content|safe }}
+    </div>
+</article>
+{% endblock %}
+
+{% block sidebar %}
+<div class="widget">
+    <h3 class="widget-title">Navigation</h3>
+    <ul>
+        {% if site.slug == 'principal' %}
+            <li><a href="{% url 'content:home' %}">Retour à l'accueil</a></li>
+        {% else %}
+            <li><a href="{{ site.get_absolute_url }}">Retour à {{ site.name }}</a></li>
+            <li><a href="{% url 'content:home' %}">Site principal CNT-SO</a></li>
+        {% endif %}
+    </ul>
+</div>
+{% endblock %}

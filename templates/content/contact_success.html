@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Message envoyé - CNT-SO{% endblock %}
+
+{% block content %}
+<div style="text-align: center; padding: 3rem 0;">
+    <h1 style="color: var(--primary-color);">Merci pour votre message !</h1>
+
+    <p style="color: var(--text-light); margin: 2rem 0; font-size: 1.1rem;">
+        Votre message a bien été envoyé.<br>
+        Nous vous répondrons dans les meilleurs délais.
+    </p>
+
+    <a href="{{ site.get_absolute_url|default:'/' }}" style="
+        display: inline-block;
+        background: var(--primary-color);
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 500;
+    ">Retour à l'accueil</a>
+</div>
+{% endblock %}

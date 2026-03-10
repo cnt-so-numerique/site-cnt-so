@@ -1,0 +1,10 @@
+<section class="site-newsletter">
+    <div class="site-newsletter-inner">
+        <h2>Restez aux aguets grâce à la newsletter&nbsp;!</h2>
+        <form class="site-newsletter-form" method="post" action="#">
+            {% csrf_token %}
+            <input type="email" name="email" placeholder="Votre adresse e-mail…">
+            <button type="submit">S'inscrire</button>
+        </form>
+    </div>
+</section>
