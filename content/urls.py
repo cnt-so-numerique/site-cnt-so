@@ -12,9 +12,18 @@ urlpatterns = [
     # Recherche
     path('recherche/', views.SearchView.as_view(), name='search'),
 
+    # Espace presse
+    path('espace-presse/', views.EspacePresse.as_view(), name='espace_presse'),
+    path('<slug:site_slug>/espace-presse/', views.SiteEspacePresse.as_view(), name='site_espace_presse'),
+
     # Contact
     path('contact/', views.ContactView.as_view(), name='contact'),
     path('contact/merci/', views.contact_success, name='contact_success'),
+
+    # Newsletter
+    path('newsletter/inscription/', views.NewsletterSubscribeView.as_view(), name='newsletter_subscribe'),
+    path('newsletter/confirmer/<uuid:token>/', views.NewsletterConfirmView.as_view(), name='newsletter_confirm'),
+    path('newsletter/desinscription/<uuid:token>/', views.NewsletterUnsubscribeView.as_view(), name='newsletter_unsubscribe'),
 
     # Flux RSS
     path('feed/', LatestArticlesFeed(), name='rss_feed'),
@@ -37,7 +46,12 @@ urlpatterns = [
     path('article/<slug:slug>/', views.ArticleDetailView.as_view(), name='article_detail'),
     path('page/<slug:slug>/', views.PageDetailView.as_view(), name='page_detail'),
 
+    # Sous-sites newsletter
+    path('<slug:site_slug>/newsletter/inscription/', views.NewsletterSubscribeView.as_view(), name='site_newsletter_subscribe'),
+
     # Sous-sites
+    path('<slug:site_slug>/agenda/', views.SiteAgendaView.as_view(), name='site_agenda'),
+    path('<slug:site_slug>/categorie/<slug:slug>/', views.SiteCategoryDetailView.as_view(), name='site_category_detail'),
     path('<slug:site_slug>/contact/', views.SiteContactView.as_view(), name='site_contact'),
     path('<slug:site_slug>/contact/merci/', views.site_contact_success, name='site_contact_success'),
     path('<slug:site_slug>/plan-du-site/', views.PlanDuSiteView.as_view(), name='site_plan_du_site'),

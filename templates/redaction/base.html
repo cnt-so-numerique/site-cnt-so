@@ -325,7 +325,7 @@
   <a href="{% url 'redaction:dashboard' %}" class="topbar-brand">CNT-SO · Rédaction</a>
   <span class="topbar-spacer"></span>
   {% if user.is_authenticated %}
-    <a href="{{ object.get_absolute_url|default:current_site.get_absolute_url|default:'' }}" target="_blank" rel="noopener"
+    <a href="{% if object %}{{ object.get_absolute_url }}{% elif current_site %}{{ current_site.get_absolute_url }}{% else %}/{% endif %}" target="_blank" rel="noopener"
        class="btn btn-sm" title="Ouvrir le site public (nouvel onglet)"
        style="background:rgba(59,130,246,.15); border:1px solid rgba(59,130,246,.4); color:#60a5fa; gap:.35rem; white-space:nowrap;">
       <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -398,6 +398,9 @@
       </a>
       <a href="{% url 'redaction:comment_list' %}" {% if 'comment' in request.resolver_match.url_name %}class="active"{% endif %}>
         ✉ Commentaires
+      </a>
+      <a href="{% url 'redaction:newsletter_list' %}" {% if 'newsletter' in request.resolver_match.url_name or 'subscriber' in request.resolver_match.url_name %}class="active"{% endif %}>
+        ✉ Newsletter
       </a>
       {% endif %}
     </div>

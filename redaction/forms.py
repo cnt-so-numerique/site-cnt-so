@@ -1,8 +1,10 @@
+import csv
+import io
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User, Group
 from django.db import models
-from content.models import Article, Category, Tag, Site, MenuItem, Page
+from content.models import Article, Category, Tag, Site, MenuItem, Page, Newsletter
 
 
 
@@ -31,7 +33,7 @@ class ArticleForm(forms.ModelForm):
         if user and not is_chef:
             try:
                 effective_site = user.author_profile.site
-            except Exception:
+            except AttributeError:
                 effective_site = None
 
         if effective_site:
@@ -98,7 +100,8 @@ def get_redaction_groups():
     return Group.objects.filter(name__in=['redacteur_en_chef', 'redacteur'])
 
 
-class UserCreateForm(UserCreationForm):
+class UserCreateForm(forms.ModelForm):
+    """Création d'utilisateur sans mot de passe — une invitation est envoyée par e-mail."""
     groups = forms.ModelMultipleChoiceField(
         queryset=get_redaction_groups(),
         required=False,
@@ -114,7 +117,7 @@ class UserCreateForm(UserCreationForm):
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'first_name', 'last_name', 'password1', 'password2', 'groups', 'site']
+        fields = ['username', 'email', 'first_name', 'last_name', 'groups', 'site']
         widgets = {
             'username': forms.TextInput(attrs={'class': 'form-input'}),
             'email': forms.EmailInput(attrs={'class': 'form-input'}),
@@ -122,9 +125,17 @@ class UserCreateForm(UserCreationForm):
             'last_name': forms.TextInput(attrs={'class': 'form-input'}),
         }
 
+    def clean_email(self):
+        email = self.cleaned_data.get('email', '').strip()
+        if not email:
+            raise forms.ValidationError('L\'adresse e-mail est obligatoire pour envoyer l\'invitation.')
+        return email
+
     def save(self, commit=True):
-        user = super().save(commit=commit)
+        user = super().save(commit=False)
+        user.set_unusable_password()
         if commit:
+            user.save()
             user.groups.set(self.cleaned_data['groups'])
         return user
 
@@ -161,7 +172,7 @@ class UserEditForm(forms.ModelForm):
             )
             try:
                 self.fields['site'].initial = self.instance.author_profile.site
-            except Exception:
+            except AttributeError:
                 pass
 
     def save(self, commit=True):
@@ -177,13 +188,14 @@ class UserEditForm(forms.ModelForm):
 class SiteForm(forms.ModelForm):
     class Meta:
         model = Site
-        fields = ['name', 'slug', 'site_type', 'description', 'external_url', 'is_active']
+        fields = ['name', 'slug', 'site_type', 'description', 'logo', 'external_url', 'agenda_url', 'is_active']
         widgets = {
             'name':         forms.TextInput(attrs={'class': 'form-input'}),
             'slug':         forms.TextInput(attrs={'class': 'form-input'}),
             'site_type':    forms.Select(attrs={'class': 'form-select'}),
             'description':  forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
             'external_url': forms.URLInput(attrs={'class': 'form-input'}),
+            'agenda_url':   forms.URLInput(attrs={'class': 'form-input', 'placeholder': 'https://...'}),
         }
 
     def save(self, commit=True):
@@ -243,3 +255,60 @@ class MenuItemForm(forms.ModelForm):
         self.fields['page'].required = False
         self.fields['parent'].required = False
         self.fields['url'].required = False
+
+
+class NewsletterForm(forms.ModelForm):
+    """Formulaire de création/édition d'une newsletter."""
+    selected_articles = forms.ModelMultipleChoiceField(
+        queryset=Article.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple(),
+        label='Articles à inclure',
+    )
+
+    class Meta:
+        model = Newsletter
+        fields = ['title', 'intro']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-input', 'placeholder': "Sujet de l'e-mail…"}),
+            'intro': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 6, 'placeholder': "Texte d'introduction…"}),
+        }
+
+    def __init__(self, *args, site=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if site:
+            self.fields['selected_articles'].queryset = (
+                Article.objects.filter(site=site, status='publish')
+                .select_related('featured_image')
+                .order_by('-published_at')
+            )
+        # Pré-cocher les articles déjà associés
+        if self.instance and self.instance.pk:
+            self.fields['selected_articles'].initial = self.instance.articles.all()
+
+
+class SubscriberImportForm(forms.Form):
+    """Import d'abonnés depuis un fichier CSV (colonne email, colonne nom optionnelle)."""
+    csv_file = forms.FileField(
+        label='Fichier CSV',
+        help_text='Une adresse e-mail par ligne. Colonnes acceptées : email, nom (optionnel).',
+    )
+
+    def clean_csv_file(self):
+        f = self.cleaned_data['csv_file']
+        if not f.name.endswith('.csv'):
+            raise forms.ValidationError('Le fichier doit être au format .csv')
+        try:
+            decoded = f.read().decode('utf-8-sig')
+            reader = csv.DictReader(io.StringIO(decoded))
+            rows = list(reader)
+            # Fallback si pas d'en-tête : liste brute d'emails
+            if not rows or 'email' not in (reader.fieldnames or []):
+                f.seek(0)
+                decoded = f.read().decode('utf-8-sig')
+                rows = [{'email': line.strip()} for line in decoded.splitlines() if line.strip()]
+        except Exception:
+            raise forms.ValidationError('Impossible de lire le fichier CSV.')
+        if not rows:
+            raise forms.ValidationError('Le fichier est vide.')
+        return rows

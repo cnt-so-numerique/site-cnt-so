@@ -1,0 +1,78 @@
+{% extends "redaction/base.html" %}
+{% block title %}Newsletters — Rédaction CNT-SO{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Newsletters{% if current_site %} — {{ current_site.name }}{% endif %}</h1>
+  <div style="display:flex; gap:.5rem;">
+    <a href="{% url 'redaction:subscriber_list' %}" class="btn btn-secondary">
+      ✉ Abonnés
+    </a>
+    {% if current_site %}
+    <a href="{% url 'redaction:newsletter_create' %}" class="btn btn-primary">
+      + Nouvelle newsletter
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+{% if not current_site %}
+<div class="message message-warning">Sélectionnez un site dans la barre latérale pour gérer ses newsletters.</div>
+{% elif not newsletters %}
+<div class="card" style="text-align:center; padding:3rem;">
+  <p style="color:var(--text-muted); margin-bottom:1rem;">Aucune newsletter pour ce site.</p>
+  <a href="{% url 'redaction:newsletter_create' %}" class="btn btn-primary">Créer la première newsletter</a>
+</div>
+{% else %}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Sujet</th>
+        <th>Statut</th>
+        <th>Articles</th>
+        <th>Envoyée le</th>
+        <th>Destinataires</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for nl in newsletters %}
+      <tr>
+        <td><strong>{{ nl.title }}</strong></td>
+        <td>
+          {% if nl.status == 'sent' %}
+          <span class="badge badge-publish">Envoyée</span>
+          {% else %}
+          <span class="badge badge-draft">Brouillon</span>
+          {% endif %}
+        </td>
+        <td style="color:var(--text-muted);">{{ nl.newsletter_articles.count }}</td>
+        <td style="color:var(--text-muted); font-size:.8rem;">
+          {% if nl.sent_at %}{{ nl.sent_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}
+        </td>
+        <td style="color:var(--text-muted);">
+          {% if nl.sent_count %}{{ nl.sent_count }}{% else %}—{% endif %}
+        </td>
+        <td>
+          <div style="display:flex; gap:.4rem; flex-wrap:wrap;">
+            <a href="{% url 'redaction:newsletter_preview' nl.pk %}" target="_blank"
+               class="btn btn-secondary btn-sm" title="Aperçu e-mail">👁 Aperçu</a>
+            {% if nl.status == 'draft' %}
+            <a href="{% url 'redaction:newsletter_edit' nl.pk %}" class="btn btn-secondary btn-sm">✎ Modifier</a>
+            <a href="{% url 'redaction:newsletter_send' nl.pk %}" class="btn btn-primary btn-sm">➤ Envoyer</a>
+            {% endif %}
+            <form method="post" action="{% url 'redaction:newsletter_delete' nl.pk %}"
+                  onsubmit="return confirm('Supprimer cette newsletter ?');" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-danger btn-sm">✕</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

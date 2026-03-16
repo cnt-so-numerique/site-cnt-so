@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.utils.text import slugify
 from django.urls import reverse
@@ -20,6 +21,8 @@ class Site(models.Model):
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     external_url = models.URLField(blank=True, help_text="Si renseigné, les liens vers ce site pointent vers cette URL externe")
+    agenda_url = models.URLField(blank=True, help_text="URL de l'agenda externe (ex: https://poitiers.demosphere.net)")
+    logo = models.ImageField(upload_to='sites/logos/', blank=True, null=True, help_text="Logo du sous-site (affiché dans le bandeau)")
 
     class Meta:
         verbose_name = "Site"
@@ -82,6 +85,14 @@ class Category(models.Model):
         blank=True,
         related_name='children'
     )
+    redirect_page = models.ForeignKey(
+        'Page',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        help_text="Si renseigné, redirige vers cette page au lieu d'afficher la liste des articles"
+    )
 
     class Meta:
         verbose_name = "Catégorie"
@@ -98,6 +109,8 @@ class Category(models.Model):
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
+        if self.site and self.site.slug != 'principal':
+            return reverse('content:site_category_detail', kwargs={'site_slug': self.site.slug, 'slug': self.slug})
         return reverse('content:category_detail', kwargs={'slug': self.slug})
 
 
@@ -383,6 +396,8 @@ class MenuItem(models.Model):
         ('site',     'Lien vers un site CNT'),
         ('article',  'Article du site'),
         ('page',     'Page du site'),
+        ('contact',  'Formulaire de contact'),
+        ('agenda',   'Agenda'),
     ]
 
     site = models.ForeignKey(
@@ -430,6 +445,7 @@ class MenuItem(models.Model):
 
     def get_url(self):
         """Retourne l'URL du lien selon link_type."""
+
         if self.link_type == 'url' or not self.link_type:
             return self.url or '#'
         if self.link_type == 'category' and self.category:
@@ -440,6 +456,14 @@ class MenuItem(models.Model):
             return self.article.get_absolute_url()
         if self.link_type == 'page' and self.page:
             return self.page.get_absolute_url()
+        if self.link_type == 'contact':
+            from django.urls import reverse
+            if self.site and self.site.slug != 'principal':
+                return reverse('content:site_contact', kwargs={'site_slug': self.site.slug})
+            return reverse('content:contact')
+        if self.link_type == 'agenda' and self.site and self.site.slug != 'principal':
+            from django.urls import reverse
+            return reverse('content:site_agenda', kwargs={'site_slug': self.site.slug})
         # Fallback legacy
         if self.url:
             return self.url
@@ -450,3 +474,75 @@ class MenuItem(models.Model):
         if self.category:
             return self.category.get_absolute_url()
         return '#'
+
+
+# ── Newsletter ─────────────────────────────────────────────────────────────────
+
+class Subscriber(models.Model):
+    """Abonné à la newsletter d'un site."""
+    site = models.ForeignKey(
+        Site, on_delete=models.CASCADE,
+        related_name='subscribers', verbose_name='Site'
+    )
+    email = models.EmailField(verbose_name='Adresse e-mail')
+    name = models.CharField(max_length=200, blank=True, verbose_name='Nom')
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    is_active = models.BooleanField(default=False, verbose_name='Confirmé')
+    subscribed_at = models.DateTimeField(auto_now_add=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Abonné'
+        verbose_name_plural = 'Abonnés'
+        ordering = ['-subscribed_at']
+        unique_together = [['site', 'email']]
+
+    def __str__(self):
+        return f'{self.email} ({self.site.name})'
+
+
+class Newsletter(models.Model):
+    """Newsletter envoyée aux abonnés d'un site."""
+    STATUS_CHOICES = [
+        ('draft', 'Brouillon'),
+        ('sent', 'Envoyée'),
+    ]
+    site = models.ForeignKey(
+        Site, on_delete=models.CASCADE,
+        related_name='newsletters', verbose_name='Site'
+    )
+    title = models.CharField(max_length=300, verbose_name="Sujet de l'e-mail")
+    intro = models.TextField(verbose_name="Texte d'introduction")
+    articles = models.ManyToManyField(
+        Article, through='NewsletterArticle', blank=True,
+        verbose_name='Articles sélectionnés'
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    sent_by = models.ForeignKey(
+        User, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='sent_newsletters'
+    )
+    sent_count = models.IntegerField(default=0)
+
+    class Meta:
+        verbose_name = 'Newsletter'
+        verbose_name_plural = 'Newsletters'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.title
+
+
+class NewsletterArticle(models.Model):
+    """Article inclus dans une newsletter, avec ordre d'affichage."""
+    newsletter = models.ForeignKey(
+        Newsletter, on_delete=models.CASCADE, related_name='newsletter_articles'
+    )
+    article = models.ForeignKey(Article, on_delete=models.CASCADE)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order']
+        unique_together = [['newsletter', 'article']]

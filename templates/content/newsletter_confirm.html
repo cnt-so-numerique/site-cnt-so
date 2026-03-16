@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Inscription confirmée — {{ site.name }}{% endblock %}
+{% block content %}
+<div style="max-width:600px; margin:60px auto; padding:0 1rem; text-align:center;">
+  <div style="background:#fff; border:1px solid var(--border-color); border-radius:6px; padding:40px 32px;">
+    <div style="font-size:2.5rem; margin-bottom:16px;">🎉</div>
+    <h1 style="font-size:1.5rem; margin-bottom:12px; color:var(--primary-color);">Inscription confirmée !</h1>
+    <p style="color:var(--text-secondary); line-height:1.6;">
+      Bienvenue ! Vous êtes maintenant inscrit(e) à la newsletter de <strong>{{ site.name }}</strong>.<br>
+      Vous recevrez les prochaines éditions à l'adresse <strong>{{ subscriber.email }}</strong>.
+    </p>
+    <a href="/" style="display:inline-block; margin-top:24px; background:var(--primary-color); color:#fff; padding:10px 24px; border-radius:4px; text-decoration:none; font-size:.9rem;">
+      Retour à l'accueil
+    </a>
+  </div>
+</div>
+{% endblock %}

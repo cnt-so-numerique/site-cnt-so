@@ -25,9 +25,9 @@ SECRET_KEY = 'django-insecure-q5yt_w9j0c%9b)6@g4cn@i#y%9c_#4ng!=^sximhzrars42jw_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok-free.app', '.ngrok.io']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok-free.app', '.ngrok-free.dev', '.ngrok.io']
 
-CSRF_TRUSTED_ORIGINS = ['https://*.ngrok-free.app', 'https://*.ngrok.io']
+CSRF_TRUSTED_ORIGINS = ['https://*.ngrok-free.app', 'https://*.ngrok-free.dev', 'https://*.ngrok.io']
 
 
 # Application definition
@@ -47,6 +47,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'cntso.middleware.BasicAuthMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -123,6 +125,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
 # Media files (uploads)
@@ -133,3 +136,23 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ── Envoi d'e-mails ────────────────────────────────────────────────────────────
+# Par défaut en développement : affiche les e-mails dans la console
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_HOST = 'ssl0.ovh.net'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = ''
+EMAIL_HOST_PASSWORD = ''
+DEFAULT_FROM_EMAIL = 'CNT-SO <newsletter@cnt-so.org>'
+SERVER_EMAIL = 'newsletter@cnt-so.org'
+
+# Délai entre chaque e-mail pour respecter les limites OVH (~200/heure)
+NEWSLETTER_SEND_DELAY = 18  # secondes entre chaque envoi (200/h = 1 toutes les 18s)
+
+# Surcharge par local_settings.py (credentials, DEBUG, etc.) — jamais commité
+try:
+    from .local_settings import *  # noqa
+except ImportError:
+    pass

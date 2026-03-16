@@ -1,3 +1,4 @@
+from django.contrib.auth import views as auth_views
 from django.urls import path
 from . import views
 
@@ -5,11 +6,17 @@ app_name = 'redaction'
 
 urlpatterns = [
     path('login/', views.RedacLoginView.as_view(), name='redac_login'),
+    path('invitation/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(
+        template_name='redaction/invitation_confirm.html',
+        success_url='/redac/login/',
+        post_reset_login=False,
+    ), name='invitation_confirm'),
     path('logout/', views.RedacLogoutView.as_view(), name='redac_logout'),
     path('', views.DashboardView.as_view(), name='dashboard'),
 
-    # Upload image
+    # Uploads
     path('upload/image/', views.ImageUploadView.as_view(), name='image_upload'),
+    path('upload/file/', views.FileUploadView.as_view(), name='file_upload'),
 
     # Articles
     path('articles/', views.ArticleListView.as_view(), name='article_list'),
@@ -55,6 +62,21 @@ urlpatterns = [
     path('sous-sites/nouveau/', views.SiteCreateView.as_view(), name='site_create'),
     path('sous-sites/<int:pk>/modifier/', views.SiteEditView.as_view(), name='site_edit'),
     path('sous-sites/<int:pk>/toggle/', views.SiteToggleView.as_view(), name='site_toggle'),
+
+    # Newsletter
+    path('newsletter/', views.NewsletterListView.as_view(), name='newsletter_list'),
+    path('newsletter/nouveau/', views.NewsletterCreateView.as_view(), name='newsletter_create'),
+    path('newsletter/<int:pk>/modifier/', views.NewsletterEditView.as_view(), name='newsletter_edit'),
+    path('newsletter/<int:pk>/apercu/', views.NewsletterPreviewView.as_view(), name='newsletter_preview'),
+    path('newsletter/<int:pk>/envoyer/', views.NewsletterSendView.as_view(), name='newsletter_send'),
+    path('newsletter/<int:pk>/supprimer/', views.NewsletterDeleteView.as_view(), name='newsletter_delete'),
+
+    # Abonnés
+    path('abonnes/', views.SubscriberListView.as_view(), name='subscriber_list'),
+    path('abonnes/ajouter/', views.SubscriberAddView.as_view(), name='subscriber_add'),
+    path('abonnes/import/', views.SubscriberImportView.as_view(), name='subscriber_import'),
+    path('abonnes/export/', views.SubscriberExportView.as_view(), name='subscriber_export'),
+    path('abonnes/<int:pk>/supprimer/', views.SubscriberDeleteView.as_view(), name='subscriber_delete'),
 
     # Menus
     path('menus/', views.MenuListView.as_view(), name='menu_list'),

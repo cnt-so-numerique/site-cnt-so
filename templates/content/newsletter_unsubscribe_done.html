@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Désabonnement effectué — {{ site.name }}{% endblock %}
+{% block content %}
+<div style="max-width:560px; margin:60px auto; padding:0 1rem; text-align:center;">
+  <div style="background:#fff; border:1px solid var(--border-color); border-radius:6px; padding:40px 32px;">
+    <h1 style="font-size:1.4rem; margin-bottom:12px;">Désabonnement effectué</h1>
+    <p style="color:var(--text-secondary); line-height:1.6;">
+      Vous avez bien été désabonné(e) de la newsletter de <strong>{{ site.name }}</strong>.
+    </p>
+    <a href="/" style="display:inline-block; margin-top:24px; background:var(--primary-color); color:#fff; padding:10px 24px; border-radius:4px; text-decoration:none; font-size:.9rem;">
+      Retour à l'accueil
+    </a>
+  </div>
+</div>
+{% endblock %}

@@ -11,7 +11,8 @@ def get_menu(site, menu_type):
     if not site:
         return []
     children_qs = MenuItem.objects.filter(
-        is_active=True
+        site=site,
+        is_active=True,
     ).order_by('order')
     return list(
         MenuItem.objects.filter(

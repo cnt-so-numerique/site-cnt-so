@@ -1,9 +1,10 @@
 <section class="site-newsletter">
     <div class="site-newsletter-inner">
         <h2>Restez aux aguets grâce à la newsletter&nbsp;!</h2>
-        <form class="site-newsletter-form" method="post" action="#">
+        <form class="site-newsletter-form" method="post"
+              action="{% if newsletter_site and newsletter_site.slug != 'principal' %}{% url 'content:site_newsletter_subscribe' newsletter_site.slug %}{% else %}{% url 'content:newsletter_subscribe' %}{% endif %}">
             {% csrf_token %}
-            <input type="email" name="email" placeholder="Votre adresse e-mail…">
+            <input type="email" name="email" placeholder="Votre adresse e-mail…" required>
             <button type="submit">S'inscrire</button>
         </form>
     </div>

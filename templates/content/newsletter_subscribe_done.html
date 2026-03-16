@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Inscription newsletter — {{ site.name }}{% endblock %}
+{% block content %}
+<div style="max-width:600px; margin:60px auto; padding:0 1rem; text-align:center;">
+  <div style="background:#fff; border:1px solid var(--border-color); border-radius:6px; padding:40px 32px;">
+    {% if already_active %}
+    <div style="font-size:2rem; margin-bottom:16px;">✓</div>
+    <h1 style="font-size:1.5rem; margin-bottom:12px;">Vous êtes déjà inscrit(e) !</h1>
+    <p style="color:var(--text-secondary);">L'adresse <strong>{{ email }}</strong> est déjà abonnée à la newsletter de <strong>{{ site.name }}</strong>.</p>
+    {% else %}
+    <div style="font-size:2rem; margin-bottom:16px;">✉</div>
+    <h1 style="font-size:1.5rem; margin-bottom:12px;">Un e-mail de confirmation vous a été envoyé</h1>
+    <p style="color:var(--text-secondary);">
+      Vérifiez votre boîte de réception à l'adresse <strong>{{ email }}</strong> et cliquez sur le lien de confirmation pour finaliser votre inscription à la newsletter de <strong>{{ site.name }}</strong>.
+    </p>
+    {% endif %}
+    <a href="/" style="display:inline-block; margin-top:24px; background:var(--primary-color); color:#fff; padding:10px 24px; border-radius:4px; text-decoration:none; font-size:.9rem;">
+      Retour à l'accueil
+    </a>
+  </div>
+</div>
+{% endblock %}

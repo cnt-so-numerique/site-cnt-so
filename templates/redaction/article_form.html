@@ -297,6 +297,7 @@
 
 <script>
 const UPLOAD_URL = "{% url 'redaction:image_upload' %}";
+const FILE_UPLOAD_URL = "{% url 'redaction:file_upload' %}";
 const CSRF_TOKEN = "{{ csrf_token }}";
 
 // ── Outil Galerie custom ──────────────────────────────────────────────────────
@@ -373,20 +374,100 @@ class GalleryTool {
 
   _makeThumb(img, idx) {
     const wrap = document.createElement('div');
-    wrap.style.cssText = 'position:relative;aspect-ratio:1;overflow:hidden;border-radius:4px;background:#252932;';
+    wrap.style.cssText = 'position:relative;aspect-ratio:1;overflow:hidden;border-radius:4px;background:#252932;cursor:pointer;';
+
     const image = document.createElement('img');
     image.src = img.url;
-    image.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+    image.style.cssText = 'width:100%;height:100%;object-fit:cover;transition:opacity .15s;';
     wrap.appendChild(image);
+
+    // Indicateur légende existante
+    if (img.caption) {
+      const badge = document.createElement('div');
+      badge.className = 'gal-cap-badge';
+      badge.title = img.caption;
+      badge.style.cssText = 'position:absolute;bottom:0;left:0;right:0;padding:3px 5px;background:rgba(0,0,0,.6);color:#e2e8f0;font-size:.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+      badge.textContent = img.caption;
+      wrap.appendChild(badge);
+    }
+
     if (!this.readOnly) {
+      // Bouton suppression
       const del = document.createElement('button');
       del.type = 'button';
       del.textContent = '×';
-      del.style.cssText = 'position:absolute;top:3px;right:3px;width:20px;height:20px;background:rgba(230,57,70,.9);border:none;border-radius:50%;color:#fff;font-size:14px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;';
-      del.onclick = () => { this.data.images.splice(idx, 1); this._buildUI(); };
+      del.style.cssText = 'position:absolute;top:3px;right:3px;width:20px;height:20px;background:rgba(230,57,70,.9);border:none;border-radius:50%;color:#fff;font-size:14px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;z-index:2;';
+      del.onclick = (e) => { e.stopPropagation(); this.data.images.splice(idx, 1); this._buildUI(); };
       wrap.appendChild(del);
+
+      // Clic sur l'image → modale légende
+      wrap.onclick = () => this._openCaptionModal(img, idx, wrap);
     }
+
     return wrap;
+  }
+
+  _openCaptionModal(img, idx, thumbEl) {
+    // Overlay
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10000;display:flex;align-items:center;justify-content:center;';
+
+    // Boîte
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#1e2330;border:1px solid #2d3139;border-radius:10px;padding:1.25rem;width:420px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.5);';
+
+    // Aperçu image
+    const preview = document.createElement('img');
+    preview.src = img.url;
+    preview.style.cssText = 'width:100%;max-height:220px;object-fit:contain;border-radius:6px;background:#252932;display:block;margin-bottom:1rem;';
+    box.appendChild(preview);
+
+    // Label
+    const label = document.createElement('label');
+    label.textContent = 'Légende';
+    label.style.cssText = 'display:block;font-size:.8rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem;';
+    box.appendChild(label);
+
+    // Input
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = img.caption || '';
+    input.placeholder = 'Ajouter une légende…';
+    input.style.cssText = 'width:100%;box-sizing:border-box;background:#252932;border:1px solid #3d4455;border-radius:6px;color:#e2e8f0;font-size:.95rem;padding:.6rem .75rem;outline:none;margin-bottom:1rem;';
+    input.addEventListener('focus', () => { input.style.borderColor = '#e63946'; });
+    input.addEventListener('blur',  () => { input.style.borderColor = '#3d4455'; });
+    box.appendChild(input);
+
+    // Boutons
+    const btns = document.createElement('div');
+    btns.style.cssText = 'display:flex;gap:.5rem;justify-content:flex-end;';
+
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.textContent = 'Annuler';
+    cancel.style.cssText = 'padding:.45rem 1rem;background:transparent;border:1px solid #3d4455;border-radius:6px;color:#94a3b8;cursor:pointer;font-size:.85rem;';
+    cancel.onclick = () => document.body.removeChild(overlay);
+
+    const confirm = document.createElement('button');
+    confirm.type = 'button';
+    confirm.textContent = 'Valider';
+    confirm.style.cssText = 'padding:.45rem 1rem;background:#e63946;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:.85rem;font-weight:600;';
+    confirm.onclick = () => {
+      this.data.images[idx].caption = input.value.trim();
+      document.body.removeChild(overlay);
+      this._buildUI();
+    };
+
+    btns.appendChild(cancel);
+    btns.appendChild(confirm);
+    box.appendChild(btns);
+
+    overlay.appendChild(box);
+    // Fermeture clic extérieur
+    overlay.onclick = (e) => { if (e.target === overlay) document.body.removeChild(overlay); };
+    document.body.appendChild(overlay);
+    // Focus auto
+    setTimeout(() => { input.focus(); input.select(); }, 50);
   }
 
   _pickFiles() {
@@ -417,6 +498,125 @@ class GalleryTool {
   }
 }
 
+// ── Outil Fichier / PDF ───────────────────────────────────────────────────────
+class FileTool {
+  static get toolbox() {
+    return {
+      title: 'Fichier PDF',
+      icon: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>'
+    };
+  }
+
+  static get isReadOnlySupported() { return true; }
+
+  constructor({ data, api, readOnly }) {
+    this.data = { url: data.url || '', name: data.name || '', title: data.title || '' };
+    this.api = api;
+    this.readOnly = readOnly;
+    this.wrapper = null;
+  }
+
+  render() {
+    this.wrapper = document.createElement('div');
+    this._buildUI();
+    return this.wrapper;
+  }
+
+  _buildUI() {
+    this.wrapper.innerHTML = '';
+    this.wrapper.style.cssText = 'border:1px solid #2d3139;border-radius:8px;padding:1rem;background:#1a1d23;';
+
+    if (!this.data.url) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:.4rem;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Choisir un fichier…';
+      btn.style.cssText = 'width:100%;padding:.6rem;background:#252932;border:1px dashed #2d3139;border-radius:6px;color:#94a3b8;cursor:pointer;font-size:.85rem;';
+      btn.onmouseover = () => { btn.style.borderColor='#e63946'; btn.style.color='#e63946'; };
+      btn.onmouseout  = () => { btn.style.borderColor='#2d3139'; btn.style.color='#94a3b8'; };
+      btn.onclick = () => this._pickFile();
+      this.wrapper.appendChild(btn);
+    } else {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:.75rem;';
+
+      const icon = document.createElement('div');
+      icon.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e63946" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>';
+      row.appendChild(icon);
+
+      const info = document.createElement('div');
+      info.style.cssText = 'flex:1;min-width:0;';
+
+      if (!this.readOnly) {
+        const titleInput = document.createElement('input');
+        titleInput.type = 'text';
+        titleInput.value = this.data.title || this.data.name;
+        titleInput.placeholder = 'Titre affiché…';
+        titleInput.style.cssText = 'width:100%;box-sizing:border-box;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.9rem;padding:.3rem .5rem;margin-bottom:.3rem;outline:none;';
+        titleInput.oninput = (e) => { this.data.title = e.target.value; };
+        titleInput.addEventListener('focus', () => { titleInput.style.borderColor='#e63946'; });
+        titleInput.addEventListener('blur',  () => { titleInput.style.borderColor='#2d3139'; });
+        info.appendChild(titleInput);
+      } else {
+        const titleEl = document.createElement('div');
+        titleEl.textContent = this.data.title || this.data.name;
+        titleEl.style.cssText = 'font-size:.9rem;color:#e2e8f0;font-weight:600;';
+        info.appendChild(titleEl);
+      }
+
+      const link = document.createElement('a');
+      link.href = this.data.url;
+      link.target = '_blank';
+      link.textContent = this.data.name;
+      link.style.cssText = 'font-size:.75rem;color:#64748b;text-decoration:none;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+      info.appendChild(link);
+
+      row.appendChild(info);
+
+      if (!this.readOnly) {
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.textContent = '×';
+        del.style.cssText = 'background:rgba(230,57,70,.15);border:none;border-radius:4px;color:#e63946;font-size:1.2rem;cursor:pointer;padding:.2rem .5rem;flex-shrink:0;';
+        del.onclick = () => { this.data = { url:'', name:'', title:'' }; this._buildUI(); };
+        row.appendChild(del);
+      }
+
+      this.wrapper.appendChild(row);
+    }
+  }
+
+  _pickFile() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx,.odt,.zip,.xls,.xlsx,.ods,.ppt,.pptx,.odp';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      await this._upload(file);
+      this._buildUI();
+    };
+    input.click();
+  }
+
+  async _upload(file) {
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const r = await fetch(FILE_UPLOAD_URL, { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN }, body: fd });
+      const d = await r.json();
+      if (d.success) {
+        this.data.url   = d.file.url;
+        this.data.name  = d.file.name;
+        this.data.title = d.file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+      }
+    } catch (err) { console.error('Upload fichier:', err); }
+  }
+
+  save() {
+    return { url: this.data.url, name: this.data.name, title: this.data.title };
+  }
+}
+
 // ── Editor.js ────────────────────────────────────────────────────────────────
 (function () {
   const hiddenField = document.getElementById('id_content');
@@ -443,6 +643,7 @@ class GalleryTool {
       table: { class: Table, inlineToolbar: true, config: { rows: 2, cols: 3 } },
       inlineCode: { class: InlineCode },
       gallery: { class: GalleryTool },
+      file: { class: FileTool },
       image: {
         class: ImageTool,
         config: {

@@ -1,0 +1,20 @@
+{% comment %}
+Usage : {% include "redaction/_sort_link.html" with label="E-mail" asc="email" desc="-email" %}
+Requires context variables: sort, q, status_filter
+{% endcomment %}
+{% if sort == asc %}
+  <a href="?sort={{ desc }}{% if q %}&q={{ q }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+     style="color:var(--text); text-decoration:none; display:inline-flex; align-items:center; gap:.3rem;">
+    {{ label }} <span style="color:var(--accent);">↑</span>
+  </a>
+{% elif sort == desc %}
+  <a href="?sort={{ asc }}{% if q %}&q={{ q }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+     style="color:var(--text); text-decoration:none; display:inline-flex; align-items:center; gap:.3rem;">
+    {{ label }} <span style="color:var(--accent);">↓</span>
+  </a>
+{% else %}
+  <a href="?sort={{ asc }}{% if q %}&q={{ q }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+     style="color:var(--text-muted); text-decoration:none; display:inline-flex; align-items:center; gap:.3rem;">
+    {{ label }} <span style="opacity:.4;">↕</span>
+  </a>
+{% endif %}

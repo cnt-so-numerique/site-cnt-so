@@ -14,9 +14,34 @@
 <p style="color: var(--text-muted); margin-bottom: 2rem;">{{ category.description }}</p>
 {% endif %}
 
+{% if category.slug == 'banque-dimage' %}
+<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:1rem;">
+    {% for article in articles %}
+    <a href="{{ article.get_absolute_url }}" style="text-decoration:none; display:block;">
+        <div style="border:1px solid var(--border-color); border-radius:4px; overflow:hidden; background:var(--bg-light); transition:box-shadow .2s;" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow=''">
+            {% if article.featured_image %}
+            <img src="{{ article.featured_image.url }}" alt="{{ article.title }}"
+                 style="width:100%; height:180px; object-fit:contain; background:var(--bg-light); display:block; padding:.5rem;">
+            {% else %}
+            <div style="height:180px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:.85rem;">
+                Pas d'image
+            </div>
+            {% endif %}
+            <div style="padding:.6rem .75rem; border-top:1px solid var(--border-color);">
+                <p style="margin:0; font-size:.9rem; font-weight:600; color:var(--text-color); line-height:1.3;">{{ article.title }}</p>
+            </div>
+        </div>
+    </a>
+    {% empty %}
+    <p style="color:var(--text-muted);">Aucun article dans cette catégorie.</p>
+    {% endfor %}
+</div>
+{% with query_string="" %}{% include "content/_pagination.html" %}{% endwith %}
+
+{% else %}
 {% with empty_message="Aucun article dans cette catégorie." %}
 {% include "content/_article_listing.html" %}
 {% endwith %}
-
 {% with query_string="" %}{% include "content/_pagination.html" %}{% endwith %}
+{% endif %}
 {% endblock %}

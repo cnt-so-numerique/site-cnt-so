@@ -12,7 +12,7 @@ def redac_context(request):
         ).exists()
         try:
             user_site = request.user.author_profile.site
-        except Exception:
+        except AttributeError:
             pass
 
         if is_chef:

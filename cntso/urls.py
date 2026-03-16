@@ -19,6 +19,6 @@ urlpatterns = [
     path('', include('content.urls')),
 ]
 
-# Servir les fichiers media en développement
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Servir les fichiers media — doit être déclaré avant content.urls pour ne pas
+# être intercepté par le pattern <slug:site_slug>/
+urlpatterns = static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + urlpatterns

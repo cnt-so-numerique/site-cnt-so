@@ -11,8 +11,8 @@
     <link rel="alternate" type="application/rss+xml" title="Flux RSS CNT-SO" href="{% url 'content:rss_feed' %}">
     <style>
         :root {
-            --primary-color: #c41e3a;
-            --primary-dark: #a01830;
+            --primary-color: #EC1C24;
+            --primary-dark: #c01018;
             --text-color: #000000;
             --text-secondary: #3e3e3e;
             --text-muted: #6c6c6c;
@@ -33,8 +33,8 @@
 
         body {
             font-family: var(--font-body);
-            font-size: 16px;
-            line-height: 1.6;
+            font-size: 17px;
+            line-height: 1.65;
             color: var(--text-color);
             background: var(--white);
         }
@@ -61,7 +61,7 @@
         }
 
         .top-bar-content {
-            max-width: 1200px;
+            max-width: 1280px;
             margin: 0 auto;
             padding: 0 1rem;
             display: flex;
@@ -139,7 +139,7 @@
         }
 
         .header-main {
-            max-width: 1200px;
+            max-width: 1280px;
             margin: 0 auto;
             padding: 1rem;
             display: flex;
@@ -191,6 +191,81 @@
             letter-spacing: 0.04em;
         }
 
+        /* Sous-site header */
+        .subsite-header-main {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .subsite-logo {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            text-decoration: none;
+        }
+
+        .subsite-logo img {
+            height: 80px;
+            width: auto;
+            display: block;
+            flex-shrink: 0;
+        }
+
+        .subsite-logo-info {
+            border-left: 3px solid var(--primary-color);
+            padding-left: 1.25rem;
+        }
+
+        .subsite-type {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 0.2rem;
+        }
+
+        .subsite-name {
+            font-family: var(--font-heading);
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            line-height: 1.1;
+        }
+
+        .subsite-back-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 0.4rem 0.9rem;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: background .15s, color .15s;
+            flex-shrink: 0;
+        }
+
+        .subsite-back-btn:hover {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
+
+        .subsite-back-btn img {
+            height: 22px;
+            width: auto;
+            border-radius: 2px;
+        }
+
         /* Search */
         .search-box {
             display: flex;
@@ -232,7 +307,7 @@
         }
 
         .main-nav-content {
-            max-width: 1200px;
+            max-width: 1280px;
             margin: 0 auto;
             padding: 0 1rem;
             display: flex;
@@ -341,7 +416,7 @@
 
         /* Main Container */
         .container {
-            max-width: 1200px;
+            max-width: 1280px;
             margin: 0 auto;
             padding: 2rem 1rem;
         }
@@ -484,7 +559,7 @@
         }
 
         .hero-content {
-            max-width: 1200px;
+            max-width: 1280px;
             margin: 0 auto;
             padding: 0 1rem;
             display: grid;
@@ -622,7 +697,7 @@
             background: var(--primary-color);
             color: var(--white);
             padding: 0.2rem 0.5rem;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
             text-transform: uppercase;
             margin-right: 0.25rem;
@@ -669,9 +744,28 @@
         }
 
         .article-content {
-            font-size: 16px;
+            font-size: 18px;
             line-height: 1.8;
         }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1rem;
+        }
+
+        .gallery-grid img {
+            width: 100%;
+            height: 220px;
+            object-fit: contain;
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: zoom-in;
+            transition: opacity .2s;
+        }
+
+        .gallery-grid img:hover { opacity: .85; }
 
         .article-content p {
             margin-bottom: 1.5rem;
@@ -768,6 +862,28 @@
         .article-content .wp-block-image.alignright { float: right; margin-left: 1.5rem; max-width: 50%; }
         .article-content .wp-block-image.aligncenter { text-align: center; }
 
+        /* Bouton téléchargement fichier (wp-block-file) */
+        .article-content .wp-block-file {
+            margin: 1.25rem 0;
+        }
+        .article-content .wp-block-file__button {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            padding: .55rem 1.1rem;
+            background: var(--primary);
+            color: #fff;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: .9rem;
+            font-weight: 600;
+            transition: background .2s;
+        }
+        .article-content .wp-block-file__button:hover {
+            background: var(--primary-dark, #b02030);
+            color: #fff;
+        }
+
         /* Responsive galeries */
         @media (max-width: 600px) {
             .article-content .wp-block-gallery.columns-3 .blocks-gallery-item,
@@ -808,7 +924,7 @@
         }
 
         .footer-content {
-            max-width: 1200px;
+            max-width: 1280px;
             margin: 0 auto;
             padding: 0 2rem;
             display: grid;
@@ -856,13 +972,13 @@
             border-top: 1px solid #444;
             margin-top: 2.5rem;
             padding: 1.25rem 2rem;
-            max-width: 1200px;
+            max-width: 1280px;
             margin-left: auto;
             margin-right: auto;
         }
 
         .footer-bottom p {
-            font-size: 11px;
+            font-size: 12px;
             color: #888;
         }
 
@@ -985,7 +1101,7 @@
             display: inline-block;
             background: var(--bg-light);
             padding: 0.2rem 0.5rem;
-            font-size: 11px;
+            font-size: 12px;
             color: var(--text-muted);
         }
 
@@ -1006,7 +1122,7 @@
 
         /* ── Vignettes CTA (partagées toutes pages) ── */
         .cta-vignettes-outer {
-            max-width: 1200px;
+            max-width: 1280px;
             margin: 0 auto;
             padding: 2rem 1rem;
             display: grid;
@@ -1137,7 +1253,7 @@
         .hp-sidebar-header h3 {
             font-family: var(--font-heading); font-size: 14px; color: #fff; margin: 0;
         }
-        .hp-sidebar-header a { font-size: 11px; color: #c4c4c4; }
+        .hp-sidebar-header a { font-size: 12px; color: #c4c4c4; }
         .hp-sidebar-header a:hover { color: #fff; }
         .hp-sidebar-list { padding: 0.5rem 1rem; }
         .hp-sidebar-item {
@@ -1155,7 +1271,7 @@
         }
         .hp-sidebar-item-title a { color: var(--text-color); }
         .hp-sidebar-item-title a:hover { color: var(--primary-color); }
-        .hp-sidebar-item-cat { font-size: 10px; color: var(--text-muted); }
+        .hp-sidebar-item-cat { font-size: 12px; color: var(--text-muted); }
         .hp-bloc-galerie {
             background: var(--dark-bg); padding: 1.25rem;
             border-top: 3px solid var(--primary-color);
@@ -1192,7 +1308,7 @@
         @media (max-width: 768px) {
             .logo img { height: 64px; }
             .logo-text { font-size: 2rem; }
-            .logo-subtitle { font-size: 11px; }
+            .logo-subtitle { font-size: 12px; }
             .article-title { font-size: 28px; }
             .hero-title { font-size: 28px; }
             .hero-image { height: 220px; }
@@ -1267,7 +1383,7 @@
     <!-- Top Bar -->
     <div class="top-bar">
         <div class="top-bar-content">
-            <a href="{% url 'content:contact' %}" class="top-bar-presse">
+            <a href="{% if site and site.slug != 'principal' %}{% url 'content:site_espace_presse' site_slug=site.slug %}{% else %}{% url 'content:espace_presse' %}{% endif %}" class="top-bar-presse">
                 <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10l6 6v8a2 2 0 0 1-2 2z"/>
                     <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
@@ -1297,17 +1413,36 @@
 
     <!-- Header -->
     <header class="header">
+        {% load static %}
+        {% if site and site.slug != 'principal' %}
+        <div class="subsite-header-main">
+            <a href="{{ site.get_absolute_url }}" class="subsite-logo">
+                {% if site.logo %}
+                <img src="{{ site.logo.url }}" alt="Logo {{ site.name }}">
+                {% else %}
+                <img src="{% static 'image/CNT SO.jpg' %}" alt="Logo CNT-SO">
+                {% endif %}
+                <div class="subsite-logo-info">
+                    <div class="subsite-type">{{ site.get_site_type_display }}</div>
+                    <div class="subsite-name">{{ site.name }}</div>
+                </div>
+            </a>
+            <a href="{% url 'content:home' %}" class="subsite-back-btn">
+                <img src="{% static 'image/CNT SO.jpg' %}" alt="CNT-SO">
+                ← Retour au site confédéral
+            </a>
+        </div>
+        {% else %}
         <div class="header-main">
             <a href="{% url 'content:home' %}" class="logo">
-                {% load static %}
                 <img src="{% static 'image/CNT SO.jpg' %}" alt="Logo CNT-SO">
                 <div class="logo-info">
                     <div class="logo-text">CNT<span>-SO</span></div>
                     <div class="logo-subtitle">Confédération Nationale du Travail<br>Solidarité Ouvrière</div>
                 </div>
             </a>
-
         </div>
+        {% endif %}
 
         <!-- Main Navigation -->
         {% block nav %}
@@ -1460,7 +1595,8 @@
     #lightbox-next { right: .5rem; }
     #lightbox-prev:hover, #lightbox-next:hover { opacity: 1; }
     .article-content .blocks-gallery-item img,
-    .article-content .wp-block-image img { cursor: zoom-in; }
+    .article-content .wp-block-image img,
+    .article-content > img { cursor: zoom-in; }
     </style>
 
     <div id="lightbox" role="dialog" aria-modal="true">
@@ -1507,7 +1643,7 @@
 
         // Clic sur image de galerie ou image seule dans article
         document.addEventListener('click', function (e) {
-            const img = e.target.closest('.article-content .blocks-gallery-item img, .article-content .wp-block-image img');
+            const img = e.target.closest('.article-content .blocks-gallery-item img, .article-content .wp-block-image img, .article-content > img');
             if (!img) return;
             e.preventDefault();
 
@@ -1519,8 +1655,13 @@
                 imgs = all.map(i => i.src);
                 idx  = all.indexOf(img);
             } else {
-                imgs = [img.src];
-                idx  = 0;
+                const content = img.closest('.article-content');
+                const all = content
+                    ? Array.from(content.querySelectorAll('.wp-block-image img, .blocks-gallery-item img, img:not(.wp-block-image img):not(.blocks-gallery-item img)'))
+                    : [img];
+                imgs = all.map(i => i.src);
+                idx  = all.indexOf(img);
+                if (idx < 0) idx = 0;
             }
             open(imgs, idx);
         });

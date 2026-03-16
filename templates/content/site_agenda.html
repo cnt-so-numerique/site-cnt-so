@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}Agenda — {{ site.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .agenda-iframe-wrapper {
+        width: 100%;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .agenda-iframe-wrapper iframe {
+        width: 100%;
+        height: 800px;
+        border: none;
+        display: block;
+    }
+    .agenda-fallback {
+        text-align: center;
+        padding: 2rem;
+        color: var(--text-muted);
+    }
+    .agenda-fallback a {
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="{% url 'content:home' %}">Accueil</a> /
+    <a href="{{ site.get_absolute_url }}">{{ site.name }}</a> /
+    <span>Agenda</span>
+</div>
+
+<h1 class="section-title">Agenda — {{ site.name }}</h1>
+
+<div class="agenda-iframe-wrapper">
+    <iframe
+        src="{{ agenda_url }}"
+        title="Agenda {{ site.name }}"
+        loading="lazy"
+        sandbox="allow-scripts allow-same-origin allow-popups allow-forms">
+    </iframe>
+</div>
+
+<p class="agenda-fallback" style="margin-top:1rem; font-size:.875rem;">
+    Problème d'affichage ?
+    <a href="{{ agenda_url }}" target="_blank" rel="noopener">Ouvrir l'agenda dans un nouvel onglet</a>.
+</p>
+{% endblock %}

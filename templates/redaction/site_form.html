@@ -8,7 +8,7 @@
 </div>
 
 <div class="card" style="max-width:600px;">
-  <form method="post">
+  <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
 
     <div class="form-group">
@@ -35,8 +35,24 @@
     </div>
 
     <div class="form-group">
+      <label>Logo <span style="color:#94a3b8;font-size:.8rem;">(affiché dans le bandeau du sous-site)</span></label>
+      {% if object.logo %}
+      <div style="margin-bottom:.5rem;">
+        <img src="{{ object.logo.url }}" alt="Logo actuel" style="height:60px;border-radius:4px;">
+        <span style="font-size:.8rem;color:#94a3b8;margin-left:.5rem;">Logo actuel</span>
+      </div>
+      {% endif %}
+      {{ form.logo }}
+    </div>
+
+    <div class="form-group">
       <label>URL externe <span style="color:#94a3b8;font-size:.8rem;">(si renseigné, redirige vers ce site)</span></label>
       {{ form.external_url }}
+    </div>
+
+    <div class="form-group">
+      <label>URL de l'agenda <span style="color:#94a3b8;font-size:.8rem;">(ex&nbsp;: https://poitiers.demosphere.net)</span></label>
+      {{ form.agenda_url }}
     </div>
 
     <div class="form-group" style="display:flex;align-items:center;gap:.75rem;">

@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}Espace Presse - CNT-SO{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    {% if site and site.slug != 'principal' %}
+    <a href="{% url 'content:home' %}">Accueil</a> /
+    <a href="{% url 'content:site_home' site_slug=site.slug %}">{{ site.name }}</a> /
+    {% else %}
+    <a href="{% url 'content:home' %}">Accueil</a> /
+    {% endif %}
+    <span>Espace presse</span>
+</div>
+
+<h1 class="section-title">
+    Espace presse{% if site and site.slug != 'principal' %} — {{ site.name }}{% endif %}
+</h1>
+
+<!-- Cartouche contact presse -->
+<div class="presse-cartouche">
+    <div class="presse-cartouche-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+        </svg>
+    </div>
+    <div class="presse-cartouche-body">
+        <p class="presse-cartouche-intro">
+            Pour toute demande d'information, d'interview ou de renseignement de la part des journalistes et médias, contactez notre service presse :
+        </p>
+        <div class="presse-cartouche-contacts">
+            <div class="presse-contact-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8a19.79 19.79 0 01-3.07-8.67A2 2 0 012 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+                </svg>
+                <span><!-- À compléter : numéro de téléphone --></span>
+            </div>
+            <div class="presse-contact-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <span><!-- À compléter : adresse e-mail presse --></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.presse-cartouche {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+    background: #fff;
+    border-left: 4px solid var(--primary-color);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--primary-color);
+    padding: 1.75rem 2rem;
+    margin-bottom: 2.5rem;
+}
+
+.presse-cartouche-icon {
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    background: var(--primary-color);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.presse-cartouche-body {
+    flex: 1;
+}
+
+.presse-cartouche-intro {
+    font-size: .95rem;
+    color: var(--text-secondary);
+    margin: 0 0 1rem;
+    line-height: 1.6;
+}
+
+.presse-cartouche-contacts {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.presse-contact-item {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-weight: 600;
+    color: var(--text-color);
+    font-size: .95rem;
+}
+
+.presse-contact-item svg {
+    color: var(--primary-color);
+    flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+    .presse-cartouche { flex-direction: column; }
+    .presse-cartouche-contacts { flex-direction: column; gap: .75rem; }
+}
+</style>
+
+{% with empty_message="Aucun communiqué de presse disponible." %}
+{% include "content/_article_listing.html" %}
+{% endwith %}
+
+{% with query_string="" %}{% include "content/_pagination.html" %}{% endwith %}
+{% endblock %}

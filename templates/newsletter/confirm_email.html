@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Confirmez votre inscription</title>
+</head>
+<body style="margin:0; padding:30px 0; background:#f4f4f4; font-family:Georgia,serif;">
+<table width="100%" cellpadding="0" cellspacing="0">
+  <tr>
+    <td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#fff; border-radius:4px; overflow:hidden;">
+        <tr>
+          <td style="background:#c41e3a; padding:24px 32px; text-align:center;">
+            <div style="font-family:Georgia,serif; font-size:22px; font-weight:700; color:#fff;">CNT-SO</div>
+            <div style="font-size:11px; color:rgba(255,255,255,.8); margin-top:3px; letter-spacing:2px; text-transform:uppercase;">
+              {{ site.name }}
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;">
+            <h1 style="margin:0 0 16px; font-size:20px; color:#1a1a1a;">Confirmez votre inscription</h1>
+            <p style="margin:0 0 24px; font-family:sans-serif; font-size:15px; color:#444; line-height:1.6;">
+              Vous avez demandé à vous inscrire à la newsletter de <strong>{{ site.name }}</strong>.
+              Cliquez sur le bouton ci-dessous pour confirmer votre inscription.
+            </p>
+            <a href="{{ confirm_url }}"
+               style="display:inline-block; background:#c41e3a; color:#fff; font-family:sans-serif;
+                      font-size:14px; font-weight:700; padding:12px 24px; border-radius:4px;
+                      text-decoration:none; text-transform:uppercase; letter-spacing:.5px;">
+              Confirmer mon inscription
+            </a>
+            <p style="margin:24px 0 0; font-family:sans-serif; font-size:12px; color:#999;">
+              Si vous n'avez pas demandé cette inscription, ignorez simplement cet e-mail — aucune action ne sera effectuée.
+            </p>
+            <p style="margin:12px 0 0; font-family:sans-serif; font-size:12px; color:#bbb; border-top:1px solid #eee; padding-top:12px;">
+              Vous pourrez vous désabonner à tout moment via le lien présent en bas de chaque newsletter.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

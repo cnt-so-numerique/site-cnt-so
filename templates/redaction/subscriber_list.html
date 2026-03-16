@@ -1,0 +1,151 @@
+{% extends "redaction/base.html" %}
+{% block title %}Abonnés — Rédaction CNT-SO{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Abonnés{% if current_site %} — {{ current_site.name }}{% endif %}</h1>
+  <a href="{% url 'redaction:newsletter_list' %}" class="btn btn-secondary">← Newsletters</a>
+</div>
+
+{% if current_site %}
+<div class="stats-grid" style="margin-bottom:1.5rem;">
+  <div class="card">
+    <div class="card-title">Abonnés confirmés</div>
+    <div class="card-value">{{ nb_active }}</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Total (incl. en attente)</div>
+    <div class="card-value">{{ nb_total }}</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Ajouter / Importer / Exporter -->
+{% if current_site %}
+<div class="card" style="margin-bottom:1.5rem;">
+  <div style="display:flex; gap:1.5rem; align-items:flex-start; flex-wrap:wrap;">
+
+    <!-- Ajouter manuellement -->
+    <div style="flex:1; min-width:240px;">
+      <div style="font-size:.8rem; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); margin-bottom:.6rem;">
+        Ajouter un abonné
+      </div>
+      <form method="post" action="{% url 'redaction:subscriber_add' %}"
+            style="display:flex; gap:.5rem; align-items:flex-start; flex-wrap:wrap;">
+        {% csrf_token %}
+        <div style="flex:1; min-width:160px;">
+          <input type="email" name="email" placeholder="adresse@email.fr" required
+                 class="form-input" style="margin-bottom:.4rem;">
+          <input type="text" name="name" placeholder="Nom (optionnel)"
+                 class="form-input">
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm" style="margin-top:2px;">+ Ajouter</button>
+      </form>
+    </div>
+
+    <!-- Import CSV -->
+    <div style="flex:1; min-width:240px;">
+      <div style="font-size:.8rem; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); margin-bottom:.6rem;">
+        Importer depuis un CSV
+      </div>
+      <form method="post" action="{% url 'redaction:subscriber_import' %}" enctype="multipart/form-data"
+            style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
+        {% csrf_token %}
+        <input type="file" name="csv_file" accept=".csv"
+               style="font-size:.82rem; background:var(--input-bg); border:1px solid var(--border);
+                      border-radius:6px; color:var(--text); padding:.35rem .5rem; flex:1; min-width:160px;">
+        <button type="submit" class="btn btn-primary btn-sm">Importer</button>
+      </form>
+      <p style="font-size:.72rem; color:var(--text-muted); margin-top:.4rem;">
+        CSV avec colonne <code>email</code> (et optionnellement <code>nom</code>). Les abonnés importés sont directement actifs.
+      </p>
+    </div>
+
+    <!-- Export -->
+    <div>
+      <div style="font-size:.8rem; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); margin-bottom:.6rem;">
+        Exporter
+      </div>
+      <a href="{% url 'redaction:subscriber_export' %}" class="btn btn-secondary btn-sm">
+        ↓ Télécharger CSV
+      </a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Filtres -->
+<div class="filters">
+  <form method="get" style="display:flex; gap:.5rem; flex-wrap:wrap; width:100%;">
+    <input type="text" name="q" value="{{ q }}" placeholder="Rechercher un e-mail…"
+           style="flex:1; min-width:200px;" class="">
+    <select name="status">
+      <option value="">Tous les statuts</option>
+      <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Confirmés</option>
+      <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>En attente</option>
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">Filtrer</button>
+    {% if q or status_filter %}<a href="{% url 'redaction:subscriber_list' %}" class="btn btn-secondary btn-sm">✕ Réinitialiser</a>{% endif %}
+  </form>
+</div>
+
+{% if subscribers %}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>{% include "redaction/_sort_link.html" with label="E-mail" asc="email" desc="-email" %}</th>
+        <th>{% include "redaction/_sort_link.html" with label="Nom" asc="name" desc="-name" %}</th>
+        {% if not current_site %}<th>Site</th>{% endif %}
+        <th>{% include "redaction/_sort_link.html" with label="Statut" asc="is_active" desc="-is_active" %}</th>
+        <th>{% include "redaction/_sort_link.html" with label="Inscrit le" asc="subscribed_at" desc="-subscribed_at" %}</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for sub in subscribers %}
+      <tr>
+        <td>{{ sub.email }}</td>
+        <td style="color:var(--text-muted);">{{ sub.name|default:"—" }}</td>
+        {% if not current_site %}<td style="color:var(--text-muted); font-size:.8rem;">{{ sub.site.name }}</td>{% endif %}
+        <td>
+          {% if sub.is_active %}
+          <span class="badge badge-publish">Confirmé</span>
+          {% else %}
+          <span class="badge badge-pending">En attente</span>
+          {% endif %}
+        </td>
+        <td style="color:var(--text-muted); font-size:.8rem;">{{ sub.subscribed_at|date:"d/m/Y" }}</td>
+        <td>
+          <form method="post" action="{% url 'redaction:subscriber_delete' sub.pk %}"
+                onsubmit="return confirm('Supprimer {{ sub.email }} ?');" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger btn-sm">✕</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+{% if is_paginated %}
+<div class="pagination">
+  {% if page_obj.has_previous %}
+  <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">&laquo;</a>
+  {% endif %}
+  <span class="current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+  <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">&raquo;</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="card" style="text-align:center; padding:2.5rem;">
+  <p style="color:var(--text-muted);">Aucun abonné{% if q or status_filter %} correspondant aux filtres{% endif %}.</p>
+</div>
+{% endif %}
+
+{% endblock %}

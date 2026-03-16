@@ -1,11 +1,19 @@
+import csv
+import io
 import json
+import time
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Q
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import EmailMultiAlternatives
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from django.db.models import Count
+from django.http import JsonResponse, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views import View
@@ -13,8 +21,8 @@ from django.views.generic import (
     TemplateView, ListView, CreateView, UpdateView, DeleteView
 )
 
-from content.models import Article, Author, Category, Tag, Comment, Media, Site, MenuItem
-from .forms import ArticleForm, CategoryForm, TagForm, UserCreateForm, UserEditForm, MenuItemForm, SiteForm
+from content.models import Article, Author, Category, Tag, Comment, Media, Site, MenuItem, Newsletter, NewsletterArticle, Subscriber
+from .forms import ArticleForm, CategoryForm, TagForm, UserCreateForm, UserEditForm, MenuItemForm, SiteForm, NewsletterForm, SubscriberImportForm
 from .mixins import RedacLoginRequiredMixin, ChefRequiredMixin, SuperuserRequiredMixin
 
 
@@ -125,6 +133,45 @@ class ImageUploadView(RedacLoginRequiredMixin, View):
             'file': {
                 'url': request.build_absolute_uri(media.file.url),
                 'id': media.id,
+            },
+        })
+
+
+class FileUploadView(RedacLoginRequiredMixin, View):
+    """Endpoint pour l'upload de fichiers (PDF, doc…) depuis FileTool."""
+
+    def post(self, request):
+        f = request.FILES.get('file')
+        if not f:
+            return JsonResponse({'success': 0, 'message': 'Aucun fichier reçu.'})
+
+        allowed = [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.oasis.opendocument.text',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.oasis.opendocument.spreadsheet',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'application/zip',
+            'application/octet-stream',
+        ]
+        if f.content_type not in allowed:
+            return JsonResponse({'success': 0, 'message': 'Type de fichier non autorisé.'})
+
+        media = Media.objects.create(
+            title=f.name,
+            file=f,
+            mime_type=f.content_type,
+        )
+
+        return JsonResponse({
+            'success': 1,
+            'file': {
+                'url': request.build_absolute_uri(media.file.url),
+                'name': f.name,
             },
         })
 
@@ -281,13 +328,11 @@ class ArticlePreviewView(RedacLoginRequiredMixin, View):
                 raise PermissionDenied
 
     def get(self, request, pk):
-        from django.shortcuts import render
         article = get_object_or_404(Article, pk=pk)
         self._check_permission(request, article)
         return render(request, 'redaction/article_preview.html', {'article': article})
 
     def post(self, request, pk):
-        from django.shortcuts import render
         article = get_object_or_404(Article, pk=pk)
         self._check_permission(request, article)
         # Créer un objet article temporaire avec les données du formulaire
@@ -516,6 +561,32 @@ class CommentModerationView(ChefRequiredMixin, View):
 
 # ── Utilisateurs ─────────────────────────────────────────────────────────────
 
+def _send_invitation_email(request, user):
+    """Envoie un e-mail d'invitation à un nouvel utilisateur pour qu'il définisse son mot de passe."""
+    if not user.email:
+        return
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    invitation_url = request.build_absolute_uri(
+        reverse('redaction:invitation_confirm', args=[uid, token])
+    )
+    html = render_to_string('redaction/invitation_email.html', {
+        'user': user,
+        'invitation_url': invitation_url,
+    }, request=request)
+    text = f"Bonjour {user.get_full_name() or user.username},\n\nVous avez été invité(e) à rejoindre l'espace rédaction CNT-SO.\nDéfinissez votre mot de passe ici : {invitation_url}\n\nCe lien est valable 3 jours."
+    try:
+        msg = EmailMultiAlternatives(
+            subject="Invitation — Espace rédaction CNT-SO",
+            body=text,
+            from_email=None,
+            to=[user.email],
+        )
+        msg.attach_alternative(html, 'text/html')
+        msg.send()
+    except Exception:
+        pass
+
 class UserListView(ChefRequiredMixin, ListView):
     model = User
     template_name = 'redaction/user_list.html'
@@ -562,7 +633,10 @@ class UserCreateView(ChefRequiredMixin, CreateView):
         if not author.display_name:
             author.display_name = user_obj.get_full_name() or user_obj.username
         author.save()
-        messages.success(self.request, 'Utilisateur créé.')
+
+        # Envoyer l'e-mail d'invitation
+        _send_invitation_email(self.request, user_obj)
+        messages.success(self.request, f'Utilisateur créé. Une invitation a été envoyée à {user_obj.email}.')
         return redirect(self.success_url)
 
     def get_context_data(self, **kwargs):
@@ -1034,3 +1108,386 @@ class FooterReorderView(ChefRequiredMixin, View):
 
         process(data.get('footer', []), None)
         return JsonResponse({'ok': True})
+
+
+# ── Newsletter ─────────────────────────────────────────────────────────────────
+
+class NewsletterListView(ChefRequiredMixin, ListView):
+    model = Newsletter
+    template_name = 'redaction/newsletter_list.html'
+    context_object_name = 'newsletters'
+
+    def get_queryset(self):
+        current_site = _get_current_site_for_view(self.request)
+        if current_site:
+            return Newsletter.objects.filter(site=current_site).select_related('sent_by')
+        return Newsletter.objects.select_related('site', 'sent_by')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['current_site'] = _get_current_site_for_view(self.request)
+        return ctx
+
+
+class NewsletterCreateView(ChefRequiredMixin, View):
+    template_name = 'redaction/newsletter_form.html'
+
+    def _get_site(self, request):
+        current_site = _get_current_site_for_view(request)
+        if not current_site:
+            messages.warning(request, 'Veuillez sélectionner un site pour créer une newsletter.')
+        return current_site
+
+    def get(self, request):
+        site = self._get_site(request)
+        if not site:
+            return redirect('redaction:newsletter_list')
+        form = NewsletterForm(site=site)
+        return render(request, self.template_name, {'form': form, 'action': 'Créer', 'current_site': site})
+
+    def post(self, request):
+        site = self._get_site(request)
+        if not site:
+            return redirect('redaction:newsletter_list')
+        form = NewsletterForm(request.POST, site=site)
+        if form.is_valid():
+            newsletter = form.save(commit=False)
+            newsletter.site = site
+            newsletter.save()
+            selected = form.cleaned_data['selected_articles']
+            for idx, article in enumerate(selected, start=1):
+                NewsletterArticle.objects.create(newsletter=newsletter, article=article, order=idx)
+            messages.success(request, 'Newsletter créée.')
+            return redirect('redaction:newsletter_edit', pk=newsletter.pk)
+        return render(request, self.template_name, {'form': form, 'action': 'Créer', 'current_site': site})
+
+
+class NewsletterEditView(ChefRequiredMixin, View):
+    template_name = 'redaction/newsletter_form.html'
+
+    def _get_newsletter(self, request, pk):
+        newsletter = get_object_or_404(Newsletter, pk=pk)
+        current_site = _get_current_site_for_view(request)
+        if current_site and newsletter.site != current_site:
+            raise PermissionDenied
+        return newsletter
+
+    def get(self, request, pk):
+        newsletter = self._get_newsletter(request, pk)
+        if newsletter.status == 'sent':
+            messages.info(request, 'Cette newsletter a déjà été envoyée.')
+            return redirect('redaction:newsletter_list')
+        form = NewsletterForm(instance=newsletter, site=newsletter.site)
+        return render(request, self.template_name, {
+            'form': form, 'newsletter': newsletter,
+            'action': 'Modifier', 'current_site': newsletter.site,
+        })
+
+    def post(self, request, pk):
+        newsletter = self._get_newsletter(request, pk)
+        if newsletter.status == 'sent':
+            raise PermissionDenied
+        form = NewsletterForm(request.POST, instance=newsletter, site=newsletter.site)
+        if form.is_valid():
+            newsletter = form.save()
+            # Remplacer les articles sélectionnés
+            NewsletterArticle.objects.filter(newsletter=newsletter).delete()
+            for idx, article in enumerate(form.cleaned_data['selected_articles'], start=1):
+                NewsletterArticle.objects.create(newsletter=newsletter, article=article, order=idx)
+            messages.success(request, 'Newsletter sauvegardée.')
+            return redirect('redaction:newsletter_edit', pk=newsletter.pk)
+        return render(request, self.template_name, {
+            'form': form, 'newsletter': newsletter,
+            'action': 'Modifier', 'current_site': newsletter.site,
+        })
+
+
+class NewsletterPreviewView(ChefRequiredMixin, View):
+    """Aperçu HTML de l'e-mail tel qu'il sera reçu."""
+
+    def get(self, request, pk):
+        newsletter = get_object_or_404(Newsletter, pk=pk)
+        current_site = _get_current_site_for_view(request)
+        if current_site and newsletter.site != current_site:
+            raise PermissionDenied
+        articles = list(
+            newsletter.newsletter_articles.select_related('article__featured_image').order_by('order')
+        )
+        site_url = request.build_absolute_uri('/')
+        html = render_to_string('newsletter/email.html', {
+            'newsletter': newsletter,
+            'newsletter_articles': articles,
+            'site_url': site_url,
+            'unsubscribe_url': '#',
+            'is_preview': True,
+        }, request=request)
+        return HttpResponse(html)
+
+
+class NewsletterSendView(ChefRequiredMixin, View):
+    """Confirmation puis envoi de la newsletter."""
+    template_name = 'redaction/newsletter_send.html'
+
+    def _get_newsletter(self, request, pk):
+        newsletter = get_object_or_404(Newsletter, pk=pk)
+        current_site = _get_current_site_for_view(request)
+        if current_site and newsletter.site != current_site:
+            raise PermissionDenied
+        return newsletter
+
+    def get(self, request, pk):
+        newsletter = self._get_newsletter(request, pk)
+        if newsletter.status == 'sent':
+            messages.error(request, 'Newsletter déjà envoyée.')
+            return redirect('redaction:newsletter_list')
+        subscribers = Subscriber.objects.filter(site=newsletter.site, is_active=True)
+        return render(request, self.template_name, {
+            'newsletter': newsletter,
+            'nb_subscribers': subscribers.count(),
+        })
+
+    def post(self, request, pk):
+        newsletter = self._get_newsletter(request, pk)
+        if newsletter.status == 'sent':
+            messages.error(request, 'Newsletter déjà envoyée.')
+            return redirect('redaction:newsletter_list')
+
+        mode = request.POST.get('mode', 'send')
+        articles = list(
+            newsletter.newsletter_articles.select_related('article__featured_image').order_by('order')
+        )
+        site_url = request.build_absolute_uri('/')
+
+        # ── Mode test : envoi à une seule adresse ──────────────────────────────
+        if mode == 'test':
+            test_email = request.POST.get('test_email', '').strip()
+            if not test_email:
+                messages.error(request, 'Adresse e-mail de test manquante.')
+                return redirect('redaction:newsletter_send', pk=pk)
+            unsubscribe_url = request.build_absolute_uri(
+                reverse('content:newsletter_unsubscribe', args=['00000000-0000-0000-0000-000000000000'])
+            )
+            html_body = render_to_string('newsletter/email.html', {
+                'newsletter': newsletter,
+                'newsletter_articles': articles,
+                'site_url': site_url,
+                'unsubscribe_url': unsubscribe_url,
+                'is_preview': True,
+            }, request=request)
+            text_body = f"[TEST] {newsletter.title}\n\n{newsletter.intro}"
+            try:
+                msg = EmailMultiAlternatives(
+                    subject=f"[TEST] {newsletter.title}",
+                    body=text_body,
+                    from_email=None,
+                    to=[test_email],
+                )
+                msg.attach_alternative(html_body, 'text/html')
+                msg.send()
+                messages.success(request, f'E-mail de test envoyé à {test_email}.')
+            except Exception as e:
+                messages.error(request, f'Erreur lors de l\'envoi : {e}')
+            return redirect('redaction:newsletter_send', pk=pk)
+
+        # ── Mode réel : envoi à tous les abonnés ───────────────────────────────
+        subscribers = list(Subscriber.objects.filter(site=newsletter.site, is_active=True))
+        if not subscribers:
+            messages.warning(request, 'Aucun abonné actif pour ce site.')
+            return redirect('redaction:newsletter_list')
+
+        sent = 0
+        errors = 0
+        for subscriber in subscribers:
+            unsubscribe_url = request.build_absolute_uri(
+                reverse('content:newsletter_unsubscribe', args=[subscriber.token])
+            )
+            html_body = render_to_string('newsletter/email.html', {
+                'newsletter': newsletter,
+                'newsletter_articles': articles,
+                'site_url': site_url,
+                'unsubscribe_url': unsubscribe_url,
+                'subscriber': subscriber,
+                'is_preview': False,
+            }, request=request)
+            text_body = f"{newsletter.title}\n\n{newsletter.intro}\n\n" + "\n".join(
+                f"- {na.article.title}: {site_url.rstrip('/')}{na.article.get_absolute_url()}"
+                for na in articles
+            ) + f"\n\nSe désabonner : {unsubscribe_url}"
+
+            try:
+                msg = EmailMultiAlternatives(
+                    subject=newsletter.title,
+                    body=text_body,
+                    from_email=None,
+                    to=[subscriber.email],
+                )
+                msg.attach_alternative(html_body, 'text/html')
+                msg.send()
+                sent += 1
+                from django.conf import settings as django_settings
+                delay = getattr(django_settings, 'NEWSLETTER_SEND_DELAY', 0)
+                if delay:
+                    time.sleep(delay)
+            except Exception:
+                errors += 1
+
+        newsletter.status = 'sent'
+        newsletter.sent_at = timezone.now()
+        newsletter.sent_by = request.user
+        newsletter.sent_count = sent
+        newsletter.save(update_fields=['status', 'sent_at', 'sent_by', 'sent_count'])
+
+        if errors:
+            messages.warning(request, f'Envoyée à {sent} abonné(s). {errors} erreur(s).')
+        else:
+            messages.success(request, f'Newsletter envoyée à {sent} abonné(s).')
+        return redirect('redaction:newsletter_list')
+
+
+class NewsletterDeleteView(ChefRequiredMixin, View):
+    def post(self, request, pk):
+        newsletter = get_object_or_404(Newsletter, pk=pk)
+        current_site = _get_current_site_for_view(request)
+        if current_site and newsletter.site != current_site:
+            raise PermissionDenied
+        newsletter.delete()
+        messages.success(request, 'Newsletter supprimée.')
+        return redirect('redaction:newsletter_list')
+
+
+# ── Abonnés ────────────────────────────────────────────────────────────────────
+
+class SubscriberListView(ChefRequiredMixin, ListView):
+    model = Subscriber
+    template_name = 'redaction/subscriber_list.html'
+    context_object_name = 'subscribers'
+    paginate_by = 50
+
+    def get_queryset(self):
+        current_site = _get_current_site_for_view(self.request)
+        if current_site:
+            qs = Subscriber.objects.filter(site=current_site)
+        else:
+            qs = Subscriber.objects.select_related('site')
+        status = self.request.GET.get('status')
+        if status == 'active':
+            qs = qs.filter(is_active=True)
+        elif status == 'pending':
+            qs = qs.filter(is_active=False)
+        q = self.request.GET.get('q', '').strip()
+        if q:
+            qs = qs.filter(email__icontains=q)
+
+        sort = self.request.GET.get('sort', '-subscribed_at')
+        allowed = ['email', '-email', 'name', '-name', 'subscribed_at', '-subscribed_at', 'is_active', '-is_active']
+        if sort not in allowed:
+            sort = '-subscribed_at'
+        return qs.order_by(sort)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        current_site = _get_current_site_for_view(self.request)
+        ctx['current_site'] = current_site
+        ctx['status_filter'] = self.request.GET.get('status', '')
+        ctx['q'] = self.request.GET.get('q', '')
+        ctx['sort'] = self.request.GET.get('sort', '-subscribed_at')
+        if current_site:
+            ctx['nb_active'] = Subscriber.objects.filter(site=current_site, is_active=True).count()
+            ctx['nb_total'] = Subscriber.objects.filter(site=current_site).count()
+        ctx['import_form'] = SubscriberImportForm()
+        return ctx
+
+
+class SubscriberAddView(ChefRequiredMixin, View):
+    """Ajout manuel d'un abonné depuis l'interface rédaction."""
+
+    def post(self, request):
+        current_site = _get_current_site_for_view(request)
+        if not current_site:
+            messages.warning(request, 'Veuillez sélectionner un site.')
+            return redirect('redaction:subscriber_list')
+
+        email = request.POST.get('email', '').strip().lower()
+        name = request.POST.get('name', '').strip()
+
+        if not email or '@' not in email:
+            messages.error(request, 'Adresse e-mail invalide.')
+            return redirect('redaction:subscriber_list')
+
+        _, created = Subscriber.objects.get_or_create(
+            site=current_site,
+            email=email,
+            defaults={'name': name, 'is_active': True, 'confirmed_at': timezone.now()},
+        )
+        if created:
+            messages.success(request, f'Abonné {email} ajouté.')
+        else:
+            messages.warning(request, f'{email} est déjà dans la liste.')
+        return redirect('redaction:subscriber_list')
+
+
+class SubscriberImportView(ChefRequiredMixin, View):
+    """Import CSV d'abonnés pour le site courant."""
+
+    def post(self, request):
+        current_site = _get_current_site_for_view(request)
+        if not current_site:
+            messages.warning(request, 'Veuillez sélectionner un site.')
+            return redirect('redaction:subscriber_list')
+        form = SubscriberImportForm(request.POST, request.FILES)
+        if not form.is_valid():
+            messages.error(request, form.errors['csv_file'][0])
+            return redirect('redaction:subscriber_list')
+
+        rows = form.cleaned_data['csv_file']
+        created = updated = skipped = 0
+        for row in rows:
+            email = (row.get('email') or '').strip().lower()
+            name = (row.get('nom') or row.get('name') or '').strip()
+            if not email or '@' not in email:
+                skipped += 1
+                continue
+            obj, is_new = Subscriber.objects.get_or_create(
+                site=current_site, email=email,
+                defaults={'name': name, 'is_active': True, 'confirmed_at': timezone.now()},
+            )
+            if is_new:
+                created += 1
+            else:
+                if name and not obj.name:
+                    obj.name = name
+                    obj.save(update_fields=['name'])
+                updated += 1
+
+        messages.success(request, f'Import terminé : {created} ajouté(s), {updated} existant(s), {skipped} ignoré(s).')
+        return redirect('redaction:subscriber_list')
+
+
+class SubscriberDeleteView(ChefRequiredMixin, View):
+    def post(self, request, pk):
+        subscriber = get_object_or_404(Subscriber, pk=pk)
+        current_site = _get_current_site_for_view(request)
+        if current_site and subscriber.site != current_site:
+            raise PermissionDenied
+        subscriber.delete()
+        messages.success(request, f'Abonné {subscriber.email} supprimé.')
+        return redirect('redaction:subscriber_list')
+
+
+class SubscriberExportView(ChefRequiredMixin, View):
+    """Export CSV des abonnés actifs du site courant."""
+
+    def get(self, request):
+        current_site = _get_current_site_for_view(request)
+        if not current_site:
+            messages.warning(request, 'Veuillez sélectionner un site.')
+            return redirect('redaction:subscriber_list')
+        subscribers = Subscriber.objects.filter(site=current_site, is_active=True).order_by('email')
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="abonnes-{current_site.slug}.csv"'
+        response.write('\ufeff')  # BOM UTF-8 pour Excel
+        writer = csv.writer(response)
+        writer.writerow(['email', 'nom', 'date_inscription'])
+        for s in subscribers:
+            writer.writerow([s.email, s.name, s.subscribed_at.strftime('%d/%m/%Y')])
+        return response

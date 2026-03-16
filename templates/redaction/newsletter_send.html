@@ -1,0 +1,84 @@
+{% extends "redaction/base.html" %}
+{% block title %}Envoyer la newsletter — Rédaction CNT-SO{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Confirmer l'envoi</h1>
+  <a href="{% url 'redaction:newsletter_list' %}" class="btn btn-secondary">← Retour</a>
+</div>
+
+<div style="max-width:560px;">
+  <div class="card" style="margin-bottom:1.5rem;">
+    <table style="width:100%; font-size:.9rem;">
+      <tr>
+        <td style="padding:.4rem 0; color:var(--text-muted); width:140px;">Sujet</td>
+        <td style="padding:.4rem 0;"><strong>{{ newsletter.title }}</strong></td>
+      </tr>
+      <tr>
+        <td style="padding:.4rem 0; color:var(--text-muted);">Site</td>
+        <td style="padding:.4rem 0;">{{ newsletter.site.name }}</td>
+      </tr>
+      <tr>
+        <td style="padding:.4rem 0; color:var(--text-muted);">Articles</td>
+        <td style="padding:.4rem 0;">{{ newsletter.newsletter_articles.count }} article(s)</td>
+      </tr>
+      <tr>
+        <td style="padding:.4rem 0; color:var(--text-muted);">Destinataires</td>
+        <td style="padding:.4rem 0;">
+          <strong style="font-size:1.1rem;">{{ nb_subscribers }}</strong> abonné(s) actif(s)
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  {% if nb_subscribers == 0 %}
+  <div class="message message-warning">
+    Aucun abonné confirmé pour ce site. Importez des abonnés avant d'envoyer.
+  </div>
+  <a href="{% url 'redaction:subscriber_list' %}" class="btn btn-secondary">Gérer les abonnés</a>
+  {% endif %}
+
+  <!-- Envoi de test -->
+  <div class="card" style="margin-bottom:1rem; border-color:rgba(59,130,246,.3);">
+    <div style="font-size:.8rem; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:#60a5fa; margin-bottom:.75rem;">
+      ✉ Envoi de test
+    </div>
+    <p style="font-size:.85rem; color:var(--text-muted); margin-bottom:.75rem;">
+      Envoie uniquement à une adresse pour vérifier le rendu avant l'envoi réel.
+    </p>
+    <form method="post"
+          onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Envoi…';">
+      {% csrf_token %}
+      <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+        <input type="email" name="test_email" placeholder="votre@email.fr" required
+               class="form-input" style="flex:1; min-width:200px;">
+        <input type="hidden" name="mode" value="test">
+        <button type="submit" class="btn btn-sm" style="background:rgba(59,130,246,.2); color:#60a5fa; border:1px solid rgba(59,130,246,.3);">
+          Envoyer le test
+        </button>
+      </div>
+    </form>
+  </div>
+
+  {% if nb_subscribers > 0 %}
+  <!-- Envoi réel -->
+  <div class="message message-warning">
+    <strong>Attention :</strong> Cette action est irréversible. L'e-mail sera envoyé à {{ nb_subscribers }} abonné(s).
+    Assurez-vous d'avoir prévisualisé et testé la newsletter avant d'envoyer.
+  </div>
+  <div style="display:flex; gap:.75rem; margin-top:1rem;">
+    <a href="{% url 'redaction:newsletter_preview' newsletter.pk %}" target="_blank" class="btn btn-secondary">
+      👁 Prévisualiser
+    </a>
+    <form method="post" style="display:inline;"
+          onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').textContent='Envoi en cours…';">
+      {% csrf_token %}
+      <input type="hidden" name="mode" value="send">
+      <button type="submit" class="btn btn-primary">
+        ➤ Envoyer à {{ nb_subscribers }} abonné(s)
+      </button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

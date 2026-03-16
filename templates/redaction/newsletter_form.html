@@ -1,0 +1,139 @@
+{% extends "redaction/base.html" %}
+{% block title %}{{ action }} newsletter — Rédaction CNT-SO{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>{{ action }} newsletter{% if current_site %} — {{ current_site.name }}{% endif %}</h1>
+  <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+    {% if newsletter %}
+    <a href="{% url 'redaction:newsletter_preview' newsletter.pk %}" target="_blank" class="btn btn-secondary">
+      👁 Aperçu
+    </a>
+    <a href="{% url 'redaction:newsletter_send' newsletter.pk %}" class="btn btn-primary">
+      ➤ Envoyer
+    </a>
+    {% endif %}
+    <a href="{% url 'redaction:newsletter_list' %}" class="btn btn-secondary">← Retour</a>
+  </div>
+</div>
+
+{% if form.errors %}
+<div class="form-errors card" style="margin-bottom:1rem;">
+  <ul class="errorlist">
+    {% for field in form %}{% for error in field.errors %}<li>{{ field.label }} : {{ error }}</li>{% endfor %}{% endfor %}
+    {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<form method="post">
+  {% csrf_token %}
+
+  <!-- Sujet + Intro -->
+  <div class="card" style="margin-bottom:1rem;">
+    <div class="field">
+      <label for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
+      {{ form.title }}
+      {% if form.title.errors %}<ul class="errorlist">{% for e in form.title.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+      <small style="color:var(--text-muted); font-size:.75rem;">Ce texte apparaîtra comme objet de l'e-mail dans la boîte de réception.</small>
+    </div>
+    <div class="field" style="margin-bottom:0;">
+      <label for="{{ form.intro.id_for_label }}">{{ form.intro.label }}</label>
+      {{ form.intro }}
+      {% if form.intro.errors %}<ul class="errorlist">{% for e in form.intro.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+    </div>
+  </div>
+
+  <!-- Sélection des articles -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div style="font-size:.8rem; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--text-muted); margin-bottom:.75rem;">
+      Articles à inclure
+    </div>
+    {% if form.selected_articles.field.queryset.count == 0 %}
+    <p style="color:var(--text-muted); font-size:.85rem;">
+      Aucun article publié sur ce site. <a href="{% url 'redaction:article_list' %}">Publier un article</a>.
+    </p>
+    {% else %}
+    <div id="article-selection" style="max-height:460px; overflow-y:auto; padding-right:.5rem;">
+      {% for article in form.selected_articles.field.queryset %}
+      <label style="display:flex; align-items:flex-start; gap:.75rem; padding:.65rem .5rem;
+                     border-radius:5px; cursor:pointer; margin-bottom:2px;
+                     border: 1px solid transparent;"
+             class="article-row">
+        <input type="checkbox" name="selected_articles" value="{{ article.pk }}"
+               {% if article in form.selected_articles.field.initial %}checked{% endif %}
+               style="accent-color:var(--accent); margin-top:3px; flex-shrink:0;"
+               onchange="updateOrder()">
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:.875rem; font-weight:500;">
+            {{ article.title }}
+          </div>
+          <div style="font-size:.75rem; color:var(--text-muted);">
+            {% if article.published_at %}{{ article.published_at|date:"d/m/Y" }}{% endif %}
+            {% if article.categories.all %} · {{ article.categories.all.0.name }}{% endif %}
+          </div>
+        </div>
+        <span class="order-badge"
+              style="display:none; background:var(--accent); color:#fff; border-radius:50%;
+                     width:22px; height:22px; font-size:.72rem; font-weight:700; flex-shrink:0;
+                     align-items:center; justify-content:center; text-align:center; line-height:22px;">
+          1
+        </span>
+      </label>
+      {% endfor %}
+    </div>
+    <p style="margin-top:.75rem; font-size:.75rem; color:var(--text-muted);">
+      Cochez les articles à inclure. L'ordre d'affichage dans l'e-mail suit l'ordre de sélection.
+    </p>
+    {% endif %}
+  </div>
+
+  <!-- Boutons d'action -->
+  <div style="display:flex; gap:.75rem; flex-wrap:wrap; align-items:center; padding-top:.5rem; border-top:1px solid var(--border);">
+    <button type="submit" class="btn btn-primary">
+      💾 Sauvegarder
+    </button>
+    {% if newsletter %}
+    <a href="{% url 'redaction:newsletter_preview' newsletter.pk %}" target="_blank" class="btn btn-secondary">
+      👁 Aperçu
+    </a>
+    <a href="{% url 'redaction:newsletter_send' newsletter.pk %}" class="btn btn-primary">
+      ➤ Envoyer
+    </a>
+    {% endif %}
+    <a href="{% url 'redaction:newsletter_list' %}" class="btn btn-secondary">
+      Annuler
+    </a>
+    {% if newsletter %}
+    <span style="font-size:.8rem; color:var(--text-muted); margin-left:auto;">
+      Site : {{ current_site.name }} &nbsp;·&nbsp;
+      Statut : <span class="badge badge-{{ newsletter.status }}">{{ newsletter.get_status_display }}</span>
+    </span>
+    {% endif %}
+  </div>
+
+</form>
+
+<style>
+  .article-row:hover { background: rgba(255,255,255,.03); border-color: var(--border) !important; }
+  .article-row:has(input:checked) { background: rgba(230,57,70,.06); border-color: rgba(230,57,70,.2) !important; }
+</style>
+
+<script>
+function updateOrder() {
+  const rows = document.querySelectorAll('#article-selection .article-row');
+  let order = 1;
+  rows.forEach(function(row) {
+    const cb = row.querySelector('input[type=checkbox]');
+    const badge = row.querySelector('.order-badge');
+    if (cb.checked) {
+      badge.textContent = order++;
+      badge.style.display = 'inline-flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  });
+}
+document.addEventListener('DOMContentLoaded', updateOrder);
+</script>
+{% endblock %}

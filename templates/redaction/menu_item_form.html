@@ -72,6 +72,13 @@
         {{ form.page }}
       </div>
 
+      <div class="field link-field" id="field-contact">
+        <p style="color:#94a3b8; font-size:.875rem; margin:0;">
+          Le lien pointera automatiquement vers le formulaire de contact de ce site
+          ({% if current_site.slug != 'principal' %}<code>/{{ current_site.slug }}/contact/</code>{% else %}<code>/contact/</code>{% endif %}).
+        </p>
+      </div>
+
       <div class="field">
         <label for="{{ form.parent.id_for_label }}">Élément parent</label>
         {{ form.parent }}
@@ -114,6 +121,8 @@
     'site':     ['field-target_site'],
     'article':  ['field-article'],
     'page':     ['field-page'],
+    'contact':  ['field-contact'],
+    'agenda':   [],
   };
 
   function updateFields(val) {

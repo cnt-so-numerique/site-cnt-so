@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"><title>Invitation — Rédaction CNT-SO</title></head>
+<body style="margin:0; padding:30px 0; background:#f4f4f4; font-family:sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0">
+  <tr>
+    <td align="center">
+      <table width="520" cellpadding="0" cellspacing="0" style="background:#fff; border-radius:4px; overflow:hidden;">
+        <tr>
+          <td style="background:#c41e3a; padding:24px 32px; text-align:center;">
+            <div style="font-size:20px; font-weight:700; color:#fff; font-family:Georgia,serif;">CNT-SO · Rédaction</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;">
+            <h1 style="margin:0 0 16px; font-size:18px; color:#1a1a1a;">
+              Bienvenue, {{ user.get_full_name|default:user.username }} !
+            </h1>
+            <p style="margin:0 0 16px; font-size:15px; color:#444; line-height:1.6;">
+              Vous avez été invité(e) à rejoindre l'espace rédaction du site CNT-SO.
+              Cliquez sur le bouton ci-dessous pour définir votre mot de passe et activer votre compte.
+            </p>
+            <a href="{{ invitation_url }}"
+               style="display:inline-block; background:#c41e3a; color:#fff; font-size:14px;
+                      font-weight:700; padding:12px 24px; border-radius:4px; text-decoration:none;
+                      text-transform:uppercase; letter-spacing:.5px; margin-bottom:24px;">
+              Définir mon mot de passe
+            </a>
+            <p style="margin:0; font-size:12px; color:#999; border-top:1px solid #eee; padding-top:16px;">
+              Ce lien est valable <strong>3 jours</strong>. Si vous n'avez pas demandé cet accès, ignorez cet e-mail.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
