@@ -6,5 +6,5 @@ services:
     volumes:
       - ./db.sqlite3:/app/db.sqlite3
       - ./media:/app/media
-      - ./cntso/local_settings.py:/app/cntso/local_settings.py
+      - ./cntso/local_settings.staging.py:/app/cntso/local_settings.py
     restart: unless-stopped

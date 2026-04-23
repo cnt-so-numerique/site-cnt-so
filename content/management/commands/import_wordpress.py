@@ -11,6 +11,7 @@ Usage:
 
 import pymysql
 import pymysql.cursors
+from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 from django.utils.text import slugify
 from django.utils.dateparse import parse_datetime
@@ -99,25 +100,57 @@ class Command(BaseCommand):
             self.stdout.write(f'  Site "{site.name}" {action}')
 
     def import_authors(self):
-        """Importe les auteurs depuis wp_users"""
+        """Importe les auteurs depuis wp_users et crée les comptes Django"""
         self.stdout.write('Import des auteurs...')
 
         self.cursor.execute("""
-            SELECT ID, user_login, user_email, display_name
-            FROM wp_users
+            SELECT u.ID, u.user_login, u.user_email, u.display_name,
+                   MAX(CASE WHEN um.meta_key = 'first_name' THEN um.meta_value END) AS first_name,
+                   MAX(CASE WHEN um.meta_key = 'last_name' THEN um.meta_value END) AS last_name
+            FROM wp_users u
+            LEFT JOIN wp_usermeta um ON u.ID = um.user_id
+                AND um.meta_key IN ('first_name', 'last_name')
+            GROUP BY u.ID, u.user_login, u.user_email, u.display_name
         """)
 
         for row in self.cursor.fetchall():
+            email = row['user_email'] or ''
+            username = row['user_login']
+            first_name = row['first_name'] or ''
+            last_name = row['last_name'] or ''
+
+            # Créer ou récupérer le compte Django User
+            user, user_created = User.objects.get_or_create(
+                username=username,
+                defaults={
+                    'email': email,
+                    'first_name': first_name,
+                    'last_name': last_name,
+                }
+            )
+            if user_created:
+                user.set_unusable_password()
+                user.save()
+            else:
+                # Mettre à jour les infos si le compte existait déjà
+                user.email = email
+                user.first_name = first_name
+                user.last_name = last_name
+                user.save()
+
             author, created = Author.objects.update_or_create(
                 wp_id=row['ID'],
                 defaults={
-                    'username': row['user_login'],
-                    'email': row['user_email'] or '',
-                    'display_name': row['display_name'] or row['user_login'],
+                    'user': user,
+                    'username': username,
+                    'email': email,
+                    'display_name': row['display_name'] or username,
+                    'first_name': first_name,
+                    'last_name': last_name,
                 }
             )
-            if created:
-                self.stdout.write(f'  Auteur "{author.username}" créé')
+            action = 'créé' if created else 'mis à jour'
+            self.stdout.write(f'  Auteur "{author.username}" {action} (compte Django {"créé" if user_created else "existant"})')
 
     def get_table_prefix(self, blog_id):
         """Retourne le préfixe de table pour un blog_id"""

@@ -28,16 +28,3 @@
 </article>
 {% endblock %}
 
-{% block sidebar %}
-<div class="widget">
-    <h3 class="widget-title">Navigation</h3>
-    <ul>
-        {% if site.slug == 'principal' %}
-            <li><a href="{% url 'content:home' %}">Retour à l'accueil</a></li>
-        {% else %}
-            <li><a href="{{ site.get_absolute_url }}">Retour à {{ site.name }}</a></li>
-            <li><a href="{% url 'content:home' %}">Site principal CNT-SO</a></li>
-        {% endif %}
-    </ul>
-</div>
-{% endblock %}
