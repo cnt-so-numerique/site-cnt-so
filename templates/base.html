@@ -1515,14 +1515,14 @@
     {% get_menu site 'footer' as footer_columns %}
     <footer class="footer">
         {% if footer_columns %}
-        <div class="footer-content" style="grid-template-columns: repeat({{ footer_columns|length }}, auto);">
+        <div class="footer-content" style="grid-template-columns: repeat({{ footer_columns|length }}, 1fr);">
             {% for col in footer_columns %}
             <div class="footer-section">
                 {% if col.title %}<h4>{{ col.title }}</h4>{% endif %}
                 <ul>
                     {% for item in col.children.all %}
                     {% if item.is_active %}
-                    <li><a href="{{ item.get_url }}"{% if item.opens_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ item.title }}</a></li>
+                    <li>{% if item.url == '#' %}<span>{{ item.title }}</span>{% else %}<a href="{{ item.get_url }}"{% if item.opens_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ item.title }}</a>{% endif %}</li>
                     {% endif %}
                     {% endfor %}
                 </ul>
