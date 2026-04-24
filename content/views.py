@@ -485,9 +485,39 @@ class PlanDuSiteView(TemplateView):
         current = get_object_or_404(Site, slug=site_slug)
         ctx['plan_site'] = current
         ctx['site'] = current
-        ctx['categories'] = Category.objects.filter(
-            site=current, parent=None
-        ).prefetch_related('children').order_by('name')
+
+        # Grouper les catégories de même nom (ex: 9x "Actualité & luttes" par secteur)
+        from collections import defaultdict
+        from os.path import commonprefix
+
+        raw_cats = list(
+            Category.objects.filter(site=current, parent=None)
+            .prefetch_related('children')
+            .order_by('name')
+        )
+        grouped = defaultdict(list)
+        for cat in raw_cats:
+            grouped[cat.name].append(cat)
+
+        cat_groups = []
+        for name, cats in sorted(grouped.items()):
+            if len(cats) == 1:
+                cat_groups.append({
+                    'name': name,
+                    'url': cats[0].get_absolute_url(),
+                    'children': [{'name': c.name, 'url': c.get_absolute_url()} for c in cats[0].children.all()],
+                })
+            else:
+                # Trouver le préfixe commun des slugs pour extraire le secteur
+                prefix = commonprefix([c.slug for c in cats])
+                children = []
+                for c in sorted(cats, key=lambda x: x.slug):
+                    sector = c.slug[len(prefix):].strip('-').replace('-', ' ')
+                    label = sector.capitalize() if sector else c.slug
+                    children.append({'name': label, 'url': c.get_absolute_url()})
+                cat_groups.append({'name': name, 'url': None, 'children': children})
+        ctx['cat_groups'] = cat_groups
+
         ctx['pages'] = Page.objects.filter(
             site=current, status='publish'
         ).order_by('title')

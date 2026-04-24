@@ -74,15 +74,22 @@
   </div>
 
   <!-- Thématiques / catégories -->
-  {% if categories %}
+  {% if cat_groups %}
   <div class="sitemap-section">
     <h2>Thématiques</h2>
     <ul>
-      {% for cat in categories %}
-      <li><a href="{{ cat.get_absolute_url }}">{{ cat.name }}</a></li>
-      {% for child in cat.children.all %}
+      {% for group in cat_groups %}
+      {% if group.url %}
+      <li><a href="{{ group.url }}">{{ group.name }}</a></li>
+      {% for child in group.children %}
       <li class="sub"><a href="{{ child.get_absolute_url }}">{{ child.name }}</a></li>
       {% endfor %}
+      {% else %}
+      <li><span style="font-weight:600;">{{ group.name }}</span></li>
+      {% for child in group.children %}
+      <li class="sub"><a href="{{ child.url }}">{{ child.name }}</a></li>
+      {% endfor %}
+      {% endif %}
       {% endfor %}
     </ul>
   </div>
