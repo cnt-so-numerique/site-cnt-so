@@ -34,7 +34,9 @@
     overflow: hidden;
     background: #111;
     margin-bottom: 0;
-    /* Desktop : hauteur fixe via min-height sur le contenu */
+    /* Casse le padding du layout pour aller bord à bord sur mobile */
+    margin-left: -1rem;
+    margin-right: -1rem;
 }
 
 .hp-hero-img {
@@ -582,31 +584,6 @@
 
 {% block full_content %}
 
-<!-- 1. HERO "À LA UNE" — pleine largeur, hors du layout -->
-<section class="hp-hero">
-    {% if featured_article %}
-    {% if featured_article.featured_image %}
-    <img class="hp-hero-img" src="{{ featured_article.featured_image.url }}" alt="{{ featured_article.title }}">
-    {% endif %}
-    <div class="hp-hero-overlay"></div>
-    <div class="hp-hero-content">
-        <div class="hp-alaune">
-            <span class="hp-alaune-dot"></span>
-            <span class="hp-alaune-label">À la une</span>
-        </div>
-        <div class="hp-hero-meta">
-            <span class="hp-badge-type">Article</span>
-            {% for cat in featured_article.categories.all|slice:":2" %}
-            <a href="{{ cat.get_absolute_url }}" class="hp-badge-cat">{{ cat.name }}</a>
-            {% endfor %}
-        </div>
-        <h1 class="hp-hero-title">
-            <a href="{{ featured_article.get_absolute_url }}">{{ featured_article.title }}</a>
-        </h1>
-    </div>
-    {% endif %}
-</section>
-
 <!-- ============================================================
      LAYOUT 2 COLONNES : gauche (contenu) + droite (sidebar 280px)
      ============================================================ -->
@@ -616,6 +593,31 @@
          COLONNE GAUCHE
          ====================================================== -->
     <div>
+
+        <!-- 1. HERO "À LA UNE" -->
+        <section class="hp-hero">
+            {% if featured_article %}
+            {% if featured_article.featured_image %}
+            <img class="hp-hero-img" src="{{ featured_article.featured_image.url }}" alt="{{ featured_article.title }}">
+            {% endif %}
+            <div class="hp-hero-overlay"></div>
+            <div class="hp-hero-content">
+                <div class="hp-alaune">
+                    <span class="hp-alaune-dot"></span>
+                    <span class="hp-alaune-label">À la une</span>
+                </div>
+                <div class="hp-hero-meta">
+                    <span class="hp-badge-type">Article</span>
+                    {% for cat in featured_article.categories.all|slice:":2" %}
+                    <a href="{{ cat.get_absolute_url }}" class="hp-badge-cat">{{ cat.name }}</a>
+                    {% endfor %}
+                </div>
+                <h1 class="hp-hero-title">
+                    <a href="{{ featured_article.get_absolute_url }}">{{ featured_article.title }}</a>
+                </h1>
+            </div>
+            {% endif %}
+        </section>
 
         <!-- 2. MINI CARTES TEXTE (3 sous le hero) -->
         {% if hero_mini_cards %}
