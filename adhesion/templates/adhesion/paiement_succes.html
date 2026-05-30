@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block title %}Adhésion enregistrée – {{ site.name }}{% endblock %}
+
+{% block content %}
+<div style="max-width:600px;text-align:center;padding:3rem 1rem;">
+    <div style="font-size:3rem;margin-bottom:1rem;">✓</div>
+    <h1 class="section-title">Merci pour votre adhésion !</h1>
+    <p style="color:#555;margin-bottom:1.5rem;">
+        Votre demande d'adhésion au <strong>{{ site.name }}</strong> a bien été enregistrée.
+        Vous recevrez un e-mail de confirmation dès que votre paiement sera validé.
+    </p>
+    <p style="color:#555;margin-bottom:2rem;">
+        Si vous avez des questions, contactez directement votre syndicat.
+    </p>
+    <a href="{{ site.get_absolute_url }}" style="background:#EC1C24;color:white;padding:.75rem 2rem;border-radius:4px;text-decoration:none;font-weight:600;">
+        Retour au site
+    </a>
+</div>
+{% endblock %}

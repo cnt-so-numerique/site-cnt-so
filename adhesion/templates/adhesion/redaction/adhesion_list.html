@@ -1,0 +1,74 @@
+{% extends 'wagtailadmin/base.html' %}
+{% block title %}Adhésions{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:.75rem;">
+  <h1 style="font-size:1.4rem;font-weight:700;">Adhésions{% if current_site %} — {{ current_site.name }}{% endif %}</h1>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+    <a href="/cms/adhesions/export/" style="padding:.4rem .9rem;background:#2d3139;color:#e2e8f0;border-radius:4px;text-decoration:none;font-size:.85rem;">Exporter CSV</a>
+    <a href="/cms/adhesions/relance/" style="padding:.4rem .9rem;background:#2d3139;color:#e2e8f0;border-radius:4px;text-decoration:none;font-size:.85rem;">Relances</a>
+    <a href="/cms/adhesion-config/" style="padding:.4rem .9rem;background:#e63946;color:white;border-radius:4px;text-decoration:none;font-size:.85rem;">Config formulaire</a>
+  </div>
+</div>
+
+<form method="get" style="display:flex;gap:.5rem;margin-bottom:1.25rem;flex-wrap:wrap;">
+  <input name="q" value="{{ q }}" placeholder="Rechercher email, nom…"
+    style="flex:1;min-width:200px;padding:.4rem .75rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.9rem;">
+  <select name="status" style="padding:.4rem .75rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.9rem;">
+    <option value="">Tous les statuts</option>
+    {% for val, label in status_choices %}
+    <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" style="padding:.4rem .9rem;background:#e63946;color:white;border:none;border-radius:4px;cursor:pointer;font-size:.85rem;">Filtrer</button>
+</form>
+
+{% if not current_site %}
+<div style="background:#2d2200;border:1px solid #f59e0b;border-radius:4px;padding:.75rem 1rem;margin-bottom:1rem;color:#f59e0b;font-size:.9rem;">
+  Sélectionnez un site dans la barre latérale pour filtrer les adhésions.
+</div>
+{% endif %}
+
+<div style="overflow-x:auto;">
+  <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+    <thead>
+      <tr style="border-bottom:1px solid #2d3139;color:#94a3b8;text-align:left;">
+        <th style="padding:.5rem .75rem;">Nom</th>
+        <th style="padding:.5rem .75rem;">Email</th>
+        <th style="padding:.5rem .75rem;">Syndicat</th>
+        <th style="padding:.5rem .75rem;">Périodicité</th>
+        <th style="padding:.5rem .75rem;">Montant</th>
+        <th style="padding:.5rem .75rem;">Statut</th>
+        <th style="padding:.5rem .75rem;">Date</th>
+        <th style="padding:.5rem .75rem;"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in adhesions %}
+      <tr style="border-bottom:1px solid #2d3139;">
+        <td style="padding:.5rem .75rem;">{{ a.prenom }} {{ a.nom }}</td>
+        <td style="padding:.5rem .75rem;">{{ a.email }}</td>
+        <td style="padding:.5rem .75rem;color:#94a3b8;">{{ a.site.name }}</td>
+        <td style="padding:.5rem .75rem;">{{ a.get_payment_frequency_display }}</td>
+        <td style="padding:.5rem .75rem;">{% if a.amount_euros %}{{ a.amount_euros }} €{% else %}—{% endif %}</td>
+        <td style="padding:.5rem .75rem;">
+          <span style="padding:.2rem .6rem;border-radius:3px;font-size:.8rem;
+            {% if a.status == 'actif' or a.status == 'manuel' %}background:#14532d;color:#22c55e;
+            {% elif a.status == 'pending' %}background:#422006;color:#f59e0b;
+            {% else %}background:#3b0a0a;color:#ef4444;{% endif %}">
+            {{ a.get_status_display }}
+          </span>
+        </td>
+        <td style="padding:.5rem .75rem;color:#94a3b8;">{{ a.created_at|date:"d/m/Y" }}</td>
+        <td style="padding:.5rem .75rem;">
+          <a href="/cms/adhesions/{{ a.pk }}/"
+             style="color:#e63946;font-size:.85rem;">Détail</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="8" style="padding:2rem;text-align:center;color:#94a3b8;">Aucune adhésion.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

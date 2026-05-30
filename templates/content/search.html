@@ -14,7 +14,7 @@
         <div class="article-list-image">
             {% if article.featured_image %}
             <a href="{{ article.get_absolute_url }}">
-                <img src="{{ article.featured_image.url }}" alt="{{ article.title }}">
+                <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
             </a>
             {% endif %}
         </div>
@@ -24,7 +24,7 @@
             </h2>
             <div class="article-card-meta">
                 {{ article.published_at|date:"d F Y" }}
-                | <span class="site-badge">{{ article.site.name }}</span>
+                | <span class="site-badge">{{ article.section_slug }}</span>
             </div>
             {% if article.excerpt %}
             <p class="article-card-excerpt">{{ article.excerpt|striptags|truncatewords:30 }}</p>

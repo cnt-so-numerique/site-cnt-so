@@ -170,13 +170,13 @@ Variables attendues : articles (queryset/list), empty_message (optionnel)
         <div class="listing-featured-img">
             {% if article.featured_image %}
             <a href="{{ article.get_absolute_url }}">
-                <img src="{{ article.featured_image.url }}" alt="{{ article.title }}">
+                <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
             </a>
             {% endif %}
         </div>
         <div class="listing-featured-body">
             <div class="listing-featured-meta">
-                {% for cat in article.categories.all|slice:":2" %}
+                {% for cat in article.cms_categories.all|slice:":2" %}
                 <a href="{{ cat.get_absolute_url }}" class="cat-badge">{{ cat.name }}</a>
                 {% endfor %}
                 <span>{{ article.published_at|date:"d F Y" }}</span>
@@ -198,13 +198,13 @@ Variables attendues : articles (queryset/list), empty_message (optionnel)
         {% if article.featured_image %}
         <div class="listing-card-img">
             <a href="{{ article.get_absolute_url }}">
-                <img src="{{ article.featured_image.url }}" alt="{{ article.title }}">
+                <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
             </a>
         </div>
         {% endif %}
         <div class="listing-card-body">
             <div class="listing-card-meta">
-                {% for cat in article.categories.all|slice:":1" %}
+                {% for cat in article.cms_categories.all|slice:":1" %}
                 <a href="{{ cat.get_absolute_url }}">{{ cat.name }}</a>
                 {% endfor %}
                 <span>{{ article.published_at|date:"d F Y" }}</span>
@@ -224,13 +224,13 @@ Variables attendues : articles (queryset/list), empty_message (optionnel)
         {% if article.featured_image %}
         <div class="listing-card-img">
             <a href="{{ article.get_absolute_url }}">
-                <img src="{{ article.featured_image.url }}" alt="{{ article.title }}">
+                <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
             </a>
         </div>
         {% endif %}
         <div class="listing-card-body">
             <div class="listing-card-meta">
-                {% for cat in article.categories.all|slice:":1" %}
+                {% for cat in article.cms_categories.all|slice:":1" %}
                 <a href="{{ cat.get_absolute_url }}">{{ cat.name }}</a>
                 {% endfor %}
                 <span>{{ article.published_at|date:"d F Y" }}</span>

@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load wagtailcore_tags wagtailimages_tags %}
+
+{% block title %}{{ page.title }} - {% if site %}{{ site.title }}{% else %}CNT-SO{% endif %}{% endblock %}
+
+{% block content %}
+<article>
+    <header class="article-header">
+        <div class="breadcrumb">
+            <a href="{% url 'content:home' %}">Accueil</a> /
+            {% if site and page.section_slug != 'principal' %}
+            <a href="{{ site.url }}">{{ site.title }}</a> /
+            {% endif %}
+            {% for cat in page.cms_categories.all|slice:":1" %}
+            <a href="{% url 'content:category_detail' slug=cat.slug %}">{{ cat.name }}</a> /
+            {% endfor %}
+            <span>{{ page.title|truncatewords:5 }}</span>
+        </div>
+
+        <h1 class="article-title">{{ page.title }}</h1>
+
+        <div class="article-meta">
+            <span>{{ page.published_at|date:"d F Y" }}</span>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            {% for cat in page.cms_categories.all %}
+                <a href="{% url 'content:category_detail' slug=cat.slug %}" class="category-tag">{{ cat.name }}</a>
+            {% endfor %}
+        </div>
+    </header>
+
+    {% if page.featured_image %}
+    <div class="article-featured-image">
+        {% image page.featured_image original as img %}
+        <img src="{{ img.url }}" alt="{{ page.title }}">
+    </div>
+    {% endif %}
+
+    <div class="article-content">
+        {% include_block page.body %}
+    </div>
+
+    {% if page.cms_tags.all %}
+    <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--bg-lighter);">
+        <strong>Tags :</strong>
+        {% for tag in page.cms_tags.all %}
+            <a href="{% url 'content:tag_detail' slug=tag.slug %}" style="color: var(--text-muted);">#{{ tag.name }}</a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</article>
+
+{% if related_articles %}
+<section style="margin-top: 3rem; padding-top: 2rem; border-top: 2px solid var(--bg-lighter);">
+    <h3 class="section-title">Articles similaires</h3>
+    <div class="article-grid">
+        {% for related in related_articles %}
+        <article class="article-card">
+            <div class="article-card-image">
+                {% if related.featured_image %}
+                {% image related.featured_image fill-400x250 as rimg %}
+                <img src="{{ rimg.url }}" alt="{{ related.title }}">
+                {% endif %}
+            </div>
+            <div class="article-card-content">
+                <h4><a href="{{ related.url }}">{{ related.title }}</a></h4>
+                <p class="article-card-excerpt">{{ related.excerpt|truncatewords:15 }}</p>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if category_latest %}
+<section style="margin-top: 2rem;">
+    <h3 class="section-title">
+        {% if first_category %}Dans {{ first_category.name }}{% endif %}
+    </h3>
+    {% for a in category_latest %}
+    <div style="padding:.5rem 0;border-bottom:1px solid var(--bg-lighter);">
+        <a href="{{ a.url }}">{{ a.title }}</a>
+    </div>
+    {% endfor %}
+</section>
+{% endif %}
+{% endblock %}

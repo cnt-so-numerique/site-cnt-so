@@ -10,17 +10,15 @@ def get_menu(site, menu_type):
     """Retourne les items racines du menu demandé pour un site, avec leurs enfants."""
     if not site:
         return []
-    children_qs = MenuItem.objects.filter(
-        site=site,
-        is_active=True,
-    ).order_by('order')
+    sr = ('category__site', 'target_site', 'article', 'page', 'site')
+    children_qs = (MenuItem.objects.filter(site=site, is_active=True)
+                   .select_related(*sr)
+                   .order_by('order'))
     return list(
         MenuItem.objects.filter(
-            site=site,
-            menu=menu_type,
-            is_active=True,
-            parent__isnull=True,
+            site=site, menu=menu_type, is_active=True, parent__isnull=True,
         )
+        .select_related(*sr)
         .prefetch_related(Prefetch('children', queryset=children_qs))
         .order_by('order')
     )

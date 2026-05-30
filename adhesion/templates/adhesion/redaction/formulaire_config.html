@@ -1,0 +1,153 @@
+{% extends 'wagtailadmin/base.html' %}
+{% block title %}Config formulaire d'adhésion{% endblock %}
+
+{% block content %}
+<h1 style="font-size:1.3rem;font-weight:700;margin-bottom:1.5rem;">
+  Formulaire d'adhésion — {{ current_site.name }}
+</h1>
+
+{% if not formulaire.stripe_onboarding_complete %}
+<div style="background:#422006;border:1px solid #f59e0b;border-radius:4px;padding:.75rem 1rem;margin-bottom:1.25rem;color:#f59e0b;font-size:.9rem;">
+  ⚠ Le compte Stripe Connect n'est pas encore configuré. Les paiements ne seront pas possibles avant la connexion Stripe.
+</div>
+{% endif %}
+
+<form method="post">
+  {% csrf_token %}
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+
+    {# Activation & Prix #}
+    <div style="background:#1e2229;border:1px solid #2d3139;border-radius:6px;padding:1.25rem;">
+      <h2 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:#94a3b8;">Général</h2>
+
+      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;cursor:pointer;">
+        <input type="checkbox" name="is_active" {% if formulaire.is_active %}checked{% endif %}>
+        <span>Formulaire actif (visible publiquement)</span>
+      </label>
+
+      <div style="margin-bottom:.75rem;">
+        <label style="display:block;font-size:.85rem;color:#94a3b8;margin-bottom:.3rem;">Mode de tarification</label>
+        <select name="price_mode" style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;">
+          <option value="libre" {% if formulaire.price_mode == 'libre' %}selected{% endif %}>Prix libre</option>
+          <option value="fixed" {% if formulaire.price_mode == 'fixed' %}selected{% endif %}>Montant fixe</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:.75rem;">
+        <label style="display:block;font-size:.85rem;color:#94a3b8;margin-bottom:.3rem;">Montant fixe (€, entier)</label>
+        <input type="number" name="fixed_amount_euros" value="{{ fixed_amount_euros }}"
+          min="1" max="9999" step="1"
+          style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;">
+      </div>
+
+      <label style="display:block;font-size:.85rem;color:#94a3b8;margin-bottom:.4rem;">Périodicités proposées</label>
+      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;cursor:pointer;">
+        <input type="checkbox" name="allow_monthly" {% if formulaire.allow_monthly %}checked{% endif %}> Mensuelle
+      </label>
+      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;cursor:pointer;">
+        <input type="checkbox" name="allow_annual" {% if formulaire.allow_annual %}checked{% endif %}> Annuelle
+      </label>
+      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
+        <input type="checkbox" name="allow_onetime" {% if formulaire.allow_onetime %}checked{% endif %}> Ponctuelle
+      </label>
+    </div>
+
+    {# Champs & Email #}
+    <div style="background:#1e2229;border:1px solid #2d3139;border-radius:6px;padding:1.25rem;">
+      <h2 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:#94a3b8;">Champs activés</h2>
+      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;cursor:pointer;">
+        <input type="checkbox" name="field_nom" {% if formulaire.field_nom %}checked{% endif %}> Nom
+      </label>
+      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;cursor:pointer;">
+        <input type="checkbox" name="field_prenom" {% if formulaire.field_prenom %}checked{% endif %}> Prénom
+      </label>
+      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;cursor:pointer;">
+        <input type="checkbox" name="field_adresse" {% if formulaire.field_adresse %}checked{% endif %}> Adresse
+      </label>
+      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;cursor:pointer;">
+        <input type="checkbox" name="field_ville" {% if formulaire.field_ville %}checked{% endif %}> Ville
+      </label>
+      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;cursor:pointer;">
+        <input type="checkbox" name="field_code_postal" {% if formulaire.field_code_postal %}checked{% endif %}> Code postal
+      </label>
+      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;cursor:pointer;">
+        <input type="checkbox" name="field_secteur_activite" {% if formulaire.field_secteur_activite %}checked{% endif %}> Secteur d'activité
+      </label>
+      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;cursor:pointer;">
+        <input type="checkbox" name="field_entreprise" {% if formulaire.field_entreprise %}checked{% endif %}> Entreprise
+      </label>
+      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;cursor:pointer;">
+        <input type="checkbox" name="field_telephone" {% if formulaire.field_telephone %}checked{% endif %}> Téléphone
+      </label>
+      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;color:#64748b;cursor:default;">
+        <input type="checkbox" disabled checked> E-mail (toujours obligatoire)
+      </label>
+
+      <h2 style="font-size:1rem;font-weight:600;margin:1rem 0 .75rem;color:#94a3b8;">Emails</h2>
+      <div style="margin-bottom:.6rem;">
+        <label style="display:block;font-size:.85rem;color:#94a3b8;margin-bottom:.3rem;">Lieu pré-rempli (signature)</label>
+        <input type="text" name="lieu_defaut" value="{{ formulaire.lieu_defaut }}"
+          style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;">
+      </div>
+      <div style="margin-bottom:.6rem;">
+        <label style="display:block;font-size:.85rem;color:#94a3b8;margin-bottom:.3rem;">Adresse expéditeur (From)</label>
+        <input type="email" name="email_from" value="{{ formulaire.email_from }}"
+          style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;">
+      </div>
+      <div style="margin-bottom:.6rem;">
+        <label style="display:block;font-size:.85rem;color:#94a3b8;margin-bottom:.3rem;">Adresse contact syndicat (Reply-To)</label>
+        <input type="email" name="email_contact" value="{{ formulaire.email_contact }}"
+          style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;">
+      </div>
+    </div>
+
+  </div>
+
+  <div style="margin-top:1rem;">
+    <button type="submit" style="padding:.5rem 1.5rem;background:#e63946;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:600;">
+      Enregistrer la configuration
+    </button>
+    {% if formulaire.is_active %}
+    <a href="{% url 'adhesion:formulaire' site_slug=current_site.slug %}" target="_blank"
+       style="margin-left:1rem;color:#94a3b8;font-size:.9rem;">Voir le formulaire public ↗</a>
+    {% endif %}
+  </div>
+</form>
+
+{# Champs custom #}
+<div style="background:#1e2229;border:1px solid #2d3139;border-radius:6px;padding:1.25rem;margin-top:1.5rem;">
+  <h2 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:#94a3b8;">Champs personnalisés</h2>
+
+  {% for champ in champs %}
+  <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid #2d3139;">
+    <span style="flex:1;">{{ champ.label }} <span style="color:#94a3b8;font-size:.8rem;">({{ champ.get_field_type_display }}){% if champ.is_required %} *{% endif %}</span></span>
+    <form method="post" action="/cms/adhesion-config/champ/{{ champ.pk }}/supprimer/" style="display:inline;">
+      {% csrf_token %}
+      <button type="submit" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.85rem;"
+        onclick="return confirm('Supprimer ce champ ?')">Supprimer</button>
+    </form>
+  </div>
+  {% empty %}
+  <p style="color:#94a3b8;font-size:.9rem;">Aucun champ personnalisé.</p>
+  {% endfor %}
+
+  <form method="post" action="/cms/adhesion-config/champ/ajouter/" style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+    {% csrf_token %}
+    <input type="text" name="label" placeholder="Libellé du champ" required
+      style="flex:1;min-width:150px;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.85rem;">
+    <select name="field_type" style="padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.85rem;">
+      <option value="text">Texte court</option>
+      <option value="textarea">Texte long</option>
+      <option value="select">Liste déroulante</option>
+      <option value="checkbox">Case à cocher</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:.3rem;font-size:.85rem;cursor:pointer;">
+      <input type="checkbox" name="is_required"> Obligatoire
+    </label>
+    <button type="submit" style="padding:.4rem .9rem;background:#e63946;color:white;border:none;border-radius:4px;cursor:pointer;font-size:.85rem;">
+      Ajouter
+    </button>
+  </form>
+</div>
+{% endblock %}

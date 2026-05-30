@@ -1,11 +1,16 @@
 from django.urls import path, re_path
 from django.views.generic import RedirectView
 from . import views
+from . import api_views
 from .feeds import LatestArticlesFeed, SiteArticlesFeed, CategoryFeed
 
 app_name = 'content'
 
 urlpatterns = [
+    # Uploads Editor.js (accessible depuis /cms/ et /redac/)
+    path('upload/image/', api_views.ImageUploadView.as_view(), name='image_upload'),
+    path('upload/file/', api_views.FileUploadView.as_view(), name='file_upload'),
+
     # Page d'accueil
     path('', views.HomeView.as_view(), name='home'),
 

@@ -1,0 +1,62 @@
+{% extends "wagtailadmin/base.html" %}
+
+{% block titletag %}Gestion des syndicats{% endblock %}
+
+{% block content %}
+<div class="nice-padding">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+    <h1 class="w-h1" style="margin:0;">Syndicats</h1>
+    <a href="/cms/pages/add/cms/sectionpage/{{ home_pk }}/"
+       class="button button-primary">
+      + Nouveau syndicat
+    </a>
+  </div>
+
+  <table class="listing">
+    <thead>
+      <tr>
+        <th>Nom</th>
+        <th>Slug</th>
+        <th>Type</th>
+        <th>Actif</th>
+        <th>Articles</th>
+        <th>Abonnés</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in section_data %}
+      {% with section=row.section %}
+      <tr>
+        <td><strong>{{ section.title }}</strong></td>
+        <td><code>{{ section.slug }}</code></td>
+        <td>{{ section.get_section_type_display }}</td>
+        <td>{% if section.live %}✅{% else %}❌{% endif %}</td>
+        <td>{{ row.article_count }}</td>
+        <td>{{ row.subscriber_count }}</td>
+        <td style="display:flex;gap:.5rem;">
+          <a href="/cms/pages/{{ section.pk }}/edit/" class="button button-small">✏️ Éditer</a>
+          {% if row.site_id %}
+          <a href="/cms/select-site/?site_id={{ row.site_id }}" class="button button-small button-secondary">Sélectionner</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endwith %}
+      {% empty %}
+      <tr><td colspan="7" style="text-align:center;color:#94a3b8;">Aucun syndicat</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div style="margin-top:2rem;padding:1rem;background:#1e2229;border-radius:6px;border:1px solid #2d3139;">
+    <h3 style="margin:0 0 .5rem;font-size:.9rem;color:#e2e8f0;">ℹ️ Comment créer un nouveau syndicat</h3>
+    <ol style="margin:.5rem 0;padding-left:1.2rem;color:#94a3b8;font-size:.85rem;line-height:1.6;">
+      <li>Cliquez <strong style="color:#e2e8f0;">"+ Nouveau syndicat"</strong></li>
+      <li>Renseignez le nom, le slug (ex: <code>bretagne</code>), le type</li>
+      <li>Publiez — le syndicat apparaît dans l'arbre ET un <code>content.Site</code> est automatiquement créé</li>
+      <li>Revenez ici et cliquez <strong style="color:#e2e8f0;">"Sélectionner"</strong> pour l'activer</li>
+      <li>Configurez son formulaire d'adhésion via <em>Adhésions → Formulaires d'adhésion</em></li>
+    </ol>
+  </div>
+</div>
+{% endblock %}

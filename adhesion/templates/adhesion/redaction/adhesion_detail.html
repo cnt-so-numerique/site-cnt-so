@@ -1,0 +1,103 @@
+{% extends 'wagtailadmin/base.html' %}
+{% block title %}Adhésion — {{ adhesion.prenom }} {{ adhesion.nom }}{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+  <a href="/cms/adhesions/" style="color:#94a3b8;text-decoration:none;font-size:.9rem;">← Retour</a>
+  <h1 style="font-size:1.3rem;font-weight:700;">{{ adhesion.prenom }} {{ adhesion.nom }}</h1>
+  <span style="padding:.2rem .6rem;border-radius:3px;font-size:.8rem;
+    {% if adhesion.status == 'actif' or adhesion.status == 'manuel' %}background:#14532d;color:#22c55e;
+    {% elif adhesion.status == 'pending' %}background:#422006;color:#f59e0b;
+    {% else %}background:#3b0a0a;color:#ef4444;{% endif %}">
+    {{ adhesion.get_status_display }}
+  </span>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+
+  {# Infos personnelles #}
+  <div style="background:#1e2229;border:1px solid #2d3139;border-radius:6px;padding:1.25rem;">
+    <h2 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:#94a3b8;">Informations personnelles</h2>
+    <dl style="display:grid;grid-template-columns:auto 1fr;gap:.4rem .75rem;font-size:.9rem;">
+      <dt style="color:#94a3b8;">Email</dt><dd>{{ adhesion.email }}</dd>
+      {% if adhesion.nom %}<dt style="color:#94a3b8;">Nom</dt><dd>{{ adhesion.prenom }} {{ adhesion.nom }}</dd>{% endif %}
+      {% if adhesion.telephone %}<dt style="color:#94a3b8;">Tél.</dt><dd>{{ adhesion.telephone }}</dd>{% endif %}
+      {% if adhesion.adresse %}<dt style="color:#94a3b8;">Adresse</dt><dd>{{ adhesion.adresse }}, {{ adhesion.code_postal }} {{ adhesion.ville }}</dd>{% endif %}
+      {% if adhesion.secteur_activite %}<dt style="color:#94a3b8;">Secteur</dt><dd>{{ adhesion.secteur_activite }}</dd>{% endif %}
+      {% if adhesion.entreprise %}<dt style="color:#94a3b8;">Entreprise</dt><dd>{{ adhesion.entreprise }}</dd>{% endif %}
+    </dl>
+  </div>
+
+  {# Paiement #}
+  <div style="background:#1e2229;border:1px solid #2d3139;border-radius:6px;padding:1.25rem;">
+    <h2 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:#94a3b8;">Paiement</h2>
+    <dl style="display:grid;grid-template-columns:auto 1fr;gap:.4rem .75rem;font-size:.9rem;">
+      <dt style="color:#94a3b8;">Syndicat</dt><dd>{{ adhesion.site.name }}</dd>
+      <dt style="color:#94a3b8;">Périodicité</dt><dd>{{ adhesion.get_payment_frequency_display }}</dd>
+      <dt style="color:#94a3b8;">Moyen</dt><dd>{{ adhesion.get_payment_method_display }}</dd>
+      {% if adhesion.amount_euros %}<dt style="color:#94a3b8;">Montant</dt><dd>{{ adhesion.amount_euros }} €</dd>{% endif %}
+      <dt style="color:#94a3b8;">Date</dt><dd>{{ adhesion.created_at|date:"d/m/Y H:i" }}</dd>
+      {% if adhesion.actif_at %}<dt style="color:#94a3b8;">Activé le</dt><dd>{{ adhesion.actif_at|date:"d/m/Y" }}</dd>{% endif %}
+    </dl>
+  </div>
+
+</div>
+
+{# Actions #}
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-top:1.5rem;">
+
+  {# Changer syndicat #}
+  <div style="background:#1e2229;border:1px solid #2d3139;border-radius:6px;padding:1.25rem;">
+    <h2 style="font-size:.95rem;font-weight:600;margin-bottom:.75rem;">Changer de syndicat</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="changer_syndicat">
+      <select name="site_id" style="width:100%;margin-bottom:.5rem;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.85rem;">
+        {% for s in sites %}
+        <option value="{{ s.pk }}" {% if s.pk == adhesion.site.pk %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" style="padding:.4rem .9rem;background:#e63946;color:white;border:none;border-radius:4px;cursor:pointer;font-size:.85rem;">Enregistrer</button>
+    </form>
+  </div>
+
+  {# Changer statut #}
+  <div style="background:#1e2229;border:1px solid #2d3139;border-radius:6px;padding:1.25rem;">
+    <h2 style="font-size:.95rem;font-weight:600;margin-bottom:.75rem;">Changer le statut</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="changer_statut">
+      <select name="status" style="width:100%;margin-bottom:.5rem;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.85rem;">
+        {% for val, label in status_choices %}
+        <option value="{{ val }}" {% if adhesion.status == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" style="padding:.4rem .9rem;background:#e63946;color:white;border:none;border-radius:4px;cursor:pointer;font-size:.85rem;">Enregistrer</button>
+    </form>
+  </div>
+
+  {# Note interne #}
+  <div style="background:#1e2229;border:1px solid #2d3139;border-radius:6px;padding:1.25rem;">
+    <h2 style="font-size:.95rem;font-weight:600;margin-bottom:.75rem;">Note interne</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="note_interne">
+      <textarea name="note_interne" rows="3"
+        style="width:100%;margin-bottom:.5rem;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.85rem;resize:vertical;">{{ adhesion.note_interne }}</textarea>
+      <button type="submit" style="padding:.4rem .9rem;background:#e63946;color:white;border:none;border-radius:4px;cursor:pointer;font-size:.85rem;">Enregistrer</button>
+    </form>
+  </div>
+
+</div>
+
+{% if adhesion.custom_data %}
+<div style="background:#1e2229;border:1px solid #2d3139;border-radius:6px;padding:1.25rem;margin-top:1rem;">
+  <h2 style="font-size:.95rem;font-weight:600;margin-bottom:.75rem;color:#94a3b8;">Champs supplémentaires</h2>
+  <dl style="display:grid;grid-template-columns:auto 1fr;gap:.4rem .75rem;font-size:.9rem;">
+    {% for k, v in adhesion.custom_data.items %}
+    <dt style="color:#94a3b8;">{{ k }}</dt><dd>{{ v }}</dd>
+    {% endfor %}
+  </dl>
+</div>
+{% endif %}
+{% endblock %}

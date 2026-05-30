@@ -1,0 +1,21 @@
+{% extends "wagtailadmin/base.html" %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+  /* Couleurs CNT-SO */
+  :root {
+    --w-color-primary: #c0392b;
+    --w-color-primary-200: #e74c3c;
+  }
+  .sidebar__inner { background: #1a1d23; }
+  .sidebar-main-logo { padding: 12px 16px; }
+  .sidebar-main-logo::before {
+    content: "CNT-SO";
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #e63946;
+    letter-spacing: 0.05em;
+  }
+</style>
+{% endblock %}

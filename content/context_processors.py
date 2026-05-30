@@ -1,4 +1,5 @@
-from .models import Site, Category, Article
+from .models import Category
+from cms.models import ArticlePage, SectionPage
 
 
 def menu_context(request):
@@ -6,17 +7,17 @@ def menu_context(request):
 
     # Site principal
     try:
-        main_site = Site.objects.get(slug='principal')
-    except Site.DoesNotExist:
+        main_site = SectionPage.objects.get(slug='principal')
+    except SectionPage.DoesNotExist:
         main_site = None
 
     # Tous les sous-sites
-    subsites = Site.objects.filter(is_active=True).exclude(slug='principal')
+    subsites = SectionPage.objects.filter(live=True).exclude(slug='principal')
 
     # Catégories du site principal pour le menu
     categories = {}
     if main_site:
-        for cat in Category.objects.filter(site=main_site).order_by('name'):
+        for cat in Category.objects.filter(site=main_site).select_related('site').order_by('name'):
             categories[cat.slug] = cat
 
     # Structure du menu principal
@@ -40,13 +41,13 @@ def menu_context(request):
                 ('nettoyage', 'Nettoyage'),
                 ('numerique', 'Numérique'),
                 ('sante-social', 'Santé & social'),
-                ('education-recherche', 'Éducation & Recherche'),
+                ('education', 'Éducation & Recherche'),
                 ('activites-postales-et-telecommunications', 'Activités postales et Télécom'),
                 ('livreurs-travailleurs-euses-des-plateformes', 'Livreurs & plateformes'),
                 ('services-a-la-personne', 'Services à la personne'),
                 ('librairie', 'Librairie'),
                 ('syndicat-des-travailleur-euse-s-artistes-auteurs-staa', 'STAA (Artistes-Auteurs)'),
-                ('syndicat-des-travailleur%c2%b7euses-uni%c2%b7es-de-la-culture-et-du-spectacle-stucs', 'STUCS (Culture & Spectacle)'),
+                ('communication-culture-spectacle', 'STUCS (Culture & Spectacle)'),
             ]
         },
         'autres': {
@@ -63,16 +64,17 @@ def menu_context(request):
     }
 
     # Sous-sites régionaux
-    regional_sites = subsites.filter(site_type='regional')
-    sectoral_sites = subsites.filter(site_type='sectoral')
+    regional_sites = subsites.filter(section_type='regional')
+    sectoral_sites = subsites.filter(section_type='sectoral')
 
-    # Données sidebar partagées
-    base_qs = Article.objects.filter(
-        site=main_site, status='publish'
-    ).select_related('featured_image').prefetch_related('categories') if main_site else Article.objects.none()
+    # Données sidebar partagées (ArticlePage — nouveau modèle)
+    base_qs = (ArticlePage.objects.live()
+               .filter(section_slug='principal')
+               .select_related('featured_image')
+               .prefetch_related('cms_categories')) if main_site else ArticlePage.objects.none()
 
     campagnes_articles = base_qs.filter(
-        categories__slug__in=['international', 'solidarites', 'campagne']
+        cms_categories__slug__in=['international', 'solidarites', 'campagne']
     ).distinct()[:5]
 
     manques_articles = base_qs[:5]

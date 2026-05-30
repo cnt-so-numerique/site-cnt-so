@@ -1,0 +1,20 @@
+.editorjs-wrapper {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  min-height: 300px;
+}
+
+.editorjs-wrapper .editorjs-container {
+  min-height: 300px;
+  padding: 0.5rem 1rem;
+}
+
+/* Intégration dans le thème Wagtail */
+.w-field__wrapper .editorjs-wrapper {
+  margin-top: 0.25rem;
+}
+
+.codex-editor__redactor {
+  padding-bottom: 100px !important;
+}

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"><style>
+body { font-family: system-ui, sans-serif; color: #333; max-width: 600px; margin: 0 auto; }
+.header { background: #EC1C24; color: white; padding: 1.5rem 2rem; }
+.content { padding: 1.5rem 2rem; }
+.footer { background: #f0f0f0; padding: 1rem 2rem; font-size: 0.85rem; color: #666; }
+</style></head>
+<body>
+<div class="header">
+    <h1 style="margin:0;font-size:1.3rem;">Rappel d'adhésion</h1>
+    <p style="margin:.5rem 0 0;opacity:.9;">{{ adhesion.site.name }}</p>
+</div>
+<div class="content">
+    <p>Bonjour {% if adhesion.prenom %}{{ adhesion.prenom }}{% endif %},</p>
+    <p>Nous avons bien reçu votre demande d'adhésion au <strong>{{ adhesion.site.name }}</strong>, mais votre paiement n'a pas encore été finalisé.</p>
+    <p>Si vous souhaitez finaliser votre adhésion, n'hésitez pas à nous contacter.</p>
+    {% if formulaire and formulaire.email_contact %}
+    <p>Contact : <a href="mailto:{{ formulaire.email_contact }}">{{ formulaire.email_contact }}</a></p>
+    {% endif %}
+</div>
+<div class="footer">CNT-SO — Confédération Nationale du Travail Solidarité Ouvrière</div>
+</body>
+</html>

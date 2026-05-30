@@ -13,6 +13,10 @@ python manage.py migrate          # Apply migrations
 python manage.py makemigrations   # Create new migrations
 python manage.py createsuperuser  # Create admin user
 python manage.py test             # Run tests
+
+# Après chaque migrate (surtout en prod avec utilisateurs connectés) :
+python manage.py fix_cms_sessions --dry-run  # vérifier les sessions à corriger
+python manage.py fix_cms_sessions            # corriger les sessions avec site_id obsolète
 python manage.py test content     # Run tests for a specific app
 ```
 

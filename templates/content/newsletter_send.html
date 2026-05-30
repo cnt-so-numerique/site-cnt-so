@@ -1,0 +1,65 @@
+{% extends "wagtailadmin/base.html" %}
+{% load i18n %}
+
+{% block titletag %}Envoyer la newsletter — {{ newsletter.title }}{% endblock %}
+
+{% block content %}
+<div class="w-slim-header">
+  <div class="w-breadcrumbs">
+    <a href="/cms/snippets/content/newsletter/" class="w-breadcrumbs__link">Newsletters</a>
+    <span class="w-breadcrumbs__divider">/</span>
+    <span>Envoyer</span>
+  </div>
+</div>
+
+<div class="nice-padding">
+  <h1 class="w-h1">Envoyer : {{ newsletter.title }}</h1>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="messages {% if message.tags %}{{ message.tags }}{% endif %}" style="padding:.75rem 1rem;border-radius:6px;margin-bottom:1rem;background:{% if 'success' in message.tags %}#d1fae5{% elif 'error' in message.tags %}#fee2e2{% else %}#fef3c7{% endif %};">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;max-width:900px;">
+
+    <!-- Test -->
+    <div style="border:1px solid #e5e7eb;border-radius:8px;padding:1.5rem;">
+      <h2 class="w-h2" style="margin-top:0;">📧 Envoi de test</h2>
+      <p style="color:#6b7280;font-size:.9rem;">Envoie à une seule adresse pour vérifier le rendu.</p>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="mode" value="test">
+        <div style="margin-bottom:1rem;">
+          <label style="display:block;font-weight:600;margin-bottom:.25rem;">Adresse e-mail de test</label>
+          <input type="email" name="test_email" required
+                 style="width:100%;padding:.5rem .75rem;border:1px solid #d1d5db;border-radius:6px;font-size:.9rem;">
+        </div>
+        <button type="submit" class="button button-secondary">Envoyer le test</button>
+      </form>
+    </div>
+
+    <!-- Envoi réel -->
+    <div style="border:2px solid #e63946;border-radius:8px;padding:1.5rem;">
+      <h2 class="w-h2" style="margin-top:0;color:#e63946;">🚀 Envoi réel</h2>
+      <p style="color:#6b7280;font-size:.9rem;">
+        Sera envoyé à <strong>{{ nb_subscribers }} abonné(s)</strong> confirmé(s) sur ce site.
+      </p>
+      {% if nb_subscribers == 0 %}
+        <p style="color:#9ca3af;">Aucun abonné actif — envoi impossible.</p>
+      {% else %}
+        <form method="post" onsubmit="return confirm('Envoyer à {{ nb_subscribers }} abonné(s) ? Cette action est irréversible.');">
+          {% csrf_token %}
+          <input type="hidden" name="mode" value="send">
+          <button type="submit" class="button button-primary" style="background:#e63946;border-color:#e63946;">
+            Envoyer à {{ nb_subscribers }} abonné(s)
+          </button>
+        </form>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

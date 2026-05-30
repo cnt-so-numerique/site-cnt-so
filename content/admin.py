@@ -1,13 +1,5 @@
 from django.contrib import admin
-from .models import Site, Author, Category, Tag, Media, Article, Page, MenuItem, Comment, ContactMessage
-
-
-@admin.register(Site)
-class SiteAdmin(admin.ModelAdmin):
-    list_display = ['name', 'slug', 'path', 'site_type', 'wp_blog_id', 'is_active']
-    list_filter = ['site_type', 'is_active']
-    search_fields = ['name', 'slug', 'path']
-    prepopulated_fields = {'slug': ('name',)}
+from .models import Author, Category, Tag, Media, Article, Page, MenuItem, Comment, ContactMessage
 
 
 @admin.register(Author)

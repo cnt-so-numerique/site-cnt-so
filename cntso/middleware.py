@@ -1,4 +1,5 @@
 import base64
+import hmac
 from django.conf import settings
 from django.http import HttpResponse
 
@@ -22,7 +23,7 @@ class BasicAuthMiddleware:
             try:
                 decoded = base64.b64decode(auth_header[6:]).decode('utf-8')
                 _, provided_password = decoded.split(':', 1)
-                if provided_password == password:
+                if hmac.compare_digest(provided_password, password):
                     return self.get_response(request)
             except Exception:
                 pass

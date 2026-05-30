@@ -1,7 +1,7 @@
 from django.contrib.syndication.views import Feed
 from django.shortcuts import get_object_or_404
 from django.utils.feedgenerator import Rss201rev2Feed
-from .models import Article, Site, Category
+from cms.models import ArticlePage, CmsCategory, SectionPage
 
 
 class LatestArticlesFeed(Feed):
@@ -12,16 +12,15 @@ class LatestArticlesFeed(Feed):
     feed_type = Rss201rev2Feed
 
     def items(self):
-        return Article.objects.filter(
-            site__slug='principal',
-            status='publish'
-        ).order_by('-published_at')[:20]
+        return (ArticlePage.objects.live()
+                .filter(section_slug='principal')
+                .order_by('-publication_date', '-first_published_at')[:20])
 
     def item_title(self, item):
         return item.title
 
     def item_description(self, item):
-        return item.excerpt or item.content[:500]
+        return item.excerpt
 
     def item_link(self, item):
         return item.get_absolute_url()
@@ -30,7 +29,7 @@ class LatestArticlesFeed(Feed):
         return item.published_at
 
     def item_author_name(self, item):
-        return str(item.author) if item.author else "CNT-SO"
+        return item.author_name or (str(item.author_user) if item.author_user else "CNT-SO")
 
 
 class SiteArticlesFeed(Feed):
@@ -38,7 +37,7 @@ class SiteArticlesFeed(Feed):
     feed_type = Rss201rev2Feed
 
     def get_object(self, request, site_slug):
-        return get_object_or_404(Site, slug=site_slug)
+        return get_object_or_404(SectionPage, slug=site_slug)
 
     def title(self, obj):
         return f"{obj.name} - Derniers articles"
@@ -50,16 +49,15 @@ class SiteArticlesFeed(Feed):
         return f"Les dernières actualités de {obj.name}"
 
     def items(self, obj):
-        return Article.objects.filter(
-            site=obj,
-            status='publish'
-        ).order_by('-published_at')[:20]
+        return (ArticlePage.objects.live()
+                .filter(section_slug=obj.slug)
+                .order_by('-publication_date', '-first_published_at')[:20])
 
     def item_title(self, item):
         return item.title
 
     def item_description(self, item):
-        return item.excerpt or item.content[:500]
+        return item.excerpt
 
     def item_link(self, item):
         return item.get_absolute_url()
@@ -73,9 +71,9 @@ class CategoryFeed(Feed):
     feed_type = Rss201rev2Feed
 
     def get_object(self, request, slug):
-        category = Category.objects.filter(slug=slug, site__slug='principal').first()
+        category = CmsCategory.objects.filter(slug=slug, section_slug='principal').first()
         if not category:
-            category = get_object_or_404(Category, slug=slug)
+            category = get_object_or_404(CmsCategory, slug=slug)
         return category
 
     def title(self, obj):
@@ -88,16 +86,15 @@ class CategoryFeed(Feed):
         return f"Articles de la catégorie {obj.name}"
 
     def items(self, obj):
-        return Article.objects.filter(
-            categories=obj,
-            status='publish'
-        ).order_by('-published_at')[:20]
+        return (ArticlePage.objects.live()
+                .filter(cms_categories=obj)
+                .order_by('-publication_date', '-first_published_at')[:20])
 
     def item_title(self, item):
         return item.title
 
     def item_description(self, item):
-        return item.excerpt or item.content[:500]
+        return item.excerpt
 
     def item_link(self, item):
         return item.get_absolute_url()

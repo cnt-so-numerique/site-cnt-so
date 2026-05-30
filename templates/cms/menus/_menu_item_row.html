@@ -1,0 +1,100 @@
+<div style="
+    display:flex;align-items:center;gap:.5rem;
+    padding:.55rem .75rem;
+    padding-left:{% if depth == 0 %}1rem{% elif depth == 1 %}2.5rem{% else %}4rem{% endif %};
+    border-bottom:1px solid #2d3139;
+    {% if not item.is_active %}opacity:.5;{% endif %}
+    background:{% if depth == 0 %}transparent{% elif depth == 1 %}#171a1f{% else %}#13151a{% endif %};
+">
+
+  {% if depth == 0 %}
+    <span style="color:#e63946;font-size:.7rem;flex-shrink:0;">●</span>
+  {% elif depth == 1 %}
+    <span style="color:#94a3b8;font-size:.65rem;flex-shrink:0;">└─</span>
+  {% else %}
+    <span style="color:#4b5563;font-size:.6rem;flex-shrink:0;">└─</span>
+  {% endif %}
+
+  <div style="flex:1;min-width:0;">
+    <span style="
+        color:{% if depth == 0 %}#e2e8f0{% else %}#94a3b8{% endif %};
+        font-size:{% if depth == 0 %}.9rem{% else %}.85rem{% endif %};
+        font-weight:{% if depth == 0 %}600{% else %}400{% endif %};
+    ">{{ item.title }}</span>
+    <span style="font-size:.72rem;color:#4b5563;margin-left:.4rem;">
+      {% if item.link_type == 'url' %}🔗 {{ item.url|truncatechars:35 }}
+      {% elif item.link_type == 'category' %}🏷️ {% if item.category %}{{ item.category.name }}{% endif %}
+      {% elif item.link_type == 'page' %}📃 {% if item.page %}{{ item.page.title }}{% endif %}
+      {% elif item.link_type == 'article' %}📄 {% if item.article %}{{ item.article.title|truncatechars:25 }}{% endif %}
+      {% elif item.link_type == 'contact' %}📬 Contact
+      {% elif item.link_type == 'agenda' %}📅 Agenda
+      {% elif item.link_type == 'site' %}🌐 {% if item.target_site %}{{ item.target_site.name }}{% endif %}
+      {% endif %}
+    </span>
+  </div>
+
+  {% if not item.is_active %}
+  <span style="font-size:.7rem;color:#4b5563;background:#252932;padding:.1rem .4rem;border-radius:3px;flex-shrink:0;">masqué</span>
+  {% endif %}
+
+  <!-- ── Boutons de déplacement (POST pour éviter les modifications via GET) ── -->
+  <span style="display:flex;gap:.2rem;flex-shrink:0;">
+
+    <form method="post" action="/cms/menus/move/" style="display:contents;">
+      {% csrf_token %}
+      <input type="hidden" name="item" value="{{ item.pk }}">
+      <input type="hidden" name="action" value="up">
+      <input type="hidden" name="next" value="/cms/menus/">
+      <button type="submit" title="Monter" style="
+         display:inline-flex;align-items:center;justify-content:center;
+         width:22px;height:22px;border-radius:3px;cursor:pointer;
+         background:#1e2229;border:1px solid #2d3139;color:#94a3b8;font-size:.75rem;
+         line-height:1;padding:0;">▲</button>
+    </form>
+
+    <form method="post" action="/cms/menus/move/" style="display:contents;">
+      {% csrf_token %}
+      <input type="hidden" name="item" value="{{ item.pk }}">
+      <input type="hidden" name="action" value="down">
+      <input type="hidden" name="next" value="/cms/menus/">
+      <button type="submit" title="Descendre" style="
+         display:inline-flex;align-items:center;justify-content:center;
+         width:22px;height:22px;border-radius:3px;cursor:pointer;
+         background:#1e2229;border:1px solid #2d3139;color:#94a3b8;font-size:.75rem;
+         line-height:1;padding:0;">▼</button>
+    </form>
+
+    {% if depth > 0 %}
+    <form method="post" action="/cms/menus/move/" style="display:contents;">
+      {% csrf_token %}
+      <input type="hidden" name="item" value="{{ item.pk }}">
+      <input type="hidden" name="action" value="outdent">
+      <input type="hidden" name="next" value="/cms/menus/">
+      <button type="submit" title="Remonter d'un niveau" style="
+         display:inline-flex;align-items:center;justify-content:center;
+         width:22px;height:22px;border-radius:3px;cursor:pointer;
+         background:#1e2229;border:1px solid #2d3139;color:#94a3b8;font-size:.75rem;
+         padding:0;">←</button>
+    </form>
+    {% endif %}
+
+    <form method="post" action="/cms/menus/move/" style="display:contents;">
+      {% csrf_token %}
+      <input type="hidden" name="item" value="{{ item.pk }}">
+      <input type="hidden" name="action" value="indent">
+      <input type="hidden" name="next" value="/cms/menus/">
+      <button type="submit" title="Mettre en sous-item de l'élément du dessus" style="
+         display:inline-flex;align-items:center;justify-content:center;
+         width:22px;height:22px;border-radius:3px;cursor:pointer;
+         background:#1e2229;border:1px solid #2d3139;color:#94a3b8;font-size:.75rem;
+         padding:0;">→</button>
+    </form>
+
+  </span>
+
+  <a href="/cms/snippets/content/menuitem/{{ item.pk }}/edit/"
+     style="font-size:.75rem;color:#94a3b8;text-decoration:none;padding:.2rem .5rem;border:1px solid #2d3139;border-radius:4px;white-space:nowrap;flex-shrink:0;">
+    ✏️
+  </a>
+
+</div>

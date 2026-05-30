@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /cms/
+Disallow: /admin/
+Disallow: /upload/
+
+Sitemap: https://cnt-so.org/sitemap.xml

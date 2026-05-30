@@ -2,6 +2,11 @@
 {% load content_tags %}
 
 {% block title %}{{ article.title }} - {{ site.name }}{% endblock %}
+{% block meta_description %}{% if article.excerpt %}{{ article.excerpt|striptags|truncatechars:160 }}{% else %}{{ article.title }} — {{ site.name }}{% endif %}{% endblock %}
+{% block og_title %}{{ article.title }}{% endblock %}
+{% block og_description %}{% if article.excerpt %}{{ article.excerpt|striptags|truncatechars:200 }}{% else %}{{ article.title }} — {{ site.name }}{% endif %}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% if article.featured_image %}{% block og_image %}<meta property="og:image" content="{{ article.featured_image.file.url }}">{% endblock %}{% endif %}
 
 {% block content %}
 <article>
@@ -11,8 +16,8 @@
             {% if site.slug != 'principal' %}
             <a href="{{ site.get_absolute_url }}">{{ site.name }}</a> /
             {% endif %}
-            {% for cat in article.categories.all|slice:":1" %}
-            <a href="{% url 'content:category_detail' slug=cat.slug %}">{{ cat.name }}</a> /
+            {% for cat in article.cms_categories.all|slice:":1" %}
+            <a href="{{ cat.get_absolute_url }}">{{ cat.name }}</a> /
             {% endfor %}
             <span>{{ article.title|truncatewords:5 }}</span>
         </div>
@@ -24,20 +29,20 @@
         </div>
 
         <div style="margin-bottom: 1rem;">
-            {% for cat in article.categories.all %}
-                <a href="{% url 'content:category_detail' slug=cat.slug %}" class="category-tag">{{ cat.name }}</a>
+            {% for cat in article.cms_categories.all %}
+                <a href="{{ cat.get_absolute_url }}" class="category-tag">{{ cat.name }}</a>
             {% endfor %}
         </div>
     </header>
 
     {% if article.featured_image %}
     <div class="article-featured-image">
-        <img src="{{ article.featured_image.url }}" alt="{{ article.title }}">
+        <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
     </div>
     {% endif %}
 
     <div class="article-content">
-        {{ article.content|render_content }}
+        {{ article.body }}
     </div>
 
     {% if article.tags.all %}
@@ -59,7 +64,7 @@
             <div class="article-card-image">
                 {% if related.featured_image %}
                 <a href="{{ related.get_absolute_url }}">
-                    <img src="{{ related.featured_image.url }}" alt="{{ related.title }}">
+                    <img src="{{ related.featured_image.file.url }}" alt="{{ related.title }}">
                 </a>
                 {% endif %}
             </div>

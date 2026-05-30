@@ -1,0 +1,92 @@
+{% extends "wagtailadmin/base.html" %}
+
+{% block titletag %}Menus — {{ current_site.name|default:"CNT-SO" }}{% endblock %}
+
+{% block content %}
+<div class="nice-padding">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h1 class="w-h1" style="margin:0;">Menus</h1>
+      {% if current_site %}
+      <p style="margin:.25rem 0 0;color:#94a3b8;font-size:.9rem;">{{ current_site.name }}</p>
+      {% endif %}
+    </div>
+    {% if current_site %}
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+      <a href="/cms/snippets/content/menuitem/add/?menu=main&site={{ current_site.pk }}" class="button button-primary">+ Menu principal</a>
+      <a href="/cms/snippets/content/menuitem/add/?menu=footer&site={{ current_site.pk }}" class="button button-secondary">+ Pied de page</a>
+      <a href="/cms/snippets/content/menuitem/add/?menu=secondary&site={{ current_site.pk }}" class="button button-secondary">+ Secondaire</a>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if not current_site %}
+  <div style="padding:2rem;text-align:center;color:#94a3b8;background:#1e2229;border-radius:8px;border:1px solid #2d3139;">
+    Sélectionnez un syndicat dans la barre en haut pour voir ses menus.
+  </div>
+
+  {% else %}
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+
+    <!-- ── Menu principal ───────────────── -->
+    <div>
+      <h2 style="margin:0 0 .6rem;font-size:.9rem;color:#e2e8f0;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
+        🔝 Menu principal
+      </h2>
+      <div style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
+        {% if site_data.main %}
+          {% for item in site_data.main %}
+          {% include "cms/menus/_menu_item_row.html" with item=item depth=0 %}
+          {% for child in item.children_list %}
+          {% include "cms/menus/_menu_item_row.html" with item=child depth=1 %}
+            {% for grandchild in child.children_list %}
+            {% include "cms/menus/_menu_item_row.html" with item=grandchild depth=2 %}
+            {% endfor %}
+          {% endfor %}
+          {% endfor %}
+        {% else %}
+        <p style="padding:1.5rem;color:#94a3b8;text-align:center;margin:0;">Aucun élément</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ── Pied de page ─────────────────── -->
+    <div>
+      <h2 style="margin:0 0 .6rem;font-size:.9rem;color:#e2e8f0;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
+        ⬇️ Pied de page
+      </h2>
+      <div style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
+        {% if site_data.footer %}
+          {% for item in site_data.footer %}
+          {% include "cms/menus/_menu_item_row.html" with item=item depth=0 %}
+          {% for child in item.children_list %}
+          {% include "cms/menus/_menu_item_row.html" with item=child depth=1 %}
+          {% endfor %}
+          {% endfor %}
+        {% else %}
+        <p style="padding:1.5rem;color:#94a3b8;text-align:center;margin:0;">Aucun élément</p>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  {% if site_data.secondary %}
+  <div>
+    <h2 style="margin:0 0 .6rem;font-size:.9rem;color:#e2e8f0;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
+      ↔️ Menu secondaire
+    </h2>
+    <div style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
+      {% for item in site_data.secondary %}
+      {% include "cms/menus/_menu_item_row.html" with item=item depth=0 %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% endif %}
+
+</div>
+{% endblock %}

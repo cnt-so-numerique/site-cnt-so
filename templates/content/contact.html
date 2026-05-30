@@ -16,16 +16,18 @@
         display: block;
         margin-bottom: 0.5rem;
         font-weight: 500;
-        color: var(--text-color);
+        color: #222;
     }
 
-    .form-input, .form-textarea {
+    .form-input, .form-textarea, .form-select {
         width: 100%;
         padding: 0.75rem;
         border: 1px solid #ddd;
         border-radius: 4px;
         font-size: 1rem;
         font-family: inherit;
+        color: #222;
+        background: #fff;
     }
 
     .form-input:focus, .form-textarea:focus {
@@ -87,87 +89,31 @@
 
 <h1 class="section-title">Nous contacter</h1>
 
+{% if formulaire and formulaire.intro_text %}
+<p style="color: var(--text-muted); margin-bottom: 1.5rem;">{{ formulaire.intro_text }}</p>
+{% else %}
 <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
     Vous avez une question, une demande d'information ou souhaitez rejoindre
     {% if site and site.slug != 'principal' %}{{ site.name }}{% else %}la CNT-SO{% endif %} ?
     Utilisez le formulaire ci-dessous pour nous contacter.
 </p>
+{% endif %}
 
 <p class="required-note">Les champs marqués d'un <span>*</span> sont obligatoires.</p>
 
 <form method="post" class="contact-form">
     {% csrf_token %}
-
+    {% for field in form %}
     <div class="form-group">
-        <label for="id_name">Votre nom *</label>
-        {{ form.name }}
-        {% if form.name.errors %}
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}
         <ul class="error-list">
-            {% for error in form.name.errors %}<li>{{ error }}</li>{% endfor %}
+            {% for error in field.errors %}<li>{{ error }}</li>{% endfor %}
         </ul>
         {% endif %}
     </div>
-
-    <div class="form-group">
-        <label for="id_email">Votre adresse de messagerie *</label>
-        {{ form.email }}
-        {% if form.email.errors %}
-        <ul class="error-list">
-            {% for error in form.email.errors %}<li>{{ error }}</li>{% endfor %}
-        </ul>
-        {% endif %}
-    </div>
-
-    <div class="form-group">
-        <label for="id_phone">Votre téléphone *</label>
-        {{ form.phone }}
-        {% if form.phone.errors %}
-        <ul class="error-list">
-            {% for error in form.phone.errors %}<li>{{ error }}</li>{% endfor %}
-        </ul>
-        {% endif %}
-    </div>
-
-    <div class="form-group">
-        <label for="id_city">Votre ville *</label>
-        {{ form.city }}
-        {% if form.city.errors %}
-        <ul class="error-list">
-            {% for error in form.city.errors %}<li>{{ error }}</li>{% endfor %}
-        </ul>
-        {% endif %}
-    </div>
-
-    <div class="form-group">
-        <label for="id_sector">Votre secteur professionnel *</label>
-        {{ form.sector }}
-        {% if form.sector.errors %}
-        <ul class="error-list">
-            {% for error in form.sector.errors %}<li>{{ error }}</li>{% endfor %}
-        </ul>
-        {% endif %}
-    </div>
-
-    <div class="form-group">
-        <label for="id_subject">Objet</label>
-        {{ form.subject }}
-        {% if form.subject.errors %}
-        <ul class="error-list">
-            {% for error in form.subject.errors %}<li>{{ error }}</li>{% endfor %}
-        </ul>
-        {% endif %}
-    </div>
-
-    <div class="form-group">
-        <label for="id_message">Votre message</label>
-        {{ form.message }}
-        {% if form.message.errors %}
-        <ul class="error-list">
-            {% for error in form.message.errors %}<li>{{ error }}</li>{% endfor %}
-        </ul>
-        {% endif %}
-    </div>
-
+    {% endfor %}
     <button type="submit" class="btn-submit">Envoyer</button>
 </form>
 {% endblock %}

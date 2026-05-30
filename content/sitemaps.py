@@ -1,5 +1,6 @@
 from django.contrib.sitemaps import Sitemap
-from .models import Article, Page, Category, Site
+from .models import Page, Category
+from cms.models import ArticlePage, SectionPage
 
 
 class ArticleSitemap(Sitemap):
@@ -8,10 +9,10 @@ class ArticleSitemap(Sitemap):
     priority = 0.8
 
     def items(self):
-        return Article.objects.filter(status='publish')
+        return ArticlePage.objects.live()
 
     def lastmod(self, obj):
-        return obj.updated_at or obj.published_at
+        return obj.last_published_at or obj.publication_date or obj.first_published_at
 
     def location(self, obj):
         return obj.get_absolute_url()
@@ -23,7 +24,7 @@ class PageSitemap(Sitemap):
     priority = 0.6
 
     def items(self):
-        return Page.objects.filter(status='publish')
+        return Page.objects.filter(status='publish').select_related('site')
 
     def lastmod(self, obj):
         return obj.updated_at or obj.published_at
@@ -38,7 +39,7 @@ class CategorySitemap(Sitemap):
     priority = 0.5
 
     def items(self):
-        return Category.objects.all()
+        return Category.objects.all().select_related('site')
 
     def location(self, obj):
         return obj.get_absolute_url()
@@ -50,7 +51,7 @@ class SiteSitemap(Sitemap):
     priority = 0.7
 
     def items(self):
-        return Site.objects.filter(is_active=True)
+        return SectionPage.objects.filter(live=True)
 
     def location(self, obj):
         return obj.get_absolute_url()

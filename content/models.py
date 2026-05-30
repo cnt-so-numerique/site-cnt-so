@@ -3,41 +3,9 @@ from django.db import models
 from django.utils.text import slugify
 from django.urls import reverse
 from django.contrib.auth.models import User
+from modelcluster.fields import ParentalKey
+from modelcluster.models import ClusterableModel
 
-
-class Site(models.Model):
-    """Site du multisite WordPress (principal ou sous-site)"""
-    SITE_TYPE_CHOICES = [
-        ('main', 'Site principal'),
-        ('regional', 'Union régionale'),
-        ('sectoral', 'Syndicat sectoriel'),
-    ]
-
-    wp_blog_id = models.IntegerField(unique=True, help_text="blog_id WordPress")
-    name = models.CharField(max_length=200)
-    slug = models.SlugField(max_length=100, unique=True)
-    path = models.CharField(max_length=100, help_text="Path WordPress (ex: /rhone-alpes/)")
-    site_type = models.CharField(max_length=20, choices=SITE_TYPE_CHOICES, default='regional')
-    description = models.TextField(blank=True)
-    is_active = models.BooleanField(default=True)
-    external_url = models.URLField(blank=True, help_text="Si renseigné, les liens vers ce site pointent vers cette URL externe")
-    agenda_url = models.URLField(blank=True, help_text="URL de l'agenda externe (ex: https://poitiers.demosphere.net)")
-    logo = models.ImageField(upload_to='sites/logos/', blank=True, null=True, help_text="Logo du sous-site (affiché dans le bandeau)")
-
-    class Meta:
-        verbose_name = "Site"
-        verbose_name_plural = "Sites"
-        ordering = ['name']
-
-    def __str__(self):
-        return self.name
-
-    def get_absolute_url(self):
-        if self.external_url:
-            return self.external_url
-        if self.slug == 'principal':
-            return reverse('content:home')
-        return reverse('content:site_home', kwargs={'site_slug': self.slug})
 
 
 class Author(models.Model):
@@ -47,7 +15,7 @@ class Author(models.Model):
         related_name='author_profile'
     )
     site = models.ForeignKey(
-        'Site', null=True, blank=True, on_delete=models.SET_NULL,
+        'cms.SectionPage', null=True, blank=True, on_delete=models.SET_NULL,
         related_name='team_members', verbose_name='Site assigné'
     )
     wp_id = models.IntegerField(unique=True, null=True, blank=True, help_text="ID WordPress original")
@@ -68,7 +36,7 @@ class Author(models.Model):
 class Category(models.Model):
     """Catégorie d'articles"""
     site = models.ForeignKey(
-        Site,
+        'cms.SectionPage',
         on_delete=models.CASCADE,
         related_name='categories',
         null=True,
@@ -117,7 +85,7 @@ class Category(models.Model):
 class Tag(models.Model):
     """Tag/étiquette pour les articles"""
     site = models.ForeignKey(
-        Site,
+        'cms.SectionPage',
         on_delete=models.CASCADE,
         related_name='tags',
         null=True,
@@ -145,7 +113,7 @@ class Tag(models.Model):
 class Media(models.Model):
     """Fichier média (image, PDF, etc.)"""
     site = models.ForeignKey(
-        Site,
+        'cms.SectionPage',
         on_delete=models.CASCADE,
         related_name='medias',
         null=True,
@@ -186,7 +154,7 @@ class Article(models.Model):
     ]
 
     site = models.ForeignKey(
-        Site,
+        'cms.SectionPage',
         on_delete=models.CASCADE,
         related_name='articles',
         null=True,
@@ -255,7 +223,7 @@ class Page(models.Model):
     ]
 
     site = models.ForeignKey(
-        Site,
+        'cms.SectionPage',
         on_delete=models.CASCADE,
         related_name='pages',
         null=True,
@@ -361,16 +329,21 @@ class Comment(models.Model):
 class ContactMessage(models.Model):
     """Message du formulaire de contact"""
     site = models.ForeignKey(
-        'Site', null=True, blank=True, on_delete=models.SET_NULL,
+        'cms.SectionPage', null=True, blank=True, on_delete=models.SET_NULL,
         related_name='contact_messages', verbose_name="Site"
+    )
+    formulaire = models.ForeignKey(
+        'FormulaireContact', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='submissions', verbose_name="Formulaire"
     )
     name = models.CharField(max_length=200, verbose_name="Nom")
     email = models.EmailField(verbose_name="Email")
-    phone = models.CharField(max_length=30, default='', verbose_name="Téléphone")
-    city = models.CharField(max_length=100, default='', verbose_name="Ville")
-    sector = models.CharField(max_length=200, default='', verbose_name="Secteur professionnel")
+    phone = models.CharField(max_length=30, default='', blank=True, verbose_name="Téléphone")
+    city = models.CharField(max_length=100, default='', blank=True, verbose_name="Ville")
+    sector = models.CharField(max_length=200, default='', blank=True, verbose_name="Secteur professionnel")
     subject = models.CharField(max_length=300, blank=True, verbose_name="Objet")
     message = models.TextField(blank=True, verbose_name="Message")
+    custom_data = models.JSONField(default=dict, blank=True, verbose_name="Champs supplémentaires")
     created_at = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
 
@@ -380,7 +353,74 @@ class ContactMessage(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.subject} - {self.name}"
+        return f"{self.subject or '(sans objet)'} – {self.name}"
+
+
+class FormulaireContact(models.Model):
+    """Formulaire de contact configurable par syndicat."""
+    site = models.OneToOneField(
+        'cms.SectionPage', on_delete=models.CASCADE, related_name='formulaire_contact',
+        null=True, blank=True, verbose_name='Syndicat'
+    )
+    is_active = models.BooleanField(default=True, verbose_name='Actif')
+    email_destination = models.EmailField(
+        blank=True, verbose_name='Email de destination',
+        help_text="Laissez vide pour utiliser l'email de contact du syndicat"
+    )
+    email_subject_prefix = models.CharField(
+        max_length=100, blank=True, verbose_name='Préfixe du sujet',
+        help_text='Ajouté au début du sujet (ex : [Contact CNT-SO])'
+    )
+    intro_text = models.TextField(blank=True, verbose_name="Texte d'introduction")
+    field_nom = models.BooleanField(default=True, verbose_name='Champ Nom')
+    field_telephone = models.BooleanField(default=False, verbose_name='Champ Téléphone')
+    field_ville = models.BooleanField(default=False, verbose_name='Champ Ville')
+    field_secteur = models.BooleanField(default=False, verbose_name='Champ Secteur')
+    field_objet = models.BooleanField(default=True, verbose_name='Champ Objet')
+
+    class Meta:
+        verbose_name = "Formulaire de contact"
+        verbose_name_plural = "Formulaires de contact"
+
+    def __str__(self):
+        return f"Contact – {self.site.name}"
+
+    def get_email_destination(self):
+        return self.email_destination or getattr(self.site, 'contact_email', '') or ''
+
+
+class ChampContactCustom(models.Model):
+    FIELD_TYPE_CHOICES = [
+        ('text', 'Texte court'),
+        ('textarea', 'Texte long'),
+        ('select', 'Liste déroulante'),
+        ('checkbox', 'Case à cocher'),
+    ]
+    formulaire = models.ForeignKey(
+        FormulaireContact, on_delete=models.CASCADE, related_name='champs_custom'
+    )
+    label = models.CharField(max_length=200, verbose_name='Libellé')
+    slug = models.SlugField(max_length=100)
+    field_type = models.CharField(
+        max_length=20, choices=FIELD_TYPE_CHOICES, default='text', verbose_name='Type'
+    )
+    choices_text = models.TextField(
+        blank=True, verbose_name='Options',
+        help_text='Une option par ligne (pour les listes déroulantes)'
+    )
+    is_required = models.BooleanField(default=False, verbose_name='Obligatoire')
+    order = models.IntegerField(default=0, verbose_name='Ordre')
+
+    class Meta:
+        ordering = ['order', 'pk']
+        verbose_name = "Champ personnalisé"
+        verbose_name_plural = "Champs personnalisés"
+
+    def __str__(self):
+        return f"{self.label} ({self.formulaire.site.name})"
+
+    def get_choices_list(self):
+        return [c.strip() for c in self.choices_text.splitlines() if c.strip()]
 
 
 class MenuItem(models.Model):
@@ -401,7 +441,7 @@ class MenuItem(models.Model):
     ]
 
     site = models.ForeignKey(
-        Site,
+        'cms.SectionPage',
         on_delete=models.CASCADE,
         related_name='menu_items',
         null=True,
@@ -417,7 +457,7 @@ class MenuItem(models.Model):
     page = models.ForeignKey(Page, on_delete=models.SET_NULL, null=True, blank=True)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
     target_site = models.ForeignKey(
-        Site,
+        'cms.SectionPage',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -481,8 +521,9 @@ class MenuItem(models.Model):
 class Subscriber(models.Model):
     """Abonné à la newsletter d'un site."""
     site = models.ForeignKey(
-        Site, on_delete=models.CASCADE,
-        related_name='subscribers', verbose_name='Site'
+        'cms.SectionPage', on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='newsletter_subscribers', verbose_name='Site'
     )
     email = models.EmailField(verbose_name='Adresse e-mail')
     name = models.CharField(max_length=200, blank=True, verbose_name='Nom')
@@ -501,14 +542,15 @@ class Subscriber(models.Model):
         return f'{self.email} ({self.site.name})'
 
 
-class Newsletter(models.Model):
+class Newsletter(ClusterableModel, models.Model):
     """Newsletter envoyée aux abonnés d'un site."""
     STATUS_CHOICES = [
         ('draft', 'Brouillon'),
         ('sent', 'Envoyée'),
     ]
     site = models.ForeignKey(
-        Site, on_delete=models.CASCADE,
+        'cms.SectionPage', on_delete=models.CASCADE,
+        null=True, blank=True,
         related_name='newsletters', verbose_name='Site'
     )
     title = models.CharField(max_length=300, verbose_name="Sujet de l'e-mail")
@@ -537,7 +579,7 @@ class Newsletter(models.Model):
 
 class NewsletterArticle(models.Model):
     """Article inclus dans une newsletter, avec ordre d'affichage."""
-    newsletter = models.ForeignKey(
+    newsletter = ParentalKey(
         Newsletter, on_delete=models.CASCADE, related_name='newsletter_articles'
     )
     article = models.ForeignKey(Article, on_delete=models.CASCADE)

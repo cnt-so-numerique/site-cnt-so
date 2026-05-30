@@ -20,7 +20,7 @@
                     <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
                 </div>
                 <div class="hp-sidebar-item-cat">
-                    {% for cat in article.categories.all|slice:":1" %}{{ cat.name }}{% endfor %}
+                    {% for cat in article.cms_categories.all|slice:":1" %}{{ cat.name }}{% endfor %}
                 </div>
             </div>
         </div>
@@ -52,7 +52,7 @@
                     <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
                 </div>
                 <div class="hp-sidebar-item-cat">
-                    {% for cat in article.categories.all|slice:":1" %}{{ cat.name }}{% endfor %}
+                    {% for cat in article.cms_categories.all|slice:":1" %}{{ cat.name }}{% endfor %}
                 </div>
             </div>
         </div>

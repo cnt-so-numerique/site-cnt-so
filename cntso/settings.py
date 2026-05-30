@@ -25,14 +25,36 @@ SECRET_KEY = 'django-insecure-q5yt_w9j0c%9b)6@g4cn@i#y%9c_#4ng!=^sximhzrars42jw_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok-free.app', '.ngrok-free.dev', '.ngrok.io']
+ALLOWED_HOSTS = [
+    'localhost', '127.0.0.1',
+    'cnt-so.org', 'www.cnt-so.org',
+    '.ngrok-free.app', '.ngrok-free.dev', '.ngrok.io',
+]
 
-CSRF_TRUSTED_ORIGINS = ['https://*.ngrok-free.app', 'https://*.ngrok-free.dev', 'https://*.ngrok.io']
+CSRF_TRUSTED_ORIGINS = [
+    'https://cnt-so.org', 'https://www.cnt-so.org',
+    'https://*.ngrok-free.app', 'https://*.ngrok-free.dev', 'https://*.ngrok.io',
+]
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    # Wagtail
+    'wagtail.contrib.forms',
+    'wagtail.contrib.redirects',
+    'wagtail.embeds',
+    'wagtail.sites',
+    'wagtail.users',
+    'wagtail.snippets',
+    'wagtail.documents',
+    'wagtail.images',
+    'wagtail.search',
+    'wagtail.admin',
+    'wagtail',
+    'modelcluster',
+    'taggit',
+    # Django
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -42,12 +64,14 @@ INSTALLED_APPS = [
     'django.contrib.sitemaps',
     # Apps locales
     'content',
-    'redaction',
+    'adhesion',
+    'cms',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'cntso.middleware.BasicAuthMiddleware',
+    'wagtail.contrib.redirects.middleware.RedirectMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -70,7 +94,6 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'content.context_processors.menu_context',
-                'redaction.context_processors.redac_context',
             ],
         },
     },
@@ -150,6 +173,17 @@ SERVER_EMAIL = 'newsletter@cnt-so.org'
 
 # Délai entre chaque e-mail pour respecter les limites OVH (~200/heure)
 NEWSLETTER_SEND_DELAY = 18  # secondes entre chaque envoi (200/h = 1 toutes les 18s)
+
+WAGTAIL_SITE_NAME = 'CNT-SO'
+WAGTAILADMIN_BASE_URL = 'https://cnt-so.org'
+
+# ── Headers de sécurité ────────────────────────────────────────────────────────
+# Empêche le navigateur de deviner le type MIME (MIME sniffing)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+# Protection XSS navigateur legacy
+SECURE_BROWSER_XSS_FILTER = True
+# Limite les ressources dans les iframes (Clickjacking) — déjà géré par XFrameOptionsMiddleware
+X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 # Surcharge par local_settings.py (credentials, DEBUG, etc.) — jamais commité
 try:

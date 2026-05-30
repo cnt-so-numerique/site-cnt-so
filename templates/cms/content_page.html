@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% load wagtailcore_tags wagtailimages_tags %}
+
+{% block title %}{{ page.title }} - {% if site %}{{ site.title }}{% else %}CNT-SO{% endif %}{% endblock %}
+
+{% block content %}
+<article>
+    <header class="article-header">
+        <h1 class="article-title">{{ page.title }}</h1>
+    </header>
+
+    {% if page.featured_image %}
+    <div class="article-featured-image">
+        {% image page.featured_image original as img %}
+        <img src="{{ img.url }}" alt="{{ page.title }}">
+    </div>
+    {% endif %}
+
+    <div class="article-content">
+        {% include_block page.body %}
+    </div>
+</article>
+{% endblock %}

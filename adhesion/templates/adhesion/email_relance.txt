@@ -1,0 +1,12 @@
+Rappel : votre adhésion au {{ adhesion.site.name }}
+
+Bonjour {% if adhesion.prenom %}{{ adhesion.prenom }}{% endif %},
+
+Nous avons bien reçu votre demande d'adhésion au {{ adhesion.site.name }}, mais votre paiement
+n'a pas encore été finalisé.
+
+Si vous souhaitez finaliser votre adhésion, n'hésitez pas à nous contacter.
+
+{% if formulaire and formulaire.email_contact %}Contact : {{ formulaire.email_contact }}{% endif %}
+
+La CNT-SO

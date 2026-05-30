@@ -598,7 +598,7 @@
         <section class="hp-hero">
             {% if featured_article %}
             {% if featured_article.featured_image %}
-            <img class="hp-hero-img" src="{{ featured_article.featured_image.url }}" alt="{{ featured_article.title }}">
+            <img class="hp-hero-img" src="{{ featured_article.featured_image.file.url }}" alt="{{ featured_article.title }}">
             {% endif %}
             <div class="hp-hero-overlay"></div>
             <div class="hp-hero-content">
@@ -608,7 +608,7 @@
                 </div>
                 <div class="hp-hero-meta">
                     <span class="hp-badge-type">Article</span>
-                    {% for cat in featured_article.categories.all|slice:":2" %}
+                    {% for cat in featured_article.cms_categories.all|slice:":2" %}
                     <a href="{{ cat.get_absolute_url }}" class="hp-badge-cat">{{ cat.name }}</a>
                     {% endfor %}
                 </div>
@@ -626,7 +626,7 @@
             <div class="hp-mini-card">
                 <div class="hp-mini-card-meta">
                     <span class="hp-mini-dot"></span>
-                    {% for cat in article.categories.all|slice:":1" %}
+                    {% for cat in article.cms_categories.all|slice:":1" %}
                     <span style="font-size:10px; color:var(--text-muted); font-weight:600; text-transform:uppercase;">{{ cat.name }}</span>
                     {% endfor %}
                 </div>
@@ -649,14 +649,14 @@
                         <div class="hp-card-img">
                             {% if article.featured_image %}
                             <a href="{{ article.get_absolute_url }}">
-                                <img src="{{ article.featured_image.url }}" alt="{{ article.title }}">
+                                <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
                             </a>
                             {% endif %}
                         </div>
                         <div class="hp-card-body">
                             <div class="hp-card-meta">
                                 <span class="hp-badge-type">Article</span>
-                                {% for cat in article.categories.all|slice:":1" %}
+                                {% for cat in article.cms_categories.all|slice:":1" %}
                                 <a href="{{ cat.get_absolute_url }}" class="hp-card-cat">{{ cat.name }}</a>
                                 {% endfor %}
                             </div>
@@ -680,14 +680,14 @@
                     <div class="hp-big-article-img">
                         {% if luttes_featured.featured_image %}
                         <a href="{{ luttes_featured.get_absolute_url }}">
-                            <img src="{{ luttes_featured.featured_image.url }}" alt="{{ luttes_featured.title }}">
+                            <img src="{{ luttes_featured.featured_image.file.url }}" alt="{{ luttes_featured.title }}">
                         </a>
                         {% endif %}
                     </div>
                     <div class="hp-big-article-text">
                         <div class="hp-card-meta">
                             <span class="hp-badge-type">Article</span>
-                            {% for cat in luttes_featured.categories.all|slice:":1" %}
+                            {% for cat in luttes_featured.cms_categories.all|slice:":1" %}
                             <a href="{{ cat.get_absolute_url }}" class="hp-card-cat">{{ cat.name }}</a>
                             {% endfor %}
                         </div>
@@ -703,7 +703,7 @@
                     <div class="hp-text-card">
                         <div class="hp-card-meta">
                             <span class="hp-mini-dot"></span>
-                            {% for cat in article.categories.all|slice:":1" %}
+                            {% for cat in article.cms_categories.all|slice:":1" %}
                             <span class="hp-card-cat">{{ cat.name }}</span>
                             {% endfor %}
                         </div>
@@ -735,7 +735,7 @@
                                         <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
                                     </div>
                                     <div class="hp-col-article-cat">
-                                        {% for cat in article.categories.all|slice:":1" %}{{ cat.name }}{% endfor %}
+                                        {% for cat in article.cms_categories.all|slice:":1" %}{{ cat.name }}{% endfor %}
                                     </div>
                                 </div>
                             </div>
@@ -757,7 +757,7 @@
                                         <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
                                     </div>
                                     <div class="hp-col-article-cat">
-                                        {% for cat in article.categories.all|slice:":1" %}{{ cat.name }}{% endfor %}
+                                        {% for cat in article.cms_categories.all|slice:":1" %}{{ cat.name }}{% endfor %}
                                     </div>
                                 </div>
                             </div>
