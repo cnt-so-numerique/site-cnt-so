@@ -242,6 +242,10 @@ class SectionPage(Page):
     description = models.TextField(blank=True)
     external_url = models.URLField(blank=True)
     agenda_url = models.URLField(blank=True)
+    linkstack_url = models.URLField(blank=True, verbose_name="URL Linkstack",
+        help_text="Ex: https://linkstack.fr/@stucs_cntso")
+    framaform_url = models.URLField(blank=True, verbose_name="URL Framaform adhésion",
+        help_text="Ex: https://framaforms.org/adherer-au-stucs-...")
     logo = models.ForeignKey(
         'wagtailimages.Image',
         null=True, blank=True,
@@ -271,6 +275,8 @@ class SectionPage(Page):
         FieldPanel('contact_email'),
         FieldPanel('external_url'),
         FieldPanel('agenda_url'),
+        FieldPanel('linkstack_url'),
+        FieldPanel('framaform_url'),
         FieldPanel('logo'),
     ]
     promote_panels = Page.promote_panels + [

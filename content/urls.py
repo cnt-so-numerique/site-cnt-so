@@ -54,6 +54,11 @@ urlpatterns = [
     # Sous-sites newsletter
     path('<slug:site_slug>/newsletter/inscription/', views.NewsletterSubscribeView.as_view(), name='site_newsletter_subscribe'),
 
+    # STUCS — URLs spécifiques avant le pattern générique <site_slug>/
+    path('stucs/rejoindre/', views.StucsRejoindreView.as_view(), name='stucs_rejoindre'),
+    path('stucs/ressources/', views.StucsRessourcesView.as_view(), name='stucs_ressources'),
+    path('stucs/agenda/', views.StucsAgendaView.as_view(), name='stucs_agenda'),
+
     # Sous-sites
     path('<slug:site_slug>/agenda/', views.SiteAgendaView.as_view(), name='site_agenda'),
     path('<slug:site_slug>/categorie/<slug:slug>/', views.SiteCategoryDetailView.as_view(), name='site_category_detail'),

@@ -1,0 +1,230 @@
+{% extends "content/stucs/base.html" %}
+{% block nav_accueil %}class="active"{% endblock %}
+
+{% block title %}STUCS — Syndicat des Travailleur·ses de l'Université, des Chercheur·ses et du Supérieur{% endblock %}
+
+{% block extra_head %}
+<style>
+.hero {
+  background: linear-gradient(135deg, #1a0000 0%, #2c0a0a 50%, #1a1a1a 100%);
+  border-bottom: 3px solid var(--primary);
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+.hero-title {
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  color: var(--white);
+  margin-bottom: 1rem;
+  line-height: 1.1;
+}
+.hero-title span { color: var(--primary); }
+.hero-desc {
+  font-size: 1rem;
+  color: #ccc;
+  max-width: 640px;
+  margin: 0 auto 1.5rem;
+  line-height: 1.7;
+}
+.hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+.btn-hero {
+  padding: .75rem 1.75rem;
+  font-weight: 700;
+  font-size: .9rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.btn-hero-primary { background: var(--primary); color: #fff; }
+.btn-hero-primary:hover { background: var(--primary-dark); color: #fff; }
+.btn-hero-outline { border: 2px solid var(--primary); color: var(--primary); }
+.btn-hero-outline:hover { background: var(--primary); color: #fff; }
+
+.revendications {
+  background: var(--mid);
+  border-left: 4px solid var(--primary);
+  padding: 1.5rem 2rem;
+  margin: 2rem 0;
+  border-radius: 0 4px 4px 0;
+}
+.revendications h3 {
+  font-family: var(--font-heading);
+  font-size: 1.2rem;
+  color: var(--white);
+  margin-bottom: 1rem;
+}
+.revendications ul { list-style: none; }
+.revendications li {
+  padding: .35rem 0 .35rem 1.2rem;
+  position: relative;
+  color: #ccc;
+  font-size: .9rem;
+}
+.revendications li::before {
+  content: '▶';
+  position: absolute;
+  left: 0;
+  color: var(--primary);
+  font-size: .6rem;
+  top: .55rem;
+}
+
+.carousel-section { margin: 2.5rem 0; }
+.carousel-container { position: relative; overflow: hidden; }
+.carousel-track {
+  display: flex;
+  gap: 1.25rem;
+  transition: transform .4s ease;
+}
+.carousel-track .card { min-width: 270px; flex-shrink: 0; }
+.carousel-controls { display: flex; justify-content: center; gap: .5rem; margin-top: 1rem; }
+.carousel-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--border); cursor: pointer; border: none;
+  transition: background .2s;
+}
+.carousel-dot.active { background: var(--primary); }
+</style>
+{% endblock %}
+
+{% block content %}
+{# ── Hero ── #}
+<div class="hero" style="margin: -2rem -1.5rem 0; padding: 3.5rem 1.5rem;">
+  <h1 class="hero-title">Syndicat <span>STUCS</span><br>CNT-SO</h1>
+  <p class="hero-desc">
+    Le STUCS (Syndicat des Travailleur·ses de l'Université, des Chercheur·ses et du Supérieur)
+    s'organise dans l'enseignement supérieur et la recherche pour défendre nos conditions de travail
+    et construire un rapport de force collectif.
+  </p>
+  <div class="hero-actions">
+    <a href="{% url 'content:stucs_rejoindre' %}" class="btn-hero btn-hero-primary">Nous rejoindre</a>
+    <a href="{% url 'content:stucs_ressources' %}" class="btn-hero btn-hero-outline">Nos publications</a>
+  </div>
+</div>
+
+{# ── Revendications ── #}
+<div class="revendications" style="margin-top: 2.5rem;">
+  <h3>Nos revendications principales</h3>
+  <ul>
+    <li>Titularisation de tou·tes les précaires de l'ESR</li>
+    <li>Revalorisation des salaires et primes pour tous les personnels</li>
+    <li>Arrêt des suppressions de postes et de l'austérité budgétaire</li>
+    <li>Égalité salariale femmes / hommes dans l'ESR</li>
+    <li>Abrogation des lois LPR et ORE</li>
+    <li>Contre la militarisation de la recherche et des universités</li>
+  </ul>
+</div>
+
+{# ── Carrousel des dernières publications ── #}
+{% if latest %}
+<section class="carousel-section">
+  <h2 class="section-title">Dernières publications</h2>
+  <div class="carousel-container" id="carousel-main">
+    <div class="carousel-track" id="carousel-track">
+      {% for article in latest %}
+      <div class="card">
+        <div class="card-img">
+          {% if article.featured_image %}
+            <a href="{% url 'content:site_article_detail' 'stucs' article.slug %}">
+              <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
+            </a>
+          {% else %}
+            <div style="height:100%;display:flex;align-items:center;justify-content:center;">
+              <span style="font-family:var(--font-heading);font-size:3rem;color:var(--border);">STUCS</span>
+            </div>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          {% for cat in article.cms_categories.all|slice:":1" %}
+            <div class="card-cat">{{ cat.name }}</div>
+          {% endfor %}
+          <div class="card-title">
+            <a href="{% url 'content:site_article_detail' 'stucs' article.slug %}">{{ article.title }}</a>
+          </div>
+          <div class="card-date">{{ article.publication_date|date:"d/m/Y" }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="carousel-controls" id="carousel-dots"></div>
+</section>
+{% endif %}
+
+{# ── Par catégorie ── #}
+{% for block in publications %}
+<section style="margin-bottom: 2.5rem;">
+  <h2 class="section-title">
+    <a href="{% url 'content:stucs_ressources' %}?cat={{ block.category.slug }}" style="color:inherit;">
+      {{ block.category.name }}
+    </a>
+  </h2>
+  <div class="card-grid">
+    {% for article in block.articles %}
+    <div class="card">
+      <div class="card-img">
+        {% if article.featured_image %}
+          <a href="{% url 'content:site_article_detail' 'stucs' article.slug %}">
+            <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
+          </a>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <div class="card-title">
+          <a href="{% url 'content:site_article_detail' 'stucs' article.slug %}">{{ article.title }}</a>
+        </div>
+        <div class="card-date">{{ article.publication_date|date:"d/m/Y" }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <p style="margin-top:1rem;">
+    <a href="{% url 'content:stucs_ressources' %}?cat={{ block.category.slug }}" style="font-size:.85rem;color:var(--muted);">
+      Voir tout → {{ block.category.name }}
+    </a>
+  </p>
+</section>
+{% endfor %}
+
+{% if not latest and not publications %}
+<div style="text-align:center;padding:4rem 1rem;color:var(--muted);">
+  <p style="font-size:1.1rem;">Aucune publication pour l'instant.</p>
+  <p style="margin-top:.5rem;">Rejoins-nous pour contribuer !</p>
+  <a href="{% url 'content:stucs_rejoindre' %}" class="btn-hero btn-hero-primary" style="display:inline-block;margin-top:1.5rem;">Adhérer</a>
+</div>
+{% endif %}
+
+<script>
+(function() {
+  var track = document.getElementById('carousel-track');
+  if (!track) return;
+  var cards = track.querySelectorAll('.card');
+  var container = document.getElementById('carousel-main');
+  var dotsContainer = document.getElementById('carousel-dots');
+  var cardWidth = 270 + 20; // min-width + gap
+  var visibleCount = Math.floor(container.offsetWidth / cardWidth) || 1;
+  var total = cards.length;
+  var pages = Math.ceil(total / visibleCount);
+  var current = 0;
+
+  for (var i = 0; i < pages; i++) {
+    var dot = document.createElement('button');
+    dot.className = 'carousel-dot' + (i === 0 ? ' active' : '');
+    dot.setAttribute('data-idx', i);
+    dot.addEventListener('click', function() { goTo(parseInt(this.getAttribute('data-idx'))); });
+    dotsContainer.appendChild(dot);
+  }
+
+  function goTo(idx) {
+    current = Math.max(0, Math.min(idx, pages - 1));
+    track.style.transform = 'translateX(-' + (current * visibleCount * cardWidth) + 'px)';
+    dotsContainer.querySelectorAll('.carousel-dot').forEach(function(d, i) {
+      d.classList.toggle('active', i === current);
+    });
+  }
+
+  // Auto-scroll toutes les 5s
+  setInterval(function() { goTo((current + 1) % pages); }, 5000);
+})();
+</script>
+{% endblock %}

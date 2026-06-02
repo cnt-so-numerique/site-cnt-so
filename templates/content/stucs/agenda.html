@@ -1,0 +1,30 @@
+{% extends "content/stucs/base.html" %}
+{% block nav_agenda %}class="active"{% endblock %}
+{% block title %}Agenda — STUCS CNT-SO{% endblock %}
+
+{% block content %}
+<h1 class="section-title">Agenda</h1>
+
+{% if agenda_page %}
+  <div style="color:#ccc;line-height:1.8;font-size:.95rem;">
+    {{ agenda_page.body }}
+  </div>
+{% else %}
+  <div style="background:var(--mid);border:1px solid var(--border);padding:2rem;text-align:center;color:var(--muted);">
+    <p style="font-size:1.1rem;margin-bottom:.75rem;">Aucun événement programmé pour l'instant.</p>
+    <p style="font-size:.85rem;">
+      Suis nos <a href="{{ site.linkstack_url }}" target="_blank" rel="noopener">réseaux sociaux</a>
+      pour être informé·e des prochaines dates.
+    </p>
+  </div>
+{% endif %}
+
+<div style="margin-top:2.5rem;padding:1.5rem;background:var(--mid);border:1px solid var(--border);border-left:4px solid var(--primary);">
+  <h3 style="font-family:var(--font-heading);color:var(--white);margin-bottom:.75rem;">Éditer l'agenda</h3>
+  <p style="color:#ccc;font-size:.9rem;">
+    Pour ajouter ou modifier des événements, connecte-toi au
+    <a href="/cms/">CMS</a> et crée ou modifie la page <strong>stucs-agenda</strong>
+    dans la section STUCS.
+  </p>
+</div>
+{% endblock %}

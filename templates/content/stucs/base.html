@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}STUCS — CNT-SO{% endblock %}</title>
+  <meta name="description" content="{% block description %}Syndicat des Travailleur·ses de l'Université, des Chercheur·ses et du Supérieur — CNT-SO{% endblock %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #c0392b;
+      --primary-dark: #922b21;
+      --black: #111;
+      --dark: #1a1a1a;
+      --mid: #2c2c2c;
+      --light: #f4f4f4;
+      --muted: #888;
+      --border: #333;
+      --white: #fff;
+      --font-heading: 'Amiri', serif;
+      --font-body: 'Noto Sans', sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: var(--font-body); background: var(--black); color: var(--light); min-height: 100vh; }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { color: var(--primary-dark); }
+    img { max-width: 100%; height: auto; display: block; }
+
+    /* ── Header ── */
+    .stucs-header {
+      background: var(--dark);
+      border-bottom: 3px solid var(--primary);
+      padding: .75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .stucs-brand {
+      display: flex; align-items: center; gap: .75rem;
+      text-decoration: none; color: var(--white);
+    }
+    .stucs-brand-text { line-height: 1.2; }
+    .stucs-brand-title { font-family: var(--font-heading); font-size: 1.4rem; font-weight: 700; color: var(--white); }
+    .stucs-brand-sub { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+    .stucs-back { font-size: .8rem; color: var(--muted); white-space: nowrap; }
+    .stucs-back:hover { color: var(--primary); }
+
+    /* ── Navigation ── */
+    .stucs-nav {
+      background: var(--mid);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      overflow-x: auto;
+    }
+    .stucs-nav a {
+      color: #ccc;
+      padding: .85rem 1.4rem;
+      font-size: .85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      white-space: nowrap;
+      border-bottom: 3px solid transparent;
+      transition: color .2s, border-color .2s;
+    }
+    .stucs-nav a:hover,
+    .stucs-nav a.active { color: var(--white); border-color: var(--primary); }
+    .stucs-nav .dropdown { position: relative; }
+    .stucs-nav .dropdown-menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: var(--mid);
+      border: 1px solid var(--border);
+      min-width: 200px;
+      z-index: 100;
+    }
+    .stucs-nav .dropdown:hover .dropdown-menu { display: block; }
+    .stucs-nav .dropdown-menu a {
+      display: block;
+      padding: .6rem 1rem;
+      border-bottom: 1px solid var(--border);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .stucs-nav .dropdown-menu a:last-child { border-bottom: none; }
+
+    /* ── Layout ── */
+    .stucs-main { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    /* ── Footer RS ── */
+    .stucs-footer {
+      background: var(--dark);
+      border-top: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      text-align: center;
+      margin-top: 4rem;
+    }
+    .stucs-footer-links {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .stucs-footer a { color: var(--muted); font-size: .85rem; }
+    .stucs-footer a:hover { color: var(--white); }
+    .linkstack-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      background: var(--primary);
+      color: var(--white) !important;
+      padding: .6rem 1.2rem;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: .85rem;
+    }
+    .linkstack-btn:hover { background: var(--primary-dark); color: var(--white) !important; }
+    .stucs-footer-copy { color: var(--muted); font-size: .75rem; margin-top: .75rem; }
+
+    /* ── Cards ── */
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.5rem; }
+    .card {
+      background: var(--mid);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      transition: border-color .2s, transform .2s;
+    }
+    .card:hover { border-color: var(--primary); transform: translateY(-2px); }
+    .card-img { height: 180px; overflow: hidden; background: #222; }
+    .card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .3s; }
+    .card:hover .card-img img { transform: scale(1.04); }
+    .card-body { padding: 1rem; flex: 1; display: flex; flex-direction: column; }
+    .card-cat { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--primary); margin-bottom: .4rem; }
+    .card-title { font-family: var(--font-heading); font-size: 1rem; color: var(--white); line-height: 1.3; margin-bottom: .5rem; flex: 1; }
+    .card-title a { color: inherit; }
+    .card-title a:hover { color: var(--primary); }
+    .card-date { font-size: .75rem; color: var(--muted); }
+
+    /* ── Section title ── */
+    .section-title {
+      font-family: var(--font-heading);
+      font-size: 1.6rem;
+      color: var(--white);
+      border-left: 4px solid var(--primary);
+      padding-left: .75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ── Carousel ── */
+    .carousel-wrap { position: relative; overflow: hidden; }
+    .carousel-track { display: flex; gap: 1.5rem; transition: transform .4s ease; }
+    .carousel-track .card { min-width: 280px; flex-shrink: 0; }
+    .carousel-btn {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      background: var(--primary); color: #fff; border: none; cursor: pointer;
+      width: 36px; height: 36px; border-radius: 50%; font-size: 1.1rem;
+      display: flex; align-items: center; justify-content: center; z-index: 10;
+    }
+    .carousel-btn.prev { left: -18px; }
+    .carousel-btn.next { right: -18px; }
+
+    /* ── Forms ── */
+    .form-group { margin-bottom: 1rem; }
+    .form-label { display: block; font-size: .85rem; color: #ccc; margin-bottom: .35rem; }
+    .form-input, .form-textarea {
+      width: 100%; padding: .65rem .9rem;
+      background: var(--mid); border: 1px solid var(--border);
+      color: var(--white); font-family: var(--font-body); font-size: .9rem;
+      border-radius: 3px; outline: none;
+    }
+    .form-input:focus, .form-textarea:focus { border-color: var(--primary); }
+    .form-textarea { min-height: 120px; resize: vertical; }
+    .btn-primary {
+      background: var(--primary); color: #fff;
+      border: none; padding: .7rem 1.5rem;
+      font-size: .9rem; font-weight: 600; cursor: pointer;
+      border-radius: 3px; transition: background .2s;
+    }
+    .btn-primary:hover { background: var(--primary-dark); }
+
+    @media (max-width: 640px) {
+      .stucs-header { padding: .6rem 1rem; }
+      .stucs-brand-title { font-size: 1.1rem; }
+      .stucs-main { padding: 1.5rem 1rem; }
+      .card-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<header class="stucs-header">
+  <a href="{% url 'content:site_home' 'stucs' %}" class="stucs-brand">
+    {% if site.logo %}
+      <img src="{{ site.logo.file.url }}" alt="STUCS" style="height:48px;width:auto;">
+    {% else %}
+      <div style="font-family:var(--font-heading);font-size:2rem;font-weight:700;color:var(--primary);">STUCS</div>
+    {% endif %}
+    <div class="stucs-brand-text">
+      <div class="stucs-brand-title">STUCS</div>
+      <div class="stucs-brand-sub">CNT-SO — Enseignement Supérieur &amp; Recherche</div>
+    </div>
+  </a>
+  <a href="/" class="stucs-back">← Site CNT-SO</a>
+</header>
+
+<nav class="stucs-nav">
+  <a href="{% url 'content:site_home' 'stucs' %}" {% block nav_accueil %}{% endblock %}>Accueil</a>
+  <a href="{% url 'content:stucs_rejoindre' %}" {% block nav_rejoindre %}{% endblock %}>Nous rejoindre</a>
+  <div class="dropdown">
+    <a href="{% url 'content:stucs_ressources' %}" {% block nav_ressources %}{% endblock %}>Ressources ▾</a>
+    <div class="dropdown-menu">
+      {% for cat in categories %}
+        <a href="{% url 'content:stucs_ressources' %}?cat={{ cat.slug }}">{{ cat.name }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  <a href="{% url 'content:stucs_agenda' %}" {% block nav_agenda %}{% endblock %}>Agenda</a>
+</nav>
+
+<main class="stucs-main">
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="stucs-footer">
+  <div class="stucs-footer-links">
+    {% if site.linkstack_url %}
+      <a href="{{ site.linkstack_url }}" target="_blank" rel="noopener" class="linkstack-btn">
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M17.293 7.293a1 1 0 0 1 1.414 1.414l-8 8a1 1 0 0 1-1.414-1.414l8-8zM5 12a1 1 0 0 1 1-1h4a1 1 0 0 1 0 2H6a1 1 0 0 1-1-1zm8 6a1 1 0 0 1 1-1h4a1 1 0 0 1 0 2h-4a1 1 0 0 1-1-1z"/></svg>
+        Tous nos réseaux
+      </a>
+    {% endif %}
+  </div>
+  <div class="stucs-footer-copy">
+    STUCS — Syndicat des Travailleur·ses de l'Université, des Chercheur·ses et du Supérieur<br>
+    <a href="/">CNT-SO — Solidarité Ouvrière</a>
+  </div>
+</footer>
+
+</body>
+</html>

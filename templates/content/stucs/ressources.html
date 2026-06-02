@@ -1,0 +1,110 @@
+{% extends "content/stucs/base.html" %}
+{% block nav_ressources %}class="active"{% endblock %}
+{% block title %}Ressources{% if active_cat %} — {{ active_cat.name }}{% endif %} — STUCS CNT-SO{% endblock %}
+
+{% block extra_head %}
+<style>
+.cat-bar {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+.cat-pill {
+  padding: .4rem .9rem;
+  border: 1px solid var(--border);
+  font-size: .8rem;
+  font-weight: 600;
+  color: #ccc;
+  border-radius: 2px;
+  transition: background .2s, color .2s, border-color .2s;
+}
+.cat-pill:hover { border-color: var(--primary); color: var(--white); }
+.cat-pill.active { background: var(--primary); color: var(--white); border-color: var(--primary); }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="section-title">Ressources{% if active_cat %} — {{ active_cat.name }}{% endif %}</h1>
+
+<div class="cat-bar">
+  <a href="{% url 'content:stucs_ressources' %}" class="cat-pill {% if not active_cat %}active{% endif %}">Tout</a>
+  {% for cat in categories %}
+    <a href="{% url 'content:stucs_ressources' %}?cat={{ cat.slug }}"
+       class="cat-pill {% if active_cat.slug == cat.slug %}active{% endif %}">{{ cat.name }}</a>
+  {% endfor %}
+</div>
+
+{% if active_cat %}
+  {% if articles %}
+    <div class="card-grid">
+      {% for article in articles %}
+      <div class="card">
+        <div class="card-img">
+          {% if article.featured_image %}
+            <a href="{% url 'content:site_article_detail' 'stucs' article.slug %}">
+              <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
+            </a>
+          {% else %}
+            <div style="height:100%;background:var(--border);display:flex;align-items:center;justify-content:center;">
+              <span style="font-size:2rem;color:#555;">STUCS</span>
+            </div>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          <div class="card-cat">{{ active_cat.name }}</div>
+          <div class="card-title">
+            <a href="{% url 'content:site_article_detail' 'stucs' article.slug %}">{{ article.title }}</a>
+          </div>
+          <div class="card-date">{{ article.publication_date|date:"d/m/Y" }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p style="color:var(--muted);text-align:center;padding:3rem;">Aucune publication dans cette catégorie pour l'instant.</p>
+  {% endif %}
+
+{% else %}
+  {# Toutes catégories #}
+  {% for cat in categories %}
+    {% with cat_articles=cat.articles.all|slice:":4" %}
+    {% if cat_articles %}
+    <section style="margin-bottom:2.5rem;">
+      <h2 class="section-title" style="font-size:1.3rem;">
+        <a href="{% url 'content:stucs_ressources' %}?cat={{ cat.slug }}" style="color:inherit;">{{ cat.name }}</a>
+      </h2>
+      <div class="card-grid">
+        {% for article in cat_articles %}
+        <div class="card">
+          <div class="card-img">
+            {% if article.featured_image %}
+              <a href="{% url 'content:site_article_detail' 'stucs' article.slug %}">
+                <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
+              </a>
+            {% endif %}
+          </div>
+          <div class="card-body">
+            <div class="card-title">
+              <a href="{% url 'content:site_article_detail' 'stucs' article.slug %}">{{ article.title }}</a>
+            </div>
+            <div class="card-date">{{ article.publication_date|date:"d/m/Y" }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <p style="margin-top:.75rem;">
+        <a href="{% url 'content:stucs_ressources' %}?cat={{ cat.slug }}" style="font-size:.85rem;color:var(--muted);">
+          Voir tout → {{ cat.name }}
+        </a>
+      </p>
+    </section>
+    {% endif %}
+    {% endwith %}
+  {% empty %}
+    <p style="color:var(--muted);text-align:center;padding:3rem;">
+      Aucune catégorie configurée. Ajoute des catégories depuis <a href="/cms/">le CMS</a>.
+    </p>
+  {% endfor %}
+{% endif %}
+{% endblock %}

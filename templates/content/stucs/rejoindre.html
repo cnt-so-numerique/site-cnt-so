@@ -1,0 +1,98 @@
+{% extends "content/stucs/base.html" %}
+{% block nav_rejoindre %}class="active"{% endblock %}
+{% block title %}Nous rejoindre — STUCS CNT-SO{% endblock %}
+
+{% block extra_head %}
+<style>
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+.framaform-wrap { border: 1px solid var(--border); background: var(--mid); padding: 1.5rem; }
+.framaform-wrap iframe { width: 100%; min-height: 600px; border: none; background: #fff; border-radius: 3px; }
+.info-block { background: var(--mid); border: 1px solid var(--border); padding: 1.5rem; }
+.info-block h3 { font-family: var(--font-heading); font-size: 1.2rem; color: var(--white); margin-bottom: 1rem; }
+.info-block p, .info-block li { color: #ccc; font-size: .9rem; line-height: 1.7; }
+.info-block ul { list-style: none; }
+.info-block li { padding-left: 1.2rem; position: relative; margin-bottom: .4rem; }
+.info-block li::before { content: '▶'; position: absolute; left: 0; color: var(--primary); font-size: .55rem; top: .55rem; }
+.divider { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+.success-msg { background: #1a3a1a; border: 1px solid #2d6a2d; padding: 1rem 1.5rem; color: #90ee90; border-radius: 3px; }
+@media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="section-title" style="margin-bottom:2rem;">Nous rejoindre</h1>
+
+<div class="two-col">
+  {# ── Colonne gauche : infos ── #}
+  <div>
+    <div class="info-block" style="margin-bottom:1.5rem;">
+      <h3>Pourquoi adhérer au STUCS ?</h3>
+      <p style="margin-bottom:1rem;">
+        Le STUCS est le syndicat de la CNT-SO pour les personnels de l'enseignement supérieur et
+        de la recherche — enseignant·es, chercheur·ses, BIATSS, précaires, vacataires.
+      </p>
+      <ul>
+        <li>Défense individuelle en cas de litige avec l'employeur</li>
+        <li>Construction d'un rapport de force collectif</li>
+        <li>Syndicat autogestionnaire, sans permanents rémunérés</li>
+        <li>Cotisation libre et solidaire</li>
+        <li>Réseau national CNT-SO</li>
+      </ul>
+    </div>
+
+    <div class="info-block" style="margin-bottom:1.5rem;">
+      <h3>Comment ça marche ?</h3>
+      <p>
+        Remplis le formulaire ci-contre. Un·e militant·e te contactera pour finaliser ton adhésion.
+        La cotisation est libre — nous suggérons 1% de ton salaire net mensuel.
+      </p>
+    </div>
+
+    <hr class="divider">
+
+    <h2 class="section-title" style="font-size:1.3rem;">Une question avant d'adhérer ?</h2>
+    {% if success %}
+      <div class="success-msg">Ton message a bien été envoyé. Nous te répondrons rapidement.</div>
+    {% else %}
+      <form method="post" style="margin-top:1rem;">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label" for="id_name">Nom / Prénom</label>
+          <input class="form-input" type="text" id="id_name" name="name" required value="{{ form.name.value|default:'' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="id_email">Email</label>
+          <input class="form-input" type="email" id="id_email" name="email" required value="{{ form.email.value|default:'' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="id_message">Message</label>
+          <textarea class="form-textarea" id="id_message" name="message" required>{{ form.message.value|default:'' }}</textarea>
+        </div>
+        <button type="submit" class="btn-primary">Envoyer</button>
+      </form>
+    {% endif %}
+  </div>
+
+  {# ── Colonne droite : Framaform ── #}
+  <div>
+    <div class="framaform-wrap">
+      <h2 style="font-family:var(--font-heading);font-size:1.3rem;color:var(--white);margin-bottom:1rem;">
+        Formulaire d'adhésion
+      </h2>
+      {% if site.framaform_url %}
+        <iframe
+          src="{{ site.framaform_url }}"
+          title="Formulaire d'adhésion STUCS"
+          loading="lazy">
+        </iframe>
+        <p style="margin-top:.75rem;font-size:.8rem;color:var(--muted);text-align:center;">
+          Formulaire non affiché ?
+          <a href="{{ site.framaform_url }}" target="_blank" rel="noopener">Ouvrir dans un nouvel onglet →</a>
+        </p>
+      {% else %}
+        <p style="color:var(--muted);">Formulaire d'adhésion en cours de configuration.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

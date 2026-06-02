@@ -103,6 +103,10 @@ class SiteHomeView(ListView):
         self.current_site = get_object_or_404(SectionPage, slug=self.kwargs['site_slug'])
         if self.current_site.external_url:
             return redirect(self.current_site.external_url)
+        # Template dédié par sous-site
+        if self.current_site.slug == 'stucs':
+            return render(request, 'content/stucs/home.html',
+                          self._stucs_context(request))
         self.home_page = Page.objects.filter(
             site=self.current_site, slug='home', status='publish'
         ).first()
@@ -112,6 +116,24 @@ class SiteHomeView(ListView):
                 'page': self.home_page,
             })
         return super().get(request, *args, **kwargs)
+
+    def _stucs_context(self, request):
+        site = self.current_site
+        cats = CmsCategory.objects.filter(section_slug='stucs')
+        publications = []
+        for cat in cats:
+            arts = (ArticlePage.objects.live()
+                    .filter(section_slug='stucs', cms_categories=cat)
+                    .select_related('featured_image')
+                    .order_by('-publication_date', '-first_published_at')[:3])
+            if arts:
+                publications.append({'category': cat, 'articles': list(arts)})
+        latest = (ArticlePage.objects.live()
+                  .filter(section_slug='stucs')
+                  .select_related('featured_image')
+                  .prefetch_related('cms_categories')
+                  .order_by('-publication_date', '-first_published_at')[:12])
+        return {'site': site, 'publications': publications, 'latest': latest, 'categories': cats}
 
     def get_queryset(self):
         if not hasattr(self, 'current_site'):
@@ -732,3 +754,62 @@ class QuiSommesNousView(TemplateView):
         ).distinct()[:5]
         ctx['manques_articles'] = base_qs[:6]
         return ctx
+
+
+# ── Vues STUCS ────────────────────────────────────────────────────────────────
+
+def _stucs_base_context(request):
+    site = get_object_or_404(SectionPage, slug='stucs')
+    return {'site': site, 'categories': CmsCategory.objects.filter(section_slug='stucs')}
+
+
+class StucsRejoindreView(View):
+    def get(self, request):
+        ctx = _stucs_base_context(request)
+        ctx['form'] = ContactForm()
+        return render(request, 'content/stucs/rejoindre.html', ctx)
+
+    def post(self, request):
+        ctx = _stucs_base_context(request)
+        form = ContactForm(request.POST)
+        ctx['form'] = form
+        if form.is_valid():
+            site = ctx['site']
+            msg = ContactMessage(
+                site=site,
+                name=form.cleaned_data['name'],
+                email=form.cleaned_data['email'],
+                message=form.cleaned_data['message'],
+            )
+            msg.save()
+            from .views import _send_contact_email
+            _send_contact_email(site, msg)
+            ctx['success'] = True
+        return render(request, 'content/stucs/rejoindre.html', ctx)
+
+
+class StucsRessourcesView(View):
+    def get(self, request):
+        ctx = _stucs_base_context(request)
+        slug = request.GET.get('cat', '')
+        active_cat = None
+        articles = ArticlePage.objects.none()
+        if slug:
+            active_cat = CmsCategory.objects.filter(section_slug='stucs', slug=slug).first()
+            if active_cat:
+                articles = (ArticlePage.objects.live()
+                            .filter(section_slug='stucs', cms_categories=active_cat)
+                            .select_related('featured_image')
+                            .order_by('-publication_date', '-first_published_at'))
+        ctx['active_cat'] = active_cat
+        ctx['articles'] = articles
+        return render(request, 'content/stucs/ressources.html', ctx)
+
+
+class StucsAgendaView(View):
+    def get(self, request):
+        ctx = _stucs_base_context(request)
+        from cms.models import ContentPage
+        agenda_page = ContentPage.objects.filter(slug='stucs-agenda').live().first()
+        ctx['agenda_page'] = agenda_page
+        return render(request, 'content/stucs/agenda.html', ctx)
