@@ -62,7 +62,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.sitemaps',
-    'django.contrib.postgres',
     # Apps locales
     'content',
     'adhesion',
@@ -189,5 +188,7 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 # Surcharge par local_settings.py (credentials, DEBUG, etc.) — jamais commité
 try:
     from .local_settings import *  # noqa
-except ImportError:
+    from .local_settings import INSTALLED_APPS_EXTRA  # noqa
+    INSTALLED_APPS = INSTALLED_APPS + INSTALLED_APPS_EXTRA
+except (ImportError, NameError):
     pass
