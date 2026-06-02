@@ -1,9 +1,17 @@
 from django import forms
+from django.conf import settings as django_settings
 from .models import ContactMessage, Comment, FormulaireContact
 
 
 class ContactForm(forms.ModelForm):
     """Formulaire de contact"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if getattr(django_settings, 'RECAPTCHA_ENABLED', False):
+            from django_recaptcha.fields import ReCaptchaField
+            from django_recaptcha.widgets import ReCaptchaV2Checkbox
+            self.fields['captcha'] = ReCaptchaField(widget=ReCaptchaV2Checkbox, label='')
 
     class Meta:
         model = ContactMessage

@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-q5yt_w9j0c%9b)6@g4cn@i#y%9c_#4ng!=^sximhzrars42jw_
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    'localhost', '127.0.0.1',
+    'localhost', '127.0.0.1', 'testserver',
     'cnt-so.org', 'www.cnt-so.org',
 ]
 
@@ -60,6 +60,13 @@ INSTALLED_APPS = [
     'modelcluster',
     'taggit',
     'wagtailseo',
+    'wagtailmedia',
+    'wagtail_2fa',
+    'django_otp',
+    'django_otp.plugins.otp_totp',
+    'django_otp.plugins.otp_static',
+    'django_recaptcha',
+    'wagtailcache',
     # Django
     'django.contrib.admin',
     'django.contrib.auth',
@@ -83,6 +90,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django_otp.middleware.OTPMiddleware',
+    'wagtail_2fa.middleware.VerifyUserPermissionsMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -182,6 +191,21 @@ NEWSLETTER_SEND_DELAY = 18  # secondes entre chaque envoi (200/h = 1 toutes les 
 
 WAGTAIL_SITE_NAME = 'CNT-SO'
 WAGTAILADMIN_BASE_URL = 'https://cnt-so.org'
+
+# ── wagtail-2fa ───────────────────────────────────────────────────────────────
+WAGTAIL_2FA_REQUIRED = False  # True = obligatoire pour tous les rédacteurs
+
+# ── django-recaptcha ──────────────────────────────────────────────────────────
+# Clés de test (à remplacer par de vraies clés en prod via local_settings.py)
+# Clés reCAPTCHA — à définir dans local_settings.py en prod
+# Obtenir sur https://www.google.com/recaptcha/admin/create
+RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
+RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
+SILENCED_SYSTEM_CHECKS = ['django_recaptcha.recaptcha_test_key_error']
+
+# ── wagtail-cache ─────────────────────────────────────────────────────────────
+WAGTAILCACHE_CACHE = 'default'
+WAGTAILCACHE_TIMEOUT = 3600
 
 # Recherche Wagtail — PostgreSQL FTS en prod, base de données SQLite en dev
 WAGTAILSEARCH_BACKENDS = {

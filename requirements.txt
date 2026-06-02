@@ -9,3 +9,7 @@ wagtail==7.4.1
 django-modelcluster==6.5
 django-taggit==6.1.0
 wagtail-seo==3.1.1
+django-recaptcha==4.1.0
+wagtail-2fa==1.8.0
+wagtail-cache==3.0.0
+wagtailmedia==0.17.2
