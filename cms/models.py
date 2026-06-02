@@ -239,18 +239,30 @@ class SectionPage(Page):
     ]
 
     section_type = models.CharField(max_length=20, choices=SECTION_TYPE_CHOICES, default='regional')
-    description = models.TextField(blank=True)
+    description = models.TextField(blank=True, verbose_name="Description / accroche",
+        help_text="Texte court affiché sous le titre en page d'accueil du sous-site")
     external_url = models.URLField(blank=True)
     agenda_url = models.URLField(blank=True)
-    linkstack_url = models.URLField(blank=True, verbose_name="URL Linkstack",
-        help_text="Ex: https://linkstack.fr/@stucs_cntso")
-    framaform_url = models.URLField(blank=True, verbose_name="URL Framaform adhésion",
-        help_text="Ex: https://framaforms.org/adherer-au-stucs-...")
+    linkstack_url = models.URLField(blank=True, verbose_name="URL Linkstack")
+    framaform_url = models.URLField(blank=True, verbose_name="URL Framaform adhésion")
+    intro_text = StreamField(
+        [('contenu', blocks.RichTextBlock(features=RICHTEXT_FEATURES, label="Contenu")),
+         ('liste', blocks.ListBlock(blocks.CharBlock(label="Item"), label="Liste à puces"))],
+        blank=True, verbose_name="Présentation + revendications (page accueil)",
+        help_text="Affiché sur la page d'accueil du sous-site après l'accroche",
+        use_json_field=True,
+    )
+    rejoindre_text = StreamField(
+        [('contenu', blocks.RichTextBlock(features=RICHTEXT_FEATURES, label="Contenu")),
+         ('liste', blocks.ListBlock(blocks.CharBlock(label="Item"), label="Liste à puces"))],
+        blank=True, verbose_name="Page Nous rejoindre",
+        help_text="Texte de la page d'adhésion (pourquoi, comment ça marche…)",
+        use_json_field=True,
+    )
     agenda_text = StreamField(
         [('contenu', blocks.RichTextBlock(features=RICHTEXT_FEATURES, label="Contenu"))],
-        blank=True,
-        verbose_name="Agenda",
-        help_text="Événements, dates, calendrier — éditable librement",
+        blank=True, verbose_name="Agenda",
+        help_text="Événements, dates, calendrier",
         use_json_field=True,
     )
     logo = models.ForeignKey(
@@ -284,6 +296,8 @@ class SectionPage(Page):
         FieldPanel('agenda_url'),
         FieldPanel('linkstack_url'),
         FieldPanel('framaform_url'),
+        FieldPanel('intro_text'),
+        FieldPanel('rejoindre_text'),
         FieldPanel('agenda_text'),
         FieldPanel('logo'),
     ]

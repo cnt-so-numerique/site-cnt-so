@@ -147,12 +147,15 @@
 <!-- Hero -->
 <section class="s-hero">
   <div class="s-hero-tag">CNT-SO · Syndicat Sectoriel</div>
-  <h1 class="s-hero-title">Travailleur·ses<br>de la <span>Culture &amp; du Spectacle</span></h1>
+  <h1 class="s-hero-title">{{ site.title }}</h1>
+  {% if site.description %}
+  <p class="s-hero-desc">{{ site.description }}</p>
+  {% else %}
   <p class="s-hero-desc">
-    Le STUCS (Syndicat des Travailleur·ses Uni·es de la Culture et du Spectacle)
-    organise et défend les travailleur·ses du secteur culturel et du spectacle vivant.
-    Syndicat autogestionnaire CNT-SO, sans permanents rémunérés.
+    Syndicat des Travailleur·ses Uni·es de la Culture et du Spectacle — CNT-SO.
+    Organise et défend les travailleur·ses du secteur culturel et du spectacle vivant.
   </p>
+  {% endif %}
   <div class="s-hero-btns">
     <a href="{% url 'content:stucs_rejoindre' %}" class="btn-red">Nous rejoindre</a>
     <a href="{% url 'content:stucs_ressources' %}" class="btn-outline">Nos publications</a>
@@ -161,18 +164,12 @@
 
 <div class="s-page">
 
-  <!-- Revendications -->
+  {% if site.intro_text %}
+  <!-- Présentation + revendications depuis CMS -->
   <div class="s-revend">
-    <p class="s-revend-title">Nos revendications principales</p>
-    <ul class="s-revend-list">
-      <li>Salaires et droits pour tou·tes les travailleur·ses de la culture</li>
-      <li>Défense de l'intermittence et contre sa casse</li>
-      <li>Contre la précarité dans le secteur culturel</li>
-      <li>Égalité salariale et contre les violences sexistes</li>
-      <li>Pour une culture accessible à tou·tes, contre la marchandisation</li>
-      <li>Contre l'extrême-droite dans les institutions culturelles</li>
-    </ul>
+    <div class="stucs-intro-cms">{{ site.intro_text }}</div>
   </div>
+  {% endif %}
 
   {% if latest %}
   <!-- Carrousel dernières publications -->

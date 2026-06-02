@@ -59,6 +59,16 @@
   margin: 2rem 0 1.75rem;
 }
 
+.rj-info-cms { color: #ccc; font-size: .9rem; line-height: 1.75; margin-bottom: 1.5rem; }
+.rj-info-cms h2, .rj-info-cms h3 { font-family: var(--heading); color: var(--white); margin: 1.2rem 0 .6rem; }
+.rj-info-cms ul, .rj-info-cms ol { padding-left: 1.4rem; margin-bottom: .75rem; }
+.rj-info-cms li { margin-bottom: .3rem; }
+.rj-info-cms strong { color: var(--white); }
+.rj-info-cms p { margin-bottom: .75rem; }
+.stucs-intro-cms { color: #bbb; font-size: .9rem; line-height: 1.75; }
+.stucs-intro-cms h2, .stucs-intro-cms h3 { font-family: var(--heading); color: var(--white); margin: 1rem 0 .5rem; }
+.stucs-intro-cms ul, .stucs-intro-cms ol { padding-left: 1.4rem; }
+.stucs-intro-cms li { margin-bottom: .3rem; color: #bbb; }
 .success-box {
   background: rgba(40,100,40,.2);
   border: 1px solid rgba(80,160,80,.3);
@@ -83,9 +93,12 @@
 
     <!-- Colonne gauche : infos + contact -->
     <div>
+      {% if site.rejoindre_text %}
+        <div class="rj-info-cms">{{ site.rejoindre_text }}</div>
+      {% else %}
       <div class="rj-info-card">
         <h3>Pourquoi adhérer au STUCS ?</h3>
-        <p>Le STUCS est le syndicat CNT-SO pour les travailleur·ses de la culture et du spectacle : intermittent·es, technicien·nes, artistes, salarié·es permanent·es du secteur culturel.</p>
+        <p>Le STUCS est le syndicat CNT-SO pour les travailleur·ses de la culture et du spectacle.</p>
         <ul class="rj-list">
           <li>Défense individuelle en cas de litige avec l'employeur</li>
           <li>Rapport de force collectif dans le secteur culturel</li>
@@ -94,13 +107,12 @@
           <li>Réseau national CNT-SO</li>
         </ul>
       </div>
-
       <div class="rj-info-card">
         <h3>Comment ça marche ?</h3>
         <p>Remplis le formulaire d'adhésion ci-contre. Un·e militant·e te contactera pour finaliser.</p>
         <p>La cotisation est libre — nous suggérons environ <strong style="color:#ccc;">1 % de ton salaire net mensuel</strong>.</p>
-        <p>Ton adhésion te donne accès à l'ensemble des ressources et du réseau CNT-SO.</p>
       </div>
+      {% endif %}
 
       <!-- Formulaire contact -->
       <hr class="rj-contact-sep">
