@@ -1,3 +1,4 @@
+{% load menu_tags %}
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -270,21 +271,40 @@
 </header>
 
 <!-- Nav -->
+{% get_menu site 'main' as stucs_nav %}
 <nav class="s-nav">
-  <a href="{% url 'content:site_home' 'stucs' %}" {% block nav_accueil %}{% endblock %}>Accueil</a>
-  <a href="{% url 'content:stucs_rejoindre' %}" {% block nav_rejoindre %}{% endblock %}>Nous rejoindre</a>
-  <div class="s-dropdown">
-    <a href="{% url 'content:stucs_ressources' %}" {% block nav_ressources %}{% endblock %}>
-      Ressources
-      <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-left:.3rem"><path d="M6 9l6 6 6-6"/></svg>
-    </a>
-    <div class="s-dropdown-menu">
-      {% for cat in categories %}
-        <a href="{% url 'content:stucs_ressources' %}?cat={{ cat.slug }}">{{ cat.name }}</a>
-      {% endfor %}
-    </div>
-  </div>
-  <a href="{% url 'content:stucs_agenda' %}" {% block nav_agenda %}{% endblock %}>Agenda</a>
+  {% if stucs_nav %}
+    {% for item in stucs_nav %}
+      {% with children=item.children.all %}
+      {% if children %}
+        <div class="s-dropdown">
+          <a href="{{ item.get_url }}"
+             {% if request.path == item.get_url %}class="active"{% endif %}>
+            {{ item.title }}
+            <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-left:.3rem"><path d="M6 9l6 6 6-6"/></svg>
+          </a>
+          <div class="s-dropdown-menu">
+            {% for child in children %}
+              {% if child.is_active %}
+                <a href="{{ child.get_url }}">{{ child.title }}</a>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      {% else %}
+        <a href="{{ item.get_url }}"
+           {% if request.path == item.get_url %}class="active"{% endif %}>
+          {{ item.title }}
+        </a>
+      {% endif %}
+      {% endwith %}
+    {% endfor %}
+  {% else %}
+    <a href="{% url 'content:site_home' 'stucs' %}">Accueil</a>
+    <a href="{% url 'content:stucs_rejoindre' %}">Nous rejoindre</a>
+    <a href="{% url 'content:stucs_ressources' %}">Ressources</a>
+    <a href="{% url 'content:stucs_agenda' %}">Agenda</a>
+  {% endif %}
 </nav>
 
 <!-- Contenu -->
