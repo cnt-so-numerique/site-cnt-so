@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'wagtail',
     'modelcluster',
     'taggit',
+    'wagtailseo',
     # Django
     'django.contrib.admin',
     'django.contrib.auth',
@@ -180,6 +181,13 @@ NEWSLETTER_SEND_DELAY = 18  # secondes entre chaque envoi (200/h = 1 toutes les 
 
 WAGTAIL_SITE_NAME = 'CNT-SO'
 WAGTAILADMIN_BASE_URL = 'https://cnt-so.org'
+
+# Recherche Wagtail — PostgreSQL FTS en prod, base de données SQLite en dev
+WAGTAILSEARCH_BACKENDS = {
+    'default': {
+        'BACKEND': 'wagtail.search.backends.database',
+    }
+}
 
 # ── Headers de sécurité ────────────────────────────────────────────────────────
 # Empêche le navigateur de deviner le type MIME (MIME sniffing)

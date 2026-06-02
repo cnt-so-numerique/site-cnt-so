@@ -17,6 +17,7 @@ from wagtail.images.blocks import ImageChooserBlock
 from wagtail.models import Orderable, Page
 from wagtail.search import index
 from wagtail.snippets.models import register_snippet
+from wagtailseo.models import SeoMixin
 
 
 # ── Taxonomie ─────────────────────────────────────────────────────────────────
@@ -229,7 +230,7 @@ class HomePage(Page):
         return 'content/home.html'
 
 
-class SectionPage(Page):
+class SectionPage(SeoMixin, Page):
     """Représente un syndicat régional ou sectoriel."""
 
     SECTION_TYPE_CHOICES = [
@@ -364,7 +365,7 @@ class SectionPage(Page):
             SectionPage.objects.filter(pk=self.pk).update(legacy_site_slug=slug)
 
 
-class ArticlePage(Page):
+class ArticlePage(SeoMixin, Page):
     """Article de blog — remplace content.Article."""
 
     body = StreamField(
@@ -443,7 +444,7 @@ class ArticlePage(Page):
         ])
     ]
 
-    promote_panels = Page.promote_panels + [
+    promote_panels = SeoMixin.seo_panels + Page.promote_panels + [
         FieldPanel('section_slug'),
         FieldPanel('legacy_article_id'),
         FieldPanel('legacy_wp_id'),

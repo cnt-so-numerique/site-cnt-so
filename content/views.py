@@ -389,14 +389,17 @@ class SearchView(ListView):
     paginate_by = 10
 
     def get_queryset(self):
-        query = self.request.GET.get('q', '')
-        if query:
-            return (ArticlePage.objects.live()
-                    .filter(Q(title__icontains=query) | Q(excerpt__icontains=query) | Q(body__icontains=query))
-                    .select_related('featured_image')
-                    .prefetch_related('cms_categories')
-                    .order_by('-publication_date', '-first_published_at'))
-        return ArticlePage.objects.none()
+        from wagtail.search.backends import get_search_backend
+        query = self.request.GET.get('q', '').strip()
+        if not query:
+            return ArticlePage.objects.none()
+        backend = get_search_backend()
+        results = backend.search(
+            query,
+            ArticlePage.objects.live().select_related('featured_image').prefetch_related('cms_categories'),
+            order_by_relevance=True,
+        )
+        return results
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
