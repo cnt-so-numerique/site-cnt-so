@@ -7,217 +7,278 @@
   <meta name="description" content="{% block description %}Syndicat des Travailleur·ses de l'Université, des Chercheur·ses et du Supérieur — CNT-SO{% endblock %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Noto+Sans:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --primary: #c0392b;
-      --primary-dark: #922b21;
-      --black: #111;
-      --dark: #1a1a1a;
-      --mid: #2c2c2c;
-      --light: #f4f4f4;
+      --red: #c0392b;
+      --red-dark: #922b21;
+      --bg: #0e0e0e;
+      --bg2: #181818;
+      --bg3: #222;
+      --border: #2e2e2e;
+      --text: #e8e8e8;
       --muted: #888;
-      --border: #333;
       --white: #fff;
-      --font-heading: 'Amiri', serif;
-      --font-body: 'Noto Sans', sans-serif;
+      --heading: 'Amiri', serif;
+      --body: 'Noto Sans', sans-serif;
     }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: var(--font-body); background: var(--black); color: var(--light); min-height: 100vh; }
-    a { color: var(--primary); text-decoration: none; }
-    a:hover { color: var(--primary-dark); }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--body); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+    a { color: var(--red); text-decoration: none; transition: color .15s; }
+    a:hover { color: #e05545; }
     img { max-width: 100%; height: auto; display: block; }
+    main { flex: 1; }
 
-    /* ── Header ── */
-    .stucs-header {
-      background: var(--dark);
-      border-bottom: 3px solid var(--primary);
-      padding: .75rem 1.5rem;
+    /* ── Header ─────────────────────────── */
+    .s-header {
+      background: var(--bg2);
+      border-bottom: 2px solid var(--red);
+      padding: 0 2rem;
+      height: 60px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 50;
     }
-    .stucs-brand {
-      display: flex; align-items: center; gap: .75rem;
-      text-decoration: none; color: var(--white);
+    .s-brand {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      text-decoration: none;
     }
-    .stucs-brand-text { line-height: 1.2; }
-    .stucs-brand-title { font-family: var(--font-heading); font-size: 1.4rem; font-weight: 700; color: var(--white); }
-    .stucs-brand-sub { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
-    .stucs-back { font-size: .8rem; color: var(--muted); white-space: nowrap; }
-    .stucs-back:hover { color: var(--primary); }
+    .s-brand-logo {
+      font-family: var(--heading);
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--red);
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+    .s-brand-divider {
+      width: 1px;
+      height: 28px;
+      background: var(--border);
+    }
+    .s-brand-info { line-height: 1.2; }
+    .s-brand-name { font-size: .85rem; font-weight: 700; color: var(--white); }
+    .s-brand-sub { font-size: .65rem; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
+    .s-back { font-size: .78rem; color: var(--muted); display: flex; align-items: center; gap: .3rem; }
+    .s-back:hover { color: var(--text); }
 
-    /* ── Navigation ── */
-    .stucs-nav {
-      background: var(--mid);
+    /* ── Nav ─────────────────────────────── */
+    .s-nav {
+      background: var(--bg3);
       border-bottom: 1px solid var(--border);
       display: flex;
+      align-items: stretch;
       overflow-x: auto;
+      padding: 0 2rem;
+      -webkit-overflow-scrolling: touch;
     }
-    .stucs-nav a {
-      color: #ccc;
-      padding: .85rem 1.4rem;
-      font-size: .85rem;
+    .s-nav a, .s-nav .s-dropdown > a {
+      display: flex;
+      align-items: center;
+      padding: 0 1.1rem;
+      height: 44px;
+      font-size: .82rem;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: .5px;
+      letter-spacing: .4px;
+      color: var(--muted);
       white-space: nowrap;
-      border-bottom: 3px solid transparent;
-      transition: color .2s, border-color .2s;
+      border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
     }
-    .stucs-nav a:hover,
-    .stucs-nav a.active { color: var(--white); border-color: var(--primary); }
-    .stucs-nav .dropdown { position: relative; }
-    .stucs-nav .dropdown-menu {
+    .s-nav a:hover,
+    .s-nav a.active { color: var(--white); border-color: var(--red); }
+    .s-dropdown { position: relative; }
+    .s-dropdown-menu {
       display: none;
       position: absolute;
       top: 100%;
       left: 0;
-      background: var(--mid);
+      background: var(--bg2);
       border: 1px solid var(--border);
-      min-width: 200px;
-      z-index: 100;
+      border-top: 2px solid var(--red);
+      min-width: 210px;
+      z-index: 200;
+      box-shadow: 0 8px 20px rgba(0,0,0,.5);
     }
-    .stucs-nav .dropdown:hover .dropdown-menu { display: block; }
-    .stucs-nav .dropdown-menu a {
+    .s-dropdown:hover .s-dropdown-menu { display: block; }
+    .s-dropdown-menu a {
       display: block;
-      padding: .6rem 1rem;
+      padding: .65rem 1.1rem;
+      height: auto;
       border-bottom: 1px solid var(--border);
       text-transform: none;
       letter-spacing: 0;
+      font-size: .83rem;
+      color: #bbb;
     }
-    .stucs-nav .dropdown-menu a:last-child { border-bottom: none; }
+    .s-dropdown-menu a:last-child { border-bottom: none; }
+    .s-dropdown-menu a:hover { color: var(--white); background: rgba(192,57,43,.1); }
 
-    /* ── Layout ── */
-    .stucs-main { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+    /* ── Layout ─────────────────────────── */
+    .s-page { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem; }
 
-    /* ── Footer RS ── */
-    .stucs-footer {
-      background: var(--dark);
+    /* ── Footer ─────────────────────────── */
+    .s-footer {
+      background: var(--bg2);
       border-top: 1px solid var(--border);
-      padding: 2rem 1.5rem;
+      padding: 2.5rem 2rem;
       text-align: center;
-      margin-top: 4rem;
+      margin-top: auto;
     }
-    .stucs-footer-links {
+    .s-footer-rs {
       display: flex;
       justify-content: center;
       align-items: center;
-      gap: 1rem;
+      gap: .75rem;
       flex-wrap: wrap;
-      margin-bottom: 1rem;
+      margin-bottom: 1.5rem;
     }
-    .stucs-footer a { color: var(--muted); font-size: .85rem; }
-    .stucs-footer a:hover { color: var(--white); }
-    .linkstack-btn {
+    .s-rs-btn {
       display: inline-flex;
       align-items: center;
       gap: .5rem;
-      background: var(--primary);
+      background: var(--red);
       color: var(--white) !important;
-      padding: .6rem 1.2rem;
-      border-radius: 4px;
-      font-weight: 600;
-      font-size: .85rem;
+      padding: .65rem 1.4rem;
+      border-radius: 3px;
+      font-weight: 700;
+      font-size: .82rem;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      transition: background .15s;
     }
-    .linkstack-btn:hover { background: var(--primary-dark); color: var(--white) !important; }
-    .stucs-footer-copy { color: var(--muted); font-size: .75rem; margin-top: .75rem; }
+    .s-rs-btn:hover { background: var(--red-dark); color: var(--white) !important; }
+    .s-footer-copy { color: var(--muted); font-size: .75rem; line-height: 1.8; }
+    .s-footer-copy a { color: #aaa; }
+    .s-footer-copy a:hover { color: var(--white); }
 
-    /* ── Cards ── */
-    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.5rem; }
-    .card {
-      background: var(--mid);
+    /* ── Cards ──────────────────────────── */
+    .s-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 1.5rem; }
+    .s-card {
+      background: var(--bg2);
       border: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      transition: border-color .2s, transform .2s;
+      transition: border-color .2s, transform .15s;
+      overflow: hidden;
     }
-    .card:hover { border-color: var(--primary); transform: translateY(-2px); }
-    .card-img { height: 180px; overflow: hidden; background: #222; }
-    .card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .3s; }
-    .card:hover .card-img img { transform: scale(1.04); }
-    .card-body { padding: 1rem; flex: 1; display: flex; flex-direction: column; }
-    .card-cat { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--primary); margin-bottom: .4rem; }
-    .card-title { font-family: var(--font-heading); font-size: 1rem; color: var(--white); line-height: 1.3; margin-bottom: .5rem; flex: 1; }
-    .card-title a { color: inherit; }
-    .card-title a:hover { color: var(--primary); }
-    .card-date { font-size: .75rem; color: var(--muted); }
+    .s-card:hover { border-color: var(--red); transform: translateY(-3px); }
+    .s-card-img { height: 185px; overflow: hidden; background: var(--bg3); flex-shrink: 0; }
+    .s-card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .35s; }
+    .s-card:hover .s-card-img img { transform: scale(1.05); }
+    .s-card-body { padding: 1.1rem 1.2rem; flex: 1; display: flex; flex-direction: column; gap: .4rem; }
+    .s-card-cat { font-size: .67rem; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--red); }
+    .s-card-title { font-family: var(--heading); font-size: 1.05rem; color: var(--white); line-height: 1.35; flex: 1; }
+    .s-card-title a { color: inherit; }
+    .s-card-title a:hover { color: var(--red); }
+    .s-card-date { font-size: .73rem; color: var(--muted); margin-top: .2rem; }
 
-    /* ── Section title ── */
-    .section-title {
-      font-family: var(--font-heading);
-      font-size: 1.6rem;
+    /* ── Titres ─────────────────────────── */
+    .s-section-title {
+      font-family: var(--heading);
+      font-size: 1.55rem;
       color: var(--white);
-      border-left: 4px solid var(--primary);
-      padding-left: .75rem;
+      border-left: 3px solid var(--red);
+      padding-left: .8rem;
       margin-bottom: 1.5rem;
     }
 
-    /* ── Carousel ── */
-    .carousel-wrap { position: relative; overflow: hidden; }
-    .carousel-track { display: flex; gap: 1.5rem; transition: transform .4s ease; }
-    .carousel-track .card { min-width: 280px; flex-shrink: 0; }
-    .carousel-btn {
-      position: absolute; top: 50%; transform: translateY(-50%);
-      background: var(--primary); color: #fff; border: none; cursor: pointer;
-      width: 36px; height: 36px; border-radius: 50%; font-size: 1.1rem;
-      display: flex; align-items: center; justify-content: center; z-index: 10;
+    /* ── Boutons ────────────────────────── */
+    .btn-red {
+      display: inline-block;
+      background: var(--red);
+      color: var(--white) !important;
+      padding: .7rem 1.6rem;
+      font-weight: 700;
+      font-size: .85rem;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      transition: background .15s;
     }
-    .carousel-btn.prev { left: -18px; }
-    .carousel-btn.next { right: -18px; }
+    .btn-red:hover { background: var(--red-dark); }
+    .btn-outline {
+      display: inline-block;
+      border: 2px solid var(--red);
+      color: var(--red) !important;
+      padding: .65rem 1.5rem;
+      font-weight: 700;
+      font-size: .85rem;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      transition: background .15s, color .15s;
+    }
+    .btn-outline:hover { background: var(--red); color: var(--white) !important; }
 
-    /* ── Forms ── */
-    .form-group { margin-bottom: 1rem; }
-    .form-label { display: block; font-size: .85rem; color: #ccc; margin-bottom: .35rem; }
-    .form-input, .form-textarea {
-      width: 100%; padding: .65rem .9rem;
-      background: var(--mid); border: 1px solid var(--border);
-      color: var(--white); font-family: var(--font-body); font-size: .9rem;
-      border-radius: 3px; outline: none;
+    /* ── Forms ──────────────────────────── */
+    .s-field { margin-bottom: 1.1rem; }
+    .s-label { display: block; font-size: .82rem; color: #bbb; margin-bottom: .35rem; font-weight: 600; }
+    .s-input, .s-textarea {
+      width: 100%;
+      padding: .65rem 1rem;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--white);
+      font-family: var(--body);
+      font-size: .9rem;
+      border-radius: 3px;
+      outline: none;
+      transition: border-color .15s;
     }
-    .form-input:focus, .form-textarea:focus { border-color: var(--primary); }
-    .form-textarea { min-height: 120px; resize: vertical; }
-    .btn-primary {
-      background: var(--primary); color: #fff;
-      border: none; padding: .7rem 1.5rem;
-      font-size: .9rem; font-weight: 600; cursor: pointer;
-      border-radius: 3px; transition: background .2s;
-    }
-    .btn-primary:hover { background: var(--primary-dark); }
+    .s-input:focus, .s-textarea:focus { border-color: var(--red); }
+    .s-textarea { min-height: 110px; resize: vertical; }
 
-    @media (max-width: 640px) {
-      .stucs-header { padding: .6rem 1rem; }
-      .stucs-brand-title { font-size: 1.1rem; }
-      .stucs-main { padding: 1.5rem 1rem; }
-      .card-grid { grid-template-columns: 1fr; }
+    /* ── Responsive ─────────────────────── */
+    @media (max-width: 768px) {
+      .s-header { padding: 0 1rem; }
+      .s-nav { padding: 0 .5rem; }
+      .s-page { padding: 1.5rem 1rem; }
+      .s-grid { grid-template-columns: 1fr; }
+      .s-brand-divider, .s-brand-sub { display: none; }
     }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
 <body>
 
-<header class="stucs-header">
-  <a href="{% url 'content:site_home' 'stucs' %}" class="stucs-brand">
+<!-- Header -->
+<header class="s-header">
+  <a href="{% url 'content:site_home' 'stucs' %}" class="s-brand">
     {% if site.logo %}
-      <img src="{{ site.logo.file.url }}" alt="STUCS" style="height:48px;width:auto;">
+      <img src="{{ site.logo.file.url }}" alt="STUCS" style="height:38px;width:auto;">
     {% else %}
-      <div style="font-family:var(--font-heading);font-size:2rem;font-weight:700;color:var(--primary);">STUCS</div>
+      <span class="s-brand-logo">STUCS</span>
     {% endif %}
-    <div class="stucs-brand-text">
-      <div class="stucs-brand-title">STUCS</div>
-      <div class="stucs-brand-sub">CNT-SO — Enseignement Supérieur &amp; Recherche</div>
+    <div class="s-brand-divider"></div>
+    <div class="s-brand-info">
+      <div class="s-brand-name">Syndicat CNT-SO</div>
+      <div class="s-brand-sub">Enseignement Supérieur &amp; Recherche</div>
     </div>
   </a>
-  <a href="/" class="stucs-back">← Site CNT-SO</a>
+  <a href="/" class="s-back">
+    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M5 12l7-7M5 12l7 7"/></svg>
+    Site CNT-SO
+  </a>
 </header>
 
-<nav class="stucs-nav">
+<!-- Nav -->
+<nav class="s-nav">
   <a href="{% url 'content:site_home' 'stucs' %}" {% block nav_accueil %}{% endblock %}>Accueil</a>
   <a href="{% url 'content:stucs_rejoindre' %}" {% block nav_rejoindre %}{% endblock %}>Nous rejoindre</a>
-  <div class="dropdown">
-    <a href="{% url 'content:stucs_ressources' %}" {% block nav_ressources %}{% endblock %}>Ressources ▾</a>
-    <div class="dropdown-menu">
+  <div class="s-dropdown">
+    <a href="{% url 'content:stucs_ressources' %}" {% block nav_ressources %}{% endblock %}>
+      Ressources
+      <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-left:.3rem"><path d="M6 9l6 6 6-6"/></svg>
+    </a>
+    <div class="s-dropdown-menu">
       {% for cat in categories %}
         <a href="{% url 'content:stucs_ressources' %}?cat={{ cat.slug }}">{{ cat.name }}</a>
       {% endfor %}
@@ -226,22 +287,24 @@
   <a href="{% url 'content:stucs_agenda' %}" {% block nav_agenda %}{% endblock %}>Agenda</a>
 </nav>
 
-<main class="stucs-main">
+<!-- Contenu -->
+<main>
   {% block content %}{% endblock %}
 </main>
 
-<footer class="stucs-footer">
-  <div class="stucs-footer-links">
+<!-- Footer -->
+<footer class="s-footer">
+  <div class="s-footer-rs">
     {% if site.linkstack_url %}
-      <a href="{{ site.linkstack_url }}" target="_blank" rel="noopener" class="linkstack-btn">
-        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M17.293 7.293a1 1 0 0 1 1.414 1.414l-8 8a1 1 0 0 1-1.414-1.414l8-8zM5 12a1 1 0 0 1 1-1h4a1 1 0 0 1 0 2H6a1 1 0 0 1-1-1zm8 6a1 1 0 0 1 1-1h4a1 1 0 0 1 0 2h-4a1 1 0 0 1-1-1z"/></svg>
-        Tous nos réseaux
-      </a>
+    <a href="{{ site.linkstack_url }}" target="_blank" rel="noopener" class="s-rs-btn">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      Tous nos réseaux sociaux
+    </a>
     {% endif %}
   </div>
-  <div class="stucs-footer-copy">
-    STUCS — Syndicat des Travailleur·ses de l'Université, des Chercheur·ses et du Supérieur<br>
-    <a href="/">CNT-SO — Solidarité Ouvrière</a>
+  <div class="s-footer-copy">
+    <strong style="color:#ccc;">STUCS</strong> — Syndicat des Travailleur·ses de l'Université, des Chercheur·ses et du Supérieur<br>
+    <a href="/">CNT-SO</a> · Solidarité Ouvrière
   </div>
 </footer>
 
