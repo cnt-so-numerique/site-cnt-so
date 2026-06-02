@@ -104,7 +104,8 @@ class Command(BaseCommand):
 
         with transaction.atomic():
             for post in posts:
-                slug = post['slug']
+                from urllib.parse import unquote
+                slug = slugify(unquote(post['slug']))
                 title = post['title']['rendered']
 
                 # Déjà importé ?
