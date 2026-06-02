@@ -1,8 +1,6 @@
-{% load wagtaildocs_tags %}
 <p class="article-file">
   {% if value.document %}
-    {% doc_url value.document as doc_url %}
-    <a href="{{ doc_url }}" download class="btn-download">
+    <a href="{{ value.document.url }}" download class="btn-download">
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:.4rem">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
       </svg>
