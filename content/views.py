@@ -157,14 +157,16 @@ class ArticleDetailView(DetailView):
         context['is_gallery'] = self.object.cms_categories.filter(slug='banque-dimage').exists()
         context['related_articles'] = (ArticlePage.objects.live()
             .filter(section_slug=section, cms_categories__in=self.object.cms_categories.all())
-            .exclude(pk=self.object.pk).distinct()[:5])
+            .exclude(pk=self.object.pk).distinct()
+            .select_related('featured_image').prefetch_related('cms_categories')[:5])
         first_cat = self.object.cms_categories.first()
         context['first_category'] = first_cat
         if first_cat:
             context['category_latest'] = (ArticlePage.objects.live()
                 .filter(section_slug=section, cms_categories=first_cat)
                 .exclude(pk=self.object.pk)
-                .order_by('-publication_date', '-first_published_at')[:5])
+                .order_by('-publication_date', '-first_published_at')
+                .select_related('featured_image')[:5])
         return context
 
 
@@ -450,10 +452,11 @@ def _send_contact_email(site, message_obj):
             lines.append(f'{k} : {v}')
     lines += ['', message_obj.message]
 
+    safe_name = message_obj.name.replace('\n', ' ').replace('\r', ' ')
     email = EmailMultiAlternatives(
         subject=subject,
         body='\n'.join(lines),
-        from_email=f'{message_obj.name} via {site_name} <{settings.DEFAULT_FROM_EMAIL}>',
+        from_email=f'{safe_name} via {site_name} <{settings.DEFAULT_FROM_EMAIL}>',
         to=[recipient],
         reply_to=[message_obj.email],
     )
@@ -634,7 +637,11 @@ class NewsletterSubscribeView(View):
         email = request.POST.get('email', '').strip().lower()
         name = request.POST.get('name', '').strip()
 
-        if not email or '@' not in email:
+        from django.core.validators import validate_email
+        from django.core.exceptions import ValidationError
+        try:
+            validate_email(email)
+        except ValidationError:
             messages.error(request, 'Adresse e-mail invalide.')
             return redirect(request.META.get('HTTP_REFERER', '/'))
 

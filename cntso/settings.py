@@ -28,13 +28,17 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'localhost', '127.0.0.1',
     'cnt-so.org', 'www.cnt-so.org',
-    '.ngrok-free.app', '.ngrok-free.dev', '.ngrok.io',
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     'https://cnt-so.org', 'https://www.cnt-so.org',
-    'https://*.ngrok-free.app', 'https://*.ngrok-free.dev', 'https://*.ngrok.io',
 ]
+
+if DEBUG:
+    ALLOWED_HOSTS += ['.ngrok-free.app', '.ngrok-free.dev', '.ngrok.io']
+    CSRF_TRUSTED_ORIGINS += [
+        'https://*.ngrok-free.app', 'https://*.ngrok-free.dev', 'https://*.ngrok.io',
+    ]
 
 
 # Application definition
