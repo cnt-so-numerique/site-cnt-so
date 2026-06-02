@@ -2,29 +2,50 @@
 {% block nav_agenda %}class="active"{% endblock %}
 {% block title %}Agenda — STUCS CNT-SO{% endblock %}
 
+{% block extra_head %}
+<style>
+.agenda-body { color: #ccc; line-height: 1.8; font-size: .95rem; }
+.agenda-body h2 { font-family: var(--heading); font-size: 1.4rem; color: var(--white); margin: 1.5rem 0 .75rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+.agenda-body h3 { font-family: var(--heading); font-size: 1.15rem; color: var(--white); margin: 1.2rem 0 .5rem; }
+.agenda-body p { margin-bottom: .75rem; }
+.agenda-body ul, .agenda-body ol { padding-left: 1.5rem; margin-bottom: .75rem; }
+.agenda-body li { margin-bottom: .3rem; }
+.agenda-body a { color: var(--red); }
+.agenda-body strong { color: var(--white); }
+.agenda-empty {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--muted);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+}
+.agenda-edit-hint {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--red);
+  padding: 1rem 1.25rem;
+  margin-top: 2rem;
+  font-size: .83rem;
+  color: var(--muted);
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<h1 class="section-title">Agenda</h1>
+<div class="s-page">
+  <h1 class="s-section-title">Agenda</h1>
 
-{% if agenda_page %}
-  <div style="color:#ccc;line-height:1.8;font-size:.95rem;">
-    {{ agenda_page.body }}
-  </div>
-{% else %}
-  <div style="background:var(--mid);border:1px solid var(--border);padding:2rem;text-align:center;color:var(--muted);">
-    <p style="font-size:1.1rem;margin-bottom:.75rem;">Aucun événement programmé pour l'instant.</p>
-    <p style="font-size:.85rem;">
-      Suis nos <a href="{{ site.linkstack_url }}" target="_blank" rel="noopener">réseaux sociaux</a>
-      pour être informé·e des prochaines dates.
-    </p>
-  </div>
-{% endif %}
+  {% if agenda_text %}
+    <div class="agenda-body">{{ agenda_text }}</div>
+  {% else %}
+    <div class="agenda-empty">
+      <p style="font-size:1rem;margin-bottom:.5rem;">Aucun événement programmé pour l'instant.</p>
+      <p style="font-size:.85rem;">Suis nos <a href="{{ site.linkstack_url }}" target="_blank" rel="noopener">réseaux sociaux</a> pour les prochaines dates.</p>
+    </div>
+  {% endif %}
 
-<div style="margin-top:2.5rem;padding:1.5rem;background:var(--mid);border:1px solid var(--border);border-left:4px solid var(--primary);">
-  <h3 style="font-family:var(--font-heading);color:var(--white);margin-bottom:.75rem;">Éditer l'agenda</h3>
-  <p style="color:#ccc;font-size:.9rem;">
-    Pour ajouter ou modifier des événements, connecte-toi au
-    <a href="/cms/">CMS</a> et crée ou modifie la page <strong>stucs-agenda</strong>
-    dans la section STUCS.
-  </p>
+  <div class="agenda-edit-hint">
+    Pour modifier l'agenda : <a href="/cms/snippets/cms/sectionpage/">CMS → Sections</a> → STUCS → champ <strong>Agenda</strong>.
+  </div>
 </div>
 {% endblock %}

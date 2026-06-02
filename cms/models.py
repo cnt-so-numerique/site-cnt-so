@@ -246,6 +246,13 @@ class SectionPage(Page):
         help_text="Ex: https://linkstack.fr/@stucs_cntso")
     framaform_url = models.URLField(blank=True, verbose_name="URL Framaform adhésion",
         help_text="Ex: https://framaforms.org/adherer-au-stucs-...")
+    agenda_text = StreamField(
+        [('contenu', blocks.RichTextBlock(features=RICHTEXT_FEATURES, label="Contenu"))],
+        blank=True,
+        verbose_name="Agenda",
+        help_text="Événements, dates, calendrier — éditable librement",
+        use_json_field=True,
+    )
     logo = models.ForeignKey(
         'wagtailimages.Image',
         null=True, blank=True,
@@ -277,6 +284,7 @@ class SectionPage(Page):
         FieldPanel('agenda_url'),
         FieldPanel('linkstack_url'),
         FieldPanel('framaform_url'),
+        FieldPanel('agenda_text'),
         FieldPanel('logo'),
     ]
     promote_panels = Page.promote_panels + [

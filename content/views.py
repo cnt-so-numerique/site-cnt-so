@@ -809,7 +809,5 @@ class StucsRessourcesView(View):
 class StucsAgendaView(View):
     def get(self, request):
         ctx = _stucs_base_context(request)
-        from cms.models import ContentPage
-        agenda_page = ContentPage.objects.filter(slug='stucs-agenda').live().first()
-        ctx['agenda_page'] = agenda_page
+        ctx['agenda_text'] = ctx['site'].agenda_text
         return render(request, 'content/stucs/agenda.html', ctx)
