@@ -62,6 +62,8 @@ def migrate_site_ids_to_section_page(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    # DDL + DML dans la même migration : incompatible avec les transactions PostgreSQL
+    atomic = False
 
     dependencies = [
         ('cms', '0002_sectionpage_contact_email_wp_blog_id_path'),
