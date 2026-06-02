@@ -295,6 +295,7 @@ class Command(BaseCommand):
         if media_id in self.img_cache:
             return self.img_cache[media_id]
 
+        # 1. Essayer via _embedded
         embedded = post.get('_embedded', {}).get('wp:featuredmedia', [])
         if embedded:
             entry = embedded[0]
@@ -304,6 +305,24 @@ class Command(BaseCommand):
                 img = self._download_file(img_url, is_image=True, title=title)
                 self.img_cache[media_id] = img
                 return img
+
+        # 2. Fallback : fetch direct /media/{id}
+        try:
+            r = self.session.get(
+                f'{self.api}/media/{media_id}',
+                params={'_fields': 'source_url,title'},
+                timeout=15,
+            )
+            if r.status_code == 200:
+                data = r.json()
+                img_url = data.get('source_url', '')
+                if img_url:
+                    title = data.get('title', {}).get('rendered', '') or Path(img_url).stem
+                    img = self._download_file(img_url, is_image=True, title=title)
+                    self.img_cache[media_id] = img
+                    return img
+        except Exception:
+            pass
 
         self.img_cache[media_id] = None
         return None
