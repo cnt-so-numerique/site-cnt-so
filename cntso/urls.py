@@ -7,6 +7,7 @@ from django.views.generic import RedirectView, TemplateView
 from content.sitemaps import ArticleSitemap, PageSitemap, CategorySitemap, SiteSitemap
 from wagtail.admin import urls as wagtailadmin_urls
 from wagtail import urls as wagtail_urls
+from wagtail.documents import urls as wagtaildocs_urls
 
 sitemaps = {
     'articles': ArticleSitemap,
@@ -17,6 +18,7 @@ sitemaps = {
 
 urlpatterns = [
     path('cms/', include(wagtailadmin_urls)),
+    path('documents/', include(wagtaildocs_urls)),
     path('redac/', RedirectView.as_view(url='/cms/', permanent=True)),
     path('admin/', admin.site.urls),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='sitemap'),
