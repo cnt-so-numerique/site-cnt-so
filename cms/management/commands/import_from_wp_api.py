@@ -75,7 +75,7 @@ class Command(BaseCommand):
                 continue
             obj, is_new = CmsCategory.objects.get_or_create(
                 slug=c['slug'],
-                site=self.section_page,
+                section_slug=self.section,
                 defaults={'name': c['name']},
             )
             cat_map[c['id']] = obj
