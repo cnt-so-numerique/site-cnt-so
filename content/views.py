@@ -808,6 +808,15 @@ class StucsRessourcesView(View):
 
 class StucsAgendaView(View):
     def get(self, request):
+        from cms.models import Event
+        from django.utils import timezone
         ctx = _stucs_base_context(request)
         ctx['agenda_text'] = ctx['site'].agenda_text
+        today = timezone.now().date()
+        ctx['upcoming_events'] = (Event.objects
+            .filter(section=ctx['site'], date__gte=today)
+            .order_by('date', 'time'))
+        ctx['past_events'] = (Event.objects
+            .filter(section=ctx['site'], date__lt=today)
+            .order_by('-date', '-time')[:10])
         return render(request, 'content/stucs/agenda.html', ctx)

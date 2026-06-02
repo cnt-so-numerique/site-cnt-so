@@ -579,3 +579,53 @@ class ContentPage(Page):
 
     def get_absolute_url(self):
         return self.url or '/'
+
+
+# ── Événements ────────────────────────────────────────────────────────────────
+
+from wagtail.snippets.models import register_snippet as _register_snippet
+from django.utils import timezone as _tz
+
+
+@_register_snippet
+class Event(models.Model):
+    """Événement affiché sur la page agenda d'un sous-site."""
+
+    section = models.ForeignKey(
+        SectionPage,
+        on_delete=models.CASCADE,
+        related_name='events',
+        verbose_name="Section / syndicat",
+    )
+    title = models.CharField(max_length=255, verbose_name="Titre")
+    date = models.DateField(verbose_name="Date de début")
+    end_date = models.DateField(null=True, blank=True, verbose_name="Date de fin (optionnel)")
+    time = models.TimeField(null=True, blank=True, verbose_name="Heure (optionnel)")
+    location = models.CharField(max_length=255, blank=True, verbose_name="Lieu")
+    description = models.TextField(blank=True, verbose_name="Description")
+    url = models.URLField(blank=True, verbose_name="Lien (optionnel)", help_text="Lien vers plus d'infos")
+
+    panels = [
+        FieldPanel('section'),
+        FieldPanel('title'),
+        MultiFieldPanel([
+            FieldRowPanel([FieldPanel('date'), FieldPanel('end_date')]),
+            FieldPanel('time'),
+        ], heading="Date et heure"),
+        FieldPanel('location'),
+        FieldPanel('description'),
+        FieldPanel('url'),
+    ]
+
+    class Meta:
+        verbose_name = "Événement"
+        verbose_name_plural = "Événements"
+        ordering = ['date', 'time']
+
+    def __str__(self):
+        return f"{self.date:%d/%m/%Y} — {self.title}"
+
+    @property
+    def is_past(self):
+        from django.utils.timezone import now
+        return self.date < now().date()
