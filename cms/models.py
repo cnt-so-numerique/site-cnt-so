@@ -390,7 +390,13 @@ class ArticlePage(SeoMixin, Page):
     )
     is_featured = models.BooleanField(
         default=False,
-        verbose_name="Article mis en avant (sticky)",
+        verbose_name="Mis en avant sur l'accueil du syndicat",
+        help_text="Place cet article en position vedette sur la page d'accueil de son syndicat",
+    )
+    in_carousel = models.BooleanField(
+        default=False,
+        verbose_name="Dans le carrousel de l'accueil",
+        help_text="Ajoute cet article au carrousel mis en avant (syndicats sectoriels uniquement, 5 max)",
     )
     author_name = models.CharField(max_length=200, blank=True, verbose_name="Auteur")
     author_user = models.ForeignKey(
@@ -465,7 +471,7 @@ class ArticlePage(SeoMixin, Page):
         verbose_name_plural = "Articles"
 
     def save(self, *args, **kwargs):
-        """Auto-rempli section_slug depuis la page parente."""
+        """Auto-rempli section_slug depuis la page parente. Sync in_carousel ↔ CarouselArticle."""
         if self.pk:
             parent = self.get_parent()
             if parent:
@@ -475,6 +481,25 @@ class ArticlePage(SeoMixin, Page):
                 else:
                     self.section_slug = 'principal'
         super().save(*args, **kwargs)
+        # Sync in_carousel with CarouselArticle (only for sectoral sections)
+        if self.pk and self.section_slug:
+            from django.db.models import Q
+            section = SectionPage.objects.filter(
+                Q(slug=self.section_slug) | Q(legacy_site_slug=self.section_slug),
+                section_type='sectoral',
+            ).first()
+            if section:
+                already_in = CarouselArticle.objects.filter(page=section, article=self).exists()
+                if self.in_carousel and not already_in:
+                    count = CarouselArticle.objects.filter(page=section).count()
+                    if count < 5:
+                        CarouselArticle.objects.create(
+                            page=section,
+                            article=self,
+                            sort_order=count,
+                        )
+                elif not self.in_carousel and already_in:
+                    CarouselArticle.objects.filter(page=section, article=self).delete()
 
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)

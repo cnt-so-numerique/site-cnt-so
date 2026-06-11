@@ -1406,7 +1406,7 @@
                 Espace presse
             </a>
             {% if user.is_authenticated %}
-            <a href="{% if article %}/cms/snippets/content/article/{{ article.pk }}/edit/{% else %}/cms/{% endif %}" class="top-bar-presse"
+            <a href="{% if article %}/cms/snippets/cms/articlepage/{{ article.pk }}/edit/{% else %}/cms/{% endif %}" class="top-bar-presse"
                style="border:1px solid rgba(230,57,70,.4); color:#e63946; padding:.2rem .6rem; border-radius:3px;">
                 <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>

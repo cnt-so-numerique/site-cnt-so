@@ -41,9 +41,10 @@ def _is_chef(user):
 def _make_scoped_article_page_view(base_class):
     """
     - Filtre cms_categories par section courante.
-    - Pré-remplit section_slug pour les chefs.
-    - Verrouille section_slug (lecture seule) pour les rédacteurs.
+    - Pré-remplit section_slug pour les chefs (et le verrouille).
+    - Verrouille section_slug (hidden) pour les rédacteurs.
     - Enforce section_slug côté serveur au save.
+    - Pré-coche in_carousel selon l'état réel du carrousel.
     """
     class ScopedView(base_class):
         def get_form(self, form_class=None):
@@ -53,19 +54,48 @@ def _make_scoped_article_page_view(base_class):
             chef = _is_chef(self.request.user)
 
             if current:
+                slug = current.legacy_site_slug or current.slug
                 if 'cms_categories' in form.fields:
                     form.fields['cms_categories'].queryset = CmsCategory.objects.filter(
-                        section_slug=current.slug
+                        section_slug=slug
                     )
                 if 'section_slug' in form.fields:
                     if chef:
-                        if not form.initial.get('section_slug'):
-                            form.fields['section_slug'].initial = current.slug
+                        # Toujours pré-remplir avec le syndicat courant
+                        form.fields['section_slug'].initial = slug
+                        form.fields['section_slug'].help_text = (
+                            f"Syndicat courant : <strong>{current.title}</strong>. "
+                            "Changez via le sélecteur de syndicat en haut de page."
+                        )
                     else:
                         # Rédacteur : champ forcé, non modifiable
-                        form.fields['section_slug'].initial = current.slug
+                        form.fields['section_slug'].initial = slug
                         form.fields['section_slug'].widget = forms.HiddenInput()
                         form.fields['section_slug'].required = False
+
+                # Pré-cocher in_carousel selon l'état réel du carrousel
+                if 'in_carousel' in form.fields and current.section_type == 'sectoral':
+                    instance = getattr(self, 'object', None)
+                    if instance and instance.pk:
+                        from .models import CarouselArticle
+                        in_carousel = CarouselArticle.objects.filter(
+                            page=current, article=instance
+                        ).exists()
+                        form.fields['in_carousel'].initial = in_carousel
+                        form.instance.in_carousel = in_carousel
+                else:
+                    # Masquer le champ carrousel pour les syndicats non sectoriels
+                    if 'in_carousel' in form.fields and current.section_type != 'sectoral':
+                        form.fields['in_carousel'].widget = forms.HiddenInput()
+            else:
+                # Aucun syndicat sélectionné : masquer in_carousel, avertir sur section_slug
+                if 'in_carousel' in form.fields:
+                    form.fields['in_carousel'].widget = forms.HiddenInput()
+                if chef and 'section_slug' in form.fields:
+                    form.fields['section_slug'].help_text = (
+                        "⚠️ Aucun syndicat sélectionné. "
+                        "Utilisez le sélecteur de syndicat en haut de page avant de créer un article."
+                    )
             return form
 
         def form_valid(self, form):
@@ -74,7 +104,7 @@ def _make_scoped_article_page_view(base_class):
                 from .site_context import get_current_site
                 current = get_current_site(self.request)
                 if current:
-                    form.instance.section_slug = current.slug
+                    form.instance.section_slug = current.legacy_site_slug or current.slug
             return super().form_valid(form)
 
     return ScopedView
@@ -90,6 +120,7 @@ _ARTICLE_PANELS = [
             MultiFieldPanel([
                 FieldPanel('publication_date'),
                 FieldPanel('is_featured'),
+                FieldPanel('in_carousel'),
                 FieldPanel('author_name'),
                 FieldPanel('author_user'),
             ], heading="Publication"),
