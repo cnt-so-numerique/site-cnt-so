@@ -73,22 +73,25 @@ def _make_scoped_article_page_view(base_class):
                         form.fields['section_slug'].widget = forms.HiddenInput()
                         form.fields['section_slug'].required = False
 
-                # Pré-cocher in_carousel selon l'état réel du carrousel
-                if 'in_carousel' in form.fields and current.section_type == 'sectoral':
-                    instance = getattr(self, 'object', None)
-                    if instance and instance.pk:
-                        from .models import CarouselArticle
-                        in_carousel = CarouselArticle.objects.filter(
-                            page=current, article=instance
-                        ).exists()
-                        form.fields['in_carousel'].initial = in_carousel
-                        form.instance.in_carousel = in_carousel
+                if current.section_type == 'sectoral':
+                    # Sectoriel : carrousel uniquement, pas de "mis en avant" séparé
+                    if 'is_featured' in form.fields:
+                        form.fields['is_featured'].widget = forms.HiddenInput()
+                    if 'in_carousel' in form.fields:
+                        instance = getattr(self, 'object', None)
+                        if instance and instance.pk:
+                            from .models import CarouselArticle
+                            in_carousel = CarouselArticle.objects.filter(
+                                page=current, article=instance
+                            ).exists()
+                            form.fields['in_carousel'].initial = in_carousel
+                            form.instance.in_carousel = in_carousel
                 else:
-                    # Masquer le champ carrousel pour les syndicats non sectoriels
-                    if 'in_carousel' in form.fields and current.section_type != 'sectoral':
+                    # Principal / régional : mis en avant uniquement, pas de carrousel
+                    if 'in_carousel' in form.fields:
                         form.fields['in_carousel'].widget = forms.HiddenInput()
             else:
-                # Aucun syndicat sélectionné : masquer in_carousel, avertir sur section_slug
+                # Aucun syndicat sélectionné : masquer les deux
                 if 'in_carousel' in form.fields:
                     form.fields['in_carousel'].widget = forms.HiddenInput()
                 if chef and 'section_slug' in form.fields:
