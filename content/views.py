@@ -95,18 +95,18 @@ class SiteAgendaView(TemplateView):
 class SiteHomeView(ListView):
     """Page d'accueil d'un sous-site"""
     model = ArticlePage
-    template_name = 'content/site_home.html'
     context_object_name = 'articles'
     paginate_by = 10
+
+    def get_template_names(self):
+        if getattr(self, 'current_site', None) and self.current_site.section_type == 'sectoral':
+            return ['content/sectoral_site_home.html']
+        return ['content/site_home.html']
 
     def get(self, request, *args, **kwargs):
         self.current_site = get_object_or_404(SectionPage, slug=self.kwargs['site_slug'])
         if self.current_site.external_url:
             return redirect(self.current_site.external_url)
-        # Template dédié par sous-site
-        if self.current_site.slug == 'stucs':
-            return render(request, 'content/stucs/home.html',
-                          self._stucs_context(request))
         self.home_page = Page.objects.filter(
             site=self.current_site, slug='home', status='publish'
         ).first()
@@ -116,24 +116,6 @@ class SiteHomeView(ListView):
                 'page': self.home_page,
             })
         return super().get(request, *args, **kwargs)
-
-    def _stucs_context(self, request):
-        site = self.current_site
-        cats = CmsCategory.objects.filter(section_slug='stucs')
-        publications = []
-        for cat in cats:
-            arts = (ArticlePage.objects.live()
-                    .filter(section_slug='stucs', cms_categories=cat)
-                    .select_related('featured_image')
-                    .order_by('-publication_date', '-first_published_at')[:3])
-            if arts:
-                publications.append({'category': cat, 'articles': list(arts)})
-        latest = (ArticlePage.objects.live()
-                  .filter(section_slug='stucs')
-                  .select_related('featured_image')
-                  .prefetch_related('cms_categories')
-                  .order_by('-publication_date', '-first_published_at')[:12])
-        return {'site': site, 'publications': publications, 'latest': latest, 'categories': cats}
 
     def get_queryset(self):
         if not hasattr(self, 'current_site'):
@@ -148,6 +130,20 @@ class SiteHomeView(ListView):
         context['site'] = self.current_site
         context['categories'] = Category.objects.filter(site=self.current_site).select_related('site')
         context['pages'] = Page.objects.filter(site=self.current_site, status='publish')
+        if self.current_site.section_type == 'sectoral':
+            context['carousel_articles'] = [
+                ci.article for ci in
+                self.current_site.carousel_items.select_related('article').all()
+            ]
+            from cms.models import ContentPage
+            rejoindre_page = (
+                ContentPage.objects.live().child_of(self.current_site)
+                .filter(slug__icontains='rejoindre').first()
+            )
+            context['rejoindre_url'] = (
+                self.current_site.framaform_url
+                or (rejoindre_page.url if rejoindre_page else '#')
+            )
         return context
 
 
@@ -796,14 +792,12 @@ class StucsRessourcesView(View):
         ctx = _stucs_base_context(request)
         slug = request.GET.get('cat', '')
         active_cat = None
-        articles = ArticlePage.objects.none()
         if slug:
             active_cat = CmsCategory.objects.filter(section_slug='stucs', slug=slug).first()
-            if active_cat:
-                articles = (ArticlePage.objects.live()
-                            .filter(section_slug='stucs', cms_categories=active_cat)
-                            .select_related('featured_image')
-                            .order_by('-publication_date', '-first_published_at'))
+        qs = ArticlePage.objects.live().filter(section_slug='stucs')
+        if active_cat:
+            qs = qs.filter(cms_categories=active_cat)
+        articles = qs.select_related('featured_image').order_by('-publication_date', '-first_published_at')
         ctx['active_cat'] = active_cat
         ctx['articles'] = articles
         return render(request, 'content/stucs/ressources.html', ctx)

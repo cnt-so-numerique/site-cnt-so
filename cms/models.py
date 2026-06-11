@@ -8,7 +8,8 @@ from taggit.models import TaggedItemBase
 
 from wagtail import blocks
 from wagtail.admin.panels import (
-    FieldPanel, FieldRowPanel, MultiFieldPanel, ObjectList, TabbedInterface,
+    FieldPanel, FieldRowPanel, InlinePanel, MultiFieldPanel, ObjectList,
+    PageChooserPanel, TabbedInterface,
 )
 from wagtail.documents.blocks import DocumentChooserBlock
 from wagtail.embeds.blocks import EmbedBlock
@@ -182,7 +183,13 @@ class HomePage(Page):
         FieldPanel('intro_text'),
     ]
 
-    subpage_types = ['cms.SectionPage', 'cms.ArticlePage', 'cms.ContentPage']
+    subpage_types = [
+        'cms.SectionPage',
+        'cms.RegionalSectionPage',
+        'cms.SectoralSectionPage',
+        'cms.ArticlePage',
+        'cms.ContentPage',
+    ]
 
     class Meta:
         verbose_name = "Page d'accueil"
@@ -519,6 +526,20 @@ class ArticlePage(SeoMixin, Page):
     def tags(self):
         return self.cms_tags
 
+    @property
+    def any_image_url(self):
+        """Wagtail featured_image d'abord, puis URL de l'image legacy (content.Media) en fallback."""
+        if self.featured_image_id:
+            return self.featured_image.file.url
+        if self.legacy_article_id:
+            from content.models import Article as LegacyArticle
+            leg = LegacyArticle.objects.select_related('featured_image').filter(
+                pk=self.legacy_article_id
+            ).first()
+            if leg and leg.featured_image:
+                return leg.featured_image.url
+        return None
+
 
 class ContentPage(Page):
     """Page statique — remplace content.Page."""
@@ -580,6 +601,83 @@ class ContentPage(Page):
 
     def get_absolute_url(self):
         return self.url or '/'
+
+
+# ── Sous-sites spécialisés (proxy) ───────────────────────────────────────────
+
+class CarouselArticle(Orderable):
+    """Article sélectionné pour le carrousel d'un syndicat sectoriel."""
+
+    page = ParentalKey(
+        'cms.SectionPage',
+        on_delete=models.CASCADE,
+        related_name='carousel_items',
+    )
+    article = models.ForeignKey(
+        'cms.ArticlePage',
+        on_delete=models.CASCADE,
+        related_name='+',
+        verbose_name="Article",
+    )
+
+    panels = [PageChooserPanel('article', page_type='cms.ArticlePage')]
+
+    class Meta(Orderable.Meta):
+        verbose_name = "Article du carrousel"
+
+
+class RegionalSectionPage(SectionPage):
+    """Union régionale — proxy de SectionPage, section_type forcé à 'regional'."""
+
+    class Meta:
+        proxy = True
+        verbose_name = "Union régionale"
+        verbose_name_plural = "Unions régionales"
+
+    def save(self, *args, **kwargs):
+        self.section_type = 'regional'
+        super().save(*args, **kwargs)
+
+    def get_template(self, request, *args, **kwargs):
+        return 'content/site_home.html'
+
+
+class SectoralSectionPage(SectionPage):
+    """Syndicat sectoriel — proxy de SectionPage, section_type forcé à 'sectoral'."""
+
+    class Meta:
+        proxy = True
+        verbose_name = "Syndicat sectoriel"
+        verbose_name_plural = "Syndicats sectoriels"
+
+    content_panels = SectionPage.content_panels + [
+        MultiFieldPanel(
+            [InlinePanel('carousel_items', label="Article", max_num=5)],
+            heading="Carrousel d'articles mis en avant (max 5)",
+        ),
+    ]
+
+    def save(self, *args, **kwargs):
+        self.section_type = 'sectoral'
+        super().save(*args, **kwargs)
+
+    def get_template(self, request, *args, **kwargs):
+        return 'content/sectoral_site_home.html'
+
+    def get_context(self, request, *args, **kwargs):
+        context = super().get_context(request, *args, **kwargs)
+        context['carousel_articles'] = [
+            ci.article for ci in self.carousel_items.select_related('article').all()
+        ]
+        rejoindre_page = (
+            ContentPage.objects.live().child_of(self)
+            .filter(slug__icontains='rejoindre').first()
+        )
+        context['rejoindre_url'] = (
+            self.framaform_url
+            or (rejoindre_page.url if rejoindre_page else '#')
+        )
+        return context
 
 
 # ── Événements ────────────────────────────────────────────────────────────────

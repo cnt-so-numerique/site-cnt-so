@@ -1,332 +1,96 @@
-{% load menu_tags %}
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}STUCS — CNT-SO{% endblock %}</title>
-  <meta name="description" content="{% block description %}Syndicat des Travailleur·ses Uni·es de la Culture et du Spectacle — CNT-SO{% endblock %}">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Noto+Sans:wght@400;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --red: #c0392b;
-      --red-dark: #922b21;
-      --bg: #0e0e0e;
-      --bg2: #181818;
-      --bg3: #222;
-      --border: #2e2e2e;
-      --text: #e8e8e8;
-      --muted: #888;
-      --white: #fff;
-      --heading: 'Amiri', serif;
-      --body: 'Noto Sans', sans-serif;
-    }
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body { font-family: var(--body); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
-    a { color: var(--red); text-decoration: none; transition: color .15s; }
-    a:hover { color: #e05545; }
-    img { max-width: 100%; height: auto; display: block; }
-    main { flex: 1; }
+{% extends 'base.html' %}
 
-    /* ── Header ─────────────────────────── */
-    .s-header {
-      background: var(--bg2);
-      border-bottom: 2px solid var(--red);
-      padding: 0 2rem;
-      height: 60px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 50;
-    }
-    .s-brand {
-      display: flex;
-      align-items: center;
-      gap: .6rem;
-      text-decoration: none;
-    }
-    .s-brand-logo {
-      font-family: var(--heading);
-      font-size: 1.6rem;
-      font-weight: 700;
-      color: var(--red);
-      line-height: 1;
-      letter-spacing: -1px;
-    }
-    .s-brand-divider {
-      width: 1px;
-      height: 28px;
-      background: var(--border);
-    }
-    .s-brand-info { line-height: 1.2; }
-    .s-brand-name { font-size: .85rem; font-weight: 700; color: var(--white); }
-    .s-brand-sub { font-size: .65rem; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
-    .s-back { font-size: .78rem; color: var(--muted); display: flex; align-items: center; gap: .3rem; }
-    .s-back:hover { color: var(--text); }
+{% block extra_css %}
+<style>
+/* ── STUCS sub-pages — thème standard ─────────────────────────── */
+.s-page { padding: 1.5rem 0; }
 
-    /* ── Nav ─────────────────────────────── */
-    .s-nav {
-      background: var(--bg3);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: stretch;
-      overflow-x: auto;
-      padding: 0 2rem;
-      -webkit-overflow-scrolling: touch;
-    }
-    .s-nav a, .s-nav .s-dropdown > a {
-      display: flex;
-      align-items: center;
-      padding: 0 1.1rem;
-      height: 44px;
-      font-size: .82rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .4px;
-      color: var(--muted);
-      white-space: nowrap;
-      border-bottom: 2px solid transparent;
-      transition: color .15s, border-color .15s;
-    }
-    .s-nav a:hover,
-    .s-nav a.active { color: var(--white); border-color: var(--red); }
-    .s-dropdown { position: relative; }
-    .s-dropdown-menu {
-      display: none;
-      position: absolute;
-      top: 100%;
-      left: 0;
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-top: 2px solid var(--red);
-      min-width: 210px;
-      z-index: 200;
-      box-shadow: 0 8px 20px rgba(0,0,0,.5);
-    }
-    .s-dropdown:hover .s-dropdown-menu { display: block; }
-    .s-dropdown-menu a {
-      display: block;
-      padding: .65rem 1.1rem;
-      height: auto;
-      border-bottom: 1px solid var(--border);
-      text-transform: none;
-      letter-spacing: 0;
-      font-size: .83rem;
-      color: #bbb;
-    }
-    .s-dropdown-menu a:last-child { border-bottom: none; }
-    .s-dropdown-menu a:hover { color: var(--white); background: rgba(192,57,43,.1); }
+.s-section-title {
+  font-family: var(--font-heading);
+  font-size: 1.55rem;
+  color: var(--text-color);
+  border-left: 3px solid var(--primary-color);
+  padding-left: .8rem;
+  margin-bottom: 1.5rem;
+}
 
-    /* ── Layout ─────────────────────────── */
-    .s-page { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem; }
+.s-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 1.5rem; }
 
-    /* ── Footer ─────────────────────────── */
-    .s-footer {
-      background: var(--bg2);
-      border-top: 1px solid var(--border);
-      padding: 2.5rem 2rem;
-      text-align: center;
-      margin-top: auto;
-    }
-    .s-footer-rs {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: .75rem;
-      flex-wrap: wrap;
-      margin-bottom: 1.5rem;
-    }
-    .s-rs-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: .5rem;
-      background: var(--red);
-      color: var(--white) !important;
-      padding: .65rem 1.4rem;
-      border-radius: 3px;
-      font-weight: 700;
-      font-size: .82rem;
-      text-transform: uppercase;
-      letter-spacing: .4px;
-      transition: background .15s;
-    }
-    .s-rs-btn:hover { background: var(--red-dark); color: var(--white) !important; }
-    .s-footer-copy { color: var(--muted); font-size: .75rem; line-height: 1.8; }
-    .s-footer-copy a { color: #aaa; }
-    .s-footer-copy a:hover { color: var(--white); }
+.s-card {
+  background: var(--white);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  transition: border-color .2s, box-shadow .2s;
+  overflow: hidden;
+}
+.s-card:hover { border-color: var(--primary-color); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.s-card-img { height: 185px; overflow: hidden; background: var(--bg-lighter); flex-shrink: 0; }
+.s-card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .35s; }
+.s-card:hover .s-card-img img { transform: scale(1.05); }
+.s-card-body { padding: 1.1rem 1.2rem; flex: 1; display: flex; flex-direction: column; gap: .4rem; }
+.s-card-cat { font-size: .67rem; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--primary-color); }
+.s-card-title { font-family: var(--font-heading); font-size: 1.05rem; color: var(--text-color); line-height: 1.35; flex: 1; }
+.s-card-title a { color: inherit; }
+.s-card-title a:hover { color: var(--primary-color); }
+.s-card-date { font-size: .73rem; color: var(--text-muted); margin-top: .2rem; }
 
-    /* ── Cards ──────────────────────────── */
-    .s-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 1.5rem; }
-    .s-card {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      transition: border-color .2s, transform .15s;
-      overflow: hidden;
-    }
-    .s-card:hover { border-color: var(--red); transform: translateY(-3px); }
-    .s-card-img { height: 185px; overflow: hidden; background: var(--bg3); flex-shrink: 0; }
-    .s-card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .35s; }
-    .s-card:hover .s-card-img img { transform: scale(1.05); }
-    .s-card-body { padding: 1.1rem 1.2rem; flex: 1; display: flex; flex-direction: column; gap: .4rem; }
-    .s-card-cat { font-size: .67rem; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--red); }
-    .s-card-title { font-family: var(--heading); font-size: 1.05rem; color: var(--white); line-height: 1.35; flex: 1; }
-    .s-card-title a { color: inherit; }
-    .s-card-title a:hover { color: var(--red); }
-    .s-card-date { font-size: .73rem; color: var(--muted); margin-top: .2rem; }
+.btn-red {
+  display: inline-block;
+  background: var(--primary-color);
+  color: var(--white) !important;
+  padding: .7rem 1.6rem;
+  font-weight: 700;
+  font-size: .85rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  transition: background .15s;
+}
+.btn-red:hover { background: var(--primary-dark); text-decoration: none; }
 
-    /* ── Titres ─────────────────────────── */
-    .s-section-title {
-      font-family: var(--heading);
-      font-size: 1.55rem;
-      color: var(--white);
-      border-left: 3px solid var(--red);
-      padding-left: .8rem;
-      margin-bottom: 1.5rem;
-    }
+.btn-outline {
+  display: inline-block;
+  border: 2px solid var(--primary-color);
+  color: var(--primary-color) !important;
+  padding: .65rem 1.5rem;
+  font-weight: 700;
+  font-size: .85rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  transition: background .15s, color .15s;
+}
+.btn-outline:hover { background: var(--primary-color); color: var(--white) !important; text-decoration: none; }
 
-    /* ── Boutons ────────────────────────── */
-    .btn-red {
-      display: inline-block;
-      background: var(--red);
-      color: var(--white) !important;
-      padding: .7rem 1.6rem;
-      font-weight: 700;
-      font-size: .85rem;
-      border-radius: 3px;
-      text-transform: uppercase;
-      letter-spacing: .4px;
-      transition: background .15s;
-    }
-    .btn-red:hover { background: var(--red-dark); }
-    .btn-outline {
-      display: inline-block;
-      border: 2px solid var(--red);
-      color: var(--red) !important;
-      padding: .65rem 1.5rem;
-      font-weight: 700;
-      font-size: .85rem;
-      border-radius: 3px;
-      text-transform: uppercase;
-      letter-spacing: .4px;
-      transition: background .15s, color .15s;
-    }
-    .btn-outline:hover { background: var(--red); color: var(--white) !important; }
+.s-field { margin-bottom: 1.1rem; }
+.s-label { display: block; font-size: .82rem; color: var(--text-secondary); margin-bottom: .35rem; font-weight: 600; }
+.s-input, .s-textarea {
+  width: 100%;
+  padding: .65rem 1rem;
+  background: var(--white);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  font-family: var(--font-body);
+  font-size: .9rem;
+  border-radius: 3px;
+  outline: none;
+  transition: border-color .15s;
+}
+.s-input:focus, .s-textarea:focus { border-color: var(--primary-color); }
+.s-textarea { min-height: 110px; resize: vertical; }
 
-    /* ── Forms ──────────────────────────── */
-    .s-field { margin-bottom: 1.1rem; }
-    .s-label { display: block; font-size: .82rem; color: #bbb; margin-bottom: .35rem; font-weight: 600; }
-    .s-input, .s-textarea {
-      width: 100%;
-      padding: .65rem 1rem;
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      color: var(--white);
-      font-family: var(--body);
-      font-size: .9rem;
-      border-radius: 3px;
-      outline: none;
-      transition: border-color .15s;
-    }
-    .s-input:focus, .s-textarea:focus { border-color: var(--red); }
-    .s-textarea { min-height: 110px; resize: vertical; }
+/* Variables legacy pour les templates existants */
+:root {
+  --red: var(--primary-color);
+  --red-dark: var(--primary-dark);
+  --border: var(--border-color);
+  --muted: var(--text-muted);
+  --heading: var(--font-heading);
+  --body: var(--font-body);
+}
+</style>
+{% block extra_head %}{% endblock %}
+{% endblock extra_css %}
 
-    /* ── Responsive ─────────────────────── */
-    @media (max-width: 768px) {
-      .s-header { padding: 0 1rem; }
-      .s-nav { padding: 0 .5rem; }
-      .s-page { padding: 1.5rem 1rem; }
-      .s-grid { grid-template-columns: 1fr; }
-      .s-brand-divider, .s-brand-info { display: none; }
-    }
-  </style>
-  {% block extra_head %}{% endblock %}
-</head>
-<body>
-
-<!-- Header -->
-<header class="s-header">
-  <a href="{% url 'content:site_home' 'stucs' %}" class="s-brand">
-    {% if site.logo %}
-      <img src="{{ site.logo.file.url }}" alt="STUCS" style="height:38px;width:auto;">
-    {% else %}
-      <span class="s-brand-logo">STUCS</span>
-    {% endif %}
-    <div class="s-brand-divider"></div>
-    <div class="s-brand-info">
-      <div class="s-brand-name">CNT-SO</div>
-      <div class="s-brand-sub">Culture &amp; Spectacle · CNT-SO</div>
-    </div>
-  </a>
-  <a href="/" class="s-back">
-    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M5 12l7-7M5 12l7 7"/></svg>
-    Site CNT-SO
-  </a>
-</header>
-
-<!-- Nav -->
-{% get_menu site 'main' as stucs_nav %}
-<nav class="s-nav">
-  {% if stucs_nav %}
-    {% for item in stucs_nav %}
-      {% with children=item.children.all %}
-      {% if children %}
-        <div class="s-dropdown">
-          <a href="{{ item.get_url }}"
-             {% if request.path == item.get_url %}class="active"{% endif %}>
-            {{ item.title }}
-            <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-left:.3rem"><path d="M6 9l6 6 6-6"/></svg>
-          </a>
-          <div class="s-dropdown-menu">
-            {% for child in children %}
-              {% if child.is_active %}
-                <a href="{{ child.get_url }}">{{ child.title }}</a>
-              {% endif %}
-            {% endfor %}
-          </div>
-        </div>
-      {% else %}
-        <a href="{{ item.get_url }}"
-           {% if request.path == item.get_url %}class="active"{% endif %}>
-          {{ item.title }}
-        </a>
-      {% endif %}
-      {% endwith %}
-    {% endfor %}
-  {% else %}
-    <a href="{% url 'content:site_home' 'stucs' %}">Accueil</a>
-    <a href="{% url 'content:stucs_rejoindre' %}">Nous rejoindre</a>
-    <a href="{% url 'content:stucs_ressources' %}">Ressources</a>
-    <a href="{% url 'content:stucs_agenda' %}">Agenda</a>
-  {% endif %}
-</nav>
-
-<!-- Contenu -->
-<main>
-  {% block content %}{% endblock %}
-</main>
-
-<!-- Footer -->
-<footer class="s-footer">
-  <div class="s-footer-rs">
-    {% if site.linkstack_url %}
-    <a href="{{ site.linkstack_url }}" target="_blank" rel="noopener" class="s-rs-btn">
-      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-      Tous nos réseaux sociaux
-    </a>
-    {% endif %}
-  </div>
-  <div class="s-footer-copy">
-    <strong style="color:#ccc;">STUCS</strong> — Syndicat des Travailleur·ses Uni·es de la Culture et du Spectacle<br>
-    <a href="/">CNT-SO</a> · Solidarité Ouvrière
-  </div>
-</footer>
-
-</body>
-</html>
+{% block sidebar %}{% endblock %}

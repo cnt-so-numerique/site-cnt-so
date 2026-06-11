@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ site.name }}{% endblock %}
+
+{% block content %}
+
+{% if carousel_articles %}
+<style>
+.sc-hero-wrap {
+    position: relative;
+    overflow: hidden;
+    background: #111;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    min-height: 400px;
+    margin-bottom: 2rem;
+}
+@media (max-width: 640px) {
+    .sc-hero-wrap { min-height: 260px; }
+}
+
+.sc-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity .6s ease;
+    pointer-events: none;
+}
+.sc-slide.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.sc-slide-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+.sc-slide-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,.88) 35%, rgba(0,0,0,.12) 100%);
+}
+.sc-slide-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1;
+    padding: 1.5rem 5rem 1.5rem 2rem;
+}
+.sc-slide-label {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: .6rem;
+}
+.sc-label-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    flex-shrink: 0;
+}
+.sc-label-text {
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+.sc-slide-title {
+    font-family: var(--font-heading);
+    font-size: clamp(1.2rem, 3vw, 1.85rem);
+    color: #fff;
+    line-height: 1.25;
+    margin: 0;
+}
+.sc-slide-title a { color: #fff; }
+.sc-slide-title a:hover { text-decoration: underline; }
+
+.sc-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    background: rgba(0,0,0,.45);
+    border: 1px solid rgba(255,255,255,.2);
+    color: #fff;
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s, border-color .15s;
+    flex-shrink: 0;
+}
+.sc-arrow:hover { background: var(--primary-color); border-color: var(--primary-color); }
+#sc-prev { left: 1rem; }
+#sc-next { right: 1rem; }
+
+.sc-dots-wrap {
+    position: absolute;
+    bottom: 1rem;
+    right: 1.5rem;
+    z-index: 2;
+    display: flex;
+    gap: .4rem;
+    align-items: center;
+}
+.sc-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.35);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: background .2s, transform .2s;
+}
+.sc-dot.on { background: var(--primary-color); transform: scale(1.35); }
+</style>
+
+<div class="sc-hero-wrap" id="sc-wrap">
+  {% for article in carousel_articles %}
+  <div class="sc-slide{% if forloop.first %} active{% endif %}">
+    {% with img_url=article.any_image_url %}
+    {% if img_url %}
+    <img class="sc-slide-img" src="{{ img_url }}" alt="{{ article.title }}">
+    {% endif %}
+    {% endwith %}
+    <div class="sc-slide-overlay"></div>
+    <div class="sc-slide-content">
+      <div class="sc-slide-label">
+        <span class="sc-label-dot"></span>
+        <span class="sc-label-text">À la une</span>
+      </div>
+      <h2 class="sc-slide-title">
+        <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+      </h2>
+    </div>
+  </div>
+  {% endfor %}
+
+  <button class="sc-arrow" id="sc-prev" aria-label="Précédent">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <button class="sc-arrow" id="sc-next" aria-label="Suivant">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+  </button>
+  <div class="sc-dots-wrap" id="sc-dots"></div>
+</div>
+
+<script>
+(function(){
+  var wrap = document.getElementById('sc-wrap');
+  var slides = wrap ? wrap.querySelectorAll('.sc-slide') : [];
+  var dotsEl = document.getElementById('sc-dots');
+  if (slides.length < 2) return;
+  var cur = 0;
+
+  for (var i = 0; i < slides.length; i++) {
+    var d = document.createElement('button');
+    d.className = 'sc-dot' + (i === 0 ? ' on' : '');
+    d.setAttribute('data-i', String(i));
+    d.addEventListener('click', function(){ go(+this.getAttribute('data-i')); });
+    dotsEl.appendChild(d);
+  }
+
+  function go(n) {
+    slides[cur].classList.remove('active');
+    dotsEl.querySelectorAll('.sc-dot')[cur].classList.remove('on');
+    cur = (n + slides.length) % slides.length;
+    slides[cur].classList.add('active');
+    dotsEl.querySelectorAll('.sc-dot')[cur].classList.add('on');
+  }
+
+  document.getElementById('sc-prev').addEventListener('click', function(){ go(cur - 1); });
+  document.getElementById('sc-next').addEventListener('click', function(){ go(cur + 1); });
+
+  var timer = setInterval(function(){ go(cur + 1); }, 5000);
+  wrap.addEventListener('mouseenter', function(){ clearInterval(timer); });
+  wrap.addEventListener('mouseleave', function(){ timer = setInterval(function(){ go(cur + 1); }, 5000); });
+})();
+</script>
+{% endif %}
+
+<h2 class="section-title">Dernières actualités</h2>
+
+{% with empty_message="Aucun article pour le moment." %}
+{% include "content/_article_listing.html" %}
+{% endwith %}
+
+{% with query_string="" %}{% include "content/_pagination.html" %}{% endwith %}
+
+{% endblock %}
+
+{% block sidebar %}{% include "content/_sectoral_sidebar.html" %}{% endblock %}

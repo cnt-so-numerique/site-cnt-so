@@ -1,0 +1,45 @@
+<!-- Vous voulez nous rejoindre ? -->
+<div class="hp-bloc-soutenir">
+    <h3>Vous voulez nous rejoindre&nbsp;?</h3>
+    <p>Rejoignez le syndicat et participez à l'organisation collective de votre secteur.</p>
+    <a href="{{ rejoindre_url }}" class="hp-btn-outline">Nous rejoindre</a>
+</div>
+
+<!-- Vous voulez nous soutenir ? -->
+<div class="hp-bloc-soutenir">
+    <h3>Vous voulez nous soutenir&nbsp;?</h3>
+    <p>Rejoignez-nous ou faites un don pour soutenir nos actions syndicales.</p>
+    <a href="{% url 'content:souscription' %}" class="hp-btn-outline">Nous soutenir</a>
+</div>
+
+<!-- Dernières nouvelles de la confédération -->
+<div class="hp-bloc-campagnes">
+    <div class="hp-sidebar-header">
+        <h3>Nouvelles de la confédération</h3>
+        <a href="{% url 'content:home' %}">Tout voir</a>
+    </div>
+    <div class="hp-sidebar-list">
+        {% for article in manques_articles %}
+        <div class="hp-sidebar-item">
+            <span class="hp-sidebar-item-dot"></span>
+            <div>
+                <div class="hp-sidebar-item-title">
+                    <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                </div>
+                <div class="hp-sidebar-item-cat">
+                    {% for cat in article.cms_categories.all|slice:":1" %}{{ cat.name }}{% endfor %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <p style="font-size:12px;color:var(--text-muted);padding:0.5rem 0;">Aucun article.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Notre banque d'images -->
+<div class="hp-bloc-galerie">
+    <h3>Notre banque d'images</h3>
+    <p>Découvrez nos archives photographiques des luttes ouvrières.</p>
+    <a href="{% url 'content:category_detail' slug='banque-dimage' %}" class="hp-btn-outline">Voir la galerie</a>
+</div>

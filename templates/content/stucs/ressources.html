@@ -7,23 +7,23 @@
 .s-cat-bar { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 2rem; }
 .s-pill {
   padding: .4rem 1rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-color);
   font-size: .78rem;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: .3px;
   border-radius: 2px;
   transition: all .15s;
   background: transparent;
 }
-.s-pill:hover { border-color: var(--red); color: var(--white); }
-.s-pill.on { background: var(--red); color: var(--white) !important; border-color: var(--red); }
+.s-pill:hover { border-color: var(--primary-color); color: var(--primary-color); text-decoration: none; }
+.s-pill.on { background: var(--primary-color); color: var(--white) !important; border-color: var(--primary-color); }
 
 .s-empty {
   text-align: center;
   padding: 5rem 2rem;
-  color: var(--muted);
+  color: var(--text-muted);
 }
 .s-empty svg { margin: 0 auto 1rem; opacity: .3; }
 .s-empty p { font-size: .95rem; }
@@ -46,87 +46,48 @@
     {% endfor %}
   </div>
 
-  {% if active_cat %}
-    {% if articles %}
-      <div class="s-grid">
-        {% for article in articles %}
-        <div class="s-card">
-          <div class="s-card-img">
-            {% if article.featured_image %}
-              <a href="{% url 'content:site_article_detail' 'stucs' article.slug %}">
-                <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}" loading="lazy">
-              </a>
-            {% else %}
-              <div style="height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg3);">
-                <span style="font-family:var(--heading);font-size:1.8rem;color:#333;font-weight:700;">STUCS</span>
-              </div>
-            {% endif %}
-          </div>
-          <div class="s-card-body">
-            <div class="s-card-cat">{{ active_cat.name }}</div>
-            <div class="s-card-title">
-              <a href="{% url 'content:site_article_detail' 'stucs' article.slug %}">{{ article.title }}</a>
+  {% if articles %}
+    <div class="s-grid">
+      {% for article in articles %}
+      <div class="s-card">
+        <div class="s-card-img">
+          {% with img_url=article.any_image_url %}
+          {% if img_url %}
+            <a href="{% url 'content:site_article_detail' 'stucs' article.slug %}">
+              <img src="{{ img_url }}" alt="{{ article.title }}" loading="lazy">
+            </a>
+          {% else %}
+            <div style="height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg-lighter);">
+              <span style="font-family:var(--font-heading);font-size:1.8rem;color:var(--text-muted);font-weight:700;">STUCS</span>
             </div>
-            <div class="s-card-date">{{ article.publication_date|date:"d/m/Y" }}</div>
-          </div>
+          {% endif %}
+          {% endwith %}
         </div>
-        {% endfor %}
+        <div class="s-card-body">
+          {% if active_cat %}
+            <div class="s-card-cat">{{ active_cat.name }}</div>
+          {% endif %}
+          <div class="s-card-title">
+            <a href="{% url 'content:site_article_detail' 'stucs' article.slug %}">{{ article.title }}</a>
+          </div>
+          <div class="s-card-date">{{ article.publication_date|date:"d/m/Y" }}</div>
+        </div>
       </div>
-    {% else %}
-      <div class="s-empty">
-        <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-          <path d="M9 13h6m-3-3v6m-9 1V7a2 2 0 0 1 2-2h6l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/>
-        </svg>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="s-empty">
+      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path d="M9 13h6m-3-3v6m-9 1V7a2 2 0 0 1 2-2h6l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/>
+      </svg>
+      {% if active_cat %}
         <p>Aucune publication dans <strong>{{ active_cat.name }}</strong> pour l'instant.</p>
         <small>Reviens bientôt ou <a href="{% url 'content:stucs_ressources' %}">consulte toutes les ressources</a>.</small>
-      </div>
-    {% endif %}
-
-  {% else %}
-    <!-- Vue "Tout" : par catégorie -->
-    {% for cat in categories %}
-      {% with arts=cat.articles.all|slice:":4" %}
-      {% if arts %}
-      <section style="margin-bottom:2.5rem;">
-        <h2 class="s-section-title" style="font-size:1.25rem;">
-          <a href="{% url 'content:stucs_ressources' %}?cat={{ cat.slug }}" style="color:inherit;">{{ cat.name }}</a>
-        </h2>
-        <div class="s-grid">
-          {% for article in arts %}
-          <div class="s-card">
-            <div class="s-card-img">
-              {% if article.featured_image %}
-                <a href="{% url 'content:site_article_detail' 'stucs' article.slug %}">
-                  <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}" loading="lazy">
-                </a>
-              {% endif %}
-            </div>
-            <div class="s-card-body">
-              <div class="s-card-title">
-                <a href="{% url 'content:site_article_detail' 'stucs' article.slug %}">{{ article.title }}</a>
-              </div>
-              <div class="s-card-date">{{ article.publication_date|date:"d/m/Y" }}</div>
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-        <p style="margin-top:.9rem;">
-          <a href="{% url 'content:stucs_ressources' %}?cat={{ cat.slug }}" style="font-size:.82rem;color:var(--muted);">
-            Voir tout → {{ cat.name }}
-          </a>
-        </p>
-      </section>
-      {% endif %}
-      {% endwith %}
-    {% empty %}
-      <div class="s-empty">
-        <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-          <path d="M9 13h6m-3-3v6m-9 1V7a2 2 0 0 1 2-2h6l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/>
-        </svg>
+      {% else %}
         <p>Aucune ressource publiée pour l'instant.</p>
         <small>Ajoute du contenu depuis <a href="/cms/">le CMS</a> en choisissant la section STUCS.</small>
-      </div>
-    {% endfor %}
+      {% endif %}
+    </div>
   {% endif %}
 
 </div>

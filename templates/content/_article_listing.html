@@ -168,11 +168,13 @@ Variables attendues : articles (queryset/list), empty_message (optionnel)
     {# --- Article principal --- #}
     <div class="listing-featured">
         <div class="listing-featured-img">
-            {% if article.featured_image %}
+            {% with img_url=article.any_image_url %}
+            {% if img_url %}
             <a href="{{ article.get_absolute_url }}">
-                <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
+                <img src="{{ img_url }}" alt="{{ article.title }}">
             </a>
             {% endif %}
+            {% endwith %}
         </div>
         <div class="listing-featured-body">
             <div class="listing-featured-meta">
@@ -195,13 +197,15 @@ Variables attendues : articles (queryset/list), empty_message (optionnel)
     {% elif forloop.last and not forloop.first %}
     {# Dernier article de la grille #}
     <article class="listing-card">
-        {% if article.featured_image %}
+        {% with img_url=article.any_image_url %}
+        {% if img_url %}
         <div class="listing-card-img">
             <a href="{{ article.get_absolute_url }}">
-                <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
+                <img src="{{ img_url }}" alt="{{ article.title }}">
             </a>
         </div>
         {% endif %}
+        {% endwith %}
         <div class="listing-card-body">
             <div class="listing-card-meta">
                 {% for cat in article.cms_categories.all|slice:":1" %}
@@ -221,13 +225,15 @@ Variables attendues : articles (queryset/list), empty_message (optionnel)
     {% else %}
     {# Articles de la grille (ni premier ni dernier) #}
     <article class="listing-card">
-        {% if article.featured_image %}
+        {% with img_url=article.any_image_url %}
+        {% if img_url %}
         <div class="listing-card-img">
             <a href="{{ article.get_absolute_url }}">
-                <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
+                <img src="{{ img_url }}" alt="{{ article.title }}">
             </a>
         </div>
         {% endif %}
+        {% endwith %}
         <div class="listing-card-body">
             <div class="listing-card-meta">
                 {% for cat in article.cms_categories.all|slice:":1" %}
