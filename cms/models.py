@@ -539,6 +539,11 @@ class ArticlePage(SeoMixin, Page):
         except NoReverseMatch:
             return self.url or '/'
 
+    def get_cms_edit_url(self):
+        """URL d'édition dans l'interface CMS (Wagtail snippets)."""
+        from django.urls import reverse
+        return reverse('wagtailsnippets_cms_articlepage:edit', args=[self.pk])
+
     @property
     def published_at(self):
         return self.publication_date or self.first_published_at
