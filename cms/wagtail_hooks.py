@@ -244,6 +244,8 @@ class EventViewSet(SnippetViewSet):
             FieldPanel('time'),
         ], heading="Date et heure"),
         FieldPanel('location'),
+        # latitude/longitude remplis automatiquement par le géocodeur JS
+        FieldRowPanel([FieldPanel('latitude'), FieldPanel('longitude')]),
         FieldPanel('description'),
         FieldPanel('url'),
     ]
@@ -508,6 +510,14 @@ def insert_site_selector_js():
   document.addEventListener('DOMContentLoaded', injectSiteBar);
 })();
 </script>"""
+
+
+# ── Géocodeur adresse sur les pages d'édition d'événement ────────────────────
+
+@hooks.register('insert_editor_js')
+def insert_event_geocoder_js():
+    from django.templatetags.static import static
+    return format_html('<script src="{}"></script>', static('cms/js/event_geocoder.js'))
 
 
 # ── Vue sélection du syndicat ─────────────────────────────────────────────────

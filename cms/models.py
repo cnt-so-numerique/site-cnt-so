@@ -788,6 +788,8 @@ class Event(models.Model):
     end_date = models.DateField(null=True, blank=True, verbose_name="Date de fin (optionnel)")
     time = models.TimeField(null=True, blank=True, verbose_name="Heure (optionnel)")
     location = models.CharField(max_length=255, blank=True, verbose_name="Lieu")
+    latitude = models.FloatField(null=True, blank=True, verbose_name="Latitude")
+    longitude = models.FloatField(null=True, blank=True, verbose_name="Longitude")
     description = models.TextField(blank=True, verbose_name="Description")
     url = models.URLField(blank=True, verbose_name="Lien (optionnel)", help_text="Lien vers plus d'infos")
 
@@ -799,6 +801,7 @@ class Event(models.Model):
             FieldPanel('time'),
         ], heading="Date et heure"),
         FieldPanel('location'),
+        FieldRowPanel([FieldPanel('latitude'), FieldPanel('longitude')]),
         FieldPanel('description'),
         FieldPanel('url'),
     ]
