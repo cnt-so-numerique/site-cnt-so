@@ -1461,7 +1461,7 @@
         <div class="subsite-header-main">
             <a href="{{ site.get_absolute_url }}" class="subsite-logo">
                 {% if site.logo %}
-                <img src="{{ site.logo.url }}" alt="Logo {{ site.name }}">
+                <img src="{{ site.logo.file.url }}" alt="Logo {{ site.name }}">
                 {% else %}
                 <img src="{% static 'image/CNT SO.jpg' %}" alt="Logo CNT-SO">
                 {% endif %}
