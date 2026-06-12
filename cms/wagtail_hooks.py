@@ -549,14 +549,45 @@ class SelectSiteView(View):
 
 # ── Listes mails OVH ──────────────────────────────────────────────────────────
 
+def _allowed_mailing_lists(request):
+    """
+    Retourne la liste des noms de listes OVH accessibles à l'utilisateur courant.
+    - Superadmin : toutes les listes
+    - Rédacteur-en-chef : uniquement la liste assignée à son syndicat courant
+    - Autre : liste vide (accès refusé côté appelant)
+    """
+    if request.user.is_superuser:
+        return None  # None = pas de restriction
+    if _is_chef(request.user):
+        current = get_current_site(request)
+        if current and current.ovh_mailing_list:
+            return [current.ovh_mailing_list]
+        return []
+    return []
+
+
+def _can_access_list(request, list_name):
+    allowed = _allowed_mailing_lists(request)
+    if allowed is None:
+        return True
+    return list_name in allowed
+
+
 class MailingListIndexView(View):
     def get(self, request):
-        from django.http import HttpResponse
+        from django.http import HttpResponse, HttpResponseForbidden
         from cms import ovh_client
+
+        allowed = _allowed_mailing_lists(request)
+        if allowed is not None and len(allowed) == 0:
+            return HttpResponseForbidden("Accès réservé aux administrateurs et rédacteurs-en-chef.")
+
         error = None
         lists = []
         try:
             names = ovh_client.list_mailing_lists()
+            if allowed is not None:
+                names = [n for n in names if n in allowed]
             for name in names:
                 try:
                     count = len(ovh_client.get_subscribers(name))
@@ -568,6 +599,7 @@ class MailingListIndexView(View):
         html = render_to_string('cms/mailing/list_index.html', {
             'lists': lists,
             'error': error,
+            'is_superadmin': request.user.is_superuser,
             'request': request,
         }, request=request)
         return HttpResponse(html)
@@ -592,10 +624,16 @@ class MailingListDetailView(View):
         return HttpResponse(html)
 
     def get(self, request, list_name):
+        from django.http import HttpResponseForbidden
+        if not _can_access_list(request, list_name):
+            return HttpResponseForbidden("Vous n'avez pas accès à cette liste.")
         return self._render(request, list_name)
 
     def post(self, request, list_name):
+        from django.http import HttpResponseForbidden
         from cms import ovh_client
+        if not _can_access_list(request, list_name):
+            return HttpResponseForbidden("Vous n'avez pas accès à cette liste.")
         action = request.POST.get('action')
         email = request.POST.get('email', '').strip()
         msg_ok = msg_err = None

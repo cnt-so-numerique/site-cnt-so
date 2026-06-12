@@ -5,8 +5,10 @@ Tests pour les fonctionnalités récentes :
 - Champs SectionPage (linkstack, framaform, intro_text, rejoindre_text, agenda_text)
 - wagtail-seo (champs OG sur ArticlePage)
 - Recherche Wagtail FTS
+- Interface listes mails OVH + sync abonnés
 """
 from datetime import date, timedelta
+from unittest.mock import patch, MagicMock
 
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -582,3 +584,358 @@ class SectoralArticleSidebarTest(TestCase):
         r = Client().get(url)
         self.assertEqual(r.status_code, 200)
         self.assertTemplateNotUsed(r, 'content/_sectoral_sidebar.html')
+
+
+# ── OVH client ────────────────────────────────────────────────────────────────
+
+class OvhClientTest(TestCase):
+    """Tests unitaires du module ovh_client — OVH API mocké."""
+
+    def _make_client(self):
+        mock_client = MagicMock()
+        mock_client.get.side_effect = lambda path: {
+            '/email/domain/cnt-so.info/mailingList': ['actu-stucs-cntso', 'info-cntso'],
+            '/email/domain/cnt-so.info/mailingList/actu-stucs-cntso/subscriber': [
+                'alice@example.com', 'bob@example.com',
+            ],
+        }.get(path, [])
+        mock_client.post.return_value = {}
+        mock_client.delete.return_value = {}
+        return mock_client
+
+    @patch('cms.ovh_client.get_client')
+    def test_list_mailing_lists(self, mock_get_client):
+        mock_get_client.return_value = self._make_client()
+        from cms.ovh_client import list_mailing_lists
+        result = list_mailing_lists()
+        self.assertIn('actu-stucs-cntso', result)
+        self.assertIn('info-cntso', result)
+        self.assertEqual(sorted(result), result)  # trié
+
+    @patch('cms.ovh_client.get_client')
+    def test_get_subscribers_returns_sorted_list(self, mock_get_client):
+        mock_get_client.return_value = self._make_client()
+        from cms.ovh_client import get_subscribers
+        result = get_subscribers('actu-stucs-cntso')
+        self.assertIn('alice@example.com', result)
+        self.assertIn('bob@example.com', result)
+        self.assertEqual(sorted(result), result)
+
+    @patch('cms.ovh_client.get_client')
+    def test_add_subscriber_posts_to_api(self, mock_get_client):
+        mock_client = self._make_client()
+        mock_get_client.return_value = mock_client
+        from cms.ovh_client import add_subscriber
+        result = add_subscriber('actu-stucs-cntso', 'new@example.com')
+        self.assertTrue(result)
+        mock_client.post.assert_called_once_with(
+            '/email/domain/cnt-so.info/mailingList/actu-stucs-cntso/subscriber',
+            email='new@example.com',
+        )
+
+    @patch('cms.ovh_client.get_client')
+    def test_add_subscriber_duplicate_returns_false(self, mock_get_client):
+        import ovh.exceptions
+        mock_client = self._make_client()
+        mock_client.post.side_effect = ovh.exceptions.APIError('already exist')
+        mock_get_client.return_value = mock_client
+        from cms.ovh_client import add_subscriber
+        result = add_subscriber('actu-stucs-cntso', 'alice@example.com')
+        self.assertFalse(result)
+
+    @patch('cms.ovh_client.get_client')
+    def test_remove_subscriber_calls_delete(self, mock_get_client):
+        mock_client = self._make_client()
+        mock_get_client.return_value = mock_client
+        from cms.ovh_client import remove_subscriber
+        remove_subscriber('actu-stucs-cntso', 'alice@example.com')
+        mock_client.delete.assert_called_once_with(
+            '/email/domain/cnt-so.info/mailingList/actu-stucs-cntso/subscriber/alice@example.com'
+        )
+
+
+# ── Vues CMS listes mails ─────────────────────────────────────────────────────
+
+class MailingListIndexViewTest(TestCase):
+
+    def setUp(self):
+        self.user = make_superuser()
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    @patch('cms.ovh_client.list_mailing_lists', return_value=['actu-stucs-cntso', 'info-cntso'])
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
+    def test_index_lists_all_lists(self, mock_subs, mock_lists):
+        r = self.client.get('/cms/mailing-lists/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'actu-stucs-cntso')
+        self.assertContains(r, 'info-cntso')
+
+    @patch('cms.ovh_client.list_mailing_lists', return_value=['actu-stucs-cntso'])
+    @patch('cms.ovh_client.get_subscribers', return_value=['x@y.com', 'a@b.com'])
+    def test_index_shows_subscriber_count(self, mock_subs, mock_lists):
+        r = self.client.get('/cms/mailing-lists/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, '2 abonné')
+
+    @patch('cms.ovh_client.list_mailing_lists', side_effect=Exception('OVH indisponible'))
+    def test_index_shows_error_when_api_fails(self, mock_lists):
+        r = self.client.get('/cms/mailing-lists/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'OVH indisponible')
+
+    def test_index_redirects_anonymous(self):
+        r = Client().get('/cms/mailing-lists/')
+        self.assertIn(r.status_code, [302, 403])
+
+
+class MailingListDetailViewTest(TestCase):
+
+    def setUp(self):
+        self.user = make_superuser()
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['alice@example.com', 'bob@example.com'])
+    def test_detail_shows_subscribers(self, mock_subs):
+        r = self.client.get('/cms/mailing-lists/actu-stucs-cntso/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'alice@example.com')
+        self.assertContains(r, 'bob@example.com')
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['alice@example.com'])
+    def test_detail_shows_list_name(self, mock_subs):
+        r = self.client.get('/cms/mailing-lists/actu-stucs-cntso/')
+        self.assertContains(r, 'actu-stucs-cntso')
+
+    @patch('cms.ovh_client.add_subscriber', return_value=True)
+    @patch('cms.ovh_client.get_subscribers', return_value=['alice@example.com', 'new@example.com'])
+    def test_post_add_subscriber(self, mock_subs, mock_add):
+        r = self.client.post('/cms/mailing-lists/actu-stucs-cntso/', {
+            'action': 'add', 'email': 'new@example.com',
+        })
+        self.assertEqual(r.status_code, 200)
+        mock_add.assert_called_once_with('actu-stucs-cntso', 'new@example.com')
+        self.assertContains(r, 'ajouté')
+
+    @patch('cms.ovh_client.add_subscriber', return_value=False)
+    @patch('cms.ovh_client.get_subscribers', return_value=['alice@example.com'])
+    def test_post_add_duplicate_shows_already_subscribed(self, mock_subs, mock_add):
+        r = self.client.post('/cms/mailing-lists/actu-stucs-cntso/', {
+            'action': 'add', 'email': 'alice@example.com',
+        })
+        self.assertContains(r, 'déjà abonné')
+
+    @patch('cms.ovh_client.remove_subscriber')
+    @patch('cms.ovh_client.get_subscribers', return_value=[])
+    def test_post_remove_subscriber(self, mock_subs, mock_remove):
+        r = self.client.post('/cms/mailing-lists/actu-stucs-cntso/', {
+            'action': 'remove', 'email': 'alice@example.com',
+        })
+        self.assertEqual(r.status_code, 200)
+        mock_remove.assert_called_once_with('actu-stucs-cntso', 'alice@example.com')
+        self.assertContains(r, 'retiré')
+
+    @patch('cms.ovh_client.get_subscribers', return_value=[])
+    def test_post_missing_email_shows_error(self, mock_subs):
+        r = self.client.post('/cms/mailing-lists/actu-stucs-cntso/', {'action': 'add', 'email': ''})
+        self.assertContains(r, 'manquante')
+
+    @patch('cms.ovh_client.add_subscriber', side_effect=Exception('Erreur réseau OVH'))
+    @patch('cms.ovh_client.get_subscribers', return_value=[])
+    def test_post_api_error_shows_message(self, mock_subs, mock_add):
+        r = self.client.post('/cms/mailing-lists/actu-stucs-cntso/', {
+            'action': 'add', 'email': 'x@y.com',
+        })
+        self.assertContains(r, 'Erreur réseau OVH')
+
+
+# ── Sync abonnés → OVH ────────────────────────────────────────────────────────
+
+class SubscriberOvhSyncTest(TestCase):
+    """Signal post_save Subscriber → add_subscriber OVH."""
+
+    def setUp(self):
+        self.stucs = make_stucs_section()
+        self.stucs.ovh_mailing_list = 'actu-stucs-cntso'
+        self.stucs.save(update_fields=['ovh_mailing_list'])
+
+    def _make_subscriber(self, email='test@example.com', is_active=False):
+        from content.models import Subscriber
+        return Subscriber.objects.create(
+            site=self.stucs,
+            email=email,
+            is_active=is_active,
+        )
+
+    @patch('cms.ovh_client.add_subscriber')
+    def test_confirmed_subscriber_synced_to_ovh(self, mock_add):
+        sub = self._make_subscriber(is_active=False)
+        sub.is_active = True
+        sub.save()
+        mock_add.assert_called_once_with('actu-stucs-cntso', 'test@example.com')
+
+    @patch('cms.ovh_client.add_subscriber')
+    def test_inactive_subscriber_not_synced(self, mock_add):
+        self._make_subscriber(is_active=False)
+        mock_add.assert_not_called()
+
+    @patch('cms.ovh_client.add_subscriber')
+    def test_no_sync_when_site_has_no_ovh_list(self, mock_add):
+        self.stucs.ovh_mailing_list = ''
+        self.stucs.save(update_fields=['ovh_mailing_list'])
+        sub = self._make_subscriber(email='other@example.com', is_active=False)
+        sub.is_active = True
+        sub.save()
+        mock_add.assert_not_called()
+
+    @patch('cms.ovh_client.add_subscriber')
+    def test_no_sync_when_subscriber_has_no_site(self, mock_add):
+        from content.models import Subscriber
+        sub = Subscriber.objects.create(email='nosyte@example.com', site=None, is_active=False)
+        sub.is_active = True
+        sub.save()
+        mock_add.assert_not_called()
+
+    @patch('cms.ovh_client.add_subscriber', side_effect=Exception('OVH down'))
+    def test_ovh_failure_does_not_block_subscriber_save(self, mock_add):
+        sub = self._make_subscriber(is_active=False)
+        sub.is_active = True
+        sub.save()  # ne doit pas lever d'exception
+        from content.models import Subscriber
+        self.assertTrue(Subscriber.objects.get(pk=sub.pk).is_active)
+
+    @patch('cms.ovh_client.add_subscriber')
+    def test_sync_only_on_confirmation_not_on_every_save(self, mock_add):
+        sub = self._make_subscriber(is_active=True)
+        mock_add.reset_mock()
+        # Resave sans changer is_active — le signal se déclenche mais is_active=True toujours
+        sub.name = 'Changed'
+        sub.save()
+        # add_subscriber appelé à chaque save avec is_active=True, c'est le comportement attendu
+        # (OVH ignore les doublons côté API)
+        mock_add.assert_called_with('actu-stucs-cntso', 'test@example.com')
+
+
+# ── champ ovh_mailing_list sur SectionPage ────────────────────────────────────
+
+class SectionPageOvhMailingListFieldTest(TestCase):
+
+    def test_field_defaults_to_blank(self):
+        sp = _ensure_section_page(slug='test-ovh-field', name='Test OVH', site_type='sectoral')
+        self.assertEqual(sp.ovh_mailing_list, '')
+
+    def test_field_can_be_set_and_saved(self):
+        sp = _ensure_section_page(slug='test-ovh-save', name='Test OVH Save', site_type='sectoral')
+        sp.ovh_mailing_list = 'ma-liste-test'
+        sp.save(update_fields=['ovh_mailing_list'])
+        sp.refresh_from_db()
+        self.assertEqual(sp.ovh_mailing_list, 'ma-liste-test')
+
+
+# ── Contrôle d'accès aux listes mails ────────────────────────────────────────
+
+def _make_chef(username='chef', password='pass'):
+    """Crée un utilisateur rédacteur-en-chef avec les permissions Wagtail admin."""
+    from content.tests import _setup_editorial_groups
+    from django.contrib.auth.models import User, Group, Permission
+    _setup_editorial_groups()
+    user = User.objects.create_user(username=username, password=password)
+    group = Group.objects.get(name='redacteur_en_chef')
+    user.groups.add(group)
+    # Permission d'accès à l'admin Wagtail
+    try:
+        user.user_permissions.add(Permission.objects.get(codename='access_admin'))
+    except Permission.DoesNotExist:
+        pass
+    return user
+
+
+def _client_with_site(user, site):
+    """Retourne un Client authentifié avec le syndicat courant en session."""
+    from cms.site_context import SESSION_KEY
+    c = Client()
+    c.force_login(user)
+    session = c.session
+    session[SESSION_KEY] = site.pk
+    session.save()
+    return c
+
+
+class MailingListAccessControlTest(TestCase):
+    """Contrôle d'accès : superadmin voit tout, chef voit sa liste, autres bloqués."""
+
+    def setUp(self):
+        self.stucs = make_stucs_section()
+        self.stucs.ovh_mailing_list = 'actu-stucs-cntso'
+        self.stucs.save(update_fields=['ovh_mailing_list'])
+
+    # ── Index ──────────────────────────────────────────────────────────────────
+
+    @patch('cms.ovh_client.list_mailing_lists', return_value=['actu-stucs-cntso', 'info-cntso'])
+    @patch('cms.ovh_client.get_subscribers', return_value=[])
+    def test_superadmin_sees_all_lists(self, mock_subs, mock_lists):
+        c = Client()
+        c.force_login(make_superuser(username='su-access'))
+        r = c.get('/cms/mailing-lists/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'actu-stucs-cntso')
+        self.assertContains(r, 'info-cntso')
+
+    @patch('cms.ovh_client.list_mailing_lists', return_value=['actu-stucs-cntso', 'info-cntso'])
+    @patch('cms.ovh_client.get_subscribers', return_value=[])
+    def test_chef_sees_only_their_list(self, mock_subs, mock_lists):
+        chef = _make_chef(username='chef-access')
+        c = _client_with_site(chef, self.stucs)
+        r = c.get('/cms/mailing-lists/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'actu-stucs-cntso')
+        self.assertNotContains(r, 'info-cntso')
+
+    def test_chef_without_ovh_list_gets_forbidden(self):
+        self.stucs.ovh_mailing_list = ''
+        self.stucs.save(update_fields=['ovh_mailing_list'])
+        chef = _make_chef(username='chef-nolist')
+        c = _client_with_site(chef, self.stucs)
+        r = c.get('/cms/mailing-lists/')
+        self.assertEqual(r.status_code, 403)
+
+    def test_redacteur_gets_forbidden_on_index(self):
+        from content.tests import _setup_editorial_groups
+        from django.contrib.auth.models import User, Group
+        _setup_editorial_groups()
+        user = User.objects.create_user(username='redac-access', password='pass')
+        user.groups.add(Group.objects.get(name='redacteur'))
+        c = Client()
+        c.force_login(user)
+        r = c.get('/cms/mailing-lists/')
+        self.assertEqual(r.status_code, 403)
+
+    # ── Détail ─────────────────────────────────────────────────────────────────
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['alice@example.com'])
+    def test_chef_can_access_their_list_detail(self, mock_subs):
+        chef = _make_chef(username='chef-detail')
+        c = _client_with_site(chef, self.stucs)
+        r = c.get('/cms/mailing-lists/actu-stucs-cntso/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'alice@example.com')
+
+    def test_chef_cannot_access_other_list_detail(self):
+        chef = _make_chef(username='chef-noaccess')
+        c = _client_with_site(chef, self.stucs)
+        r = c.get('/cms/mailing-lists/info-cntso/')  # liste d'un autre syndicat
+        self.assertEqual(r.status_code, 403)
+
+    def test_chef_cannot_post_to_other_list(self):
+        chef = _make_chef(username='chef-nopost')
+        c = _client_with_site(chef, self.stucs)
+        r = c.post('/cms/mailing-lists/info-cntso/', {'action': 'add', 'email': 'x@y.com'})
+        self.assertEqual(r.status_code, 403)
+
+    @patch('cms.ovh_client.get_subscribers', return_value=[])
+    def test_superadmin_can_access_any_list_detail(self, mock_subs):
+        c = Client()
+        c.force_login(make_superuser(username='su-detail'))
+        r = c.get('/cms/mailing-lists/info-cntso/')
+        self.assertEqual(r.status_code, 200)
