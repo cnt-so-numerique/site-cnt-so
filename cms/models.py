@@ -771,11 +771,9 @@ class SectoralSectionPage(SectionPage):
 
 # ── Événements ────────────────────────────────────────────────────────────────
 
-from wagtail.snippets.models import register_snippet as _register_snippet
 from django.utils import timezone as _tz
 
 
-@_register_snippet
 class Event(models.Model):
     """Événement affiché sur la page agenda d'un sous-site."""
 

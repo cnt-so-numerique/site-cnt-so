@@ -15,7 +15,7 @@ from wagtail.snippets.views.snippets import (
 )
 from wagtail.admin.panels import FieldPanel, FieldRowPanel, MultiFieldPanel, ObjectList, TabbedInterface, InlinePanel
 
-from .models import ArticlePage, ContentPage, CmsCategory, SectionPage
+from .models import ArticlePage, ContentPage, CmsCategory, Event, SectionPage
 from .site_context import SESSION_KEY, get_current_site, get_available_sites, set_current_site
 
 
@@ -225,13 +225,46 @@ class SectionPageViewSet(SnippetViewSet):
         return qs.none()
 
 
+# ── Événements ────────────────────────────────────────────────────────────────
+
+class EventViewSet(SnippetViewSet):
+    model = Event
+    icon = 'date'
+    menu_label = 'Agenda'
+    menu_order = 130
+    list_display = ['title', 'section', 'date', 'location']
+    list_filter = ['section']
+    search_fields = ['title', 'location']
+    ordering = ['date', 'time']
+    panels = [
+        FieldPanel('section'),
+        FieldPanel('title'),
+        MultiFieldPanel([
+            FieldRowPanel([FieldPanel('date'), FieldPanel('end_date')]),
+            FieldPanel('time'),
+        ], heading="Date et heure"),
+        FieldPanel('location'),
+        FieldPanel('description'),
+        FieldPanel('url'),
+    ]
+
+    def get_queryset(self, request):
+        qs = Event.objects.all()
+        current = get_current_site(request)
+        if current:
+            return qs.filter(section=current)
+        if request.user.is_superuser:
+            return qs
+        return qs.none()
+
+
 # ── Groupe principal CMS ──────────────────────────────────────────────────────
 
 class CmsContenuGroup(SnippetViewSetGroup):
     menu_label = 'Contenu'
     menu_icon = 'doc-full-inverse'
     menu_order = 100
-    items = (ArticlePageViewSet, ContentPageViewSet, CmsCategoryViewSet)
+    items = (ArticlePageViewSet, ContentPageViewSet, CmsCategoryViewSet, EventViewSet)
 
 
 class CmsAdminGroup(SnippetViewSetGroup):
