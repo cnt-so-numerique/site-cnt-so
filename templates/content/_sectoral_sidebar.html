@@ -1,3 +1,20 @@
+<!-- Inscription newsletter -->
+<div class="hp-bloc-soutenir">
+    <h3>Restez informé·e·s&nbsp;!</h3>
+    <p>Abonnez-vous à la newsletter pour recevoir nos actualités et luttes directement par e-mail.</p>
+    {% if site.slug and site.slug != 'principal' %}
+    {% url 'content:site_newsletter_subscribe' site_slug=site.slug as newsletter_url %}
+    {% else %}
+    {% url 'content:newsletter_subscribe' as newsletter_url %}
+    {% endif %}
+    <form method="post" action="{{ newsletter_url }}" style="margin-top:.7rem;">
+        {% csrf_token %}
+        <input type="email" name="email" placeholder="votre@email.fr" required
+               style="width:100%;padding:.6rem .8rem;border:1px solid var(--border-color);border-radius:3px;font-size:.85rem;margin-bottom:.5rem;box-sizing:border-box;">
+        <button type="submit" class="hp-btn-outline" style="width:100%;cursor:pointer;font-family:inherit;">S'abonner</button>
+    </form>
+</div>
+
 <!-- Vous voulez nous rejoindre ? -->
 <div class="hp-bloc-soutenir">
     <h3>Vous voulez nous rejoindre&nbsp;?</h3>
