@@ -204,7 +204,18 @@ class HomePage(Page):
             .select_related('featured_image')
             .prefetch_related('cms_categories')
         )
-        sticky = list(base_qs.filter(is_featured=True)[:4])
+        # Articles vedettes : conf sticky OU promus depuis n'importe quel syndicat
+        sticky = list(
+            ArticlePage.objects.live()
+            .filter(
+                models.Q(section_slug='principal', is_featured=True)
+                | models.Q(featured_on_conf=True)
+            )
+            .order_by('-publication_date', '-first_published_at')
+            .select_related('featured_image')
+            .prefetch_related('cms_categories')
+            [:4]
+        )
         featured = sticky[0] if sticky else base_qs.first()
         context['featured_article'] = featured
 
@@ -397,6 +408,11 @@ class ArticlePage(SeoMixin, Page):
         default=False,
         verbose_name="Dans le carrousel de l'accueil",
         help_text="Ajoute cet article au carrousel mis en avant (syndicats sectoriels uniquement, 5 max)",
+    )
+    featured_on_conf = models.BooleanField(
+        default=False,
+        verbose_name="Mettre en avant sur la confédération",
+        help_text="Affiche cet article dans la section vedette de la page d'accueil de la confédération (tous syndicats)",
     )
     author_name = models.CharField(max_length=200, blank=True, verbose_name="Auteur")
     author_user = models.ForeignKey(
