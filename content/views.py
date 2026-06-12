@@ -176,11 +176,13 @@ class SiteHomeView(ListView):
                 self.current_site.carousel_items.select_related('article').all()
             ]
             if not carousel:
-                carousel = list(
+                candidates = list(
                     ArticlePage.objects.live()
-                    .filter(section_slug=self.current_site.slug, featured_image__isnull=False)
-                    .order_by('-first_published_at')[:5]
+                    .filter(section_slug=self.current_site.slug)
+                    .select_related('featured_image')
+                    .order_by('-first_published_at')[:20]
                 )
+                carousel = [a for a in candidates if a.any_image_url][:5]
             context['carousel_articles'] = carousel
             from content.models import MenuItem
             rejoindre_menu = MenuItem.objects.filter(
