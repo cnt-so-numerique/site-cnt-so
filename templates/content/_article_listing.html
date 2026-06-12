@@ -229,7 +229,7 @@ Variables attendues : articles (queryset/list), empty_message (optionnel)
                 <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
             </h2>
             {% if article.excerpt %}
-            <p class="listing-featured-excerpt">{{ article.excerpt|striptags|truncatewords:35 }}</p>
+            <p class="listing-featured-excerpt">{{ article.excerpt|striptags|truncatewords:35|safe }}</p>
             {% endif %}
             <a href="{{ article.get_absolute_url }}" class="listing-featured-link">Lire la suite →</a>
         </div>
@@ -263,7 +263,7 @@ Variables attendues : articles (queryset/list), empty_message (optionnel)
                 <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
             </h3>
             {% if article.excerpt %}
-            <p class="listing-card-excerpt">{{ article.excerpt|striptags|truncatewords:20 }}</p>
+            <p class="listing-card-excerpt">{{ article.excerpt|striptags|truncatewords:20|safe }}</p>
             {% endif %}
         </div>
     </article>
@@ -295,7 +295,7 @@ Variables attendues : articles (queryset/list), empty_message (optionnel)
                 <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
             </h3>
             {% if article.excerpt %}
-            <p class="listing-card-excerpt">{{ article.excerpt|striptags|truncatewords:20 }}</p>
+            <p class="listing-card-excerpt">{{ article.excerpt|striptags|truncatewords:20|safe }}</p>
             {% endif %}
         </div>
     </article>
