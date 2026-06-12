@@ -171,10 +171,17 @@ class SiteHomeView(ListView):
         context['categories'] = Category.objects.filter(site=self.current_site).select_related('site')
         context['pages'] = Page.objects.filter(site=self.current_site, status='publish')
         if self.current_site.section_type in ('sectoral', 'regional'):
-            context['carousel_articles'] = [
+            carousel = [
                 ci.article for ci in
                 self.current_site.carousel_items.select_related('article').all()
             ]
+            if not carousel:
+                carousel = list(
+                    ArticlePage.objects.live()
+                    .filter(section_slug=self.current_site.slug, featured_image__isnull=False)
+                    .order_by('-first_published_at')[:5]
+                )
+            context['carousel_articles'] = carousel
             from content.models import MenuItem
             rejoindre_menu = MenuItem.objects.filter(
                 site=self.current_site,
