@@ -222,6 +222,27 @@ class SiteArticleDetailView(ArticleDetailView):
             section_slug=self.current_site.slug,
         )
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        site = context.get('site') or self.current_site
+        if site and site.section_type in ('sectoral', 'regional'):
+            from content.models import MenuItem
+            rejoindre_menu = MenuItem.objects.filter(
+                site=site, url__icontains='rejoindre', is_active=True,
+            ).first()
+            context['rejoindre_url'] = (
+                (rejoindre_menu.url if rejoindre_menu else None)
+                or site.framaform_url or '#'
+            )
+            context['manques_articles'] = (
+                ArticlePage.objects.live()
+                .filter(section_slug='principal')
+                .order_by('-publication_date', '-first_published_at')
+                .select_related('featured_image')
+                .prefetch_related('cms_categories')[:5]
+            )
+        return context
+
 
 class PageDetailView(DetailView):
     """Détail d'une page"""

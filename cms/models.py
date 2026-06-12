@@ -507,7 +507,7 @@ class ArticlePage(SeoMixin, Page):
 
     def save(self, *args, **kwargs):
         """Auto-rempli section_slug depuis la page parente. Sync in_carousel ↔ CarouselArticle."""
-        if self.pk:
+        if self.pk and not self.section_slug:
             parent = self.get_parent()
             if parent:
                 specific = parent.specific

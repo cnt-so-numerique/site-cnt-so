@@ -1535,7 +1535,11 @@
 
             <aside class="sidebar">
                 {% block sidebar %}
+                {% if site.section_type == 'sectoral' or site.section_type == 'regional' %}
+                {% include "content/_sectoral_sidebar.html" %}
+                {% else %}
                 {% include "content/_sidebar.html" %}
+                {% endif %}
                 {% endblock %}
             </aside>
         </div>
