@@ -157,7 +157,8 @@ class SiteHomeView(ListView):
         return (ArticlePage.objects.live()
                 .filter(section_slug=self.current_site.slug)
                 .select_related('featured_image')
-                .prefetch_related('cms_categories'))
+                .prefetch_related('cms_categories')
+                .order_by('-first_published_at'))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

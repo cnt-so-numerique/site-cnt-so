@@ -20,12 +20,30 @@ Variables attendues : articles (queryset/list), empty_message (optionnel)
 .listing-featured-img {
     overflow: hidden;
     min-height: 280px;
-    background: var(--white);
+    background: var(--bg-lighter);
+    padding-top: .5rem;
+}
+.listing-featured-placeholder {
+    width: 100%;
+    height: 100%;
+    min-height: 280px;
+    background: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+.listing-featured-placeholder span {
+    color: #fff;
+    font-family: var(--font-heading);
+    font-size: 1.3rem;
+    text-align: center;
+    line-height: 1.3;
 }
 .listing-featured-img img {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
     object-position: center center;
     display: block;
     transition: transform .3s;
@@ -103,12 +121,29 @@ Variables attendues : articles (queryset/list), empty_message (optionnel)
 .listing-card-img {
     height: 180px;
     overflow: hidden;
-    background: var(--white);
+    background: var(--bg-lighter);
+    padding-top: .5rem;
+}
+.listing-card-placeholder {
+    width: 100%;
+    height: 180px;
+    background: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+.listing-card-placeholder span {
+    color: #fff;
+    font-family: var(--font-heading);
+    font-size: .95rem;
+    text-align: center;
+    line-height: 1.3;
 }
 .listing-card-img img {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
     object-position: center center;
     display: block;
     transition: transform .3s;
@@ -173,6 +208,10 @@ Variables attendues : articles (queryset/list), empty_message (optionnel)
             <a href="{{ article.get_absolute_url }}">
                 <img src="{{ img_url }}" alt="{{ article.title }}">
             </a>
+            {% else %}
+            <a href="{{ article.get_absolute_url }}" class="listing-featured-placeholder">
+                <span>{{ article.title|truncatewords:8 }}</span>
+            </a>
             {% endif %}
             {% endwith %}
         </div>
@@ -198,13 +237,17 @@ Variables attendues : articles (queryset/list), empty_message (optionnel)
     {# Dernier article de la grille #}
     <article class="listing-card">
         {% with img_url=article.any_image_url %}
-        {% if img_url %}
         <div class="listing-card-img">
+            {% if img_url %}
             <a href="{{ article.get_absolute_url }}">
                 <img src="{{ img_url }}" alt="{{ article.title }}">
             </a>
+            {% else %}
+            <a href="{{ article.get_absolute_url }}" class="listing-card-placeholder">
+                <span>{{ article.title|truncatewords:6 }}</span>
+            </a>
+            {% endif %}
         </div>
-        {% endif %}
         {% endwith %}
         <div class="listing-card-body">
             <div class="listing-card-meta">
@@ -226,13 +269,17 @@ Variables attendues : articles (queryset/list), empty_message (optionnel)
     {# Articles de la grille (ni premier ni dernier) #}
     <article class="listing-card">
         {% with img_url=article.any_image_url %}
-        {% if img_url %}
         <div class="listing-card-img">
+            {% if img_url %}
             <a href="{{ article.get_absolute_url }}">
                 <img src="{{ img_url }}" alt="{{ article.title }}">
             </a>
+            {% else %}
+            <a href="{{ article.get_absolute_url }}" class="listing-card-placeholder">
+                <span>{{ article.title|truncatewords:6 }}</span>
+            </a>
+            {% endif %}
         </div>
-        {% endif %}
         {% endwith %}
         <div class="listing-card-body">
             <div class="listing-card-meta">
