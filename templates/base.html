@@ -395,10 +395,17 @@
         .dropdown-item {
             position: relative;
         }
+        .dropdown-item > a {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: .5rem;
+        }
         .dropdown-item > a::after {
-            content: ' ›';
-            float: right;
-            opacity: .5;
+            content: '›';
+            font-size: 1rem;
+            line-height: 1;
+            flex-shrink: 0;
         }
         .sub-dropdown {
             display: none;
@@ -410,6 +417,10 @@
             box-shadow: 4px 4px 20px rgba(0,0,0,0.15);
             z-index: 1001;
             border-top: 3px solid var(--primary-color);
+        }
+        .sub-dropdown.open-left {
+            left: auto;
+            right: 100%;
         }
         .dropdown-item:hover .sub-dropdown,
         .dropdown-item.open .sub-dropdown {
@@ -1646,13 +1657,24 @@
                 }
             });
         });
-        // Dropdown toggle — niveau 2
+        // Dropdown toggle — niveau 2 + détection débordement droite
         document.querySelectorAll('.dropdown-item > a').forEach(function(link) {
             link.addEventListener('click', function(e) {
                 var sub = this.nextElementSibling;
                 if (sub && sub.classList.contains('sub-dropdown')) {
                     e.preventDefault();
                     this.parentElement.classList.toggle('open');
+                }
+            });
+        });
+        document.querySelectorAll('.dropdown-item').forEach(function(item) {
+            item.addEventListener('mouseenter', function() {
+                var sub = this.querySelector('.sub-dropdown');
+                if (!sub) return;
+                sub.classList.remove('open-left');
+                var rect = sub.getBoundingClientRect();
+                if (rect.right > window.innerWidth) {
+                    sub.classList.add('open-left');
                 }
             });
         });
