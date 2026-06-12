@@ -13,6 +13,24 @@ from cms.models import ArticlePage, CmsCategory, SectionPage
 from taggit.models import Tag as TaggitTag
 
 
+def _sectoral_sidebar_context(site):
+    """Contexte commun pour la sidebar des sous-sites sectoriel/régional."""
+    from content.models import MenuItem
+    rejoindre_menu = MenuItem.objects.filter(
+        site=site, url__icontains='rejoindre', is_active=True,
+    ).first()
+    return {
+        'rejoindre_url': (rejoindre_menu.url if rejoindre_menu else None) or site.framaform_url or '#',
+        'manques_articles': (
+            ArticlePage.objects.live()
+            .filter(section_slug='principal')
+            .order_by('-publication_date', '-first_published_at')
+            .select_related('featured_image')
+            .prefetch_related('cms_categories')[:5]
+        ),
+    }
+
+
 class HomeView(ListView):
     """Page d'accueil - derniers articles du site principal"""
     model = ArticlePage
@@ -90,6 +108,7 @@ class SiteAgendaView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['site'] = self.site_obj
+        context.update(_sectoral_sidebar_context(self.site_obj))
         if self.site_obj.agenda_url:
             context['agenda_url'] = self.site_obj.agenda_url
         else:
@@ -800,7 +819,9 @@ class SiteRejoindreView(View):
 
     def _ctx(self, site_slug):
         site = get_object_or_404(SectionPage, slug=site_slug)
-        return {'site': site, 'categories': CmsCategory.objects.filter(section_slug=site_slug)}
+        ctx = {'site': site, 'categories': CmsCategory.objects.filter(section_slug=site_slug)}
+        ctx.update(_sectoral_sidebar_context(site))
+        return ctx
 
     def get(self, request, site_slug):
         ctx = self._ctx(site_slug)
@@ -837,9 +858,11 @@ class SiteRessourcesView(View):
         if active_cat:
             qs = qs.filter(cms_categories=active_cat)
         articles = qs.select_related('featured_image').order_by('-publication_date', '-first_published_at')
-        return render(request, 'content/site_ressources.html', {
+        ctx = {
             'site': site,
             'categories': categories,
             'active_cat': active_cat,
             'articles': articles,
-        })
+        }
+        ctx.update(_sectoral_sidebar_context(site))
+        return render(request, 'content/site_ressources.html', ctx)

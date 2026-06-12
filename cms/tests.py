@@ -13,7 +13,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from cms.models import (
-    ArticlePage, CmsCategory, ContentPage, Event, HomePage, SectionPage,
+    ArticlePage, CarouselArticle, CmsCategory, ContentPage, Event, HomePage, SectionPage,
 )
 from content.tests import (
     make_article_page, make_cms_category, make_superuser,
@@ -350,3 +350,235 @@ class StucsMenuIntegrationTest(TestCase):
         )
         r = Client().get('/stucs/')
         self.assertContains(r, 'Test Nav')
+
+
+# ── Carousel ──────────────────────────────────────────────────────────────────
+
+class CarouselModelTest(TestCase):
+
+    def setUp(self):
+        self.stucs = make_stucs_section()
+
+    def test_create_carousel_article(self):
+        art = make_article_page(section_slug='stucs', title='Une à la une')
+        ci = CarouselArticle.objects.create(page=self.stucs, article=art, sort_order=0)
+        self.assertEqual(ci.article, art)
+        self.assertEqual(ci.page, self.stucs)
+
+    def test_carousel_items_count(self):
+        for i in range(3):
+            art = make_article_page(section_slug='stucs', title=f'Actu {i}', slug=f'actu-{i}')
+            CarouselArticle.objects.create(page=self.stucs, article=art, sort_order=i)
+        self.assertEqual(self.stucs.carousel_items.count(), 3)
+
+    def test_carousel_ordering(self):
+        a = make_article_page(section_slug='stucs', title='Second', slug='second')
+        b = make_article_page(section_slug='stucs', title='Premier', slug='premier')
+        CarouselArticle.objects.create(page=self.stucs, article=a, sort_order=1)
+        CarouselArticle.objects.create(page=self.stucs, article=b, sort_order=0)
+        items = list(self.stucs.carousel_items.select_related('article').all())
+        self.assertEqual(items[0].article.title, 'Premier')
+        self.assertEqual(items[1].article.title, 'Second')
+
+
+class CarouselHomeViewTest(TestCase):
+
+    def setUp(self):
+        self.client = Client()
+        self.stucs = make_stucs_section()
+
+    def test_carousel_hidden_when_no_items(self):
+        r = self.client.get('/stucs/')
+        self.assertEqual(r.status_code, 200)
+        self.assertNotContains(r, 'sc-hero-wrap')
+
+    def test_carousel_visible_with_items(self):
+        art = make_article_page(section_slug='stucs', title='À la une test', slug='a-la-une-test')
+        CarouselArticle.objects.create(page=self.stucs, article=art, sort_order=0)
+        r = self.client.get('/stucs/')
+        self.assertContains(r, 'sc-hero-wrap')
+        self.assertContains(r, 'À la une test')
+
+    def test_carousel_shows_multiple_slides(self):
+        for i in range(3):
+            art = make_article_page(section_slug='stucs', title=f'Slide titre {i}', slug=f'slide-{i}')
+            CarouselArticle.objects.create(page=self.stucs, article=art, sort_order=i)
+        r = self.client.get('/stucs/')
+        # Chaque slide doit afficher son titre
+        for i in range(3):
+            self.assertContains(r, f'Slide titre {i}')
+
+    def test_carousel_in_context(self):
+        art = make_article_page(section_slug='stucs', title='Contexte carousel', slug='contexte-carousel')
+        CarouselArticle.objects.create(page=self.stucs, article=art, sort_order=0)
+        r = self.client.get('/stucs/')
+        self.assertIn('carousel_articles', r.context)
+        self.assertEqual(len(r.context['carousel_articles']), 1)
+
+    def test_carousel_not_in_context_for_main_site(self):
+        r = self.client.get('/')
+        # La home principale n'a pas de carousel_articles dans le contexte
+        self.assertNotIn('carousel_articles', r.context or {})
+
+    def test_carousel_image_url_in_html(self):
+        from wagtail.images.models import Image as WagtailImage
+        import io
+        from PIL import Image as PilImage
+        buf = io.BytesIO()
+        PilImage.new('RGB', (100, 100), color='red').save(buf, format='JPEG')
+        buf.seek(0)
+        from django.core.files.uploadedfile import InMemoryUploadedFile
+        f = InMemoryUploadedFile(buf, 'file', 'test_carousel.jpg', 'image/jpeg', buf.getbuffer().nbytes, None)
+        img = WagtailImage(title='Test image carousel')
+        img.file.save('test_carousel.jpg', f, save=True)
+        art = make_article_page(
+            section_slug='stucs', title='Article avec image', slug='article-avec-image',
+            featured_image=img,
+        )
+        CarouselArticle.objects.create(page=self.stucs, article=art, sort_order=0)
+        r = self.client.get('/stucs/')
+        self.assertContains(r, img.file.name.split('/')[-1].split('.')[0])
+
+
+# ── any_image_url ─────────────────────────────────────────────────────────────
+
+class AnyImageUrlTest(TestCase):
+
+    def test_returns_none_when_no_image(self):
+        art = make_article_page(title='Sans image', slug='sans-image')
+        self.assertIsNone(art.any_image_url)
+
+    def test_returns_wagtail_image_url(self):
+        from wagtail.images.models import Image as WagtailImage
+        import io
+        from PIL import Image as PilImage
+        buf = io.BytesIO()
+        PilImage.new('RGB', (100, 100), color='blue').save(buf, format='JPEG')
+        buf.seek(0)
+        from django.core.files.uploadedfile import InMemoryUploadedFile
+        f = InMemoryUploadedFile(buf, 'file', 'test_any.jpg', 'image/jpeg', buf.getbuffer().nbytes, None)
+        img = WagtailImage(title='Test img')
+        img.file.save('test_any.jpg', f, save=True)
+        art = make_article_page(title='Avec image', slug='avec-image', featured_image=img)
+        url = art.any_image_url
+        self.assertIsNotNone(url)
+        self.assertIn('test_any', url)
+
+
+# ── section_slug preservation ─────────────────────────────────────────────────
+
+class ArticlePageSectionSlugTest(TestCase):
+
+    def test_section_slug_not_overwritten_on_save(self):
+        """save() ne doit pas écraser un section_slug déjà renseigné."""
+        art = make_article_page(section_slug='stucs', title='Preservation test', slug='preservation-test')
+        self.assertEqual(art.section_slug, 'stucs')
+        art.title = 'Preservation test modifié'
+        art.save()
+        art.refresh_from_db()
+        self.assertEqual(art.section_slug, 'stucs')
+
+    def test_section_slug_auto_filled_when_empty(self):
+        """save() remplit section_slug quand il est vide sur un article existant."""
+        art = make_article_page(section_slug='stucs', title='Auto slug test', slug='auto-slug-test')
+        # Vider section_slug directement en DB sans passer par save()
+        ArticlePage.objects.filter(pk=art.pk).update(section_slug='')
+        art.refresh_from_db()
+        self.assertEqual(art.section_slug, '')
+        # Appeler save() → doit re-remplir depuis le parent
+        art.save()
+        art.refresh_from_db()
+        self.assertNotEqual(art.section_slug, '')
+
+
+# ── Réseaux sociaux ───────────────────────────────────────────────────────────
+
+class SocialFieldsTest(TestCase):
+
+    def setUp(self):
+        self.stucs = make_stucs_section()
+
+    def test_social_fields_blank_by_default(self):
+        sp = _ensure_section_page(slug='test-social', name='Test Social', site_type='sectoral')
+        for field in ('social_mastodon', 'social_bluesky', 'social_twitter',
+                      'social_facebook', 'social_instagram', 'social_youtube',
+                      'social_telegram', 'social_discord'):
+            self.assertEqual(getattr(sp, field), '', f'{field} should be blank')
+
+    def test_social_fields_saved(self):
+        self.stucs.social_mastodon = 'https://mastodon.social/@stucs'
+        self.stucs.social_bluesky = 'https://bsky.app/profile/stucs.bsky.social'
+        self.stucs.save(update_fields=['social_mastodon', 'social_bluesky'])
+        self.stucs.refresh_from_db()
+        self.assertEqual(self.stucs.social_mastodon, 'https://mastodon.social/@stucs')
+        self.assertEqual(self.stucs.social_bluesky, 'https://bsky.app/profile/stucs.bsky.social')
+
+    def test_social_icons_shown_in_sidebar(self):
+        self.stucs.social_mastodon = 'https://mastodon.social/@stucs'
+        self.stucs.save(update_fields=['social_mastodon'])
+        r = Client().get('/stucs/')
+        self.assertContains(r, 'mastodon.social/@stucs')
+        self.assertContains(r, 'si-mastodon')
+
+    def test_social_icons_not_shown_when_empty(self):
+        social_fields = ['social_mastodon', 'social_bluesky', 'social_twitter',
+                         'social_facebook', 'social_instagram', 'social_youtube',
+                         'social_telegram', 'social_discord']
+        SectionPage.objects.filter(pk=self.stucs.pk).update(
+            **{f: '' for f in social_fields}
+        )
+        r = Client().get('/stucs/')
+        # Quand tous les champs sont vides, le div social n'est pas rendu (CSS seul ne compte pas)
+        self.assertNotContains(r, '<div class="social-icons-row">')
+
+
+# ── rejoindre_url depuis MenuItem ─────────────────────────────────────────────
+
+class RejoindreUrlTest(TestCase):
+
+    def setUp(self):
+        self.stucs = make_stucs_section()
+
+    def test_rejoindre_url_uses_framaform_fallback(self):
+        r = Client().get('/stucs/')
+        self.assertContains(r, 'framaforms.org')
+
+    def test_rejoindre_url_prefers_menu_item(self):
+        from content.models import MenuItem
+        MenuItem.objects.create(
+            site=self.stucs, menu='main', title='Nous rejoindre',
+            url='https://mon-formulaire.org/rejoindre',
+            link_type='url', order=1, is_active=True,
+        )
+        r = Client().get('/stucs/')
+        self.assertContains(r, 'mon-formulaire.org/rejoindre')
+
+    def test_article_page_has_rejoindre_url_in_context(self):
+        art = make_article_page(section_slug='stucs', title='Article STUCS ctx', slug='article-stucs-ctx')
+        url = reverse('content:site_article_detail', args=['stucs', art.slug])
+        r = Client().get(url)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('rejoindre_url', r.context)
+        self.assertTrue(r.context['rejoindre_url'])
+
+
+# ── Sidebar sectorial sur article ─────────────────────────────────────────────
+
+class SectoralArticleSidebarTest(TestCase):
+
+    def setUp(self):
+        self.stucs = make_stucs_section()
+
+    def test_sectoral_article_uses_sectoral_sidebar(self):
+        art = make_article_page(section_slug='stucs', title='Article sidebar', slug='article-sidebar')
+        url = reverse('content:site_article_detail', args=['stucs', art.slug])
+        r = Client().get(url)
+        self.assertEqual(r.status_code, 200)
+        self.assertTemplateUsed(r, 'content/_sectoral_sidebar.html')
+
+    def test_main_article_uses_main_sidebar(self):
+        art = make_article_page(section_slug='principal', title='Article principal', slug='article-principal')
+        url = reverse('content:article_detail', args=[art.slug])
+        r = Client().get(url)
+        self.assertEqual(r.status_code, 200)
+        self.assertTemplateNotUsed(r, 'content/_sectoral_sidebar.html')
