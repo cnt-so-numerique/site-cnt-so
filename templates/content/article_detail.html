@@ -139,17 +139,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
 {% block sidebar %}
 
+{% if site.section_type == 'sectoral' or site.section_type == 'regional' %}
+{% include "content/_sectoral_sidebar.html" %}
+{% else %}
+
 <div class="widget">
     <h3 class="widget-title">Nous contacter</h3>
     <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:.75rem;">{{ site.name }}</p>
     {% if site.slug == 'principal' %}
     <a href="{% url 'content:contact' %}" class="btn-contact-sidebar">Envoyer un message</a>
-    {% elif site.site_type == 'regional' %}
+    {% elif site.section_type == 'regional' %}
     <a href="{% url 'content:site_contact' site_slug=site.slug %}" class="btn-contact-sidebar">Envoyer un message</a>
     {% elif site.external_url %}
     <a href="{{ site.external_url }}" target="_blank" rel="noopener" class="btn-contact-sidebar">Visiter le site</a>
     {% endif %}
 </div>
+
+{% endif %}
 
 <div class="widget">
     <h3 class="widget-title">Partager</h3>
