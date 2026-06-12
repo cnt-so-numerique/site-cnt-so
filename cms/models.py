@@ -718,12 +718,14 @@ class RegionalSectionPage(SectionPage):
         context['carousel_articles'] = [
             ci.article for ci in self.carousel_items.select_related('article').all()
         ]
-        rejoindre_page = (
-            ContentPage.objects.live().child_of(self)
-            .filter(slug__icontains='rejoindre').first()
-        )
+        from content.models import MenuItem as _MenuItem
+        rejoindre_menu = _MenuItem.objects.filter(
+            site=self, url__icontains='rejoindre', is_active=True,
+        ).first()
         context['rejoindre_url'] = (
-            self.framaform_url or (rejoindre_page.url if rejoindre_page else '#')
+            (rejoindre_menu.url if rejoindre_menu else None)
+            or self.framaform_url
+            or '#'
         )
         return context
 
@@ -755,13 +757,14 @@ class SectoralSectionPage(SectionPage):
         context['carousel_articles'] = [
             ci.article for ci in self.carousel_items.select_related('article').all()
         ]
-        rejoindre_page = (
-            ContentPage.objects.live().child_of(self)
-            .filter(slug__icontains='rejoindre').first()
-        )
+        from content.models import MenuItem as _MenuItem
+        rejoindre_menu = _MenuItem.objects.filter(
+            site=self, url__icontains='rejoindre', is_active=True,
+        ).first()
         context['rejoindre_url'] = (
-            self.framaform_url
-            or (rejoindre_page.url if rejoindre_page else '#')
+            (rejoindre_menu.url if rejoindre_menu else None)
+            or self.framaform_url
+            or '#'
         )
         return context
 

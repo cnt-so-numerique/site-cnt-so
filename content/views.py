@@ -135,14 +135,16 @@ class SiteHomeView(ListView):
                 ci.article for ci in
                 self.current_site.carousel_items.select_related('article').all()
             ]
-            from cms.models import ContentPage
-            rejoindre_page = (
-                ContentPage.objects.live().child_of(self.current_site)
-                .filter(slug__icontains='rejoindre').first()
-            )
+            from content.models import MenuItem
+            rejoindre_menu = MenuItem.objects.filter(
+                site=self.current_site,
+                url__icontains='rejoindre',
+                is_active=True,
+            ).first()
             context['rejoindre_url'] = (
-                self.current_site.framaform_url
-                or (rejoindre_page.url if rejoindre_page else '#')
+                (rejoindre_menu.url if rejoindre_menu else None)
+                or self.current_site.framaform_url
+                or '#'
             )
         return context
 
