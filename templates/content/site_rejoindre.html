@@ -1,0 +1,170 @@
+{% extends "content/site_subpage_base.html" %}
+{% block nav_rejoindre %}class="active"{% endblock %}
+{% block title %}Nous rejoindre — STUCS CNT-SO{% endblock %}
+
+{% block extra_head %}
+<style>
+.rj-grid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 2.5rem; align-items: start; }
+.rj-info-card {
+  background: var(--bg-light);
+  border: 1px solid var(--border-color);
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+}
+.rj-info-card h3 {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  color: var(--text-color);
+  margin-bottom: 1rem;
+  padding-bottom: .6rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.rj-info-card p { font-size: .9rem; color: var(--text-secondary); line-height: 1.75; margin-bottom: .75rem; }
+.rj-info-card p:last-child { margin-bottom: 0; }
+.rj-list { list-style: none; }
+.rj-list li {
+  font-size: .88rem; color: var(--text-secondary); line-height: 1.6;
+  padding: .35rem 0 .35rem 1.4rem; position: relative;
+  border-bottom: 1px solid var(--border-color);
+}
+.rj-list li:last-child { border-bottom: none; }
+.rj-list li::before { content: '→'; position: absolute; left: 0; color: var(--primary-color); font-size: .75rem; top: .45rem; }
+
+.rj-form-wrap { background: var(--bg-light); border: 1px solid var(--border-color); padding: 1.75rem; }
+.rj-form-wrap h2 {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  color: var(--text-color);
+  margin-bottom: .4rem;
+}
+.rj-form-wrap .sub { font-size: .82rem; color: var(--text-muted); margin-bottom: 1.25rem; }
+.rj-iframe-container iframe {
+  width: 100%;
+  height: 640px;
+  border: none;
+  background: #fff;
+  border-radius: 2px;
+}
+.rj-fallback-btn {
+  display: block;
+  text-align: center;
+  margin-top: .75rem;
+  font-size: .8rem;
+  color: var(--muted);
+}
+
+.rj-contact-sep {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0 1.75rem;
+}
+
+.rj-info-cms { color: var(--text-secondary); font-size: .9rem; line-height: 1.75; margin-bottom: 1.5rem; }
+.rj-info-cms h2, .rj-info-cms h3 { font-family: var(--font-heading); color: var(--text-color); margin: 1.2rem 0 .6rem; }
+.rj-info-cms ul, .rj-info-cms ol { padding-left: 1.4rem; margin-bottom: .75rem; }
+.rj-info-cms li { margin-bottom: .3rem; }
+.rj-info-cms strong { color: var(--text-color); }
+.rj-info-cms p { margin-bottom: .75rem; }
+.stucs-intro-cms { color: var(--text-secondary); font-size: .9rem; line-height: 1.75; }
+.stucs-intro-cms h2, .stucs-intro-cms h3 { font-family: var(--font-heading); color: var(--text-color); margin: 1rem 0 .5rem; }
+.stucs-intro-cms ul, .stucs-intro-cms ol { padding-left: 1.4rem; }
+.stucs-intro-cms li { margin-bottom: .3rem; color: var(--text-secondary); }
+.success-box {
+  background: rgba(40,120,40,.1);
+  border: 1px solid rgba(40,120,40,.3);
+  padding: 1rem 1.4rem;
+  color: #2d7a2d;
+  font-size: .9rem;
+  border-radius: 3px;
+}
+
+@media (max-width: 900px) {
+  .rj-grid { grid-template-columns: 1fr; }
+  .rj-iframe-container iframe { height: 520px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="s-page">
+  <h1 class="s-section-title" style="margin-bottom:2rem;">Nous rejoindre</h1>
+
+  <div class="rj-grid">
+
+    <!-- Colonne gauche : infos + contact -->
+    <div>
+      {% if site.rejoindre_text %}
+        <div class="rj-info-cms">{{ site.rejoindre_text }}</div>
+      {% else %}
+      <div class="rj-info-card">
+        <h3>Pourquoi adhérer au STUCS ?</h3>
+        <p>Le STUCS est le syndicat CNT-SO pour les travailleur·ses de la culture et du spectacle.</p>
+        <ul class="rj-list">
+          <li>Défense individuelle en cas de litige avec l'employeur</li>
+          <li>Rapport de force collectif dans le secteur culturel</li>
+          <li>Syndicat autogestionnaire, sans permanents rémunérés</li>
+          <li>Cotisation libre et solidaire</li>
+          <li>Réseau national CNT-SO</li>
+        </ul>
+      </div>
+      <div class="rj-info-card">
+        <h3>Comment ça marche ?</h3>
+        <p>Remplis le formulaire d'adhésion ci-contre. Un·e militant·e te contactera pour finaliser.</p>
+        <p>La cotisation est libre — nous suggérons environ <strong style="color:#ccc;">1 % de ton salaire net mensuel</strong>.</p>
+      </div>
+      {% endif %}
+
+      <!-- Formulaire contact -->
+      <hr class="rj-contact-sep">
+      <h2 class="s-section-title" style="font-size:1.2rem;margin-bottom:1.25rem;">Une question avant d'adhérer ?</h2>
+
+      {% if success %}
+        <div class="success-box">Ton message a bien été envoyé. Nous te répondrons rapidement !</div>
+      {% else %}
+        <form method="post">
+          {% csrf_token %}
+          <div class="s-field">
+            <label class="s-label" for="id_name">Nom</label>
+            <input class="s-input" type="text" id="id_name" name="name" required
+                   value="{{ form.name.value|default:'' }}" autocomplete="name">
+          </div>
+          <div class="s-field">
+            <label class="s-label" for="id_email">Email</label>
+            <input class="s-input" type="email" id="id_email" name="email" required
+                   value="{{ form.email.value|default:'' }}" autocomplete="email">
+          </div>
+          <div class="s-field">
+            <label class="s-label" for="id_message">Message</label>
+            <textarea class="s-textarea" id="id_message" name="message" required>{{ form.message.value|default:'' }}</textarea>
+          </div>
+          <button type="submit" class="btn-red">Envoyer</button>
+        </form>
+      {% endif %}
+    </div>
+
+    <!-- Colonne droite : Framaform -->
+    <div>
+      <div class="rj-form-wrap">
+        <h2>Formulaire d'adhésion</h2>
+        <p class="sub">Remplis ce formulaire pour nous rejoindre</p>
+        {% if site.framaform_url %}
+          <div class="rj-iframe-container">
+            <iframe
+              src="{{ site.framaform_url }}"
+              title="Formulaire d'adhésion STUCS"
+              loading="lazy"
+              allow="autoplay">
+            </iframe>
+          </div>
+          <a href="{{ site.framaform_url }}" target="_blank" rel="noopener" class="rj-fallback-btn">
+            Ouvrir le formulaire dans un nouvel onglet →
+          </a>
+        {% else %}
+          <p style="color:var(--muted);font-size:.9rem;">Formulaire en cours de configuration.</p>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

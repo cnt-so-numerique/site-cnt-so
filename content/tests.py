@@ -1117,9 +1117,9 @@ class SiteAgendaViewTest(TestCase):
         make_site()
         self.sub = make_site('sub', wp_blog_id=2, site_type='regional', name='Sub')
 
-    def test_404_when_no_agenda_url(self):
+    def test_200_when_no_agenda_url(self):
         url = reverse('content:site_agenda', kwargs={'site_slug': 'sub'})
-        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.client.get(url).status_code, 200)
 
     def test_200_when_agenda_url_set(self):
         self.sub.agenda_url = 'https://agenda.example.com'

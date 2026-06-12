@@ -1,0 +1,146 @@
+{% extends "content/site_subpage_base.html" %}
+{% block nav_agenda %}class="active"{% endblock %}
+{% block title %}Agenda — STUCS CNT-SO{% endblock %}
+
+{% block extra_head %}
+<style>
+.event-list { display: flex; flex-direction: column; gap: 1rem; }
+
+.event-card {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 0;
+  background: var(--white);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  transition: border-color .15s, box-shadow .15s;
+}
+.event-card:hover { border-color: var(--primary-color); box-shadow: 0 2px 6px rgba(0,0,0,.07); }
+
+.event-date-block {
+  background: var(--primary-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: .75rem .5rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+.event-date-day { font-family: var(--font-heading); font-size: 2rem; font-weight: 700; color: #fff; line-height: 1; }
+.event-date-month { font-size: .65rem; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,.85); margin-top: .2rem; }
+.event-date-year { font-size: .65rem; color: rgba(255,255,255,.7); }
+
+.event-body { padding: .9rem 1.1rem; display: flex; flex-direction: column; justify-content: center; }
+.event-title { font-family: var(--font-heading); font-size: 1.05rem; color: var(--text-color); margin-bottom: .3rem; }
+.event-title a { color: inherit; }
+.event-title a:hover { color: var(--primary-color); }
+.event-meta { font-size: .78rem; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.event-meta svg { opacity: .6; }
+.event-desc { font-size: .85rem; color: var(--text-secondary); margin-top: .4rem; line-height: 1.5; }
+
+.event-section-title {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  margin: 2rem 0 .75rem;
+  padding-bottom: .4rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.agenda-empty {
+  text-align: center;
+  padding: 3.5rem 2rem;
+  color: var(--text-muted);
+  background: var(--bg-light);
+  border: 1px solid var(--border-color);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="s-page">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;">
+    <h1 class="s-section-title" style="margin-bottom:0;">Agenda</h1>
+    <a href="/cms/snippets/cms/event/add/" class="btn-red" style="font-size:.78rem;padding:.45rem .9rem;">+ Ajouter un événement</a>
+  </div>
+
+  {% if upcoming_events %}
+    <div class="event-list">
+      {% for event in upcoming_events %}
+      <div class="event-card">
+        <div class="event-date-block">
+          <div class="event-date-day">{{ event.date|date:"d" }}</div>
+          <div class="event-date-month">{{ event.date|date:"M" }}</div>
+          <div class="event-date-year">{{ event.date|date:"Y" }}</div>
+        </div>
+        <div class="event-body">
+          <div class="event-title">
+            {% if event.url %}<a href="{{ event.url }}" target="_blank" rel="noopener">{{ event.title }}</a>
+            {% else %}{{ event.title }}{% endif %}
+          </div>
+          <div class="event-meta">
+            {% if event.time %}
+              <span>
+                <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:.2rem"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                {{ event.time|time:"H\hi" }}
+              </span>
+            {% endif %}
+            {% if event.location %}
+              <span>
+                <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:.2rem"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                {{ event.location }}
+              </span>
+            {% endif %}
+            {% if event.end_date %}
+              <span>→ {{ event.end_date|date:"d/m/Y" }}</span>
+            {% endif %}
+          </div>
+          {% if event.description %}
+            <div class="event-desc">{{ event.description|truncatewords:20 }}</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+  {% else %}
+    <div class="agenda-empty">
+      <p style="font-size:1rem;margin-bottom:.5rem;">Aucun événement à venir.</p>
+      <p style="font-size:.83rem;margin-bottom:1.25rem;">
+        Suis nos <a href="{{ site.linkstack_url }}" target="_blank" rel="noopener">réseaux sociaux</a> pour les prochaines dates.
+      </p>
+      <a href="/cms/snippets/cms/event/add/" class="btn-red" style="font-size:.82rem;">+ Ajouter un événement</a>
+    </div>
+  {% endif %}
+
+  {% if past_events %}
+  <p class="event-section-title">Événements passés</p>
+  <div class="event-list">
+    {% for event in past_events %}
+    <div class="event-card" style="opacity:.6;">
+      <div class="event-date-block" style="background:#aaa;">
+        <div class="event-date-day">{{ event.date|date:"d" }}</div>
+        <div class="event-date-month">{{ event.date|date:"M" }}</div>
+        <div class="event-date-year">{{ event.date|date:"Y" }}</div>
+      </div>
+      <div class="event-body">
+        <div class="event-title">{{ event.title }}</div>
+        <div class="event-meta">
+          {% if event.location %}<span>{{ event.location }}</span>{% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if site.agenda_text %}
+  <div style="margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid var(--border);">
+    <h2 class="s-section-title" style="font-size:1.2rem;">Informations complémentaires</h2>
+    <div style="color:#ccc;line-height:1.8;font-size:.93rem;">{{ site.agenda_text }}</div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

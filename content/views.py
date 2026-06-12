@@ -76,19 +76,34 @@ class HomeView(ListView):
 
 
 class SiteAgendaView(TemplateView):
-    """Page agenda d'un sous-site (iframe vers agenda externe)"""
-    template_name = 'content/site_agenda.html'
+    """Page agenda d'un sous-site : événements CMS ou iframe externe."""
+
+    def get_template_names(self):
+        if getattr(self, 'site_obj', None) and self.site_obj.agenda_url:
+            return ['content/site_agenda.html']
+        return ['content/site_agenda_events.html']
 
     def get(self, request, *args, **kwargs):
         self.site_obj = get_object_or_404(SectionPage, slug=kwargs['site_slug'])
-        if not self.site_obj.agenda_url:
-            raise Http404
-        return super().get(request, *args, **kwargs)
+        return TemplateView.get(self, request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['site'] = self.site_obj
-        context['agenda_url'] = self.site_obj.agenda_url
+        if self.site_obj.agenda_url:
+            context['agenda_url'] = self.site_obj.agenda_url
+        else:
+            from cms.models import Event
+            today = timezone.now().date()
+            context['upcoming_events'] = (
+                Event.objects.filter(section=self.site_obj, date__gte=today)
+                .order_by('date', 'time')
+            )
+            context['past_events'] = (
+                Event.objects.filter(section=self.site_obj, date__lt=today)
+                .order_by('-date', '-time')[:10]
+            )
+            context['agenda_text'] = self.site_obj.agenda_text
         return context
 
 
@@ -759,19 +774,20 @@ class QuiSommesNousView(TemplateView):
 
 # ── Vues STUCS ────────────────────────────────────────────────────────────────
 
-def _stucs_base_context(request):
-    site = get_object_or_404(SectionPage, slug='stucs')
-    return {'site': site, 'categories': CmsCategory.objects.filter(section_slug='stucs')}
+class SiteRejoindreView(View):
+    """Page 'Nous rejoindre' générique pour tout sous-site."""
 
+    def _ctx(self, site_slug):
+        site = get_object_or_404(SectionPage, slug=site_slug)
+        return {'site': site, 'categories': CmsCategory.objects.filter(section_slug=site_slug)}
 
-class StucsRejoindreView(View):
-    def get(self, request):
-        ctx = _stucs_base_context(request)
+    def get(self, request, site_slug):
+        ctx = self._ctx(site_slug)
         ctx['form'] = ContactForm()
-        return render(request, 'content/stucs/rejoindre.html', ctx)
+        return render(request, 'content/site_rejoindre.html', ctx)
 
-    def post(self, request):
-        ctx = _stucs_base_context(request)
+    def post(self, request, site_slug):
+        ctx = self._ctx(site_slug)
         form = ContactForm(request.POST)
         ctx['form'] = form
         if form.is_valid():
@@ -783,39 +799,26 @@ class StucsRejoindreView(View):
                 message=form.cleaned_data['message'],
             )
             msg.save()
-            from .views import _send_contact_email
             _send_contact_email(site, msg)
             ctx['success'] = True
-        return render(request, 'content/stucs/rejoindre.html', ctx)
+        return render(request, 'content/site_rejoindre.html', ctx)
 
 
-class StucsRessourcesView(View):
-    def get(self, request):
-        ctx = _stucs_base_context(request)
+class SiteRessourcesView(View):
+    """Page 'Ressources' générique pour tout sous-site."""
+
+    def get(self, request, site_slug):
+        site = get_object_or_404(SectionPage, slug=site_slug)
+        categories = CmsCategory.objects.filter(section_slug=site_slug)
         slug = request.GET.get('cat', '')
-        active_cat = None
-        if slug:
-            active_cat = CmsCategory.objects.filter(section_slug='stucs', slug=slug).first()
-        qs = ArticlePage.objects.live().filter(section_slug='stucs')
+        active_cat = CmsCategory.objects.filter(section_slug=site_slug, slug=slug).first() if slug else None
+        qs = ArticlePage.objects.live().filter(section_slug=site_slug)
         if active_cat:
             qs = qs.filter(cms_categories=active_cat)
         articles = qs.select_related('featured_image').order_by('-publication_date', '-first_published_at')
-        ctx['active_cat'] = active_cat
-        ctx['articles'] = articles
-        return render(request, 'content/stucs/ressources.html', ctx)
-
-
-class StucsAgendaView(View):
-    def get(self, request):
-        from cms.models import Event
-        from django.utils import timezone
-        ctx = _stucs_base_context(request)
-        ctx['agenda_text'] = ctx['site'].agenda_text
-        today = timezone.now().date()
-        ctx['upcoming_events'] = (Event.objects
-            .filter(section=ctx['site'], date__gte=today)
-            .order_by('date', 'time'))
-        ctx['past_events'] = (Event.objects
-            .filter(section=ctx['site'], date__lt=today)
-            .order_by('-date', '-time')[:10])
-        return render(request, 'content/stucs/agenda.html', ctx)
+        return render(request, 'content/site_ressources.html', {
+            'site': site,
+            'categories': categories,
+            'active_cat': active_cat,
+            'articles': articles,
+        })

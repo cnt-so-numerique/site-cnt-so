@@ -172,7 +172,7 @@ class StucsRejoindreViewTest(TestCase):
 
     def test_uses_rejoindre_template(self):
         r = self.client.get('/stucs/rejoindre/')
-        self.assertTemplateUsed(r, 'content/stucs/rejoindre.html')
+        self.assertTemplateUsed(r, 'content/site_rejoindre.html')
 
     def test_shows_framaform_url(self):
         r = self.client.get('/stucs/rejoindre/')
@@ -213,7 +213,7 @@ class StucsRessourcesViewTest(TestCase):
 
     def test_uses_ressources_template(self):
         r = self.client.get('/stucs/ressources/')
-        self.assertTemplateUsed(r, 'content/stucs/ressources.html')
+        self.assertTemplateUsed(r, 'content/site_ressources.html')
 
     def test_filter_by_category(self):
         cat = make_cms_category(name='Communiques', slug='communiques', section_slug='stucs')
@@ -248,7 +248,7 @@ class StucsAgendaViewTest(TestCase):
 
     def test_uses_agenda_template(self):
         r = self.client.get('/stucs/agenda/')
-        self.assertTemplateUsed(r, 'content/stucs/agenda.html')
+        self.assertTemplateUsed(r, 'content/site_agenda_events.html')
 
     def test_shows_upcoming_events(self):
         make_event(self.stucs, 'Grand concert', days_from_now=5)
