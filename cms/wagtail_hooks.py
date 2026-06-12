@@ -208,7 +208,7 @@ class CmsCategoryViewSet(SnippetViewSet):
 class SectionPageViewSet(SnippetViewSet):
     model = SectionPage
     icon = 'site'
-    menu_label = 'Sections (syndicats)'
+    menu_label = 'Mon syndicat'
     menu_order = 200
     list_display = ['title', 'slug', 'section_type', 'live']
     search_fields = ['title', 'slug']
@@ -217,6 +217,11 @@ class SectionPageViewSet(SnippetViewSet):
         qs = SectionPage.objects.all()
         if request.user.is_superuser:
             return qs
+        # Chefs : uniquement leur propre syndicat
+        if _is_chef(request.user):
+            current = get_current_site(request)
+            if current:
+                return qs.filter(pk=current.pk)
         return qs.none()
 
 

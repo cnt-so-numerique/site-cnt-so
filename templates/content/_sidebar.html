@@ -5,6 +5,9 @@
     <a href="{% url 'content:souscription' %}" class="hp-btn-outline">Nous soutenir</a>
 </div>
 
+<!-- Réseaux sociaux -->
+{% with s=site %}{% include "content/_social_icons.html" %}{% endwith %}
+
 <!-- Les dernières campagnes -->
 <div class="hp-bloc-campagnes">
     <div class="hp-sidebar-header">

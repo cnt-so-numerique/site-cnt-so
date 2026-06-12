@@ -12,6 +12,9 @@
     <a href="{% url 'content:souscription' %}" class="hp-btn-outline">Nous soutenir</a>
 </div>
 
+<!-- Réseaux sociaux -->
+{% with s=site %}{% include "content/_social_icons.html" %}{% endwith %}
+
 <!-- Dernières nouvelles de la confédération -->
 <div class="hp-bloc-campagnes">
     <div class="hp-sidebar-header">

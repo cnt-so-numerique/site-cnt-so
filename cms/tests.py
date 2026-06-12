@@ -144,7 +144,7 @@ class StucsHomeViewTest(TestCase):
 
     def test_home_uses_stucs_template(self):
         r = self.client.get('/stucs/')
-        self.assertTemplateUsed(r, 'content/stucs/home.html')
+        self.assertTemplateUsed(r, 'content/sectoral_site_home.html')
 
     def test_home_shows_articles(self):
         make_article_page(section_slug='stucs', title='Article STUCS test')
@@ -155,9 +155,9 @@ class StucsHomeViewTest(TestCase):
         r = self.client.get('/stucs/')
         self.assertContains(r, 'STUCS')
 
-    def test_home_shows_linkstack_button(self):
+    def test_home_shows_rejoindre_button(self):
         r = self.client.get('/stucs/')
-        self.assertContains(r, 'linkstack.fr')
+        self.assertContains(r, 'framaforms.org')
 
 
 class StucsRejoindreViewTest(TestCase):
@@ -335,12 +335,12 @@ class StucsMenuIntegrationTest(TestCase):
         self.stucs = make_stucs_section()
 
     def test_nav_renders_without_menu_items(self):
-        """Le fallback hardcodé s'affiche si aucun MenuItem."""
+        """Le fallback 'Aucun menu configuré' s'affiche si aucun MenuItem."""
         from content.models import MenuItem
         MenuItem.objects.filter(site=self.stucs).delete()
         r = Client().get('/stucs/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Accueil')
+        self.assertContains(r, 'Aucun menu')
 
     def test_nav_uses_menu_items_when_present(self):
         from content.models import MenuItem

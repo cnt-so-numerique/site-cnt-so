@@ -295,6 +295,14 @@ class SectionPage(SeoMixin, Page):
         verbose_name="Email de contact",
         help_text="Adresse email qui reçoit les messages du formulaire de contact",
     )
+    social_mastodon = models.URLField(blank=True, verbose_name="Mastodon")
+    social_twitter = models.URLField(blank=True, verbose_name="Twitter / X")
+    social_facebook = models.URLField(blank=True, verbose_name="Facebook")
+    social_instagram = models.URLField(blank=True, verbose_name="Instagram")
+    social_youtube = models.URLField(blank=True, verbose_name="YouTube")
+    social_telegram = models.URLField(blank=True, verbose_name="Telegram")
+    social_discord = models.URLField(blank=True, verbose_name="Discord")
+
     legacy_site_slug = models.SlugField(max_length=100, blank=True, db_index=True)
     wp_blog_id = models.IntegerField(
         null=True, blank=True, unique=True,
@@ -319,6 +327,15 @@ class SectionPage(SeoMixin, Page):
         FieldPanel('rejoindre_text'),
         FieldPanel('agenda_text'),
         FieldPanel('logo'),
+        MultiFieldPanel([
+            FieldPanel('social_mastodon'),
+            FieldPanel('social_twitter'),
+            FieldPanel('social_facebook'),
+            FieldPanel('social_instagram'),
+            FieldPanel('social_youtube'),
+            FieldPanel('social_telegram'),
+            FieldPanel('social_discord'),
+        ], heading="Réseaux sociaux"),
     ]
     promote_panels = Page.promote_panels + [
         FieldPanel('legacy_site_slug'),
