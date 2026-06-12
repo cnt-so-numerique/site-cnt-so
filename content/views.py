@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView, DetailView, View, CreateView, TemplateView
 from django.http import Http404
-from django.db.models import Q
+from django.db.models import Q, Case, When, Value, IntegerField
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.core.mail import EmailMultiAlternatives
@@ -158,7 +158,12 @@ class SiteHomeView(ListView):
                 .filter(section_slug=self.current_site.slug)
                 .select_related('featured_image')
                 .prefetch_related('cms_categories')
-                .order_by('-first_published_at'))
+                .annotate(has_img=Case(
+                    When(featured_image__isnull=False, then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ))
+                .order_by('-has_img', '-first_published_at'))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
