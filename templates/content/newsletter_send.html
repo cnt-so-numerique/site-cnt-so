@@ -44,19 +44,42 @@
     <!-- Envoi réel -->
     <div style="border:2px solid #e63946;border-radius:8px;padding:1.5rem;">
       <h2 class="w-h2" style="margin-top:0;color:#e63946;">🚀 Envoi réel</h2>
-      <p style="color:#6b7280;font-size:.9rem;">
-        Sera envoyé à <strong>{{ nb_subscribers }} abonné(s)</strong> confirmé(s) sur ce site.
-      </p>
-      {% if nb_subscribers == 0 %}
-        <p style="color:#9ca3af;">Aucun abonné actif — envoi impossible.</p>
-      {% else %}
-        <form method="post" onsubmit="return confirm('Envoyer à {{ nb_subscribers }} abonné(s) ? Cette action est irréversible.');">
+
+      {% if ovh_list_email %}
+        <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:.75rem;margin-bottom:1rem;font-size:.85rem;">
+          <strong>Mode OVH :</strong> un seul e-mail sera envoyé à<br>
+          <code style="font-size:.9rem;">{{ ovh_list_email }}</code><br>
+          OVH redistribuera à tous les abonnés de la liste.
+        </div>
+        <p style="color:#6b7280;font-size:.9rem;">
+          {% if nb_subscribers is not None %}
+            Liste actuelle : <strong>{{ nb_subscribers }} abonné(s)</strong> OVH.
+          {% else %}
+            Nombre d'abonnés OVH non disponible.
+          {% endif %}
+        </p>
+        <form method="post" onsubmit="return confirm('Envoyer à {{ ovh_list_email }} via OVH ? Cette action est irréversible.');">
           {% csrf_token %}
           <input type="hidden" name="mode" value="send">
           <button type="submit" class="button button-primary" style="background:#e63946;border-color:#e63946;">
-            Envoyer à {{ nb_subscribers }} abonné(s)
+            Envoyer via OVH → {{ ovh_list_email }}
           </button>
         </form>
+      {% else %}
+        <p style="color:#6b7280;font-size:.9rem;">
+          Sera envoyé à <strong>{{ nb_subscribers }} abonné(s)</strong> confirmé(s) sur ce site.
+        </p>
+        {% if nb_subscribers == 0 %}
+          <p style="color:#9ca3af;">Aucun abonné actif — envoi impossible.</p>
+        {% else %}
+          <form method="post" onsubmit="return confirm('Envoyer à {{ nb_subscribers }} abonné(s) ? Cette action est irréversible.');">
+            {% csrf_token %}
+            <input type="hidden" name="mode" value="send">
+            <button type="submit" class="button button-primary" style="background:#e63946;border-color:#e63946;">
+              Envoyer à {{ nb_subscribers }} abonné(s)
+            </button>
+          </form>
+        {% endif %}
       {% endif %}
     </div>
 

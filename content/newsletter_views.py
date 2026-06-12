@@ -34,10 +34,25 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
         if newsletter.status == 'sent':
             messages.error(request, 'Newsletter déjà envoyée.')
             return redirect('/cms/snippets/content/newsletter/')
-        subscribers = Subscriber.objects.filter(site=newsletter.site, is_active=True)
+
+        site = newsletter.site
+        list_name = getattr(site, 'ovh_mailing_list', '').strip() if site else ''
+        if list_name:
+            from django.conf import settings as _s
+            ovh_list_email = f"{list_name}@{getattr(_s, 'OVH_DOMAIN', 'cnt-so.info')}"
+            try:
+                from cms.ovh_client import get_subscribers
+                nb_subscribers = len(get_subscribers(list_name))
+            except Exception:
+                nb_subscribers = None
+        else:
+            ovh_list_email = None
+            nb_subscribers = Subscriber.objects.filter(site=site, is_active=True).count()
+
         return render(request, 'content/newsletter_send.html', {
             'newsletter': newsletter,
-            'nb_subscribers': subscribers.count(),
+            'nb_subscribers': nb_subscribers,
+            'ovh_list_email': ovh_list_email,
         })
 
     def post(self, request, pk):
@@ -88,14 +103,73 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
                 messages.error(request, f'Erreur lors de l\'envoi : {e}')
             return redirect('content:newsletter_send', pk=pk)
 
-        subscribers = list(Subscriber.objects.filter(site=newsletter.site, is_active=True))
+        from django.conf import settings as django_settings
+
+        site = newsletter.site
+        list_name = getattr(site, 'ovh_mailing_list', '').strip() if site else ''
+
+        if list_name:
+            # ── Envoi via liste OVH ───────────────────────────────────────────
+            ovh_domain = getattr(django_settings, 'OVH_DOMAIN', 'cnt-so.info')
+            list_email = f"{list_name}@{ovh_domain}"
+            site_slug = (site.legacy_site_slug or site.slug) if site else ''
+            unsubscribe_url = request.build_absolute_uri(
+                reverse('content:site_newsletter_subscribe', args=[site_slug])
+                if site_slug else reverse('content:newsletter_subscribe')
+            )
+            html_body = render_to_string('newsletter/email.html', {
+                'newsletter': newsletter,
+                'newsletter_articles': articles,
+                'site_url': site_url,
+                'unsubscribe_url': unsubscribe_url,
+                'is_preview': False,
+            }, request=request)
+            text_body = (
+                f"{newsletter.title}\n\n{newsletter.intro}\n\n"
+                + "\n".join(
+                    f"- {na.article.title}: {site_url.rstrip('/')}{na.article.get_absolute_url()}"
+                    for na in articles
+                )
+                + f"\n\nGérer votre abonnement : {unsubscribe_url}"
+            )
+            try:
+                msg = EmailMultiAlternatives(
+                    subject=newsletter.title,
+                    body=text_body,
+                    from_email=None,
+                    to=[list_email],
+                )
+                msg.extra_headers['List-Unsubscribe'] = (
+                    f'<mailto:{list_name}-unsubscribe@{ovh_domain}>'
+                )
+                msg.attach_alternative(html_body, 'text/html')
+                msg.send()
+            except Exception as e:
+                messages.error(request, f'Erreur lors de l\'envoi à {list_email} : {e}')
+                return redirect(request.path)
+
+            try:
+                from cms.ovh_client import get_subscribers
+                sent_count = len(get_subscribers(list_name))
+            except Exception:
+                sent_count = 0
+
+            newsletter.status = 'sent'
+            newsletter.sent_at = timezone.now()
+            newsletter.sent_by = request.user
+            newsletter.sent_count = sent_count
+            newsletter.save(update_fields=['status', 'sent_at', 'sent_by', 'sent_count'])
+            messages.success(request, f'Newsletter envoyée à {list_email} ({sent_count} abonné(s) OVH).')
+            return redirect('/cms/snippets/content/newsletter/')
+
+        # ── Envoi direct abonné par abonné (fallback sans liste OVH) ─────────
+        subscribers = list(Subscriber.objects.filter(site=site, is_active=True))
         if not subscribers:
             messages.warning(request, 'Aucun abonné actif pour ce site.')
             return redirect('/cms/snippets/content/newsletter/')
 
         sent = 0
         errors = 0
-        from django.conf import settings as django_settings
         delay = getattr(django_settings, 'NEWSLETTER_SEND_DELAY', 0)
 
         for subscriber in subscribers:

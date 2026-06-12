@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import patch, MagicMock
 
 from django.test import TestCase, RequestFactory
 from django.contrib.auth.models import User, Group, Permission
@@ -2688,3 +2689,138 @@ class ChampContactDeleteViewTest(TestCase):
         response = self.client.post(f'/cms/contact-config/champ/{self.champ_b.pk}/supprimer/')
         self.assertEqual(response.status_code, 404)
         self.assertTrue(ChampContactCustom.objects.filter(pk=self.champ_b.pk).exists())
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# NEWSLETTER SEND VIA OVH
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _make_newsletter(site, title='Test newsletter', status='draft'):
+    from content.models import Newsletter
+    return Newsletter.objects.create(site=site, title=title, intro='Intro test.', status=status)
+
+
+def _chef_client(site):
+    """Client authentifié comme rédacteur-en-chef avec le site courant en session."""
+    from django.contrib.auth.models import User, Group
+    from cms.site_context import SESSION_KEY
+    _setup_editorial_groups()
+    user = User.objects.create_superuser(
+        username=f'chef-nl-{site.pk}', password='pass'
+    )
+    c = __import__('django.test', fromlist=['Client']).Client()
+    c.force_login(user)
+    session = c.session
+    session[SESSION_KEY] = site.pk
+    session.save()
+    return c
+
+
+class NewsletterSendOvhGetTest(TestCase):
+    """Page de confirmation d'envoi — affichage selon mode OVH ou direct."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='nl-ovh-get', name='NL OVH GET', site_type='sectoral')
+        self.site.ovh_mailing_list = 'actu-test-cntso'
+        self.site.save(update_fields=['ovh_mailing_list'])
+        self.newsletter = _make_newsletter(self.site)
+        self.url = f'/cms/newsletter/{self.newsletter.pk}/envoyer/'
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com', 'c@d.com'])
+    def test_get_shows_ovh_mode_when_list_configured(self, mock_subs):
+        c = _chef_client(self.site)
+        r = c.get(self.url)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'actu-test-cntso@cnt-so.info')
+        self.assertContains(r, 'Mode OVH')
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com', 'c@d.com'])
+    def test_get_shows_subscriber_count_from_ovh(self, mock_subs):
+        c = _chef_client(self.site)
+        r = c.get(self.url)
+        self.assertContains(r, '2 abonné')
+
+    def test_get_shows_direct_mode_when_no_ovh_list(self):
+        self.site.ovh_mailing_list = ''
+        self.site.save(update_fields=['ovh_mailing_list'])
+        Subscriber.objects.create(site=self.site, email='x@y.com', is_active=True)
+        c = _chef_client(self.site)
+        r = c.get(self.url)
+        self.assertEqual(r.status_code, 200)
+        self.assertNotContains(r, 'Mode OVH')
+        self.assertContains(r, '1 abonné')
+
+
+class NewsletterSendOvhPostTest(TestCase):
+    """Envoi réel via liste OVH."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='nl-ovh-post', name='NL OVH POST', site_type='sectoral')
+        self.site.ovh_mailing_list = 'actu-test-cntso'
+        self.site.save(update_fields=['ovh_mailing_list'])
+        self.newsletter = _make_newsletter(self.site)
+        self.url = f'/cms/newsletter/{self.newsletter.pk}/envoyer/'
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
+    @patch('django.core.mail.EmailMultiAlternatives.send')
+    def test_send_posts_single_email_to_list_address(self, mock_send, mock_subs):
+        # patch send : vérifie qu'un seul appel est fait (pas un par abonné)
+        c = _chef_client(self.site)
+        c.post(self.url, {'mode': 'send'})
+        self.assertEqual(mock_send.call_count, 1)
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
+    def test_send_addresses_list_email(self, mock_subs):
+        # sans patch send → mail.outbox (locmem backend) est utilisé
+        from django.core import mail
+        c = _chef_client(self.site)
+        c.post(self.url, {'mode': 'send'})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('actu-test-cntso@cnt-so.info', mail.outbox[0].to)
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
+    def test_send_sets_list_unsubscribe_header(self, mock_subs):
+        from django.core import mail
+        c = _chef_client(self.site)
+        c.post(self.url, {'mode': 'send'})
+        header = mail.outbox[0].extra_headers.get('List-Unsubscribe', '')
+        self.assertIn('actu-test-cntso-unsubscribe@cnt-so.info', header)
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
+    @patch('django.core.mail.EmailMultiAlternatives.send')
+    def test_send_marks_newsletter_as_sent(self, mock_send, mock_subs):
+        c = _chef_client(self.site)
+        c.post(self.url, {'mode': 'send'})
+        self.newsletter.refresh_from_db()
+        self.assertEqual(self.newsletter.status, 'sent')
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com', 'b@c.com'])
+    @patch('django.core.mail.EmailMultiAlternatives.send')
+    def test_send_records_ovh_subscriber_count(self, mock_send, mock_subs):
+        c = _chef_client(self.site)
+        c.post(self.url, {'mode': 'send'})
+        self.newsletter.refresh_from_db()
+        self.assertEqual(self.newsletter.sent_count, 2)
+
+    def test_send_direct_fallback_when_no_ovh_list(self):
+        """Sans liste OVH, l'envoi direct email-par-email est utilisé."""
+        from django.core import mail
+        self.site.ovh_mailing_list = ''
+        self.site.save(update_fields=['ovh_mailing_list'])
+        Subscriber.objects.create(site=self.site, email='s1@example.com', is_active=True)
+        Subscriber.objects.create(site=self.site, email='s2@example.com', is_active=True)
+        c = _chef_client(self.site)
+        c.post(self.url, {'mode': 'send'})
+        self.assertEqual(len(mail.outbox), 2)
+        sent_to = {m.to[0] for m in mail.outbox}
+        self.assertIn('s1@example.com', sent_to)
+        self.assertIn('s2@example.com', sent_to)
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
+    @patch('django.core.mail.EmailMultiAlternatives.send', side_effect=Exception('SMTP down'))
+    def test_send_error_shown_and_newsletter_not_marked_sent(self, mock_send, mock_subs):
+        c = _chef_client(self.site)
+        r = c.post(self.url, {'mode': 'send'}, follow=True)
+        self.newsletter.refresh_from_db()
+        self.assertEqual(self.newsletter.status, 'draft')
+        self.assertContains(r, 'SMTP down')
