@@ -84,30 +84,16 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.wp-block-file').forEach(function (block) {
-        var embed = block.querySelector('.wp-block-file__embed');
-        var links = block.querySelectorAll('a');
-        var pdfUrl = null;
-        var pdfName = '';
+    function buildPdfViewer(container, pdfUrl, pdfName) {
+        container.className = 'wp-block-file';
+        container.innerHTML = '';
 
-        // Récupérer l'URL et le nom depuis les liens existants
-        if (links.length > 0) {
-            pdfUrl = links[0].getAttribute('href');
-            pdfName = links[0].textContent.trim();
-        }
-        if (!pdfUrl) return;
-
-        // Vider le bloc et reconstruire proprement
-        block.innerHTML = '';
-
-        // Visionneuse iframe (plus fiable que <object>)
         var iframe = document.createElement('iframe');
         iframe.className = 'wp-block-file__embed';
         iframe.src = pdfUrl;
         iframe.title = pdfName;
-        block.appendChild(iframe);
+        container.appendChild(iframe);
 
-        // Barre d'actions
         var actions = document.createElement('div');
         actions.className = 'wp-block-file__actions';
 
@@ -131,7 +117,26 @@ document.addEventListener('DOMContentLoaded', function () {
         btnDl.innerHTML = '&#8595; Télécharger';
         actions.appendChild(btnDl);
 
-        block.appendChild(actions);
+        container.appendChild(actions);
+    }
+
+    // Blocs wp-block-file existants (legacy HTML importé de WordPress)
+    document.querySelectorAll('.wp-block-file').forEach(function (block) {
+        var links = block.querySelectorAll('a');
+        if (!links.length) return;
+        var pdfUrl = links[0].getAttribute('href');
+        var pdfName = links[0].textContent.trim();
+        if (!pdfUrl) return;
+        buildPdfViewer(block, pdfUrl, pdfName);
+    });
+
+    // Liens PDF dans les blocs HTML bruts (block-html)
+    document.querySelectorAll('.block-html a[href$=".pdf"]').forEach(function (link) {
+        var pdfUrl = link.getAttribute('href');
+        var pdfName = link.textContent.trim();
+        var wrapper = document.createElement('div');
+        link.closest('p, div') && link.closest('p, div').replaceWith(wrapper);
+        buildPdfViewer(wrapper, pdfUrl, pdfName);
     });
 });
 </script>

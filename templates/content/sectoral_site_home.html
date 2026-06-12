@@ -12,11 +12,11 @@
     background: #111;
     margin-left: -1rem;
     margin-right: -1rem;
-    min-height: 400px;
+    min-height: 480px;
     margin-bottom: 2rem;
 }
 @media (max-width: 640px) {
-    .sc-hero-wrap { min-height: 260px; }
+    .sc-hero-wrap { min-height: 300px; }
 }
 
 .sc-slide {
@@ -36,14 +36,20 @@
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     object-position: center;
     display: block;
 }
 .sc-slide-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,.88) 35%, rgba(0,0,0,.12) 100%);
+    background: linear-gradient(to top, rgba(0,0,0,.82) 0%, rgba(0,0,0,.55) 28%, rgba(0,0,0,.10) 60%, transparent 100%);
+}
+.sc-slide-no-img {
+    background: linear-gradient(135deg, #1a0505 0%, #2d0a0a 40%, #1a1a1a 100%);
+}
+.sc-slide-no-img .sc-slide-overlay {
+    background: none;
 }
 .sc-slide-content {
     position: absolute;
@@ -126,12 +132,11 @@
 
 <div class="sc-hero-wrap" id="sc-wrap">
   {% for article in carousel_articles %}
-  <div class="sc-slide{% if forloop.first %} active{% endif %}">
-    {% with img_url=article.any_image_url %}
+  {% with img_url=article.any_image_url %}
+  <div class="sc-slide{% if forloop.first %} active{% endif %}{% if not img_url %} sc-slide-no-img{% endif %}">
     {% if img_url %}
     <img class="sc-slide-img" src="{{ img_url }}" alt="{{ article.title }}">
     {% endif %}
-    {% endwith %}
     <div class="sc-slide-overlay"></div>
     <div class="sc-slide-content">
       <div class="sc-slide-label">
@@ -143,6 +148,7 @@
       </h2>
     </div>
   </div>
+  {% endwith %}
   {% endfor %}
 
   <button class="sc-arrow" id="sc-prev" aria-label="Précédent">
