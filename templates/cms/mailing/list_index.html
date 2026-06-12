@@ -1,0 +1,49 @@
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Listes mails — CMS CNT-SO</title>
+<style>
+body { font-family: sans-serif; background: #f9fafb; margin: 0; color: #1f2937; }
+.header { background: #1e2229; color: #e2e8f0; padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
+.header a { color: #94a3b8; text-decoration: none; font-size: .85rem; }
+.header a:hover { color: #fff; }
+.container { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+h1 { font-size: 1.4rem; margin-bottom: 1.5rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+.card { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 1rem 1.2rem; }
+.card-name { font-weight: 700; font-size: 1rem; color: #111827; margin-bottom: .2rem; }
+.card-email { font-size: .78rem; color: #6b7280; margin-bottom: .75rem; }
+.card-count { font-size: .8rem; color: #374151; background: #f3f4f6; display: inline-block; padding: .2rem .6rem; border-radius: 20px; margin-bottom: .75rem; }
+.btn { display: inline-block; padding: .4rem .9rem; border-radius: 4px; font-size: .8rem; font-weight: 600; text-decoration: none; cursor: pointer; border: none; }
+.btn-primary { background: #e63946; color: #fff; }
+.btn-primary:hover { background: #c0303b; }
+.error { background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; }
+</style>
+</head>
+<body>
+<div class="header">
+  <a href="/cms/">← Tableau de bord</a>
+  <span style="color:#4b5563;">/</span>
+  <span>Listes mails OVH</span>
+</div>
+<div class="container">
+  <h1>Listes mails — cnt-so.info</h1>
+  {% if error %}
+  <div class="error">⚠️ {{ error }}</div>
+  {% else %}
+  <div class="grid">
+    {% for lst in lists %}
+    <div class="card">
+      <div class="card-name">{{ lst.name }}</div>
+      <div class="card-email">{{ lst.name }}@cnt-so.info</div>
+      <div class="card-count">{{ lst.count }} abonné{{ lst.count|pluralize }}</div><br>
+      <a href="/cms/mailing-lists/{{ lst.name }}/" class="btn btn-primary">Gérer</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+</body>
+</html>

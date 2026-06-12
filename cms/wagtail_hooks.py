@@ -547,6 +547,74 @@ class SelectSiteView(View):
         )
 
 
+# ── Listes mails OVH ──────────────────────────────────────────────────────────
+
+class MailingListIndexView(View):
+    def get(self, request):
+        from django.http import HttpResponse
+        from cms import ovh_client
+        error = None
+        lists = []
+        try:
+            names = ovh_client.list_mailing_lists()
+            for name in names:
+                try:
+                    count = len(ovh_client.get_subscribers(name))
+                except Exception:
+                    count = '?'
+                lists.append({'name': name, 'count': count})
+        except Exception as e:
+            error = str(e)
+        html = render_to_string('cms/mailing/list_index.html', {
+            'lists': lists,
+            'error': error,
+            'request': request,
+        }, request=request)
+        return HttpResponse(html)
+
+
+class MailingListDetailView(View):
+    def _render(self, request, list_name, msg_ok=None, msg_err=None):
+        from django.http import HttpResponse
+        from cms import ovh_client
+        try:
+            subscribers = ovh_client.get_subscribers(list_name)
+        except Exception as e:
+            subscribers = []
+            msg_err = msg_err or str(e)
+        html = render_to_string('cms/mailing/list_detail.html', {
+            'list_name': list_name,
+            'subscribers': subscribers,
+            'msg_ok': msg_ok,
+            'msg_err': msg_err,
+            'request': request,
+        }, request=request)
+        return HttpResponse(html)
+
+    def get(self, request, list_name):
+        return self._render(request, list_name)
+
+    def post(self, request, list_name):
+        from cms import ovh_client
+        action = request.POST.get('action')
+        email = request.POST.get('email', '').strip()
+        msg_ok = msg_err = None
+        if not email:
+            return self._render(request, list_name, msg_err="Adresse e-mail manquante.")
+        try:
+            if action == 'add':
+                added = ovh_client.add_subscriber(list_name, email)
+                msg_ok = f"{email} ajouté." if added else f"{email} était déjà abonné."
+            elif action == 'remove':
+                ovh_client.remove_subscriber(list_name, email)
+                msg_ok = f"{email} retiré."
+            else:
+                msg_err = "Action inconnue."
+        except Exception as e:
+            msg_err = str(e)
+        return self._render(request, list_name, msg_ok=msg_ok, msg_err=msg_err)
+
+
 @hooks.register('register_admin_urls')
 def register_site_admin_urls():
     return [
@@ -555,6 +623,8 @@ def register_site_admin_urls():
         path('syndicats/', SyndicatManageView.as_view(), name='cms_syndicats'),
         path('menus/', MenuTreeView.as_view(), name='cms_menus'),
         path('menus/move/', MoveMenuItemView.as_view(), name='cms_menu_move'),
+        path('mailing-lists/', MailingListIndexView.as_view(), name='cms_mailing_list_index'),
+        path('mailing-lists/<str:list_name>/', MailingListDetailView.as_view(), name='cms_mailing_list_detail'),
     ]
 
 

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>{{ list_name }}@cnt-so.info — CMS CNT-SO</title>
+<style>
+body { font-family: sans-serif; background: #f9fafb; margin: 0; color: #1f2937; }
+.header { background: #1e2229; color: #e2e8f0; padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
+.header a { color: #94a3b8; text-decoration: none; font-size: .85rem; }
+.header a:hover { color: #fff; }
+.container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+h1 { font-size: 1.3rem; margin-bottom: .25rem; }
+.subtitle { color: #6b7280; font-size: .85rem; margin-bottom: 1.5rem; }
+.add-form { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 1.2rem; margin-bottom: 1.5rem; display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; }
+.add-form input[type=email] { flex: 1; min-width: 200px; padding: .5rem .75rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: .9rem; }
+.btn { display: inline-block; padding: .5rem 1rem; border-radius: 4px; font-size: .82rem; font-weight: 600; text-decoration: none; cursor: pointer; border: none; }
+.btn-primary { background: #e63946; color: #fff; }
+.btn-primary:hover { background: #c0303b; }
+.btn-danger { background: #fff; color: #b91c1c; border: 1px solid #fca5a5; font-size: .75rem; padding: .3rem .6rem; }
+.btn-danger:hover { background: #fef2f2; }
+.subscriber-list { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; }
+.subscriber-row { display: flex; align-items: center; justify-content: space-between; padding: .65rem 1rem; border-bottom: 1px solid #f3f4f6; font-size: .88rem; }
+.subscriber-row:last-child { border-bottom: none; }
+.subscriber-row:hover { background: #f9fafb; }
+.count-badge { background: #f3f4f6; color: #374151; font-size: .78rem; padding: .2rem .7rem; border-radius: 20px; margin-bottom: 1rem; display: inline-block; }
+.msg { padding: .75rem 1rem; border-radius: 4px; margin-bottom: 1rem; font-size: .88rem; }
+.msg-ok { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
+.msg-err { background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; }
+.search { width: 100%; padding: .5rem .75rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: .88rem; margin-bottom: 1rem; box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div class="header">
+  <a href="/cms/">← Tableau de bord</a>
+  <span style="color:#4b5563;">/</span>
+  <a href="/cms/mailing-lists/">Listes mails</a>
+  <span style="color:#4b5563;">/</span>
+  <span>{{ list_name }}</span>
+</div>
+<div class="container">
+  <h1>{{ list_name }}@cnt-so.info</h1>
+  <div class="subtitle">{{ subscribers|length }} abonné{{ subscribers|length|pluralize }}</div>
+
+  {% if msg_ok %}<div class="msg msg-ok">✓ {{ msg_ok }}</div>{% endif %}
+  {% if msg_err %}<div class="msg msg-err">⚠️ {{ msg_err }}</div>{% endif %}
+
+  <!-- Ajouter un abonné -->
+  <form method="post" class="add-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add">
+    <input type="email" name="email" placeholder="nouvelle@adresse.fr" required>
+    <button type="submit" class="btn btn-primary">+ Ajouter</button>
+  </form>
+
+  <!-- Liste -->
+  <div class="count-badge">{{ subscribers|length }} abonné{{ subscribers|length|pluralize }}</div>
+  <input class="search" type="search" placeholder="Filtrer les adresses…" id="search-input">
+  <div class="subscriber-list" id="subscriber-list">
+    {% for email in subscribers %}
+    <div class="subscriber-row" data-email="{{ email }}">
+      <span>{{ email }}</span>
+      <form method="post" style="margin:0">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="remove">
+        <input type="hidden" name="email" value="{{ email }}">
+        <button type="submit" class="btn btn-danger"
+          onclick="return confirm('Retirer {{ email }} de la liste ?')">Retirer</button>
+      </form>
+    </div>
+    {% empty %}
+    <div class="subscriber-row" style="color:#9ca3af;font-style:italic;">Aucun abonné.</div>
+    {% endfor %}
+  </div>
+</div>
+<script>
+document.getElementById('search-input').addEventListener('input', function() {
+  var q = this.value.toLowerCase();
+  document.querySelectorAll('#subscriber-list .subscriber-row[data-email]').forEach(function(row) {
+    row.style.display = row.dataset.email.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
+</script>
+</body>
+</html>

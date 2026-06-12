@@ -295,6 +295,12 @@ class SectionPage(SeoMixin, Page):
         verbose_name="Email de contact",
         help_text="Adresse email qui reçoit les messages du formulaire de contact",
     )
+    ovh_mailing_list = models.CharField(
+        max_length=100, blank=True,
+        verbose_name="Liste mail OVH (newsletter)",
+        help_text="Nom de la liste sur cnt-so.info, ex: actu-stucs-cntso",
+    )
+
     social_mastodon = models.URLField(blank=True, verbose_name="Mastodon")
     social_bluesky = models.URLField(blank=True, verbose_name="BlueSky")
     social_twitter = models.URLField(blank=True, verbose_name="Twitter / X")
@@ -328,6 +334,9 @@ class SectionPage(SeoMixin, Page):
         FieldPanel('rejoindre_text'),
         FieldPanel('agenda_text'),
         FieldPanel('logo'),
+        MultiFieldPanel([
+            FieldPanel('ovh_mailing_list'),
+        ], heading="Newsletter OVH"),
         MultiFieldPanel([
             FieldPanel('social_mastodon'),
             FieldPanel('social_bluesky'),

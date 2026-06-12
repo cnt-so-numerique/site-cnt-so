@@ -189,6 +189,13 @@ SERVER_EMAIL = 'newsletter@cnt-so.org'
 # Délai entre chaque e-mail pour respecter les limites OVH (~200/heure)
 NEWSLETTER_SEND_DELAY = 18  # secondes entre chaque envoi (200/h = 1 toutes les 18s)
 
+# ── OVH Mailing Lists API ─────────────────────────────────────────────────────
+import os as _os
+OVH_APPLICATION_KEY    = _os.environ.get('OVH_APPLICATION_KEY', '')
+OVH_APPLICATION_SECRET = _os.environ.get('OVH_APPLICATION_SECRET', '')
+OVH_CONSUMER_KEY       = _os.environ.get('OVH_CONSUMER_KEY', '')
+OVH_DOMAIN             = _os.environ.get('OVH_DOMAIN', 'cnt-so.info')
+
 WAGTAIL_SITE_NAME = 'CNT-SO'
 WAGTAILADMIN_BASE_URL = 'https://cnt-so.org'
 
