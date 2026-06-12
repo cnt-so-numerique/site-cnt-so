@@ -252,6 +252,14 @@
             line-height: 1.1;
         }
 
+        .subsite-subtitle {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-top: 0.2rem;
+            line-height: 1.3;
+        }
+
         .subsite-back-btn {
             display: flex;
             align-items: center;
@@ -1468,6 +1476,9 @@
                 <div class="subsite-logo-info">
                     <div class="subsite-type">{{ site.get_site_type_display }}</div>
                     <div class="subsite-name">{{ site.name }}</div>
+                    {% if site.description and site.description != site.slug %}
+                    <div class="subsite-subtitle">{{ site.description }}</div>
+                    {% endif %}
                 </div>
             </a>
             <a href="{% url 'content:home' %}" class="subsite-back-btn">
