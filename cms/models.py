@@ -296,6 +296,7 @@ class SectionPage(SeoMixin, Page):
         help_text="Adresse email qui reçoit les messages du formulaire de contact",
     )
     social_mastodon = models.URLField(blank=True, verbose_name="Mastodon")
+    social_bluesky = models.URLField(blank=True, verbose_name="BlueSky")
     social_twitter = models.URLField(blank=True, verbose_name="Twitter / X")
     social_facebook = models.URLField(blank=True, verbose_name="Facebook")
     social_instagram = models.URLField(blank=True, verbose_name="Instagram")
@@ -329,6 +330,7 @@ class SectionPage(SeoMixin, Page):
         FieldPanel('logo'),
         MultiFieldPanel([
             FieldPanel('social_mastodon'),
+            FieldPanel('social_bluesky'),
             FieldPanel('social_twitter'),
             FieldPanel('social_facebook'),
             FieldPanel('social_instagram'),
