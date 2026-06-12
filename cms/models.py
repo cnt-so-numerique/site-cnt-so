@@ -497,12 +497,12 @@ class ArticlePage(SeoMixin, Page):
                 else:
                     self.section_slug = 'principal'
         super().save(*args, **kwargs)
-        # Sync in_carousel with CarouselArticle (only for sectoral sections)
+        # Sync in_carousel with CarouselArticle (sectoral and regional)
         if self.pk and self.section_slug:
             from django.db.models import Q
             section = SectionPage.objects.filter(
                 Q(slug=self.section_slug) | Q(legacy_site_slug=self.section_slug),
-                section_type='sectoral',
+                section_type__in=['sectoral', 'regional'],
             ).first()
             if section:
                 already_in = CarouselArticle.objects.filter(page=section, article=self).exists()
@@ -652,7 +652,7 @@ class ContentPage(Page):
 # ── Sous-sites spécialisés (proxy) ───────────────────────────────────────────
 
 class CarouselArticle(Orderable):
-    """Article sélectionné pour le carrousel d'un syndicat sectoriel."""
+    """Article sélectionné pour le carrousel d'un sous-site (sectoriel ou régional)."""
 
     page = ParentalKey(
         'cms.SectionPage',
@@ -680,12 +680,33 @@ class RegionalSectionPage(SectionPage):
         verbose_name = "Union régionale"
         verbose_name_plural = "Unions régionales"
 
+    content_panels = SectionPage.content_panels + [
+        MultiFieldPanel(
+            [InlinePanel('carousel_items', label="Article", max_num=5)],
+            heading="Carrousel d'articles mis en avant (max 5)",
+        ),
+    ]
+
     def save(self, *args, **kwargs):
         self.section_type = 'regional'
         super().save(*args, **kwargs)
 
     def get_template(self, request, *args, **kwargs):
-        return 'content/site_home.html'
+        return 'content/sectoral_site_home.html'
+
+    def get_context(self, request, *args, **kwargs):
+        context = super().get_context(request, *args, **kwargs)
+        context['carousel_articles'] = [
+            ci.article for ci in self.carousel_items.select_related('article').all()
+        ]
+        rejoindre_page = (
+            ContentPage.objects.live().child_of(self)
+            .filter(slug__icontains='rejoindre').first()
+        )
+        context['rejoindre_url'] = (
+            self.framaform_url or (rejoindre_page.url if rejoindre_page else '#')
+        )
+        return context
 
 
 class SectoralSectionPage(SectionPage):

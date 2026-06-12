@@ -79,7 +79,7 @@ def _make_scoped_article_page_view(base_class):
             """Panels dynamiques selon le syndicat courant et le rôle."""
             current = get_current_site(self.request)
             chef = _is_chef(self.request.user)
-            sectoral = current is not None and current.section_type == 'sectoral'
+            sectoral = current is not None and current.section_type in ('sectoral', 'regional')
             panels = _make_article_panels(sectoral=sectoral, chef=chef)
             return ObjectList(panels).bind_to_model(ArticlePage)
 
@@ -107,7 +107,7 @@ def _make_scoped_article_page_view(base_class):
                         form.fields['section_slug'].required = False
 
                 # Pré-coche in_carousel selon l'état réel en base
-                if current.section_type == 'sectoral' and 'in_carousel' in form.fields:
+                if current.section_type in ('sectoral', 'regional') and 'in_carousel' in form.fields:
                     instance = getattr(self, 'object', None)
                     if instance and instance.pk:
                         from .models import CarouselArticle

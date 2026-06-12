@@ -99,7 +99,7 @@ class SiteHomeView(ListView):
     paginate_by = 10
 
     def get_template_names(self):
-        if getattr(self, 'current_site', None) and self.current_site.section_type == 'sectoral':
+        if getattr(self, 'current_site', None) and self.current_site.section_type in ('sectoral', 'regional'):
             return ['content/sectoral_site_home.html']
         return ['content/site_home.html']
 
@@ -130,7 +130,7 @@ class SiteHomeView(ListView):
         context['site'] = self.current_site
         context['categories'] = Category.objects.filter(site=self.current_site).select_related('site')
         context['pages'] = Page.objects.filter(site=self.current_site, status='publish')
-        if self.current_site.section_type == 'sectoral':
+        if self.current_site.section_type in ('sectoral', 'regional'):
             context['carousel_articles'] = [
                 ci.article for ci in
                 self.current_site.carousel_items.select_related('article').all()
