@@ -391,6 +391,31 @@
             text-decoration: none;
         }
 
+        /* Niveau 3 — sous-sous-menu */
+        .dropdown-item {
+            position: relative;
+        }
+        .dropdown-item > a::after {
+            content: ' ›';
+            float: right;
+            opacity: .5;
+        }
+        .sub-dropdown {
+            display: none;
+            position: absolute;
+            left: 100%;
+            top: 0;
+            background: var(--white);
+            min-width: 240px;
+            box-shadow: 4px 4px 20px rgba(0,0,0,0.15);
+            z-index: 1001;
+            border-top: 3px solid var(--primary-color);
+        }
+        .dropdown-item:hover .sub-dropdown,
+        .dropdown-item.open .sub-dropdown {
+            display: block;
+        }
+
         /* Mobile menu */
         .menu-toggle {
             display: none;
@@ -1530,9 +1555,20 @@
                     <div class="dropdown">
                         {% for child in children %}
                         {% if child.is_active %}
-                        <a href="{{ child.get_url }}"{% if child.opens_new_tab %} target="_blank" rel="noopener"{% endif %}>
-                            {{ child.title }}
-                        </a>
+                        {% with grandchildren=child.children.all %}
+                        {% if grandchildren %}
+                        <div class="dropdown-item">
+                            <a href="{{ child.get_url }}"{% if child.opens_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ child.title }}</a>
+                            <div class="sub-dropdown">
+                                {% for gc in grandchildren %}{% if gc.is_active %}
+                                <a href="{{ gc.get_url }}"{% if gc.opens_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ gc.title }}</a>
+                                {% endif %}{% endfor %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <a href="{{ child.get_url }}"{% if child.opens_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ child.title }}</a>
+                        {% endif %}
+                        {% endwith %}
                         {% endif %}
                         {% endfor %}
                     </div>
@@ -1600,11 +1636,21 @@
     </footer>
 
     <script>
-        // Dropdown toggle — toujours intercepter le clic si un sous-menu existe
+        // Dropdown toggle — niveau 1
         document.querySelectorAll('.nav-item > a').forEach(function(link) {
             link.addEventListener('click', function(e) {
                 var dropdown = this.nextElementSibling;
                 if (dropdown && dropdown.classList.contains('dropdown')) {
+                    e.preventDefault();
+                    this.parentElement.classList.toggle('open');
+                }
+            });
+        });
+        // Dropdown toggle — niveau 2
+        document.querySelectorAll('.dropdown-item > a').forEach(function(link) {
+            link.addEventListener('click', function(e) {
+                var sub = this.nextElementSibling;
+                if (sub && sub.classList.contains('sub-dropdown')) {
                     e.preventDefault();
                     this.parentElement.classList.toggle('open');
                 }
