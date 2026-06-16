@@ -71,7 +71,7 @@ INSTALLED_APPS = [
     'django_otp',
     'django_otp.plugins.otp_totp',
     'django_otp.plugins.otp_static',
-    'django_recaptcha',
+    'hcaptcha',
     'wagtailcache',
     # Django
     'django.contrib.admin',
@@ -215,13 +215,11 @@ WAGTAILADMIN_BASE_URL = 'https://cnt-so.org'
 # ── wagtail-2fa ───────────────────────────────────────────────────────────────
 WAGTAIL_2FA_REQUIRED = False  # True = obligatoire pour tous les rédacteurs
 
-# ── django-recaptcha ──────────────────────────────────────────────────────────
-# Clés de test (à remplacer par de vraies clés en prod via local_settings.py)
-# Clés reCAPTCHA — à définir dans local_settings.py en prod
-# Obtenir sur https://www.google.com/recaptcha/admin/create
-RECAPTCHA_PUBLIC_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'
-RECAPTCHA_PRIVATE_KEY = '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe'
-SILENCED_SYSTEM_CHECKS = ['django_recaptcha.recaptcha_test_key_error']
+# ── hCaptcha ──────────────────────────────────────────────────────────────────
+# Clés de test (toujours valides en dev — remplacer en prod via local_settings.py)
+# Créer un compte sur https://dashboard.hcaptcha.com/
+HCAPTCHA_SITEKEY = _os.environ.get('HCAPTCHA_SITEKEY', '10000000-ffff-ffff-ffff-000000000001')
+HCAPTCHA_SECRET = _os.environ.get('HCAPTCHA_SECRET', '0x0000000000000000000000000000000000000000')
 
 # ── wagtail-cache ─────────────────────────────────────────────────────────────
 WAGTAILCACHE_CACHE = 'default'

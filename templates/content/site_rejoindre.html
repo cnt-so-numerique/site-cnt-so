@@ -137,6 +137,7 @@
             <label class="s-label" for="id_message">Message</label>
             <textarea class="s-textarea" id="id_message" name="message" required>{{ form.message.value|default:'' }}</textarea>
           </div>
+          <div class="s-field">{{ form.captcha }}</div>
           <button type="submit" class="btn-red">Envoyer</button>
         </form>
       {% endif %}
