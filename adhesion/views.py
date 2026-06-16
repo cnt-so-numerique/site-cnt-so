@@ -2,6 +2,7 @@ import csv
 import logging
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -19,6 +20,8 @@ from .models import Adhesion, ChampCustom, FormulaireAdhesion
 
 logger = logging.getLogger(__name__)
 
+ADHESION_BASE_URL = getattr(settings, 'ADHESION_BASE_URL', 'https://adhesion.cnt-so.org')
+
 
 # ── Vues publiques ─────────────────────────────────────────────────────────────
 
@@ -27,11 +30,17 @@ class FormulaireView(View):
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
         self.site_obj = get_object_or_404(SectionPage, slug=kwargs['site_slug'], live=True)
-        self.formulaire = get_object_or_404(FormulaireAdhesion, site=self.site_obj, is_active=True)
+        # Rediriger vers la nouvelle app cnt-adhesion si le formulaire est actif là-bas
+        self.use_new_app = getattr(settings, 'ADHESION_USE_NEW_APP', False)
+        if not self.use_new_app:
+            self.formulaire = get_object_or_404(FormulaireAdhesion, site=self.site_obj, is_active=True)
         self.embed = request.GET.get('embed') == '1'
         self.template_name = 'adhesion/formulaire_embed.html' if self.embed else 'adhesion/formulaire.html'
 
     def get(self, request, site_slug):
+        if getattr(self, 'use_new_app', False):
+            url = f"{ADHESION_BASE_URL}/adherer/{site_slug}/"
+            return redirect(url, permanent=False)
         form = AdhesionForm(formulaire=self.formulaire)
         return render(request, self.template_name, {
             'form': form,
@@ -41,6 +50,8 @@ class FormulaireView(View):
         })
 
     def post(self, request, site_slug):
+        if getattr(self, 'use_new_app', False):
+            return redirect(f"{ADHESION_BASE_URL}/adherer/{site_slug}/", permanent=False)
         form = AdhesionForm(request.POST, formulaire=self.formulaire)
         if not form.is_valid():
             return render(request, self.template_name, {

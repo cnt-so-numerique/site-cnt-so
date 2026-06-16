@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os as _os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,10 +21,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-q5yt_w9j0c%9b)6@g4cn@i#y%9c_#4ng!=^sximhzrars42jw_'
+# En prod, définir la var d'env SECRET_KEY avec une valeur aléatoire sûre.
+SECRET_KEY = _os.environ.get(
+    'SECRET_KEY',
+    'django-insecure-q5yt_w9j0c%9b)6@g4cn@i#y%9c_#4ng!=^sximhzrars42jw_',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Défaut False. Surcharger via local_settings.py (DEBUG = True) en dev.
+DEBUG = _os.environ.get('DJANGO_DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = [
     'localhost', '127.0.0.1', 'testserver',
@@ -190,11 +196,18 @@ SERVER_EMAIL = 'newsletter@cnt-so.org'
 NEWSLETTER_SEND_DELAY = 18  # secondes entre chaque envoi (200/h = 1 toutes les 18s)
 
 # ── OVH Mailing Lists API ─────────────────────────────────────────────────────
-import os as _os
 OVH_APPLICATION_KEY    = _os.environ.get('OVH_APPLICATION_KEY', '')
 OVH_APPLICATION_SECRET = _os.environ.get('OVH_APPLICATION_SECRET', '')
 OVH_CONSUMER_KEY       = _os.environ.get('OVH_CONSUMER_KEY', '')
 OVH_DOMAIN             = _os.environ.get('OVH_DOMAIN', 'cnt-so.info')
+
+# ── Intégration cnt-adhesion ──────────────────────────────────────────────────
+# Secret partagé pour vérifier les webhooks venant de cnt-adhesion
+ADHESION_WEBHOOK_SECRET = _os.environ.get('ADHESION_WEBHOOK_SECRET', '')
+# URL publique de l'app cnt-adhesion
+ADHESION_BASE_URL = _os.environ.get('ADHESION_BASE_URL', 'https://adhesion.cnt-so.org')
+# Mettre à True pour rediriger /adherer/<slug>/ vers la nouvelle app
+ADHESION_USE_NEW_APP = _os.environ.get('ADHESION_USE_NEW_APP', 'false').lower() == 'true'
 
 WAGTAIL_SITE_NAME = 'CNT-SO'
 WAGTAILADMIN_BASE_URL = 'https://cnt-so.org'
