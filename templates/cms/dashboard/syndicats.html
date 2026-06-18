@@ -34,10 +34,16 @@
         <td>{% if section.live %}✅{% else %}❌{% endif %}</td>
         <td>{{ row.article_count }}</td>
         <td>{{ row.subscriber_count }}</td>
-        <td style="display:flex;gap:.5rem;">
+        <td style="display:flex;gap:.5rem;flex-wrap:wrap;">
           <a href="/cms/pages/{{ section.pk }}/edit/" class="button button-small">✏️ Éditer</a>
           {% if row.site_id %}
           <a href="/cms/select-site/?site_id={{ row.site_id }}" class="button button-small button-secondary">Sélectionner</a>
+          {% endif %}
+          {% if request.user.is_superuser %}
+          <a href="/cms/pages/{{ section.pk }}/delete/" class="button button-small no"
+             onclick="return confirm('Supprimer « {{ section.title }} » ? Cette action est irréversible et supprime toutes les pages enfants.')">
+            🗑️ Supprimer
+          </a>
           {% endif %}
         </td>
       </tr>
@@ -53,9 +59,8 @@
     <ol style="margin:.5rem 0;padding-left:1.2rem;color:#94a3b8;font-size:.85rem;line-height:1.6;">
       <li>Cliquez <strong style="color:#e2e8f0;">"+ Nouveau syndicat"</strong></li>
       <li>Renseignez le nom, le slug (ex: <code>bretagne</code>), le type</li>
-      <li>Publiez — le syndicat apparaît dans l'arbre ET un <code>content.Site</code> est automatiquement créé</li>
+      <li>Publiez — le syndicat apparaît dans l'arbre des pages</li>
       <li>Revenez ici et cliquez <strong style="color:#e2e8f0;">"Sélectionner"</strong> pour l'activer</li>
-      <li>Configurez son formulaire d'adhésion via <em>Adhésions → Formulaires d'adhésion</em></li>
     </ol>
   </div>
 </div>
