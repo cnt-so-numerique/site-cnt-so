@@ -244,6 +244,9 @@ class HomePage(Page):
         context['manques_articles'] = list(base_qs.exclude(pk__in=excl)[6:11])
         return context
 
+    def is_previewable(self):
+        return False
+
     def get_template(self, request, *args, **kwargs):
         return 'content/home.html'
 
@@ -390,6 +393,13 @@ class SectionPage(SeoMixin, Page):
     @property
     def site_type(self):
         return self.section_type
+
+    def is_previewable(self):
+        return False
+
+    def serve_preview(self, request, mode_name):
+        from django.shortcuts import redirect
+        return redirect(self.get_absolute_url())
 
     def get_absolute_url(self):
         from django.urls import reverse, NoReverseMatch
@@ -573,6 +583,13 @@ class ArticlePage(SeoMixin, Page):
     def get_template(self, request, *args, **kwargs):
         return 'cms/article_detail.html'
 
+    def is_previewable(self):
+        return False
+
+    def serve_preview(self, request, mode_name):
+        from django.shortcuts import redirect
+        return redirect(self.get_absolute_url())
+
     def get_absolute_url(self):
         from django.urls import reverse, NoReverseMatch
         try:
@@ -672,6 +689,13 @@ class ContentPage(Page):
 
     def get_template(self, request, *args, **kwargs):
         return 'cms/content_page.html'
+
+    def is_previewable(self):
+        return False
+
+    def serve_preview(self, request, mode_name):
+        from django.shortcuts import redirect
+        return redirect(self.get_absolute_url())
 
     def get_absolute_url(self):
         return self.url or '/'

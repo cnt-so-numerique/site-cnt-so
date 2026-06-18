@@ -38,55 +38,24 @@ def _is_chef(user):
     return user.is_superuser or user.groups.filter(name='redacteur_en_chef').exists()
 
 
-def _make_article_panels(sectoral=False, chef=False):
-    """Panels d'édition selon le type de syndicat et le rôle utilisateur."""
-    pub_panels = [FieldPanel('publication_date')]
-    if sectoral:
-        pub_panels.append(FieldPanel('in_carousel'))
-    else:
-        pub_panels.append(FieldPanel('is_featured'))
-    if chef:
-        pub_panels.append(FieldPanel('featured_on_conf'))
-    pub_panels += [FieldPanel('author_name'), FieldPanel('author_user')]
-
-    return [
-        FieldPanel('title'),
-        TabbedInterface([
-            ObjectList([
-                FieldPanel('section_slug'),
-                MultiFieldPanel(pub_panels, heading="Publication"),
-                FieldPanel('excerpt'),
-                FieldPanel('featured_image'),
-                FieldPanel('cms_categories', widget=forms.CheckboxSelectMultiple),
-                FieldPanel('cms_tags'),
-            ], heading='Métadonnées'),
-            ObjectList([FieldPanel('body')], heading='Contenu'),
-        ]),
-    ]
-
 
 def _make_scoped_article_page_view(base_class):
     """
-    - Panels dynamiques : sectoriel→carrousel, non-sectoriel→mis en avant,
-      chef→featured_on_conf visible.
     - Filtre cms_categories par section courante.
     - Pré-remplit/verrouille section_slug.
+    - Masque featured_on_conf pour les non-chefs.
     - Pré-coche in_carousel selon l'état réel du carrousel.
     - Enforce section_slug au save pour les rédacteurs.
     """
     class ScopedView(base_class):
-        def get_panel(self):
-            """Panels dynamiques selon le syndicat courant et le rôle."""
-            current = get_current_site(self.request)
-            chef = _is_chef(self.request.user)
-            sectoral = current is not None and current.section_type in ('sectoral', 'regional')
-            panels = _make_article_panels(sectoral=sectoral, chef=chef)
-            return ObjectList(panels).bind_to_model(ArticlePage)
-
         def get_form(self, form_class=None):
             form = super().get_form(form_class)
             current = get_current_site(self.request)
             chef = _is_chef(self.request.user)
+
+            if not chef and 'featured_on_conf' in form.fields:
+                form.fields['featured_on_conf'].widget = forms.HiddenInput()
+                form.fields['featured_on_conf'].required = False
 
             if current:
                 slug = current.legacy_site_slug or current.slug
@@ -142,11 +111,31 @@ class ArticlePageViewSet(SnippetViewSet):
     icon = 'doc-full'
     menu_label = 'Articles'
     menu_order = 100
-    # Pas de panels statiques — définis dynamiquement dans ScopedView.get_panel()
     list_display = ['title', 'section_slug', 'publication_date', 'live', 'is_featured']
     list_filter = ['live', 'section_slug', 'is_featured']
     search_fields = ['title', 'excerpt']
     ordering = ['-publication_date', '-first_published_at']
+    panels = [
+        FieldPanel('title'),
+        TabbedInterface([
+            ObjectList([
+                FieldPanel('section_slug'),
+                MultiFieldPanel([
+                    FieldPanel('publication_date'),
+                    FieldPanel('is_featured'),
+                    FieldPanel('in_carousel'),
+                    FieldPanel('featured_on_conf'),
+                    FieldPanel('author_name'),
+                    FieldPanel('author_user'),
+                ], heading="Publication"),
+                FieldPanel('excerpt'),
+                FieldPanel('featured_image'),
+                FieldPanel('cms_categories', widget=forms.CheckboxSelectMultiple),
+                FieldPanel('cms_tags'),
+            ], heading='Métadonnées'),
+            ObjectList([FieldPanel('body')], heading='Contenu'),
+        ]),
+    ]
 
     add_view_class = _make_scoped_article_page_view(SnippetCreateView)
     edit_view_class = _make_scoped_article_page_view(SnippetEditView)
