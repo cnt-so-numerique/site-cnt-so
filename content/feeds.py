@@ -1,4 +1,6 @@
 from django.contrib.syndication.views import Feed
+from django.db.models import Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.feedgenerator import Rss201rev2Feed
 from cms.models import ArticlePage, CmsCategory, SectionPage
@@ -37,7 +39,10 @@ class SiteArticlesFeed(Feed):
     feed_type = Rss201rev2Feed
 
     def get_object(self, request, site_slug):
-        return get_object_or_404(SectionPage, slug=site_slug)
+        obj = SectionPage.objects.filter(Q(slug=site_slug) | Q(legacy_site_slug=site_slug)).first()
+        if obj is None:
+            raise Http404
+        return obj
 
     def title(self, obj):
         return f"{obj.name} - Derniers articles"
@@ -50,7 +55,7 @@ class SiteArticlesFeed(Feed):
 
     def items(self, obj):
         return (ArticlePage.objects.live()
-                .filter(section_slug=obj.slug)
+                .filter(section_slug=obj.legacy_site_slug or obj.slug)
                 .order_by('-publication_date', '-first_published_at')[:20])
 
     def item_title(self, item):

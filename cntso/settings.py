@@ -83,7 +83,6 @@ INSTALLED_APPS = [
     'django.contrib.sitemaps',
     # Apps locales
     'content',
-    'adhesion',
     'cms',
 ]
 

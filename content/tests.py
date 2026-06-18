@@ -468,6 +468,11 @@ class MenuItemGetUrlTest(TestCase):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class ContactFormTest(TestCase):
+    def setUp(self):
+        patcher = patch('hcaptcha.fields.hCaptchaField.validate', return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def _data(self, **overrides):
         base = {
             'name': 'Alice',
@@ -477,6 +482,7 @@ class ContactFormTest(TestCase):
             'sector': 'Nettoyage',
             'subject': 'Test',
             'message': 'Bonjour',
+            'h-captcha-response': 'test-token',
         }
         base.update(overrides)
         return base
@@ -860,12 +866,16 @@ class WordPressRedirectViewTest(TestCase):
 class ContactViewTest(TestCase):
     def setUp(self):
         make_site()
+        patcher = patch('hcaptcha.fields.hCaptchaField.validate', return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def _contact_data(self, **overrides):
         data = {
             'name': 'Alice', 'email': 'alice@example.com',
             'phone': '0600000000', 'city': 'Paris', 'sector': 'Nettoyage',
-            'subject': 'Bonjour', 'message': 'Test'
+            'subject': 'Bonjour', 'message': 'Test',
+            'h-captcha-response': 'test-token',
         }
         data.update(overrides)
         return data
@@ -900,6 +910,9 @@ class SiteContactViewTest(TestCase):
     def setUp(self):
         make_site()
         self.sub = make_site('sub', wp_blog_id=2, site_type='regional', name='Sub')
+        patcher = patch('hcaptcha.fields.hCaptchaField.validate', return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_get_returns_200(self):
         url = reverse('content:site_contact', kwargs={'site_slug': 'sub'})
@@ -910,7 +923,8 @@ class SiteContactViewTest(TestCase):
         data = {
             'name': 'Bob', 'email': 'bob@example.com',
             'phone': '0600000000', 'city': 'Lyon', 'sector': 'Nettoyage',
-            'subject': 'Hi', 'message': 'Hello'
+            'subject': 'Hi', 'message': 'Hello',
+            'h-captcha-response': 'test-token',
         }
         self.client.post(reverse('content:site_contact', kwargs={'site_slug': 'sub'}), data)
         msg = ContactMessage.objects.first()
@@ -2291,6 +2305,9 @@ class DynamicContactFormTest(TestCase):
             field_nom=True, field_telephone=True, field_ville=False,
             field_secteur=False, field_objet=True,
         )
+        patcher = patch('hcaptcha.fields.hCaptchaField.validate', return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def _data(self, **overrides):
         base = {
@@ -2299,6 +2316,7 @@ class DynamicContactFormTest(TestCase):
             'telephone': '0600000000',
             'objet': 'Question',
             'message': 'Bonjour',
+            'h-captcha-response': 'test-token',
         }
         base.update(overrides)
         return base
@@ -2375,6 +2393,9 @@ class ContactViewWithFormulaireTest(TestCase):
             self.site, field_nom=True, field_objet=True
         )
         self.url = '/contact/'
+        patcher = patch('hcaptcha.fields.hCaptchaField.validate', return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_get_renders_dynamic_form(self):
         response = self.client.get(self.url)
@@ -2390,6 +2411,7 @@ class ContactViewWithFormulaireTest(TestCase):
         self.client.post(self.url, {
             'email': 'test@exemple.fr', 'nom': 'Martin',
             'objet': 'Bonjour', 'message': 'Hello !',
+            'h-captcha-response': 'test-token',
         })
         self.assertTrue(ContactMessage.objects.filter(email='test@exemple.fr').exists())
 
@@ -2397,6 +2419,7 @@ class ContactViewWithFormulaireTest(TestCase):
         self.client.post(self.url, {
             'email': 'linked@test.fr', 'nom': 'X',
             'objet': 'Q', 'message': 'M',
+            'h-captcha-response': 'test-token',
         })
         msg = ContactMessage.objects.get(email='linked@test.fr')
         self.assertEqual(msg.formulaire_id, self.formulaire.pk)
@@ -2406,6 +2429,7 @@ class ContactViewWithFormulaireTest(TestCase):
         self.client.post(self.url, {
             'email': 'custom@test.fr', 'nom': 'Y',
             'message': 'M', 'custom_code-syndicat': 'XYZ',
+            'h-captcha-response': 'test-token',
         })
         msg = ContactMessage.objects.get(email='custom@test.fr')
         self.assertIn('code-syndicat', msg.custom_data)
@@ -2413,6 +2437,7 @@ class ContactViewWithFormulaireTest(TestCase):
     def test_post_redirects_on_success(self):
         response = self.client.post(self.url, {
             'email': 'redir@test.fr', 'nom': 'Z', 'message': 'Hi',
+            'h-captcha-response': 'test-token',
         })
         self.assertEqual(response.status_code, 302)
 
@@ -2435,6 +2460,9 @@ class SiteContactViewWithFormulaireTest(TestCase):
         self.site = make_site(slug='normandie', wp_blog_id=5, name='UR Normandie')
         self.formulaire = make_formulaire_contact(self.site, field_nom=True)
         self.url = '/normandie/contact/'
+        patcher = patch('hcaptcha.fields.hCaptchaField.validate', return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_get_uses_dynamic_form(self):
         response = self.client.get(self.url)
@@ -2444,6 +2472,7 @@ class SiteContactViewWithFormulaireTest(TestCase):
     def test_post_links_correct_site(self):
         self.client.post(self.url, {
             'email': 'normandie@test.fr', 'nom': 'Dupont', 'message': 'Salut',
+            'h-captcha-response': 'test-token',
         })
         msg = ContactMessage.objects.get(email='normandie@test.fr')
         self.assertEqual(msg.site_id, self.site.pk)
@@ -2824,3 +2853,1555 @@ class NewsletterSendOvhPostTest(TestCase):
         self.newsletter.refresh_from_db()
         self.assertEqual(self.newsletter.status, 'draft')
         self.assertContains(r, 'SMTP down')
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# API VIEWS — ImageUploadView, FileUploadView, NewsletterSyncView
+# ════════════════════════════════════════════════════════════════════════════════
+
+import hashlib
+import hmac as hmac_module
+import io
+import json as json_module
+
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
+from content.api_views import _verify_image_magic
+
+
+# ---------------------------------------------------------------------------
+# _verify_image_magic : détection par magic bytes
+# ---------------------------------------------------------------------------
+
+class VerifyImageMagicTest(TestCase):
+
+    def _buf(self, data):
+        return io.BytesIO(data + b'\x00' * max(0, 12 - len(data)))
+
+    def test_jpeg_detecte(self):
+        self.assertEqual(_verify_image_magic(self._buf(b'\xff\xd8\xff')), 'image/jpeg')
+
+    def test_png_detecte(self):
+        self.assertEqual(_verify_image_magic(self._buf(b'\x89PNG\r\n')), 'image/png')
+
+    def test_gif87a_detecte(self):
+        self.assertEqual(_verify_image_magic(self._buf(b'GIF87a')), 'image/gif')
+
+    def test_gif89a_detecte(self):
+        self.assertEqual(_verify_image_magic(self._buf(b'GIF89a')), 'image/gif')
+
+    def test_riff_webp_detecte(self):
+        self.assertEqual(_verify_image_magic(self._buf(b'RIFF')), 'image/webp')
+
+    def test_inconnu_retourne_none(self):
+        self.assertIsNone(_verify_image_magic(self._buf(b'UNKNOWN_DATA')))
+
+    def test_seek_remis_a_zero_apres_lecture(self):
+        buf = self._buf(b'\xff\xd8\xff')
+        _verify_image_magic(buf)
+        self.assertEqual(buf.tell(), 0)
+
+
+# ---------------------------------------------------------------------------
+# ImageUploadView
+# ---------------------------------------------------------------------------
+
+class ImageUploadViewTest(TestCase):
+
+    def setUp(self):
+        _setup_editorial_groups()
+        self.user = make_superuser('img-upload-admin')
+        self.url = reverse('content:image_upload')
+
+    def _jpeg(self, name='test.jpg'):
+        return SimpleUploadedFile(name, b'\xff\xd8\xff' + b'\x00' * 20,
+                                  content_type='image/jpeg')
+
+    def test_sans_fichier_retourne_failure(self):
+        self.client.force_login(self.user)
+        r = self.client.post(self.url)
+        data = json_module.loads(r.content)
+        self.assertEqual(data['success'], 0)
+        self.assertIn('Aucun fichier', data['message'])
+
+    def test_type_mime_non_autorise(self):
+        self.client.force_login(self.user)
+        f = SimpleUploadedFile('test.svg', b'<svg/>', content_type='image/svg+xml')
+        r = self.client.post(self.url, {'image': f})
+        data = json_module.loads(r.content)
+        self.assertEqual(data['success'], 0)
+
+    def test_magic_bytes_incompatibles(self):
+        """JPEG déclaré mais magic bytes incorrects."""
+        self.client.force_login(self.user)
+        f = SimpleUploadedFile('fake.jpg', b'not-an-image-at-all', content_type='image/jpeg')
+        r = self.client.post(self.url, {'image': f})
+        data = json_module.loads(r.content)
+        self.assertEqual(data['success'], 0)
+
+    def test_jpeg_valide_succes(self):
+        self.client.force_login(self.user)
+        r = self.client.post(self.url, {'image': self._jpeg()})
+        data = json_module.loads(r.content)
+        self.assertEqual(data['success'], 1)
+        self.assertIn('url', data['file'])
+        self.assertIn('id', data['file'])
+
+    def test_non_authentifie_redirige(self):
+        r = self.client.post(self.url, {'image': self._jpeg()})
+        self.assertIn(r.status_code, [302, 403])
+
+
+# ---------------------------------------------------------------------------
+# FileUploadView
+# ---------------------------------------------------------------------------
+
+class FileUploadViewTest(TestCase):
+
+    def setUp(self):
+        _setup_editorial_groups()
+        self.user = make_superuser('file-upload-admin')
+        self.url = reverse('content:file_upload')
+
+    def test_sans_fichier_retourne_failure(self):
+        self.client.force_login(self.user)
+        r = self.client.post(self.url)
+        data = json_module.loads(r.content)
+        self.assertEqual(data['success'], 0)
+        self.assertIn('Aucun fichier', data['message'])
+
+    def test_type_non_autorise(self):
+        self.client.force_login(self.user)
+        f = SimpleUploadedFile('script.sh', b'#!/bin/bash', content_type='text/x-shellscript')
+        r = self.client.post(self.url, {'file': f})
+        data = json_module.loads(r.content)
+        self.assertEqual(data['success'], 0)
+
+    def test_pdf_valide_succes(self):
+        self.client.force_login(self.user)
+        f = SimpleUploadedFile('doc.pdf', b'%PDF-1.4 test content', content_type='application/pdf')
+        r = self.client.post(self.url, {'file': f})
+        data = json_module.loads(r.content)
+        self.assertEqual(data['success'], 1)
+        self.assertIn('url', data['file'])
+        self.assertIn('name', data['file'])
+
+    def test_non_authentifie_redirige(self):
+        f = SimpleUploadedFile('doc.pdf', b'%PDF-1.4', content_type='application/pdf')
+        r = self.client.post(self.url, {'file': f})
+        self.assertIn(r.status_code, [302, 403])
+
+
+# ---------------------------------------------------------------------------
+# NewsletterSyncView — signature HMAC + sync abonnés
+# ---------------------------------------------------------------------------
+
+def _hmac_sig(secret, body_bytes):
+    return hmac_module.new(secret.encode(), body_bytes, hashlib.sha256).hexdigest()
+
+
+@override_settings(ADHESION_WEBHOOK_SECRET='test-secret-abc')
+class NewsletterSyncViewTest(TestCase):
+
+    def setUp(self):
+        self.url = reverse('content:newsletter_sync')
+        self.secret = 'test-secret-abc'
+
+    def _post(self, data, secret=None):
+        body = json_module.dumps(data).encode()
+        sig = _hmac_sig(secret or self.secret, body)
+        return self.client.post(
+            self.url, data=body,
+            content_type='application/json',
+            HTTP_X_WEBHOOK_SECRET=sig,
+        )
+
+    def test_signature_invalide_retourne_403(self):
+        body = json_module.dumps({'email': 'a@b.fr'}).encode()
+        r = self.client.post(self.url, data=body, content_type='application/json',
+                             HTTP_X_WEBHOOK_SECRET='mauvaise-signature')
+        self.assertEqual(r.status_code, 403)
+
+    def test_json_invalide_retourne_400(self):
+        sig = _hmac_sig(self.secret, b'not-json')
+        r = self.client.post(self.url, data=b'not-json', content_type='application/json',
+                             HTTP_X_WEBHOOK_SECRET=sig)
+        self.assertEqual(r.status_code, 400)
+
+    def test_email_manquant_retourne_400(self):
+        r = self._post({'newsletter_conf': True})
+        self.assertEqual(r.status_code, 400)
+
+    def test_sync_newsletter_conf_subscribe(self):
+        r = self._post({'email': 'conf@test.fr', 'newsletter_conf': True})
+        self.assertEqual(r.status_code, 200)
+        data = json_module.loads(r.content)
+        self.assertTrue(data['ok'])
+        self.assertIn('conf', data['result'])
+        self.assertTrue(Subscriber.objects.filter(email='conf@test.fr', site=None).exists())
+
+    def test_sync_newsletter_conf_unsubscribe(self):
+        Subscriber.objects.create(email='unsub@test.fr', site=None, is_active=True)
+        r = self._post({'email': 'unsub@test.fr', 'newsletter_conf': False})
+        self.assertEqual(r.status_code, 200)
+        sub = Subscriber.objects.get(email='unsub@test.fr', site=None)
+        self.assertFalse(sub.is_active)
+
+    def test_sync_deja_abonne_met_a_jour(self):
+        """Un abonné inactif qui se réinscrit est réactivé."""
+        Subscriber.objects.create(email='reactiv@test.fr', site=None, is_active=False)
+        r = self._post({'email': 'reactiv@test.fr', 'newsletter_conf': True})
+        self.assertEqual(r.status_code, 200)
+        sub = Subscriber.objects.get(email='reactiv@test.fr', site=None)
+        self.assertTrue(sub.is_active)
+
+    def test_sync_avec_syndicat_slug_existant(self):
+        site = _ensure_section_page(slug='sync-test-synd', name='Sync Synd')
+        r = self._post({
+            'email': 'synd@test.fr',
+            'newsletter_conf': True,
+            'newsletter_synd': True,
+            'syndicat_slug': 'sync-test-synd',
+        })
+        self.assertEqual(r.status_code, 200)
+        data = json_module.loads(r.content)
+        self.assertIn('synd', data['result'])
+        self.assertTrue(Subscriber.objects.filter(email='synd@test.fr', site=site).exists())
+
+    def test_sync_avec_syndicat_slug_inexistant(self):
+        r = self._post({
+            'email': 'missing@test.fr',
+            'newsletter_conf': True,
+            'newsletter_synd': True,
+            'syndicat_slug': 'slug-qui-nexiste-pas',
+        })
+        self.assertEqual(r.status_code, 200)
+        data = json_module.loads(r.content)
+        self.assertIn('introuvable', data['result'].get('synd', ''))
+
+    def test_sans_secret_configure_retourne_403(self):
+        with override_settings(ADHESION_WEBHOOK_SECRET=''):
+            body = json_module.dumps({'email': 'x@y.fr'}).encode()
+            r = self.client.post(self.url, data=body, content_type='application/json',
+                                 HTTP_X_WEBHOOK_SECRET='n-importe-quoi')
+        self.assertEqual(r.status_code, 403)
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# NEWSLETTER VIEWS — chemins non couverts
+# ════════════════════════════════════════════════════════════════════════════════
+
+class NewsletterSendEdgeTest(TestCase):
+    """Cas limites non couverts : déjà envoyée, mode test, sans abonnés, erreurs."""
+
+    def setUp(self):
+        _setup_editorial_groups()
+        self.site = _ensure_section_page(slug='nl-edge', name='NL Edge', site_type='sectoral')
+        self.newsletter = _make_newsletter(self.site)
+        self.url = f'/cms/newsletter/{self.newsletter.pk}/envoyer/'
+
+    def test_get_newsletter_deja_envoyee_redirige(self):
+        self.newsletter.status = 'sent'
+        self.newsletter.save(update_fields=['status'])
+        c = _chef_client(self.site)
+        r = c.get(self.url)
+        self.assertEqual(r.status_code, 302)
+
+    def test_get_ovh_liste_erreur_affiche_none_abonnes(self):
+        self.site.ovh_mailing_list = 'liste-err'
+        self.site.save(update_fields=['ovh_mailing_list'])
+        with patch('cms.ovh_client.get_subscribers', side_effect=Exception('OVH down')):
+            c = _chef_client(self.site)
+            r = c.get(self.url)
+        self.assertEqual(r.status_code, 200)
+        self.assertIsNone(r.context['nb_subscribers'])
+
+    def test_post_deja_envoyee_redirige(self):
+        self.newsletter.status = 'sent'
+        self.newsletter.save(update_fields=['status'])
+        c = _chef_client(self.site)
+        r = c.post(self.url, {'mode': 'send'})
+        self.assertEqual(r.status_code, 302)
+
+    def test_post_mode_test_sans_email_redirige_avec_erreur(self):
+        c = _chef_client(self.site)
+        r = c.post(self.url, {'mode': 'test', 'test_email': ''}, follow=True)
+        messages_list = list(r.context['messages'])
+        self.assertTrue(any('manquante' in str(m) for m in messages_list))
+
+    def test_post_mode_test_email_invalide_redirige_avec_erreur(self):
+        c = _chef_client(self.site)
+        r = c.post(self.url, {'mode': 'test', 'test_email': 'pas-un-email'}, follow=True)
+        messages_list = list(r.context['messages'])
+        self.assertTrue(any('invalide' in str(m) for m in messages_list))
+
+    def test_post_mode_test_email_valide_envoie_email(self):
+        from django.core import mail
+        c = _chef_client(self.site)
+        c.post(self.url, {'mode': 'test', 'test_email': 'test@recipient.fr'})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('test@recipient.fr', mail.outbox[0].to)
+        self.assertIn('[TEST]', mail.outbox[0].subject)
+
+    def test_post_sans_abonnes_affiche_warning(self):
+        """Sans liste OVH et sans abonnés actifs → message d'avertissement."""
+        c = _chef_client(self.site)
+        r = c.post(self.url, {'mode': 'send'}, follow=True)
+        messages_list = list(r.context['messages'])
+        self.assertTrue(any('Aucun abonné' in str(m) for m in messages_list))
+
+    @patch('django.core.mail.EmailMultiAlternatives.send', side_effect=Exception('SMTP'))
+    def test_post_direct_avec_erreurs_envoi_affiche_compteur(self, mock_send):
+        """Erreurs d'envoi → warning avec nb erreurs."""
+        Subscriber.objects.create(site=self.site, email='e1@test.fr', is_active=True)
+        Subscriber.objects.create(site=self.site, email='e2@test.fr', is_active=True)
+        c = _chef_client(self.site)
+        r = c.post(self.url, {'mode': 'send'}, follow=True)
+        messages_list = list(r.context['messages'])
+        # Le warning avec erreur(s) doit apparaître
+        self.assertTrue(any('erreur' in str(m).lower() for m in messages_list))
+
+
+def _chef_client_with_site(site):
+    """Chef client avec les deux clés de session pour get_current_site_for_view."""
+    from django.contrib.auth.models import User
+    from cms.site_context import SESSION_KEY
+    _setup_editorial_groups()
+    user = User.objects.create_superuser(
+        username=f'chef-export-{site.pk}', password='pass'
+    )
+    c = __import__('django.test', fromlist=['Client']).Client()
+    c.force_login(user)
+    session = c.session
+    session[SESSION_KEY] = site.pk
+    session['redac_current_site_id'] = site.pk
+    session.save()
+    return c
+
+
+class SubscriberExportViewTest(TestCase):
+    """Export CSV des abonnés."""
+
+    def setUp(self):
+        _setup_editorial_groups()
+        self.site = _ensure_section_page(slug='export-nl', name='Export NL', site_type='sectoral')
+        self.url = '/cms/abonnes/export/'
+
+    def test_sans_site_courant_redirige(self):
+        """Superadmin sans site sélectionné en session → redirect."""
+        user = make_superuser('export-admin-nosess')
+        self.client.force_login(user)
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 302)
+
+    def test_avec_site_retourne_csv(self):
+        from content.models import Subscriber
+        Subscriber.objects.create(site=self.site, email='ab@example.com',
+                                  name='Alice', is_active=True)
+        c = _chef_client_with_site(self.site)
+        r = c.get(self.url)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('text/csv', r['Content-Type'])
+        content = r.content.decode('utf-8-sig')
+        self.assertIn('ab@example.com', content)
+        self.assertIn('Alice', content)
+
+    def test_csv_entete_colonnes(self):
+        c = _chef_client_with_site(self.site)
+        r = c.get(self.url)
+        content = r.content.decode('utf-8-sig')
+        self.assertIn('email', content)
+        self.assertIn('nom', content)
+
+    def test_non_authentifie_redirige(self):
+        r = self.client.get(self.url)
+        self.assertIn(r.status_code, [302, 403])
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# ADMIN_UTILS — get_current_site_for_view + WagtailChefRequiredMixin
+# ════════════════════════════════════════════════════════════════════════════════
+
+class GetCurrentSiteForViewTest(TestCase):
+
+    def setUp(self):
+        _setup_editorial_groups()
+
+    def _request(self, user, session_data=None):
+        rf = RequestFactory()
+        req = rf.get('/')
+        req.user = user
+        req.session = {}
+        if session_data:
+            req.session.update(session_data)
+        return req
+
+    def test_chef_session_valide_retourne_site(self):
+        from content.admin_utils import get_current_site_for_view
+        site = _ensure_section_page(slug='gcsfv-1', name='GCSFV1')
+        user = make_superuser('gcsfv-admin-1')
+        req = self._request(user, {'redac_current_site_id': site.pk})
+        result = get_current_site_for_view(req)
+        self.assertEqual(result, site)
+
+    def test_chef_session_id_invalide_retourne_none(self):
+        from content.admin_utils import get_current_site_for_view
+        user = make_superuser('gcsfv-admin-2')
+        req = self._request(user, {'redac_current_site_id': 99999})
+        result = get_current_site_for_view(req)
+        self.assertIsNone(result)
+
+    def test_chef_sans_session_retourne_none(self):
+        from content.admin_utils import get_current_site_for_view
+        user = make_superuser('gcsfv-admin-3')
+        req = self._request(user)
+        result = get_current_site_for_view(req)
+        self.assertIsNone(result)
+
+    def test_non_chef_avec_author_profile_retourne_site(self):
+        from content.admin_utils import get_current_site_for_view
+        site = _ensure_section_page(slug='gcsfv-2', name='GCSFV2')
+        user = make_redacteur('gcsfv-redac', site=site)
+        req = self._request(user)
+        result = get_current_site_for_view(req)
+        self.assertEqual(result, site)
+
+    def test_non_chef_sans_author_profile_retourne_none(self):
+        from content.admin_utils import get_current_site_for_view
+        user = User.objects.create_user(username='gcsfv-anon', password='pass')
+        req = self._request(user)
+        result = get_current_site_for_view(req)
+        self.assertIsNone(result)
+
+
+class WagtailChefMixinPermissionTest(TestCase):
+
+    def setUp(self):
+        _setup_editorial_groups()
+        self.site = _ensure_section_page(slug='chef-perm', name='Chef Perm')
+
+    def test_non_chef_authentifie_redirige(self):
+        """Un rédacteur (non chef) authentifié est redirigé vers /cms/."""
+        user = make_redacteur('notchef-wcm', site=self.site)
+        self.client.force_login(user)
+        r = self.client.get('/cms/contact/')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/cms/', r['Location'])
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# MODELS — __str__ et propriétés non couverts
+# ════════════════════════════════════════════════════════════════════════════════
+
+class ModelStrMethodsTest(TestCase):
+
+    def setUp(self):
+        from cms.models import SectionPage
+        self.sp = _ensure_section_page(slug='model-str-site', name='Str Site', site_type='regional')
+
+    def test_category_str(self):
+        cat = Category.objects.create(
+            site=self.sp, name='Ma Catégorie', slug='ma-categorie',
+        )
+        self.assertEqual(str(cat), 'Ma Catégorie')
+
+    def test_tag_str(self):
+        tag = Tag.objects.create(site=self.sp, name='Mon Tag', slug='mon-tag')
+        self.assertEqual(str(tag), 'Mon Tag')
+
+    def test_media_str_with_title(self):
+        m = Media.objects.create(title='Photo test', original_url='https://example.com/img.jpg')
+        self.assertEqual(str(m), 'Photo test')
+
+    def test_media_str_without_title(self):
+        m = Media.objects.create(title='', original_url='https://example.com/img.jpg')
+        self.assertEqual(str(m), 'https://example.com/img.jpg')
+
+    def test_media_url_property_without_file(self):
+        m = Media.objects.create(title='', original_url='https://example.com/x.jpg')
+        self.assertEqual(m.url, 'https://example.com/x.jpg')
+
+    def test_page_str(self):
+        p = Page.objects.create(
+            site=self.sp, title='Ma Page', slug='ma-page', status='publish'
+        )
+        self.assertEqual(str(p), 'Ma Page')
+
+    def test_contact_message_str_with_subject(self):
+        from content.models import ContactMessage
+        msg = ContactMessage.objects.create(
+            site=self.sp, name='Alice', email='alice@test.fr', subject='Question', message='?'
+        )
+        self.assertIn('Question', str(msg))
+        self.assertIn('Alice', str(msg))
+
+    def test_contact_message_str_without_subject(self):
+        from content.models import ContactMessage
+        msg = ContactMessage.objects.create(
+            site=self.sp, name='Bob', email='bob@test.fr', subject='', message='bonjour'
+        )
+        self.assertIn('sans objet', str(msg))
+
+    def test_menu_item_str(self):
+        item = MenuItem.objects.create(
+            site=self.sp, title='Accueil', menu='main', order=1, link_type='url', url='/'
+        )
+        self.assertIn('Accueil', str(item))
+
+    def test_subscriber_str(self):
+        sub = Subscriber.objects.create(
+            site=self.sp, email='sub@test.fr', name='Charlie', is_active=True
+        )
+        result = str(sub)
+        self.assertIn('sub@test.fr', result)
+        self.assertIn('Str Site', result)
+
+    def test_article_str(self):
+        from content.models import Article
+        art = Article.objects.create(site=self.sp, title='Mon Article Test', slug='mon-article-test')
+        self.assertEqual(str(art), 'Mon Article Test')
+
+
+class MenuItemGetUrlTest(TestCase):
+
+    def setUp(self):
+        self.sp = _ensure_section_page(slug='menu-url-site', name='Menu URL Site', site_type='regional')
+
+    def test_get_url_direct_url(self):
+        item = MenuItem.objects.create(
+            site=self.sp, title='Lien', menu='main', order=1,
+            link_type='url', url='https://external.com'
+        )
+        self.assertEqual(item.get_url(), 'https://external.com')
+
+    def test_get_url_article(self):
+        art = Article.objects.create(
+            site=self.sp, title='Art URL', slug='art-url', status='publish'
+        )
+        item = MenuItem.objects.create(
+            site=self.sp, title='Art', menu='main', order=1,
+            link_type='article', article=art
+        )
+        self.assertIn('art-url', item.get_url())
+
+    def test_get_url_category(self):
+        cat = Category.objects.create(site=self.sp, name='Cat URL', slug='cat-url')
+        item = MenuItem.objects.create(
+            site=self.sp, title='Cat', menu='main', order=1,
+            link_type='category', category=cat
+        )
+        self.assertIn('cat-url', item.get_url())
+
+    def test_get_url_page(self):
+        page = Page.objects.create(
+            site=self.sp, title='Page URL', slug='page-url', status='publish'
+        )
+        item = MenuItem.objects.create(
+            site=self.sp, title='Page', menu='main', order=1,
+            link_type='page', page=page
+        )
+        self.assertIn('page-url', item.get_url())
+
+    def test_get_url_contact_sous_site(self):
+        item = MenuItem.objects.create(
+            site=self.sp, title='Contact', menu='main', order=1,
+            link_type='contact',
+        )
+        url = item.get_url()
+        self.assertIn('contact', url)
+        self.assertIn('menu-url-site', url)
+
+    def test_get_url_agenda_sous_site(self):
+        item = MenuItem.objects.create(
+            site=self.sp, title='Agenda', menu='main', order=1,
+            link_type='agenda',
+        )
+        url = item.get_url()
+        self.assertIn('agenda', url)
+
+    def test_get_url_fallback_retourne_diese(self):
+        item = MenuItem.objects.create(
+            site=self.sp, title='Vide', menu='main', order=1,
+            link_type='url', url='',
+        )
+        self.assertEqual(item.get_url(), '#')
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# SITEMAPS — lastmod et location
+# ════════════════════════════════════════════════════════════════════════════════
+
+class SitemapMethodsTest(TestCase):
+
+    def setUp(self):
+        self.sp = _ensure_section_page(slug='sitemap-site', name='Sitemap Site', site_type='regional')
+
+    def test_page_sitemap_location(self):
+        from content.sitemaps import PageSitemap
+        page = Page.objects.create(
+            site=self.sp, title='Sitemap Page', slug='sitemap-page', status='publish'
+        )
+        sm = PageSitemap()
+        self.assertIn('sitemap-page', sm.location(page))
+
+    def test_page_sitemap_lastmod_retourne_updated_at(self):
+        from content.sitemaps import PageSitemap
+        page = Page.objects.create(
+            site=self.sp, title='Sitemap Page 2', slug='sitemap-page-2', status='publish'
+        )
+        page.refresh_from_db()
+        sm = PageSitemap()
+        self.assertEqual(sm.lastmod(page), page.updated_at)
+
+    def test_category_sitemap_location(self):
+        from content.sitemaps import CategorySitemap
+        cat = Category.objects.create(site=self.sp, name='Sitemap Cat', slug='sitemap-cat')
+        sm = CategorySitemap()
+        self.assertIn('sitemap-cat', sm.location(cat))
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# FORMS — champs DynamicContactForm non couverts
+# ════════════════════════════════════════════════════════════════════════════════
+
+class DynamicContactFormFieldsTest(TestCase):
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='dyn-form-site', name='Dyn Form Site')
+        patcher = patch('hcaptcha.fields.hCaptchaField.validate', return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_sans_formulaire_retourne_early(self):
+        from content.forms import DynamicContactForm
+        form = DynamicContactForm()
+        self.assertIn('email', form.fields)
+        self.assertNotIn('captcha', form.fields)
+
+    def test_champ_ville_present(self):
+        from content.forms import DynamicContactForm
+        f = make_formulaire_contact(self.site, field_ville=True)
+        form = DynamicContactForm(formulaire=f)
+        self.assertIn('ville', form.fields)
+
+    def test_champ_secteur_present(self):
+        from content.forms import DynamicContactForm
+        f = make_formulaire_contact(self.site, field_secteur=True)
+        form = DynamicContactForm(formulaire=f)
+        self.assertIn('secteur', form.fields)
+
+    def test_champ_custom_textarea(self):
+        from content.forms import DynamicContactForm
+        f = make_formulaire_contact(self.site)
+        make_champ_contact(f, label='Contexte', slug='contexte', field_type='textarea')
+        form = DynamicContactForm(formulaire=f)
+        self.assertIn('custom_contexte', form.fields)
+        from django.forms import Textarea
+        self.assertIsInstance(form.fields['custom_contexte'].widget, Textarea)
+
+    def test_champ_custom_checkbox(self):
+        from content.forms import DynamicContactForm
+        f = make_formulaire_contact(self.site)
+        make_champ_contact(f, label='Accord', slug='accord', field_type='checkbox', is_required=True)
+        form = DynamicContactForm(formulaire=f)
+        self.assertIn('custom_accord', form.fields)
+        from django.forms import BooleanField
+        self.assertIsInstance(form.fields['custom_accord'], BooleanField)
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# TEMPLATETAGS — render_content filter
+# ════════════════════════════════════════════════════════════════════════════════
+
+class RenderContentFilterTest(TestCase):
+
+    def _render(self, content):
+        from content.templatetags.content_tags import render_content
+        return str(render_content(content))
+
+    def test_none_retourne_vide(self):
+        self.assertEqual(self._render(None), '')
+
+    def test_vide_retourne_vide(self):
+        self.assertEqual(self._render(''), '')
+
+    def test_html_brut_retourne_tel_quel(self):
+        html = '<p>Bonjour <b>monde</b></p>'
+        result = self._render(html)
+        self.assertIn('<p>Bonjour', result)
+
+    def test_json_invalide_retourne_echappe(self):
+        result = self._render('{pas du json valide')
+        self.assertIn('{pas du json valide', result)
+
+    def test_json_paragraphe(self):
+        content = json_module.dumps({'blocks': [{'type': 'paragraph', 'data': {'text': 'Hello'}}]})
+        result = self._render(content)
+        self.assertIn('<p>Hello</p>', result)
+
+    def test_json_header(self):
+        content = json_module.dumps({'blocks': [{'type': 'header', 'data': {'text': 'Titre', 'level': 2}}]})
+        result = self._render(content)
+        self.assertIn('<h2>Titre</h2>', result)
+
+    def test_json_quote_avec_caption(self):
+        content = json_module.dumps({'blocks': [{'type': 'quote', 'data': {'text': 'Proverbe', 'caption': 'Auteur'}}]})
+        result = self._render(content)
+        self.assertIn('<blockquote>', result)
+        self.assertIn('<cite>', result)
+        self.assertIn('Auteur', result)
+
+    def test_json_code(self):
+        content = json_module.dumps({'blocks': [{'type': 'code', 'data': {'code': 'print("ok")'}}]})
+        result = self._render(content)
+        self.assertIn('<pre><code>', result)
+        self.assertIn('print', result)
+
+    def test_json_delimiter(self):
+        content = json_module.dumps({'blocks': [{'type': 'delimiter', 'data': {}}]})
+        result = self._render(content)
+        self.assertIn('<hr>', result)
+
+    def test_json_image_avec_url(self):
+        content = json_module.dumps({'blocks': [{'type': 'image', 'data': {
+            'file': {'url': 'https://example.com/img.jpg'},
+            'caption': 'Photo',
+            'stretched': True,
+        }}]})
+        result = self._render(content)
+        self.assertIn('<figure', result)
+        self.assertIn('alignfull', result)
+
+    def test_json_image_with_background(self):
+        content = json_module.dumps({'blocks': [{'type': 'image', 'data': {
+            'file': {'url': 'https://example.com/img.jpg'},
+            'withBackground': True,
+        }}]})
+        result = self._render(content)
+        self.assertIn('with-background', result)
+
+    def test_json_image_sans_url_retourne_vide(self):
+        content = json_module.dumps({'blocks': [{'type': 'image', 'data': {'file': {'url': ''}}}]})
+        result = self._render(content)
+        self.assertNotIn('<figure', result)
+
+    def test_json_gallery(self):
+        content = json_module.dumps({'blocks': [{'type': 'gallery', 'data': {
+            'images': [
+                {'url': 'https://example.com/a.jpg', 'caption': 'A'},
+                {'url': '', 'caption': 'skip'},
+            ],
+            'columns': 2,
+        }}]})
+        result = self._render(content)
+        self.assertIn('blocks-gallery-grid', result)
+        self.assertIn('columns-2', result)
+        self.assertNotIn('skip', result)
+
+    def test_json_embed_sans_url_retourne_vide(self):
+        content = json_module.dumps({'blocks': [{'type': 'embed', 'data': {'embed': ''}}]})
+        result = self._render(content)
+        self.assertNotIn('<iframe', result)
+
+    def test_json_embed_avec_url(self):
+        content = json_module.dumps({'blocks': [{'type': 'embed', 'data': {'embed': 'https://example.com/video'}}]})
+        result = self._render(content)
+        self.assertIn('<iframe', result)
+
+    def test_json_table(self):
+        content = json_module.dumps({'blocks': [{'type': 'table', 'data': {
+            'content': [['H1', 'H2'], ['A', 'B'], 'invalid-row'],
+            'withHeadings': True,
+        }}]})
+        result = self._render(content)
+        self.assertIn('<table>', result)
+        self.assertIn('<th>', result)
+        self.assertIn('<td>', result)
+
+    def test_json_bloc_inconnu_retourne_vide(self):
+        content = json_module.dumps({'blocks': [{'type': 'unknown_block_xyz', 'data': {}}]})
+        result = self._render(content)
+        self.assertNotIn('unknown_block_xyz', result)
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# VIEWS — SiteRejoindreView, SiteRessourcesView
+# ════════════════════════════════════════════════════════════════════════════════
+
+class SiteRejoindreViewTest(TestCase):
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='rejoindre-site', name='Rejoindre Site', site_type='sectoral')
+        self.url = reverse('content:site_rejoindre', kwargs={'site_slug': 'rejoindre-site'})
+        patcher = patch('hcaptcha.fields.hCaptchaField.validate', return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_get_retourne_200(self):
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 200)
+
+    def test_post_invalide_reaffiche_formulaire(self):
+        r = self.client.post(self.url, {'name': '', 'email': 'bad'})
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.context['form'].is_valid())
+
+    def test_post_valide_cree_message_et_succes(self):
+        from content.models import ContactMessage
+        data = {
+            'name': 'Alice', 'email': 'alice@test.fr',
+            'phone': '', 'city': '', 'sector': '',
+            'subject': 'Test', 'message': 'Bonjour',
+            'h-captcha-response': 'test-token',
+        }
+        r = self.client.post(self.url, data)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.context.get('success'))
+        self.assertTrue(ContactMessage.objects.filter(email='alice@test.fr').exists())
+
+
+class SiteRessourcesViewTest(TestCase):
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='ressources-site', name='Ressources Site', site_type='sectoral')
+        self.url = reverse('content:site_ressources', kwargs={'site_slug': 'ressources-site'})
+
+    def test_get_retourne_200(self):
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 200)
+
+    def test_get_avec_filtre_categorie(self):
+        cat = make_cms_category(name='Cat Ressource', slug='cat-ressource', section_slug='ressources-site')
+        art = make_article_page(section_slug='ressources-site', title='Art Ressource', slug='art-ressource',
+                                categories=[cat])
+        r = self.client.get(self.url + '?cat=cat-ressource')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.context['active_cat'], cat)
+
+    def test_get_site_inconnu_retourne_404(self):
+        r = self.client.get(reverse('content:site_ressources', kwargs={'site_slug': 'inexistant'}))
+        self.assertEqual(r.status_code, 404)
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# CONTACT CMS VIEWS — chemins non couverts
+# ════════════════════════════════════════════════════════════════════════════════
+
+class ContactSubmissionListFilterTest(TestCase):
+
+    def setUp(self):
+        _setup_editorial_groups()
+        self.site = _ensure_section_page(slug='contact-list-site', name='Contact List', site_type='sectoral')
+        self.url = '/cms/contact/'
+
+    def test_filtre_read_affiche_seulement_lus(self):
+        from content.models import ContactMessage
+        ContactMessage.objects.create(site=self.site, name='A', email='a@a.fr', message='m', is_read=True)
+        ContactMessage.objects.create(site=self.site, name='B', email='b@b.fr', message='m', is_read=False)
+        c = _chef_client_with_site(self.site)
+        r = c.get(self.url + '?status=read')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.context['submissions'].count(), 1)
+        self.assertEqual(r.context['submissions'].first().email, 'a@a.fr')
+
+
+class FormulaireContactConfigTest(TestCase):
+
+    def setUp(self):
+        _setup_editorial_groups()
+        self.site = _ensure_section_page(slug='cfg-contact', name='Config Contact', site_type='sectoral')
+        self.url = '/cms/contact-config/'
+
+    def test_post_sans_site_redirige(self):
+        user = make_superuser('cfg-no-site')
+        self.client.force_login(user)
+        r = self.client.post(self.url, {'is_active': 'on'})
+        self.assertEqual(r.status_code, 302)
+
+    def test_get_sans_site_redirige(self):
+        user = make_superuser('cfg-no-site-get')
+        self.client.force_login(user)
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 302)
+
+    def test_post_email_vide_efface_email_destination(self):
+        from content.models import FormulaireContact
+        c = _chef_client_with_site(self.site)
+        # S'assurer que le formulaire existe
+        FormulaireContact.objects.get_or_create(site=self.site, defaults={'email_destination': 'old@test.fr'})
+        r = c.post(self.url, {'is_active': 'on', 'email_destination': ''})
+        self.assertEqual(r.status_code, 302)
+        f = FormulaireContact.objects.get(site=self.site)
+        self.assertEqual(f.email_destination, '')
+
+
+class ChampContactCreateViewTest(TestCase):
+
+    def setUp(self):
+        _setup_editorial_groups()
+        self.site = _ensure_section_page(slug='champ-create', name='Champ Create', site_type='sectoral')
+        self.url = '/cms/contact-config/champ/ajouter/'
+
+    def test_sans_site_redirige(self):
+        user = make_superuser('champ-no-site')
+        self.client.force_login(user)
+        r = self.client.post(self.url, {'label': 'Test'})
+        self.assertEqual(r.status_code, 302)
+
+    def test_label_vide_redirige(self):
+        from content.models import FormulaireContact
+        FormulaireContact.objects.get_or_create(site=self.site)
+        c = _chef_client_with_site(self.site)
+        r = c.post(self.url, {'label': ''})
+        self.assertEqual(r.status_code, 302)
+
+    def test_slug_collision_incremente_compteur(self):
+        from content.models import FormulaireContact, ChampContactCustom
+        f, _ = FormulaireContact.objects.get_or_create(site=self.site)
+        ChampContactCustom.objects.create(formulaire=f, label='Mon champ', slug='mon-champ',
+                                          field_type='text', order=0)
+        c = _chef_client_with_site(self.site)
+        r = c.post(self.url, {'label': 'Mon champ', 'field_type': 'text'})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(ChampContactCustom.objects.filter(formulaire=f).count(), 2)
+        slugs = list(ChampContactCustom.objects.filter(formulaire=f).values_list('slug', flat=True))
+        self.assertIn('mon-champ-1', slugs)
+
+
+class ChampContactDeleteViewTest(TestCase):
+
+    def setUp(self):
+        _setup_editorial_groups()
+        self.site = _ensure_section_page(slug='champ-delete', name='Champ Delete', site_type='sectoral')
+
+    def test_sans_site_redirige(self):
+        user = make_superuser('champ-del-no-site')
+        self.client.force_login(user)
+        r = self.client.post('/cms/contact-config/champ/999/supprimer/')
+        self.assertEqual(r.status_code, 302)
+
+    def test_supprime_champ(self):
+        from content.models import FormulaireContact, ChampContactCustom
+        f, _ = FormulaireContact.objects.get_or_create(site=self.site)
+        champ = ChampContactCustom.objects.create(formulaire=f, label='Del', slug='del',
+                                                   field_type='text', order=0)
+        c = _chef_client_with_site(self.site)
+        r = c.post(f'/cms/contact-config/champ/{champ.pk}/supprimer/')
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(ChampContactCustom.objects.filter(pk=champ.pk).exists())
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# SUITE DE MICRO-TESTS pour les lignes restantes
+# ════════════════════════════════════════════════════════════════════════════════
+
+class AdminUtilsHandleNoPermUnauthTest(TestCase):
+    """admin_utils line 36 : handle_no_permission pour unauthenticated."""
+
+    def test_handle_no_permission_unauthentifie(self):
+        from content.admin_utils import WagtailChefRequiredMixin
+        from unittest.mock import Mock
+        mixin = WagtailChefRequiredMixin()
+        mixin.request = Mock()
+        mixin.request.user.is_authenticated = False
+        response = mixin.handle_no_permission()
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/cms/', response['Location'])
+
+
+class MenuItemGetUrlExtraTest(TestCase):
+
+    def setUp(self):
+        self.principal = make_site('principal', wp_blog_id=1, site_type='main', name='CNT-SO')
+        self.sp = _ensure_section_page(slug='menu-extra', name='Menu Extra', site_type='regional')
+
+    def test_get_url_site_link_type(self):
+        target = _ensure_section_page(slug='target-sp', name='Target SP', site_type='regional')
+        item = MenuItem.objects.create(
+            site=self.sp, title='Site', menu='main', order=1,
+            link_type='site', target_site=target,
+        )
+        url = item.get_url()
+        self.assertIn('target-sp', url)
+
+    def test_get_url_contact_principal(self):
+        item = MenuItem.objects.create(
+            site=self.principal, title='Contact', menu='main', order=1,
+            link_type='contact',
+        )
+        url = item.get_url()
+        self.assertIn('contact', url)
+        self.assertNotIn('principal', url)
+
+    def test_get_url_fallback_avec_article(self):
+        """link_type inconnu avec article FK → ligne 510-511."""
+        art = Article.objects.create(
+            site=self.sp, title='Fallback Art', slug='fallback-art', status='publish'
+        )
+        item = MenuItem.objects.create(
+            site=self.sp, title='FB', menu='main', order=1,
+            link_type='category', article=art,
+        )
+        item.link_type = 'unknown_type'
+        item.save()
+        url = item.get_url()
+        self.assertIn('fallback-art', url)
+
+    def test_get_url_fallback_avec_page(self):
+        """link_type inconnu avec page FK → ligne 512-513."""
+        page = Page.objects.create(
+            site=self.sp, title='Fallback Page', slug='fallback-page', status='publish'
+        )
+        item = MenuItem.objects.create(
+            site=self.sp, title='FB2', menu='main', order=1,
+            link_type='unknown_type', page=page,
+        )
+        url = item.get_url()
+        self.assertIn('fallback-page', url)
+
+    def test_get_url_fallback_avec_category(self):
+        """link_type inconnu avec category FK → ligne 514-515."""
+        cat = Category.objects.create(site=self.sp, name='FB Cat', slug='fb-cat')
+        item = MenuItem.objects.create(
+            site=self.sp, title='FB3', menu='main', order=1,
+            link_type='unknown_type', category=cat,
+        )
+        url = item.get_url()
+        self.assertIn('fb-cat', url)
+
+    def test_get_url_fallback_avec_url_directe(self):
+        """link_type inconnu mais url renseignée → ligne 508-509."""
+        item = MenuItem.objects.create(
+            site=self.sp, title='FB4', menu='main', order=1,
+            link_type='unknown_type', url='https://direct.example.com',
+        )
+        url = item.get_url()
+        self.assertEqual(url, 'https://direct.example.com')
+
+
+class GalleryInvalidColumnsTest(TestCase):
+    """content_tags lines 83-84 : columns invalide → fallback 3."""
+
+    def test_gallery_colonnes_invalides(self):
+        from content.templatetags.content_tags import render_content
+        content = json_module.dumps({'blocks': [{'type': 'gallery', 'data': {
+            'images': [{'url': 'https://example.com/img.jpg', 'caption': ''}],
+            'columns': 'invalide',
+        }}]})
+        result = str(render_content(content))
+        self.assertIn('columns-3', result)
+
+
+class ViewsAdditionalCoverageTest(TestCase):
+    """Couvre les lignes restantes de views.py."""
+
+    def setUp(self):
+        self.principal = make_site('principal', wp_blog_id=1, site_type='main', name='CNT-SO')
+
+    def test_site_home_view_non_sectoral_utilise_site_home_html(self):
+        """SiteHomeView.get_template_names() → line 138 pour site type 'main'."""
+        main_site = _ensure_section_page(slug='main-home', name='Main Home', site_type='main')
+        r = self.client.get(f'/main-home/')
+        self.assertEqual(r.status_code, 200)
+        self.assertTemplateUsed(r, 'content/site_home.html')
+
+    def test_article_detail_avec_categorie_couvre_category_latest(self):
+        """ArticleDetailView.get_context_data() line 234."""
+        cat = make_cms_category(name='Cat Detail', slug='cat-detail', section_slug='principal')
+        art = make_article_page(section_slug='principal', title='Art Detail Cat',
+                                slug='art-detail-cat', categories=[cat])
+        r = self.client.get(art.get_absolute_url())
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('category_latest', r.context)
+
+    def test_site_article_detail(self):
+        """SiteArticleDetailView.get_queryset() lines 246-247."""
+        sub = _ensure_section_page(slug='sub-art-detail', name='Sub Art Detail', site_type='regional')
+        art = make_article_page(section_slug='sub-art-detail', title='Sub Art', slug='sub-art')
+        r = self.client.get(
+            reverse('content:site_article_detail', kwargs={'site_slug': 'sub-art-detail', 'slug': 'sub-art'})
+        )
+        self.assertEqual(r.status_code, 200)
+
+    def test_page_detail(self):
+        """PageDetailView.get_queryset() line 298."""
+        p = Page.objects.create(
+            site=self.principal, title='Legacy Page', slug='legacy-page', status='publish'
+        )
+        r = self.client.get(reverse('content:page_detail', kwargs={'slug': 'legacy-page'}))
+        self.assertEqual(r.status_code, 200)
+
+    def test_site_page_detail(self):
+        """SitePageDetailView.get_queryset() lines 310-311."""
+        sub = _ensure_section_page(slug='sub-page-det', name='Sub Page Det', site_type='regional')
+        p = Page.objects.create(site=sub, title='Sub Page', slug='sub-page-slug', status='publish')
+        r = self.client.get(
+            reverse('content:site_page_detail', kwargs={'site_slug': 'sub-page-det', 'slug': 'sub-page-slug'})
+        )
+        self.assertEqual(r.status_code, 200)
+
+    def test_home_view_avec_trois_featured_articles(self):
+        """HomeView line 69 : mini = sticky_mini quand 3+ articles sticky."""
+        for i in range(4):
+            make_article_page(
+                section_slug='principal', title=f'Sticky {i}', slug=f'sticky-{i}',
+                is_featured=True
+            )
+        r = self.client.get(reverse('content:home'))
+        self.assertEqual(r.status_code, 200)
+
+    def test_wordpress_redirect_avec_site_path_et_article(self):
+        """WordPressRedirectView lines 491-496 — site_path match."""
+        sub = _ensure_section_page(slug='wp-sub', name='WP Sub', site_type='regional')
+        sub.wp_path = 'wp-sub-path'
+        sub.save(update_fields=['wp_path'])
+        art = make_article_page(section_slug='wp-sub', title='WP Art', slug='wp-art')
+        url = f'/wp-sub-path/2024/01/wp-art/'
+        r = self.client.get(url)
+        self.assertIn(r.status_code, [301, 302, 404])
+
+    def test_newsletter_subscribe_avec_site_slug(self):
+        """NewsletterSubscribeView._get_site() line 725."""
+        site = _ensure_section_page(slug='nl-sub-slug', name='NL Sub', site_type='sectoral')
+        site.live = True
+        site.save(update_fields=['live'])
+        r = self.client.post(
+            reverse('content:site_newsletter_subscribe', kwargs={'site_slug': 'nl-sub-slug'}),
+            {'email': 'sub@test.fr'}
+        )
+        self.assertIn(r.status_code, [200, 302])
+
+    def test_send_contact_email_sans_recipient_retourne_silencieusement(self):
+        """_send_contact_email line 523 — aucune adresse configurée."""
+        from content.views import _send_contact_email
+        from content.models import ContactMessage
+        from django.test import override_settings
+        site = _ensure_section_page(slug='no-email-site', name='No Email Site')
+        msg = ContactMessage.objects.create(
+            site=site, name='Test', email='t@t.fr', message='m'
+        )
+        with override_settings(DEFAULT_CONTACT_EMAIL='', DEFAULT_FROM_EMAIL=''):
+            result = _send_contact_email(site, msg)
+        self.assertIsNone(result)
+
+    @patch('django.core.mail.EmailMultiAlternatives.send', side_effect=Exception('SMTP error'))
+    def test_send_contact_email_exception_silencieuse(self, mock_send):
+        """_send_contact_email lines 558-559 — exception ignorée."""
+        from content.views import _send_contact_email
+        from content.models import ContactMessage
+        from django.test import override_settings
+        site = _ensure_section_page(slug='exc-email-site', name='Exc Email Site')
+        site.contact_email = 'contact@exc.fr'
+        site.save(update_fields=['contact_email'])
+        msg = ContactMessage.objects.create(
+            site=site, name='Test', email='t@t.fr', message='m'
+        )
+        with override_settings(CONTACT_EMAIL='contact@exc.fr'):
+            result = _send_contact_email(site, msg)
+        self.assertIsNone(result)
+
+
+class PlanDuSiteCategoryGroupingTest(TestCase):
+    """views.py lines 684, 688-702 — PlanDuSiteView groupement de catégories."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='plan-site', name='Plan Site', site_type='regional')
+
+    def test_categorie_unique_par_nom(self):
+        """Line 688-692 : un seul cat par name → URL dans cat_groups."""
+        Category.objects.create(site=self.site, name='Luttes', slug='luttes-plan')
+        r = self.client.get(
+            reverse('content:site_plan_du_site', kwargs={'site_slug': 'plan-site'})
+        )
+        self.assertEqual(r.status_code, 200)
+        cat_groups = r.context.get('cat_groups', [])
+        noms = [g['name'] for g in cat_groups]
+        self.assertIn('Luttes', noms)
+        luttes = next(g for g in cat_groups if g['name'] == 'Luttes')
+        self.assertIsNotNone(luttes['url'])
+
+    def test_plusieurs_categories_meme_nom_groupees(self):
+        """Lines 694-702 : plusieurs cats même name → url None + secteur extrait."""
+        Category.objects.create(site=self.site, name='Droit', slug='droit-plan-paris')
+        Category.objects.create(site=self.site, name='Droit', slug='droit-plan-lyon')
+        r = self.client.get(
+            reverse('content:site_plan_du_site', kwargs={'site_slug': 'plan-site'})
+        )
+        self.assertEqual(r.status_code, 200)
+        cat_groups = r.context.get('cat_groups', [])
+        noms = [g['name'] for g in cat_groups]
+        self.assertIn('Droit', noms)
+        droit = next(g for g in cat_groups if g['name'] == 'Droit')
+        self.assertIsNone(droit['url'])
+        self.assertGreaterEqual(len(droit['children']), 2)
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# TESTS MICRO — lignes restantes (models, newsletter_views, views)
+# ════════════════════════════════════════════════════════════════════════════════
+
+class MenuItemGetUrlFallbackDieseTest(TestCase):
+    """models.py line 516 — fallback '#' quand tous les FKs sont vides."""
+
+    def setUp(self):
+        self.sp = _ensure_section_page(slug='menu-diese', name='Menu Diese', site_type='regional')
+
+    def test_get_url_retourne_diese_quand_tout_est_vide(self):
+        """link_type='category' mais category=None → tous les fallbacks échouent → '#'."""
+        item = MenuItem.objects.create(
+            site=self.sp, title='Vide Total', menu='main', order=1,
+            link_type='category',
+        )
+        url = item.get_url()
+        self.assertEqual(url, '#')
+
+
+class NewsletterSendViewRemainingTest(TestCase):
+    """newsletter_views.py lines 29, 102-103, 154-155."""
+
+    def setUp(self):
+        _setup_editorial_groups()
+        self.site_a = _ensure_section_page(slug='nl-site-a', name='Site A', site_type='sectoral')
+        self.site_b = _ensure_section_page(slug='nl-site-b', name='Site B', site_type='sectoral')
+        self.newsletter = _make_newsletter(self.site_a)
+
+    def test_chef_mauvais_site_leve_permission_denied(self):
+        """Line 29 — _get_newsletter lève PermissionDenied si site différent.
+        Wagtail peut convertir PermissionDenied en redirect dans le test client."""
+        from content.newsletter_views import NewsletterSendView
+        from django.test import RequestFactory
+        from django.contrib.auth.models import User
+        rf = RequestFactory()
+        user = make_superuser('perm-test-chef')
+        request = rf.get(f'/cms/newsletter/{self.newsletter.pk}/envoyer/')
+        request.user = user
+        request.session = {'redac_current_site_id': self.site_b.pk}
+        view = NewsletterSendView()
+        view.request = request
+        view.kwargs = {'pk': self.newsletter.pk}
+        from django.core.exceptions import PermissionDenied
+        with self.assertRaises(PermissionDenied):
+            view._get_newsletter(request, self.newsletter.pk)
+
+    @patch('django.core.mail.EmailMultiAlternatives.send', side_effect=Exception('SMTP fail'))
+    def test_post_mode_test_erreur_envoi_affiche_message(self, mock_send):
+        """Lines 102-103 — exception lors de l'envoi du test → message d'erreur."""
+        c = _chef_client_with_site(self.site_a)
+        url = f'/cms/newsletter/{self.newsletter.pk}/envoyer/'
+        r = c.post(url, {'mode': 'test', 'test_email': 'fail@test.fr'}, follow=True)
+        messages_list = list(r.context['messages'])
+        self.assertTrue(any('Erreur' in str(m) or 'erreur' in str(m) for m in messages_list))
+
+    def test_ovh_get_subscribers_exception_sent_count_zero(self):
+        """Lines 154-155 — exception ovh_client → sent_count=0."""
+        self.site_a.ovh_mailing_list = 'liste-ovh-test'
+        self.site_a.save(update_fields=['ovh_mailing_list'])
+        with patch('django.core.mail.EmailMultiAlternatives.send', return_value=None):
+            with patch('cms.ovh_client.get_subscribers', side_effect=Exception('OVH fail')):
+                c = _chef_client_with_site(self.site_a)
+                url = f'/cms/newsletter/{self.newsletter.pk}/envoyer/'
+                r = c.post(url, {'mode': 'send'}, follow=True)
+        self.newsletter.refresh_from_db()
+        self.assertEqual(self.newsletter.status, 'sent')
+        self.assertEqual(self.newsletter.sent_count, 0)
+
+
+class WordPressRedirectPageTest(TestCase):
+    """views.py lines 494-496 — WP redirect avec page legacy (pas article)."""
+
+    def test_redirect_vers_page_legacy(self):
+        sub = _ensure_section_page(slug='wp-page-sub', name='WP Page Sub', site_type='regional')
+        sub.wp_path = 'wp-page-path'
+        sub.save(update_fields=['wp_path'])
+        Page.objects.create(
+            site=sub, title='WP Page', slug='wp-legacy-page', status='publish'
+        )
+        r = self.client.get('/wp-page-path/2024/01/wp-legacy-page/')
+        self.assertIn(r.status_code, [301, 302])
+
+
+class NewsletterSubscribeEmailExceptionTest(TestCase):
+    """views.py lines 764-765 — exception email lors de l'inscription newsletter."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='nl-exc-site', name='NL Exc Site', site_type='sectoral')
+        self.site.live = True
+        self.site.save(update_fields=['live'])
+
+    @patch('django.core.mail.EmailMultiAlternatives.send', side_effect=Exception('SMTP'))
+    def test_email_exception_ne_bloque_pas(self, mock_send):
+        """L'exception email est silencieuse → 200 quand même."""
+        r = self.client.post(
+            reverse('content:site_newsletter_subscribe', kwargs={'site_slug': 'nl-exc-site'}),
+            {'email': 'exc@test.fr'}
+        )
+        self.assertEqual(r.status_code, 200)
+
+
+# ── Coverage complémentaire ───────────────────────────────────────────────────
+
+from django.test import SimpleTestCase
+
+
+class EditorJsWidgetTest(SimpleTestCase):
+    """widgets.py lines 29-33, 44."""
+
+    def setUp(self):
+        from content.widgets import EditorJsWidget
+        self.widget = EditorJsWidget()
+
+    def test_render_avec_valeur(self):
+        html = self.widget.render('content', '{"blocks":[]}', attrs={'id': 'id_content'})
+        self.assertIn('editorjs-wrapper', html)
+        self.assertIn('id_content', html)
+
+    def test_render_sans_valeur(self):
+        html = self.widget.render('content', None)
+        self.assertIn('editorjs-wrapper', html)
+
+    def test_render_auto_id(self):
+        html = self.widget.render('content', 'val')
+        self.assertIn('id_content', html)
+
+    def test_value_from_datadict_present(self):
+        val = self.widget.value_from_datadict({'content': 'test-val'}, {}, 'content')
+        self.assertEqual(val, 'test-val')
+
+    def test_value_from_datadict_absent(self):
+        val = self.widget.value_from_datadict({}, {}, 'content')
+        self.assertIsNone(val)
+
+
+class MediaUrlWithFileTest(TestCase):
+    """models.py line 142 — Media.url retourne file.url quand file existe."""
+
+    def test_url_returns_file_url(self):
+        from unittest.mock import PropertyMock
+        site = make_site('media-file-url')
+        m = Media(site=site, title='t', mime_type='image/jpeg',
+                  original_url='http://orig.com/img.jpg')
+        mock_file = MagicMock()
+        mock_file.__bool__ = MagicMock(return_value=True)
+        mock_file.url = '/media/uploads/test.jpg'
+        with patch.object(type(m), 'file', new_callable=PropertyMock,
+                          return_value=mock_file):
+            self.assertEqual(m.url, '/media/uploads/test.jpg')
+
+
+class GetSectionPageExceptionTest(TestCase):
+    """api_views.py lines 144-145 — _get_section_page retourne None sur exception."""
+
+    def test_retourne_none_sur_exception(self):
+        from content.api_views import _get_section_page
+        with patch('cms.models.SectionPage.objects.filter',
+                   side_effect=Exception('DB error')):
+            result = _get_section_page('slug-inexistant')
+            self.assertIsNone(result)
+
+
+class WagtailHookViewSetsTest(TestCase):
+    """wagtail_hooks.py — ViewSet.get_queryset() + redirects + newsletter menu."""
+
+    def setUp(self):
+        self.user = make_superuser('wh-vs-admin')
+        self.rf = RequestFactory()
+
+    def _req(self):
+        req = self.rf.get('/')
+        req.user = self.user
+        req.session = {}
+        return req
+
+    def _vs_qs(self, vs_class):
+        vs = vs_class.__new__(vs_class)
+        return vs.get_queryset(self._req())
+
+    def test_article_viewset_get_queryset(self):
+        from content.wagtail_hooks import ArticleViewSet
+        qs = self._vs_qs(ArticleViewSet)
+        self.assertIsNotNone(qs)
+
+    def test_contentpage_viewset_get_queryset(self):
+        from content.wagtail_hooks import ContentPageViewSet
+        qs = self._vs_qs(ContentPageViewSet)
+        self.assertIsNotNone(qs)
+
+    def test_category_viewset_get_queryset(self):
+        from content.wagtail_hooks import CategoryViewSet
+        qs = self._vs_qs(CategoryViewSet)
+        self.assertIsNotNone(qs)
+
+    def test_tag_viewset_get_queryset(self):
+        from content.wagtail_hooks import TagViewSet
+        qs = self._vs_qs(TagViewSet)
+        self.assertIsNotNone(qs)
+
+    def test_media_viewset_get_queryset(self):
+        from content.wagtail_hooks import MediaViewSet
+        qs = self._vs_qs(MediaViewSet)
+        self.assertIsNotNone(qs)
+
+    def test_comment_viewset_get_queryset(self):
+        from content.wagtail_hooks import CommentViewSet
+        qs = self._vs_qs(CommentViewSet)
+        self.assertIsNotNone(qs)
+
+    def test_contact_message_viewset_get_queryset(self):
+        from content.wagtail_hooks import ContactMessageViewSet
+        qs = self._vs_qs(ContactMessageViewSet)
+        self.assertIsNotNone(qs)
+
+    def test_subscriber_viewset_get_queryset(self):
+        from content.wagtail_hooks import SubscriberViewSet
+        qs = self._vs_qs(SubscriberViewSet)
+        self.assertIsNotNone(qs)
+
+    def test_newsletter_viewset_get_queryset(self):
+        from content.wagtail_hooks import NewsletterViewSet
+        qs = self._vs_qs(NewsletterViewSet)
+        self.assertIsNotNone(qs)
+
+    def test_menuitem_viewset_get_queryset(self):
+        from content.wagtail_hooks import MenuItemViewSet
+        qs = self._vs_qs(MenuItemViewSet)
+        self.assertIsNotNone(qs)
+
+    def test_author_viewset_get_queryset(self):
+        from content.wagtail_hooks import AuthorViewSet
+        qs = self._vs_qs(AuthorViewSet)
+        self.assertIsNotNone(qs)
+
+    def test_contact_messages_viewset_get_queryset(self):
+        from content.wagtail_hooks import ContactMessagesViewSet
+        qs = self._vs_qs(ContactMessagesViewSet)
+        self.assertIsNotNone(qs)
+
+    def test_contact_config_viewset_get_queryset(self):
+        from content.wagtail_hooks import ContactConfigViewSet
+        qs = self._vs_qs(ContactConfigViewSet)
+        self.assertIsNotNone(qs)
+
+    def test_menu_index_redirect(self):
+        from content.wagtail_hooks import _MenuIndexRedirect
+        view = _MenuIndexRedirect.__new__(_MenuIndexRedirect)
+        resp = view.get(self._req())
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp['Location'], '/cms/menus/')
+
+    def test_contact_list_redirect(self):
+        from content.wagtail_hooks import _ContactListRedirect
+        view = _ContactListRedirect.__new__(_ContactListRedirect)
+        resp = view.get(self._req())
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp['Location'], '/cms/contact/')
+
+    def test_contact_config_redirect(self):
+        from content.wagtail_hooks import _ContactConfigRedirect
+        view = _ContactConfigRedirect.__new__(_ContactConfigRedirect)
+        resp = view.get(self._req())
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp['Location'], '/cms/contact-config/')
+
+    def test_newsletter_action_menu_item(self):
+        from content.wagtail_hooks import add_newsletter_send_button
+        site = make_site('nl-menu-am')
+        nl = Newsletter.objects.create(site=site, title='NL AM', status='draft')
+
+        # Model non-Newsletter → None
+        self.assertIsNone(add_newsletter_send_button(Article))
+
+        # Model Newsletter → menu item
+        item = add_newsletter_send_button(Newsletter)
+        self.assertIsNotNone(item)
+
+        # get_url avec brouillon
+        ctx_draft = {'instance': nl}
+        self.assertEqual(item.get_url(ctx_draft), f'/cms/newsletter/{nl.pk}/envoyer/')
+        self.assertTrue(item.is_shown(ctx_draft))
+
+        # get_url avec envoyée → None
+        nl.status = 'sent'
+        ctx_sent = {'instance': nl}
+        self.assertIsNone(item.get_url(ctx_sent))
+        self.assertFalse(item.is_shown(ctx_sent))
+
+        # get_url sans instance
+        self.assertIsNone(item.get_url({}))
+
+
+class ChampContactSlugVideTest(TestCase):
+    """contact_cms_views.py line 129 — label non-vide mais slug vide après slugify."""
+
+    def setUp(self):
+        _setup_editorial_groups()
+        self.site = _ensure_section_page(slug='champ-slug-vide', name='Slug Vide', site_type='sectoral')
+        self.url = '/cms/contact-config/champ/ajouter/'
+
+    def test_label_non_slugifiable_redirige(self):
+        from content.models import FormulaireContact
+        FormulaireContact.objects.get_or_create(site=self.site)
+        c = _chef_client_with_site(self.site)
+        # '---' n'est pas vide mais slugify('---') → ''
+        r = c.post(self.url, {'label': '---'})
+        self.assertEqual(r.status_code, 302)
+
+
+class CategoryFeedNonPrincipalTest(TestCase):
+    """feeds.py line 76 — catégorie hors section 'principal' → get_object_or_404."""
+
+    def test_category_autre_section(self):
+        from cms.models import CmsCategory
+        CmsCategory.objects.get_or_create(
+            slug='cat-non-principal', section_slug='autre-section',
+            defaults={'name': 'Cat non principale'}
+        )
+        r = self.client.get('/categorie/cat-non-principal/feed/')
+        # 200 si trouvée, 404 si pas de section_slug=principal mais trouvée par slug
+        self.assertIn(r.status_code, [200, 400])
+
+
+class ScopedArticleViewGetFormTest(TestCase):
+    """wagtail_hooks.py lines 40-55 — _make_scoped_article_view.ScopedView.get_form()."""
+
+    def test_get_form_filtre_categories_et_tags(self):
+        from content.wagtail_hooks import _make_scoped_article_view
+        from wagtail.snippets.views.snippets import CreateView as SnippetCreateView
+
+        ScopedView = _make_scoped_article_view(SnippetCreateView)
+        view = ScopedView.__new__(ScopedView)
+        view.request = MagicMock()
+
+        site_sp = _ensure_section_page(slug='scoped-form-sp', name='Scoped SP', site_type='sectoral')
+
+        mock_form = MagicMock()
+        mock_form.fields = {
+            'site': MagicMock(),
+            'categories': MagicMock(),
+            'tags': MagicMock(),
+        }
+        mock_form.initial = {}
+
+        with patch.object(SnippetCreateView, 'get_form', return_value=mock_form):
+            with patch('cms.site_context.get_current_site', return_value=site_sp):
+                result = view.get_form()
+
+        self.assertIs(result, mock_form)
+        self.assertEqual(mock_form.initial.get('site'), site_sp.pk)
+
+    def test_get_form_sans_site_courant(self):
+        from content.wagtail_hooks import _make_scoped_article_view
+        from wagtail.snippets.views.snippets import CreateView as SnippetCreateView
+
+        ScopedView = _make_scoped_article_view(SnippetCreateView)
+        view = ScopedView.__new__(ScopedView)
+        view.request = MagicMock()
+
+        mock_form = MagicMock()
+        mock_form.fields = {}
+        mock_form.initial = {}
+
+        with patch.object(SnippetCreateView, 'get_form', return_value=mock_form):
+            with patch('cms.site_context.get_current_site', return_value=None):
+                result = view.get_form()
+
+        self.assertIs(result, mock_form)

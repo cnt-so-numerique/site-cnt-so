@@ -7,7 +7,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('content', '0019_migrate_site_fks_to_sectionpage'),
-        ('adhesion', '0002_migrate_site_fk_to_sectionpage'),
     ]
 
     operations = [

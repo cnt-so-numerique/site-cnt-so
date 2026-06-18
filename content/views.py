@@ -640,19 +640,24 @@ def contact_success(request):
 class SiteContactView(_BaseContactView):
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
-        self.site_obj = get_object_or_404(SectionPage, slug=kwargs['site_slug'])
+        slug = kwargs['site_slug']
+        self.site_obj = SectionPage.objects.filter(Q(slug=slug) | Q(legacy_site_slug=slug)).first()
+        if self.site_obj is None:
+            raise Http404
 
     def get(self, request, *args, **kwargs):
-        url = reverse_lazy('content:site_contact_success', kwargs={'site_slug': self.site_obj.slug})
+        url = reverse_lazy('content:site_contact_success', kwargs={'site_slug': self.site_obj.legacy_site_slug or self.site_obj.slug})
         return super().get(request, self.site_obj, url)
 
     def post(self, request, *args, **kwargs):
-        url = reverse_lazy('content:site_contact_success', kwargs={'site_slug': self.site_obj.slug})
+        url = reverse_lazy('content:site_contact_success', kwargs={'site_slug': self.site_obj.legacy_site_slug or self.site_obj.slug})
         return super().post(request, self.site_obj, url)
 
 
 def site_contact_success(request, site_slug):
-    site_obj = get_object_or_404(SectionPage, slug=site_slug)
+    site_obj = SectionPage.objects.filter(Q(slug=site_slug) | Q(legacy_site_slug=site_slug)).first()
+    if site_obj is None:
+        raise Http404
     return render(request, 'content/contact_success.html', {'site': site_obj})
 
 

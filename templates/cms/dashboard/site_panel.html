@@ -67,23 +67,15 @@
       </div>
     </a>
 
-    {% if stats.adhesions is not None %}
-    <a href="/cms/adhesions/" style="text-decoration:none;">
-      <div style="background:#252932;border:1px solid #2d3139;border-radius:6px;padding:.75rem;text-align:center;" onmouseover="this.style.borderColor='#e63946'" onmouseout="this.style.borderColor='#2d3139'">
-        <div style="font-size:1.5rem;font-weight:700;color:#22c55e;">{{ stats.adhesions }}</div>
-        <div style="font-size:.75rem;color:#94a3b8;margin-top:.1rem;">Adhésions</div>
-      </div>
-    </a>
-    {% endif %}
 
   </div>
 
   <!-- ── Actions par domaine ───────────────────────────────────── -->
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;">
 
-    <!-- Contenu -->
+    <!-- Rédaction -->
     <div style="background:#252932;border:1px solid #2d3139;border-radius:6px;padding:1rem;">
-      <div style="font-size:.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">✏️ Contenu</div>
+      <div style="font-size:.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">✏️ Rédaction</div>
       <div style="display:flex;flex-direction:column;gap:.4rem;">
         <a href="/cms/snippets/cms/articlepage/" style="color:#e2e8f0;text-decoration:none;font-size:.85rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">📄 Tous les articles</a>
         <a href="/cms/snippets/cms/articlepage/add/" style="color:#e63946;text-decoration:none;font-size:.85rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">+ Nouvel article</a>
@@ -124,20 +116,6 @@
       </div>
     </div>
 
-    <!-- Adhésions -->
-    {% if stats.adhesions is not None %}
-    <div style="background:#252932;border:1px solid #2d3139;border-radius:6px;padding:1rem;">
-      <div style="font-size:.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">🤝 Adhésions</div>
-      <div style="display:flex;flex-direction:column;gap:.4rem;">
-        <a href="/cms/adhesions/" style="color:#e2e8f0;text-decoration:none;font-size:.85rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">📋 Liste des adhésions</a>
-        <a href="/cms/adhesion-config/" style="color:#e2e8f0;text-decoration:none;font-size:.85rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">⚙️ Formulaire d'adhésion</a>
-        <a href="/cms/adhesions/export/" style="color:#e2e8f0;text-decoration:none;font-size:.85rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">⬇️ Exporter CSV</a>
-        {% if stats.adhesions_pending > 0 %}
-        <span style="font-size:.75rem;color:#f59e0b;padding:.2rem .5rem;">⚠️ {{ stats.adhesions_pending }} en attente</span>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
 
   </div>
 

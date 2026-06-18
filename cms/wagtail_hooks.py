@@ -164,7 +164,7 @@ _CONTENT_PAGE_PANELS = [
 class ContentPageViewSet(SnippetViewSet):
     model = ContentPage
     icon = 'doc-empty'
-    menu_label = 'Pages'
+    menu_label = 'Pages statiques'
     menu_order = 110
     panels = _CONTENT_PAGE_PANELS
     list_display = ['title', 'section_slug', 'live']
@@ -252,7 +252,7 @@ class EventViewSet(SnippetViewSet):
 # ── Groupe principal CMS ──────────────────────────────────────────────────────
 
 class CmsContenuGroup(SnippetViewSetGroup):
-    menu_label = 'Contenu'
+    menu_label = 'Rédaction'
     menu_icon = 'doc-full-inverse'
     menu_order = 100
     items = (ArticlePageViewSet, ContentPageViewSet, CmsCategoryViewSet, EventViewSet)
@@ -387,15 +387,6 @@ class SiteDashboardPanel(Component):
             stats['subscribers'] = Subscriber.objects.filter(site=current, is_active=True).count()
             stats['contacts_unread'] = ContactMessage.objects.filter(site=current, is_read=False).count()
             section_page_id = current.pk
-            try:
-                from adhesion.models import Adhesion, FormulaireAdhesion
-                stats['adhesions'] = Adhesion.objects.filter(site=current, status='actif').count()
-                stats['adhesions_pending'] = Adhesion.objects.filter(site=current, status='pending').count()
-                stats['has_adhesion_form'] = FormulaireAdhesion.objects.filter(site=current).exists()
-            except Exception:
-                stats['adhesions'] = None
-                stats['adhesions_pending'] = 0
-                stats['has_adhesion_form'] = False
 
         return render_to_string('cms/dashboard/site_panel.html', {
             'current_site': current,

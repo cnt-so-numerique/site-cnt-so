@@ -558,7 +558,9 @@ class ArticlePage(SeoMixin, Page):
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)
         context['article'] = self
-        context['site'] = SectionPage.objects.filter(legacy_site_slug=self.section_slug).first()
+        context['site'] = SectionPage.objects.filter(
+            models.Q(legacy_site_slug=self.section_slug) | models.Q(slug=self.section_slug)
+        ).first()
 
         related = (
             ArticlePage.objects
@@ -684,7 +686,9 @@ class ContentPage(Page):
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)
         context['page'] = self
-        context['site'] = SectionPage.objects.filter(legacy_site_slug=self.section_slug).first()
+        context['site'] = SectionPage.objects.filter(
+            models.Q(legacy_site_slug=self.section_slug) | models.Q(slug=self.section_slug)
+        ).first()
         return context
 
     def get_template(self, request, *args, **kwargs):

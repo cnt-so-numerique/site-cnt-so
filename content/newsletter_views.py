@@ -73,12 +73,12 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
             test_email = request.POST.get('test_email', '').strip()
             if not test_email:
                 messages.error(request, 'Adresse e-mail de test manquante.')
-                return redirect('content:newsletter_send', pk=pk)
+                return redirect(f'/cms/newsletter/{pk}/envoyer/')
             try:
                 validate_email(test_email)
             except DjangoValidationError:
                 messages.error(request, 'Adresse e-mail de test invalide.')
-                return redirect('content:newsletter_send', pk=pk)
+                return redirect(f'/cms/newsletter/{pk}/envoyer/')
             unsubscribe_url = request.build_absolute_uri(
                 reverse('content:newsletter_unsubscribe', args=['00000000-0000-0000-0000-000000000000'])
             )
@@ -101,7 +101,7 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
                 messages.success(request, f'E-mail de test envoyé à {test_email}.')
             except Exception as e:
                 messages.error(request, f'Erreur lors de l\'envoi : {e}')
-            return redirect('content:newsletter_send', pk=pk)
+            return redirect(f'/cms/newsletter/{pk}/envoyer/')
 
         from django.conf import settings as django_settings
 

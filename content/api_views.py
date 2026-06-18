@@ -56,9 +56,6 @@ def _verify_image_magic(file_obj):
     for magic, mime in _IMAGE_MAGIC.items():
         if header.startswith(magic):
             return mime
-    # WebP: RIFF????WEBP
-    if header[:4] == b'RIFF' and header[8:12] == b'WEBP':
-        return 'image/webp'
     return None
 
 
@@ -140,7 +137,8 @@ def _verify_adhesion_signature(request) -> bool:
 def _get_section_page(slug: str):
     try:
         from cms.models import SectionPage
-        return SectionPage.objects.filter(slug=slug).first()
+        from django.db.models import Q
+        return SectionPage.objects.filter(Q(slug=slug) | Q(legacy_site_slug=slug)).first()
     except Exception:
         return None
 

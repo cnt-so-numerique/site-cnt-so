@@ -443,7 +443,7 @@ class ContactConfigViewSet(SnippetViewSet):
     index_view_class = _ContactConfigRedirect
 
     def get_queryset(self, request):
-        return _scope_by_site(self.model.objects.all(), request, site_field='site')
+        return _scope_by_site(self.model.objects.all(), request)
 
 
 class ContactGroup(SnippetViewSetGroup):
@@ -496,7 +496,7 @@ def hide_unused_wagtail_menus(request, menu_items):
     # On garde 'explorer' (arbre de pages) — c'est là que sont les articles/pages Wagtail
     # On masque seulement les menus Wagtail natifs non utilisés dans ce projet
     # articles-pages-legacy = ContenuGroup (content.Article/Page — remplacé par cms.ArticlePage)
-    hidden = {'documents', 'images', 'legacy-contenu'}
+    hidden = {'documents', 'images', 'legacy-contenu', 'explorer'}
     menu_items[:] = [item for item in menu_items if item.name not in hidden]
 
 

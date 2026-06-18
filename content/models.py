@@ -77,8 +77,10 @@ class Category(models.Model):
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
-        if self.site and self.site.slug != 'principal':
-            return reverse('content:site_category_detail', kwargs={'site_slug': self.site.slug, 'slug': self.slug})
+        if self.site:
+            site_slug = self.site.legacy_site_slug or self.site.slug
+            if site_slug != 'principal':
+                return reverse('content:site_category_detail', kwargs={'site_slug': site_slug, 'slug': self.slug})
         return reverse('content:category_detail', kwargs={'slug': self.slug})
 
 
@@ -207,8 +209,10 @@ class Article(models.Model):
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
-        if self.site and self.site.slug != 'principal':
-            return reverse('content:site_article_detail', kwargs={'site_slug': self.site.slug, 'slug': self.slug})
+        if self.site:
+            site_slug = self.site.legacy_site_slug or self.site.slug
+            if site_slug != 'principal':
+                return reverse('content:site_article_detail', kwargs={'site_slug': site_slug, 'slug': self.slug})
         return reverse('content:article_detail', kwargs={'slug': self.slug})
 
 
@@ -281,8 +285,10 @@ class Page(models.Model):
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
-        if self.site and self.site.slug != 'principal':
-            return reverse('content:site_page_detail', kwargs={'site_slug': self.site.slug, 'slug': self.slug})
+        if self.site:
+            site_slug = self.site.legacy_site_slug or self.site.slug
+            if site_slug != 'principal':
+                return reverse('content:site_page_detail', kwargs={'site_slug': site_slug, 'slug': self.slug})
         return reverse('content:page_detail', kwargs={'slug': self.slug})
 
 
@@ -383,7 +389,7 @@ class FormulaireContact(models.Model):
         verbose_name_plural = "Formulaires de contact"
 
     def __str__(self):
-        return f"Contact – {self.site.name}"
+        return f"Contact – {self.site.name if self.site else '(sans site)'}"
 
     def get_email_destination(self):
         return self.email_destination or getattr(self.site, 'contact_email', '') or ''

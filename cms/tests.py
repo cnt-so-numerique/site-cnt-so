@@ -185,11 +185,13 @@ class StucsRejoindreViewTest(TestCase):
         self.assertContains(r, 'csrfmiddlewaretoken')
 
     def test_post_contact_form_valid(self):
-        r = self.client.post('/stucs/rejoindre/', {
-            'name': 'Test User',
-            'email': 'test@example.org',
-            'message': 'Je voudrais adhérer',
-        })
+        with patch('hcaptcha.fields.hCaptchaField.validate', return_value=None):
+            r = self.client.post('/stucs/rejoindre/', {
+                'name': 'Test User',
+                'email': 'test@example.org',
+                'message': 'Je voudrais adhérer',
+                'h-captcha-response': 'test',
+            })
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'bien été envoyé')
 

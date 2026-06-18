@@ -1,7 +1,13 @@
 from django.contrib import admin
+from django.shortcuts import redirect
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+
+
+def _adhesion_redirect(request, site_slug):
+    base_url = getattr(settings, 'ADHESION_BASE_URL', 'https://adhesion.cnt-so.org')
+    return redirect(f"{base_url}/adherer/{site_slug}/")
 from django.contrib.sitemaps.views import sitemap
 from django.views.generic import RedirectView, TemplateView
 from content.sitemaps import ArticleSitemap, PageSitemap, CategorySitemap, SiteSitemap
@@ -28,7 +34,7 @@ urlpatterns = [
     path('favicon.ico', RedirectView.as_view(
         url='/static/image/logocntso.png', permanent=True
     )),
-    path('', include('adhesion.urls')),  # avant content.urls pour éviter le catch-all <slug:site_slug>/
+    path('adherer/<slug:site_slug>/', _adhesion_redirect),
     path('', include('content.urls')),
     path('', include(wagtail_urls)),  # Wagtail page serving (en dernier)
 ]
