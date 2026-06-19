@@ -416,6 +416,17 @@ def add_syndicats_menu_item():
         order=160,
     )
 
+
+@hooks.register('register_admin_menu_item')
+def add_mailing_lists_menu_item():
+    return WagtailMenuItem(
+        'Listes mails',
+        '/cms/mailing-lists/',
+        name='mailing-lists',
+        icon_name='mail',
+        order=315,
+    )
+
 # "Menus" supprimé — "Navigation" redirige vers /cms/menus/ (voir MenuItemViewSet)
 
 
