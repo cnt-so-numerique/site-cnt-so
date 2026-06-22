@@ -340,14 +340,15 @@ class _MenuIndexRedirect(SnippetIndexView):
 def _scoped_menuitem_form(form):
     """Filtre category/article/page par syndicat courant."""
     from cms.site_context import get_current_site
+    from cms.models import CmsCategory
     from content.models import Article, Page as ContentPage
     request = getattr(form, 'request', None)
     current = get_current_site(request) if request else None
     if not current:
         return form
     if 'category' in form.fields:
-        form.fields['category'].queryset = Category.objects.filter(
-            site=current).order_by('name')
+        form.fields['category'].queryset = CmsCategory.objects.filter(
+            section_slug=current.slug).order_by('name')
     if 'article' in form.fields:
         form.fields['article'].queryset = Article.objects.filter(
             site=current).order_by('title')

@@ -461,7 +461,7 @@ class MenuItem(models.Model):
     # Lien vers un contenu interne (optionnel)
     article = models.ForeignKey(Article, on_delete=models.SET_NULL, null=True, blank=True)
     page = models.ForeignKey(Page, on_delete=models.SET_NULL, null=True, blank=True)
-    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
+    category = models.ForeignKey('cms.CmsCategory', on_delete=models.SET_NULL, null=True, blank=True)
     target_site = models.ForeignKey(
         'cms.SectionPage',
         on_delete=models.SET_NULL,
