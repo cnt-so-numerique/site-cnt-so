@@ -38,11 +38,11 @@
     background: #111;
     margin-bottom: 0;
     width: 100%;
-    min-height: 340px;
+    min-height: 260px;
 }
 
 @media (min-width: 641px) {
-    .hp-carousel { min-height: 440px; }
+    .hp-carousel { min-height: 360px; }
 }
 
 .hp-carousel-track {
@@ -68,14 +68,14 @@
 .hp-carousel-img {
     display: block;
     width: 100%;
-    height: 280px;
+    height: 260px;
     object-fit: contain;
     object-position: center;
     background: #111;
 }
 
 .hp-carousel-img--empty {
-    height: 280px;
+    height: 260px;
     background: #1a1a1a;
 }
 
@@ -90,14 +90,14 @@
         object-position: center;
     }
     .hp-carousel-slide {
-        min-height: 440px;
+        min-height: 360px;
     }
     .hp-carousel-slide--active {
         position: absolute;
         inset: 0;
     }
     .hp-carousel-track {
-        min-height: 440px;
+        min-height: 360px;
     }
 }
 
@@ -224,7 +224,7 @@
 
 .hp-alaune-label {
     color: #fff;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1.5px;
@@ -240,7 +240,7 @@
 .hp-badge-type {
     background: var(--primary-color);
     color: #fff;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
     padding: 0.2rem 0.5rem;
@@ -249,7 +249,7 @@
 .hp-badge-cat {
     background: rgba(255,255,255,0.15);
     color: #fff;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
     padding: 0.2rem 0.5rem;
@@ -333,7 +333,7 @@
 .hp-labeled-section {
     display: flex;
     gap: 0;
-    padding: 1.5rem 0;
+    padding: 2rem 0;
     border-bottom: 1px solid var(--bg-lighter);
 }
 
@@ -415,7 +415,7 @@
 .hp-card-title a:hover { color: var(--primary-color); }
 
 .hp-card-cat {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--text-muted);
     font-weight: 600;
 }
@@ -486,7 +486,7 @@
 
 .hp-text-card-title {
     font-family: var(--font-heading);
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.3;
 }
 
@@ -498,6 +498,7 @@
    ---------------------------------------------------------- */
 .hp-manchette-section {
     border-bottom: 1px solid var(--bg-lighter);
+    padding: 1.5rem 0 0 0;
 }
 
 .hp-manchette-section .hp-section-body {
@@ -506,8 +507,8 @@
 .hp-manchette {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: 220px 150px;
-    gap: 4px;
+    grid-template-rows: 260px 190px;
+    gap: 5px;
 }
 
 .hp-manchette .hp-mcard:nth-child(1),
@@ -516,7 +517,7 @@
 @media (max-width: 760px) {
     .hp-manchette {
         grid-template-columns: repeat(2, 1fr);
-        grid-template-rows: 200px 160px 160px;
+        grid-template-rows: 220px 175px 175px;
     }
     .hp-manchette .hp-mcard:nth-child(1),
     .hp-manchette .hp-mcard:nth-child(2) { grid-column: span 1; }
@@ -572,7 +573,7 @@
 .hp-mcard:hover .hp-mcard-body { opacity: 1; }
 
 .hp-mcard-cat {
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
     color: var(--primary-color);
@@ -598,10 +599,10 @@
 .hp-badge-site {
     background: var(--dark-bg);
     color: rgba(255,255,255,.8);
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
-    padding: .15rem .4rem;
+    padding: .2rem .5rem;
     letter-spacing: .5px;
 }
 
@@ -623,7 +624,7 @@
 }
 
 .hp-reseau-item {
-    padding: .65rem 0;
+    padding: .9rem 0;
     border-bottom: 1px solid var(--bg-lighter);
 }
 
@@ -707,7 +708,7 @@
 .hp-col-article-title a:hover { color: var(--primary-color); }
 
 .hp-col-article-cat {
-    font-size: 11px;
+    font-size: 13px;
     color: var(--text-muted);
 }
 
@@ -781,7 +782,7 @@
 }
 
 .hp-qui-desc {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--text-secondary);
     line-height: 1.6;
 }
@@ -843,7 +844,7 @@
     border: none;
     cursor: pointer;
     font-weight: 600;
-    font-size: 13px;
+    font-size: 14px;
     font-family: var(--font-body);
 }
 
@@ -852,6 +853,23 @@
 @media (max-width: 600px) {
     .hp-vert-label { display: none; }
     .hp-labeled-section { padding: 1rem 0; }
+}
+
+/* Mobile : texte 16px minimum */
+@media (max-width: 640px) {
+    .hp-reseau-title,
+    .hp-col-article-title,
+    .hp-card-title,
+    .hp-mcard-title,
+    .hp-mini-card-title,
+    .hp-text-card-title,
+    .hp-big-article-title { font-size: 16px; }
+    .hp-col-article-cat,
+    .hp-card-cat,
+    .hp-reseau-meta .hp-badge-site,
+    .hp-reseau-meta .hp-card-cat { font-size: 13px; }
+    .hp-hero-title { font-size: 26px; }
+    .hp-col-title { font-size: 18px; }
 }
 </style>
 {% endblock %}
