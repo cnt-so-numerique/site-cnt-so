@@ -353,9 +353,14 @@ def _scoped_menuitem_form(form):
 
 class _MenuItemEditView(SnippetEditView):
     def get_form(self, form_class=None):
+        import logging
+        logger = logging.getLogger(__name__)
         form = super().get_form(form_class)
         form.request = self.request
-        return _scoped_menuitem_form(form)
+        logger.warning("_MenuItemEditView.get_form called, fields: %s", list(form.fields.keys()))
+        result = _scoped_menuitem_form(form)
+        logger.warning("category widget after patch: %s", type(result.fields.get('category', object()).__class__.__name__))
+        return result
 
 
 class _MenuItemCreateView(SnippetCreateView):
