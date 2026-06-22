@@ -353,13 +353,14 @@ def _scoped_menuitem_form(form):
 
 class _MenuItemEditView(SnippetEditView):
     def get_form(self, form_class=None):
-        import logging
-        logger = logging.getLogger(__name__)
+        import sys
         form = super().get_form(form_class)
         form.request = self.request
-        logger.warning("_MenuItemEditView.get_form called, fields: %s", list(form.fields.keys()))
+        print("DEBUG _MenuItemEditView.get_form called", file=sys.stderr)
         result = _scoped_menuitem_form(form)
-        logger.warning("category widget after patch: %s", type(result.fields.get('category', object()).__class__.__name__))
+        cat_field = result.fields.get('category')
+        print(f"DEBUG category widget: {type(cat_field.widget).__name__ if cat_field else 'NO FIELD'}", file=sys.stderr)
+        print(f"DEBUG category queryset count: {cat_field.queryset.count() if cat_field else 'N/A'}", file=sys.stderr)
         return result
 
 
