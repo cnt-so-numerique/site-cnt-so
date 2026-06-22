@@ -338,11 +338,16 @@ class _MenuIndexRedirect(SnippetIndexView):
 
 
 def _scoped_menuitem_form(form):
-    """Filtre category/article/page par syndicat courant (modèles Wagtail)."""
+    """Filtre category/article/page par syndicat courant (modèles Wagtail). Rend site obligatoire."""
     from cms.site_context import get_current_site
     from cms.models import CmsCategory, ArticlePage, ContentPage
     request = getattr(form, 'request', None)
     current = get_current_site(request) if request else None
+
+    if 'site' in form.fields:
+        form.fields['site'].required = True
+        form.fields['site'].empty_label = '— Choisir un syndicat (obligatoire) —'
+
     if not current:
         return form
     section = current.slug
@@ -364,6 +369,8 @@ def menuitem_search_js():
     return mark_safe("""
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+
+        /* ── Recherche dans les selects category/article/page ── */
         ['id_category', 'id_article', 'id_page'].forEach(function(selId) {
             var sel = document.getElementById(selId);
             if (!sel) return;
@@ -382,6 +389,33 @@ def menuitem_search_js():
             });
             sel.parentNode.insertBefore(inp, sel);
         });
+
+        /* ── Affichage conditionnel selon link_type ── */
+        var lt = document.getElementById('id_link_type');
+        if (!lt) return;
+
+        var map = {
+            'url':      '.js-lt-url',
+            'article':  '.js-lt-article',
+            'page':     '.js-lt-page',
+            'category': '.js-lt-category',
+            'site':     '.js-lt-site',
+        };
+
+        function refreshLinkType() {
+            document.querySelectorAll('.js-lt-group').forEach(function(el) {
+                el.style.display = 'none';
+            });
+            var sel = map[lt.value];
+            if (sel) {
+                document.querySelectorAll(sel).forEach(function(el) {
+                    el.style.display = '';
+                });
+            }
+        }
+
+        lt.addEventListener('change', refreshLinkType);
+        refreshLinkType();
     });
     </script>
     """);
@@ -421,11 +455,12 @@ class MenuItemViewSet(SnippetViewSet):
         ]),
         FieldPanel('title'),
         FieldPanel('link_type'),
-        FieldPanel('url'),
-        FieldPanel('article', widget=django_forms.Select),
-        FieldPanel('page', widget=django_forms.Select),
-        FieldPanel('category', widget=django_forms.Select),
-        FieldPanel('target_site'),
+        # Champs conditionnels — affichés/cachés par JS selon link_type
+        FieldPanel('url',         classname='js-lt-group js-lt-url'),
+        FieldPanel('article',     widget=django_forms.Select, classname='js-lt-group js-lt-article'),
+        FieldPanel('page',        widget=django_forms.Select, classname='js-lt-group js-lt-page'),
+        FieldPanel('category',    widget=django_forms.Select, classname='js-lt-group js-lt-category'),
+        FieldPanel('target_site', classname='js-lt-group js-lt-site'),
         FieldRowPanel([
             FieldPanel('parent'),
             FieldPanel('order'),
