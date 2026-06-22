@@ -337,29 +337,8 @@ class _MenuIndexRedirect(SnippetIndexView):
         return HttpResponseRedirect('/cms/menus/')
 
 
-class _SearchableSelectWidget(django_forms.Select):
-    """Select-listbox avec champ de recherche inline."""
-    def render(self, name, value, attrs=None, renderer=None):
-        from django.utils.safestring import mark_safe
-        attrs = attrs or {}
-        attrs['size'] = '8'
-        attrs['style'] = 'width:100%;border:1px solid #ccc;border-radius:0 0 4px 4px;font-size:.9rem;'
-        select_id = attrs.get('id', f'id_{name}')
-        select_html = super().render(name, value, attrs, renderer)
-        search_input = (
-            f'<input type="text" placeholder="🔍 Rechercher une catégorie…" '
-            f'autocomplete="off" '
-            f'style="width:100%;padding:.45rem .6rem;border:1px solid #ccc;border-bottom:none;'
-            f'border-radius:4px 4px 0 0;font-size:.9rem;box-sizing:border-box;" '
-            f'oninput="(function(q){{var s=document.getElementById(\'{select_id}\');'
-            f'Array.from(s.options).forEach(function(o){{o.hidden=o.value&&!o.text.toLowerCase().includes(q);}});}}'
-            f')(this.value.toLowerCase())">'
-        )
-        return mark_safe(search_input + select_html)
-
-
 def _scoped_menuitem_form(form):
-    """Filtre le champ category par syndicat courant + widget select avec recherche."""
+    """Filtre le champ category par syndicat courant."""
     from cms.site_context import get_current_site
     request = getattr(form, 'request', None)
     current = get_current_site(request) if request else None
@@ -367,8 +346,33 @@ def _scoped_menuitem_form(form):
         form.fields['category'].queryset = Category.objects.filter(
             site=current
         ).order_by('name')
-        form.fields['category'].widget = _SearchableSelectWidget()
     return form
+
+
+@hooks.register('insert_editor_js')
+def menuitem_category_search_js():
+    from django.utils.html import format_html
+    return format_html("""
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {{
+        var sel = document.getElementById('id_category');
+        if (!sel) return;
+        var inp = document.createElement('input');
+        inp.type = 'text';
+        inp.placeholder = '🔍 Rechercher une catégorie…';
+        inp.autocomplete = 'off';
+        inp.style.cssText = 'width:100%;padding:.45rem .6rem;margin-bottom:.4rem;'
+            + 'border:1px solid #ccc;border-radius:4px;font-size:.9rem;box-sizing:border-box;display:block;';
+        inp.addEventListener('input', function() {{
+            var q = this.value.toLowerCase();
+            Array.from(sel.options).forEach(function(o) {{
+                o.hidden = !!o.value && !o.text.toLowerCase().includes(q);
+            }});
+        }});
+        sel.parentNode.insertBefore(inp, sel);
+    }});
+    </script>
+    """);
 
 
 class _MenuItemEditView(SnippetEditView):
