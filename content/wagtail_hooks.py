@@ -412,7 +412,7 @@ class MenuItemViewSet(SnippetViewSet):
         FieldPanel('url'),
         FieldPanel('article'),
         FieldPanel('page'),
-        FieldPanel('category'),
+        FieldPanel('category', widget=django_forms.Select),
         FieldPanel('target_site'),
         FieldRowPanel([
             FieldPanel('parent'),
