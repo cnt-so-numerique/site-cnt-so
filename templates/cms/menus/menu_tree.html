@@ -3,6 +3,22 @@
 {% block titletag %}Menus — {{ current_site.name|default:"CNT-SO" }}{% endblock %}
 
 {% block content %}
+<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+<style>
+.sortable-list { list-style: none; margin: 0; padding: 0; }
+.menu-li > .sortable-list { min-height: 4px; }
+body.cnt-dragging .menu-li > .sortable-list:empty {
+  min-height: 30px;
+  border: 1px dashed #3d4451;
+  border-radius: 4px;
+  margin: 3px 12px;
+  box-sizing: border-box;
+}
+.sortable-ghost > .menu-item-row { opacity: 0.35; background: #252932 !important; outline: 2px dashed #e63946; }
+.sortable-chosen > .menu-item-row { background: #252932 !important; }
+</style>
+
 <div class="nice-padding">
 
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
@@ -35,17 +51,30 @@
       <h2 style="margin:0 0 .6rem;font-size:.9rem;color:#e2e8f0;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
         🔝 Menu principal
       </h2>
-      <div class="menu-block" style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
+      <div class="menu-block" data-menu-type="main" style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
         {% if site_data.main %}
+        <ul class="sortable-list" data-parent="">
           {% for item in site_data.main %}
-          {% include "cms/menus/_menu_item_row.html" with item=item depth=0 %}
-          {% for child in item.children_list %}
-          {% include "cms/menus/_menu_item_row.html" with item=child depth=1 %}
-            {% for grandchild in child.children_list %}
-            {% include "cms/menus/_menu_item_row.html" with item=grandchild depth=2 %}
-            {% endfor %}
+          <li class="menu-li" data-id="{{ item.pk }}">
+            {% include "cms/menus/_menu_item_row.html" with item=item %}
+            <ul class="sortable-list" data-parent="{{ item.pk }}">
+              {% for child in item.children_list %}
+              <li class="menu-li" data-id="{{ child.pk }}">
+                {% include "cms/menus/_menu_item_row.html" with item=child %}
+                <ul class="sortable-list" data-parent="{{ child.pk }}">
+                  {% for grandchild in child.children_list %}
+                  <li class="menu-li" data-id="{{ grandchild.pk }}">
+                    {% include "cms/menus/_menu_item_row.html" with item=grandchild %}
+                    <ul class="sortable-list" data-parent="{{ grandchild.pk }}"></ul>
+                  </li>
+                  {% endfor %}
+                </ul>
+              </li>
+              {% endfor %}
+            </ul>
+          </li>
           {% endfor %}
-          {% endfor %}
+        </ul>
         {% else %}
         <p style="padding:1.5rem;color:#94a3b8;text-align:center;margin:0;">Aucun élément</p>
         {% endif %}
@@ -57,14 +86,23 @@
       <h2 style="margin:0 0 .6rem;font-size:.9rem;color:#e2e8f0;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
         ⬇️ Pied de page
       </h2>
-      <div class="menu-block" style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
+      <div class="menu-block" data-menu-type="footer" style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
         {% if site_data.footer %}
+        <ul class="sortable-list" data-parent="">
           {% for item in site_data.footer %}
-          {% include "cms/menus/_menu_item_row.html" with item=item depth=0 %}
-          {% for child in item.children_list %}
-          {% include "cms/menus/_menu_item_row.html" with item=child depth=1 %}
+          <li class="menu-li" data-id="{{ item.pk }}">
+            {% include "cms/menus/_menu_item_row.html" with item=item %}
+            <ul class="sortable-list" data-parent="{{ item.pk }}">
+              {% for child in item.children_list %}
+              <li class="menu-li" data-id="{{ child.pk }}">
+                {% include "cms/menus/_menu_item_row.html" with item=child %}
+                <ul class="sortable-list" data-parent="{{ child.pk }}"></ul>
+              </li>
+              {% endfor %}
+            </ul>
+          </li>
           {% endfor %}
-          {% endfor %}
+        </ul>
         {% else %}
         <p style="padding:1.5rem;color:#94a3b8;text-align:center;margin:0;">Aucun élément</p>
         {% endif %}
@@ -78,10 +116,15 @@
     <h2 style="margin:0 0 .6rem;font-size:.9rem;color:#e2e8f0;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
       ↔️ Menu secondaire
     </h2>
-    <div class="menu-block" style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
-      {% for item in site_data.secondary %}
-      {% include "cms/menus/_menu_item_row.html" with item=item depth=0 %}
-      {% endfor %}
+    <div class="menu-block" data-menu-type="secondary" style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
+      <ul class="sortable-list" data-parent="">
+        {% for item in site_data.secondary %}
+        <li class="menu-li" data-id="{{ item.pk }}">
+          {% include "cms/menus/_menu_item_row.html" with item=item %}
+          <ul class="sortable-list" data-parent="{{ item.pk }}"></ul>
+        </li>
+        {% endfor %}
+      </ul>
     </div>
   </div>
   {% endif %}
@@ -90,81 +133,90 @@
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 <script>
 (function () {
   const REORDER_URL = '/cms/menus/reorder/';
-  let dragSrc = null;
 
   function getCsrf() {
     const el = document.querySelector('[name=csrfmiddlewaretoken]');
     return el ? el.value : '';
   }
 
-  function siblings(el) {
-    const parentId = el.dataset.parentId;
-    return Array.from(document.querySelectorAll('.menu-item-row'))
-      .filter(r => r.dataset.parentId === parentId && r.closest('.menu-block') === el.closest('.menu-block'));
+  function getDepth(li) {
+    let depth = 0;
+    let el = li;
+    while ((el = el.parentElement?.closest('.menu-li'))) depth++;
+    return depth;
   }
 
-  function saveOrder(sibs) {
-    const ids = sibs.map(el => parseInt(el.dataset.itemId));
-    fetch(REORDER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-      body: JSON.stringify({ items: ids }),
+  function updateDepths(block) {
+    block.querySelectorAll('.menu-li').forEach(li => {
+      const depth = getDepth(li);
+      const row = li.querySelector(':scope > .menu-item-row');
+      if (!row) return;
+
+      row.style.paddingLeft = depth === 0 ? '1rem' : depth === 1 ? '2.5rem' : '4rem';
+      row.style.background   = depth === 0 ? '' : depth === 1 ? '#171a1f' : '#13151a';
+
+      const marker = row.querySelector('.depth-marker');
+      if (marker) {
+        marker.textContent = depth === 0 ? '●' : '└─';
+        marker.style.color    = depth === 0 ? '#e63946' : '#94a3b8';
+        marker.style.fontSize = depth === 0 ? '.7rem'   : '.65rem';
+      }
+      const title = row.querySelector('.item-title');
+      if (title) {
+        title.style.color      = depth === 0 ? '#e2e8f0' : '#94a3b8';
+        title.style.fontSize   = depth === 0 ? '.9rem'   : '.85rem';
+        title.style.fontWeight = depth === 0 ? '600'     : '400';
+      }
     });
   }
 
-  document.addEventListener('dragstart', function (e) {
-    const row = e.target.closest('.menu-item-row');
-    if (!row) return;
-    dragSrc = row;
-    row.style.opacity = '.4';
-    e.dataTransfer.effectAllowed = 'move';
-  });
+  function collectMoves(block) {
+    const moves = [];
+    block.querySelectorAll('.sortable-list').forEach(ul => {
+      const parentId = ul.dataset.parent || null;
+      Array.from(ul.children).forEach((li, i) => {
+        if (!li.classList.contains('menu-li')) return;
+        moves.push({
+          id:     parseInt(li.dataset.id),
+          parent: parentId ? parseInt(parentId) : null,
+          order:  i,
+        });
+      });
+    });
+    return moves;
+  }
 
-  document.addEventListener('dragend', function (e) {
-    const row = e.target.closest('.menu-item-row');
-    if (row) row.style.opacity = '';
-    document.querySelectorAll('.menu-item-row').forEach(r => r.style.outline = '');
-  });
+  function saveTree(block) {
+    fetch(REORDER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ moves: collectMoves(block) }),
+    });
+  }
 
-  document.addEventListener('dragover', function (e) {
-    const row = e.target.closest('.menu-item-row');
-    if (!row || !dragSrc || row === dragSrc) return;
-    if (row.dataset.parentId !== dragSrc.dataset.parentId) return;
-    if (row.closest('.menu-block') !== dragSrc.closest('.menu-block')) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    row.style.outline = '2px solid #e63946';
-  });
-
-  document.addEventListener('dragleave', function (e) {
-    const row = e.target.closest('.menu-item-row');
-    if (row) row.style.outline = '';
-  });
-
-  document.addEventListener('drop', function (e) {
-    const target = e.target.closest('.menu-item-row');
-    if (!target || !dragSrc || target === dragSrc) return;
-    if (target.dataset.parentId !== dragSrc.dataset.parentId) return;
-    if (target.closest('.menu-block') !== dragSrc.closest('.menu-block')) return;
-    e.preventDefault();
-    target.style.outline = '';
-
-    const container = target.parentNode;
-    const sibs = siblings(dragSrc);
-    const srcIdx = sibs.indexOf(dragSrc);
-    const tgtIdx = sibs.indexOf(target);
-
-    // réordonne dans le DOM
-    if (srcIdx < tgtIdx) {
-      container.insertBefore(dragSrc, target.nextSibling);
-    } else {
-      container.insertBefore(dragSrc, target);
-    }
-
-    saveOrder(siblings(dragSrc));
+  document.querySelectorAll('.menu-block').forEach(block => {
+    block.querySelectorAll('.sortable-list').forEach(ul => {
+      Sortable.create(ul, {
+        group:         'cnt-menu-' + block.dataset.menuType,
+        animation:     150,
+        handle:        '.drag-handle',
+        ghostClass:    'sortable-ghost',
+        chosenClass:   'sortable-chosen',
+        fallbackOnBody: true,
+        swapThreshold: 0.65,
+        onStart: () => document.body.classList.add('cnt-dragging'),
+        onEnd:   () => {
+          document.body.classList.remove('cnt-dragging');
+          updateDepths(block);
+          saveTree(block);
+        },
+      });
+    });
+    updateDepths(block);
   });
 })();
 </script>

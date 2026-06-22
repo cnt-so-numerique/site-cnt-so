@@ -739,18 +739,37 @@ class MoveMenuItemView(View):
 
 
 class ReorderMenuItemsView(View):
-    """Réordonne une liste de frères via drag-and-drop (AJAX POST JSON)."""
+    """Réordonne et/ou re-parent les éléments de menu (AJAX POST JSON).
+
+    Formats acceptés :
+      { moves: [{id, parent, order}, ...] }   — drag-and-drop SortableJS (nesting inclus)
+      { items: [pk, ...] }                    — compat ancienne version (ordre seul)
+    """
     def post(self, request):
         import json
         from django.http import JsonResponse
         from content.models import MenuItem
         try:
             data = json.loads(request.body)
-            item_ids = [int(pk) for pk in data.get('items', [])]
         except (json.JSONDecodeError, ValueError, TypeError):
             return JsonResponse({'ok': False, 'error': 'invalid payload'}, status=400)
-        for i, pk in enumerate(item_ids):
-            MenuItem.objects.filter(pk=pk).update(order=i)
+
+        if 'moves' in data:
+            for move in data.get('moves', []):
+                try:
+                    MenuItem.objects.filter(pk=int(move['id'])).update(
+                        order=int(move['order']),
+                        parent_id=move.get('parent'),
+                    )
+                except (KeyError, ValueError, TypeError):
+                    continue
+        elif 'items' in data:
+            for i, pk in enumerate(data.get('items', [])):
+                try:
+                    MenuItem.objects.filter(pk=int(pk)).update(order=i)
+                except (ValueError, TypeError):
+                    continue
+
         return JsonResponse({'ok': True})
 
 
