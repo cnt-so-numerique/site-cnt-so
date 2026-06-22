@@ -459,8 +459,8 @@ class MenuItem(models.Model):
     url = models.CharField(max_length=500, blank=True)
 
     # Lien vers un contenu interne (optionnel)
-    article = models.ForeignKey(Article, on_delete=models.SET_NULL, null=True, blank=True)
-    page = models.ForeignKey(Page, on_delete=models.SET_NULL, null=True, blank=True)
+    article = models.ForeignKey('cms.ArticlePage', on_delete=models.SET_NULL, null=True, blank=True)
+    page = models.ForeignKey('cms.ContentPage', on_delete=models.SET_NULL, null=True, blank=True)
     category = models.ForeignKey('cms.CmsCategory', on_delete=models.SET_NULL, null=True, blank=True)
     target_site = models.ForeignKey(
         'cms.SectionPage',

@@ -1,6 +1,5 @@
 from django.contrib.sitemaps import Sitemap
-from .models import Page, Category
-from cms.models import ArticlePage, SectionPage
+from cms.models import ArticlePage, CmsCategory, ContentPage, SectionPage
 
 
 class ArticleSitemap(Sitemap):
@@ -19,15 +18,15 @@ class ArticleSitemap(Sitemap):
 
 
 class PageSitemap(Sitemap):
-    """Sitemap pour les pages"""
+    """Sitemap pour les pages statiques"""
     changefreq = "monthly"
     priority = 0.6
 
     def items(self):
-        return Page.objects.filter(status='publish').select_related('site')
+        return ContentPage.objects.live()
 
     def lastmod(self, obj):
-        return obj.updated_at or obj.published_at
+        return obj.last_published_at or obj.first_published_at
 
     def location(self, obj):
         return obj.get_absolute_url()
@@ -39,7 +38,7 @@ class CategorySitemap(Sitemap):
     priority = 0.5
 
     def items(self):
-        return Category.objects.all().select_related('site')
+        return CmsCategory.objects.all()
 
     def location(self, obj):
         return obj.get_absolute_url()

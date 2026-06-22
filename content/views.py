@@ -278,49 +278,38 @@ class SiteArticleDetailView(ArticleDetailView):
         return context
 
 
-class PageDetailView(DetailView):
-    """Détail d'une page"""
-    model = Page
-    template_name = 'content/page_detail.html'
-    context_object_name = 'page'
+class PageDetailView(View):
+    """Redirige les anciennes URLs /page/<slug>/ vers cms.ContentPage si migré, sinon legacy."""
 
-    def get_object(self, queryset=None):
-        slug = self.kwargs['slug']
-        # Chercher d'abord sur le site principal
-        page = Page.objects.filter(
-            slug=slug, site__slug='principal', status='publish'
-        ).select_related('author', 'site').first()
-        if not page:
-            page = get_object_or_404(Page, slug=slug, status='publish')
-        return page
-
-    def get_queryset(self):
-        return Page.objects.filter(status='publish').select_related('author', 'site')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['site'] = self.object.site
-        return context
+    def get(self, request, slug, **kwargs):
+        from cms.models import ContentPage
+        from django.http import HttpResponsePermanentRedirect
+        cp = ContentPage.objects.live().filter(slug=slug).first()
+        if cp:
+            return HttpResponsePermanentRedirect(cp.get_absolute_url())
+        # Fallback : servir la page legacy
+        page = get_object_or_404(Page, slug=slug, status='publish')
+        return render(request, 'content/page_detail.html', {
+            'page': page,
+            'site': page.site,
+        })
 
 
-class SitePageDetailView(PageDetailView):
-    """Détail d'une page d'un sous-site"""
+class SitePageDetailView(View):
+    """Redirige les anciennes URLs /<site>/page/<slug>/ vers ContentPage si migré."""
 
-    def get_queryset(self):
-        self.current_site = get_object_or_404(SectionPage, slug=self.kwargs['site_slug'])
-        return Page.objects.filter(
-            site=self.current_site,
-            status='publish'
-        ).select_related('author', 'site')
-
-    def get_object(self, queryset=None):
-        self.current_site = get_object_or_404(SectionPage, slug=self.kwargs['site_slug'])
-        return get_object_or_404(
-            Page.objects.select_related('author', 'site'),
-            slug=self.kwargs['slug'],
-            site=self.current_site,
-            status='publish',
-        )
+    def get(self, request, site_slug, slug, **kwargs):
+        from cms.models import ContentPage
+        from django.http import HttpResponsePermanentRedirect
+        cp = ContentPage.objects.live().filter(slug=slug, section_slug=site_slug).first()
+        if cp:
+            return HttpResponsePermanentRedirect(cp.get_absolute_url())
+        current_site = get_object_or_404(SectionPage, slug=site_slug)
+        page = get_object_or_404(Page, slug=slug, site=current_site, status='publish')
+        return render(request, 'content/page_detail.html', {
+            'page': page,
+            'site': current_site,
+        })
 
 
 class CategoryDetailView(ListView):

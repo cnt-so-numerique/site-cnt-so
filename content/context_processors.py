@@ -1,5 +1,4 @@
-from .models import Category
-from cms.models import ArticlePage, SectionPage
+from cms.models import ArticlePage, CmsCategory, SectionPage
 
 
 def menu_context(request):
@@ -17,7 +16,7 @@ def menu_context(request):
     # Catégories du site principal pour le menu
     categories = {}
     if main_site:
-        for cat in Category.objects.filter(site=main_site).select_related('site').order_by('name'):
+        for cat in CmsCategory.objects.filter(section_slug='principal').order_by('name'):
             categories[cat.slug] = cat
 
     # Structure du menu principal
