@@ -340,20 +340,20 @@ class _MenuIndexRedirect(SnippetIndexView):
 class _SearchableSelectWidget(django_forms.Select):
     """Select avec champ de recherche inline (JS vanilla, sans dépendance)."""
     def render(self, name, value, attrs=None, renderer=None):
+        from django.utils.safestring import mark_safe
         attrs = attrs or {}
         select_id = attrs.get('id', f'id_{name}')
-        search_id = f'search_{select_id}'
         select_html = super().render(name, value, attrs, renderer)
-        return (
-            f'<input type="text" id="{search_id}" placeholder="🔍 Rechercher une catégorie…" '
+        search_input = (
+            f'<input type="text" placeholder="🔍 Rechercher une catégorie…" '
             f'autocomplete="off" '
             f'style="width:100%;padding:.45rem .6rem;margin-bottom:.4rem;border:1px solid #ccc;'
             f'border-radius:4px;font-size:.9rem;box-sizing:border-box;" '
             f'oninput="(function(q){{var s=document.getElementById(\'{select_id}\');'
             f'Array.from(s.options).forEach(function(o){{o.hidden=o.value&&!o.text.toLowerCase().includes(q);}});}}'
             f')(this.value.toLowerCase())">'
-            + select_html
         )
+        return mark_safe(search_input + select_html)
 
 
 def _scoped_menuitem_form(form):
