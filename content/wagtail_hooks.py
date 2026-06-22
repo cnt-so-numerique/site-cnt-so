@@ -462,10 +462,6 @@ class MenuItemViewSet(SnippetViewSet):
         FieldPanel('category',    widget=django_forms.Select, classname='js-lt-group js-lt-category'),
         FieldPanel('target_site', classname='js-lt-group js-lt-site'),
         FieldRowPanel([
-            FieldPanel('parent'),
-            FieldPanel('order'),
-        ]),
-        FieldRowPanel([
             FieldPanel('is_active'),
             FieldPanel('opens_new_tab'),
         ]),
