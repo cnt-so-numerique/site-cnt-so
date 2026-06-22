@@ -338,17 +338,19 @@ class _MenuIndexRedirect(SnippetIndexView):
 
 
 class _SearchableSelectWidget(django_forms.Select):
-    """Select avec champ de recherche inline (JS vanilla, sans dépendance)."""
+    """Select-listbox avec champ de recherche inline."""
     def render(self, name, value, attrs=None, renderer=None):
         from django.utils.safestring import mark_safe
         attrs = attrs or {}
+        attrs['size'] = '8'
+        attrs['style'] = 'width:100%;border:1px solid #ccc;border-radius:0 0 4px 4px;font-size:.9rem;'
         select_id = attrs.get('id', f'id_{name}')
         select_html = super().render(name, value, attrs, renderer)
         search_input = (
             f'<input type="text" placeholder="🔍 Rechercher une catégorie…" '
             f'autocomplete="off" '
-            f'style="width:100%;padding:.45rem .6rem;margin-bottom:.4rem;border:1px solid #ccc;'
-            f'border-radius:4px;font-size:.9rem;box-sizing:border-box;" '
+            f'style="width:100%;padding:.45rem .6rem;border:1px solid #ccc;border-bottom:none;'
+            f'border-radius:4px 4px 0 0;font-size:.9rem;box-sizing:border-box;" '
             f'oninput="(function(q){{var s=document.getElementById(\'{select_id}\');'
             f'Array.from(s.options).forEach(function(o){{o.hidden=o.value&&!o.text.toLowerCase().includes(q);}});}}'
             f')(this.value.toLowerCase())">'
