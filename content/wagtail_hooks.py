@@ -337,9 +337,27 @@ class _MenuIndexRedirect(SnippetIndexView):
         return HttpResponseRedirect('/cms/menus/')
 
 
+class _SearchableSelectWidget(django_forms.Select):
+    """Select avec champ de recherche inline (JS vanilla, sans dépendance)."""
+    def render(self, name, value, attrs=None, renderer=None):
+        attrs = attrs or {}
+        select_id = attrs.get('id', f'id_{name}')
+        search_id = f'search_{select_id}'
+        select_html = super().render(name, value, attrs, renderer)
+        return (
+            f'<input type="text" id="{search_id}" placeholder="🔍 Rechercher une catégorie…" '
+            f'autocomplete="off" '
+            f'style="width:100%;padding:.45rem .6rem;margin-bottom:.4rem;border:1px solid #ccc;'
+            f'border-radius:4px;font-size:.9rem;box-sizing:border-box;" '
+            f'oninput="(function(q){{var s=document.getElementById(\'{select_id}\');'
+            f'Array.from(s.options).forEach(function(o){{o.hidden=o.value&&!o.text.toLowerCase().includes(q);}});}}'
+            f')(this.value.toLowerCase())">'
+            + select_html
+        )
+
+
 def _scoped_menuitem_form(form):
-    """Filtre le champ category par syndicat courant et utilise le chooser Wagtail."""
-    from wagtail.snippets.widgets import AdminSnippetChooser
+    """Filtre le champ category par syndicat courant + widget select avec recherche."""
     from cms.site_context import get_current_site
     request = getattr(form, 'request', None)
     current = get_current_site(request) if request else None
@@ -347,21 +365,15 @@ def _scoped_menuitem_form(form):
         form.fields['category'].queryset = Category.objects.filter(
             site=current
         ).order_by('name')
-        form.fields['category'].widget = AdminSnippetChooser(Category)
+        form.fields['category'].widget = _SearchableSelectWidget()
     return form
 
 
 class _MenuItemEditView(SnippetEditView):
     def get_form(self, form_class=None):
-        import sys
         form = super().get_form(form_class)
         form.request = self.request
-        print("DEBUG _MenuItemEditView.get_form called", file=sys.stderr)
-        result = _scoped_menuitem_form(form)
-        cat_field = result.fields.get('category')
-        print(f"DEBUG category widget: {type(cat_field.widget).__name__ if cat_field else 'NO FIELD'}", file=sys.stderr)
-        print(f"DEBUG category queryset count: {cat_field.queryset.count() if cat_field else 'N/A'}", file=sys.stderr)
-        return result
+        return _scoped_menuitem_form(form)
 
 
 class _MenuItemCreateView(SnippetCreateView):
