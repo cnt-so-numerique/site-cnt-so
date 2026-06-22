@@ -495,7 +495,76 @@
 .hp-text-card-title a:hover { color: var(--primary-color); }
 
 /* ----------------------------------------------------------
-   DROITS + SANS-PAPIERS (2 colonnes dans la colonne gauche)
+   MANCHETTE : grille 3+3 avec images
+   ---------------------------------------------------------- */
+.hp-manchette {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+}
+
+@media (max-width: 760px) {
+    .hp-manchette { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+    .hp-manchette { grid-template-columns: 1fr; }
+}
+
+.hp-mcard {
+    display: flex;
+    flex-direction: column;
+    background: var(--white);
+}
+
+.hp-mcard-img-wrap {
+    display: block;
+    width: 100%;
+    height: 150px;
+    overflow: hidden;
+    background: var(--bg-light);
+    flex-shrink: 0;
+}
+
+.hp-mcard-img-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    display: block;
+    transition: transform .3s;
+}
+
+.hp-mcard-img-wrap:hover img { transform: scale(1.04); }
+
+.hp-mcard-body {
+    padding: .6rem .5rem;
+    flex: 1;
+}
+
+.hp-mcard-title {
+    font-family: var(--font-heading);
+    font-size: 14px;
+    line-height: 1.35;
+    margin-top: .3rem;
+}
+
+.hp-mcard-title a { color: var(--text-color); }
+.hp-mcard-title a:hover { color: var(--primary-color); }
+
+/* Badge source pour les articles réseau */
+.hp-badge-site {
+    background: var(--dark-bg);
+    color: rgba(255,255,255,.8);
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: .15rem .4rem;
+    letter-spacing: .5px;
+}
+
+/* ----------------------------------------------------------
+   DROITS + ACTIONS (2 colonnes dans la colonne gauche)
    ---------------------------------------------------------- */
 .hp-two-col-section {
     display: grid;
@@ -758,32 +827,43 @@
         </section>
         {% endif %}
 
-        <!-- 2. MINI CARTES TEXTE (3 sous le hero) -->
-        {% if hero_mini_cards %}
-        <div class="hp-mini-cards">
-            {% for article in hero_mini_cards %}
-            <div class="hp-mini-card">
-                <div class="hp-mini-card-meta">
-                    <span class="hp-mini-dot"></span>
-                    {% for cat in article.cms_categories.all|slice:":1" %}
-                    <span style="font-size:10px; color:var(--text-muted); font-weight:600; text-transform:uppercase;">{{ cat.name }}</span>
+        <!-- 2. MANCHETTE : 6 articles confédéraux mis en avant -->
+        {% if manchette_articles %}
+        <div class="hp-labeled-section hp-section-grey">
+            <span class="hp-vert-label">À la une</span>
+            <div class="hp-section-body">
+                <div class="hp-manchette">
+                    {% for article in manchette_articles %}
+                    <article class="hp-mcard">
+                        {% if article.featured_image %}
+                        <a href="{{ article.get_absolute_url }}" class="hp-mcard-img-wrap">
+                            <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
+                        </a>
+                        {% endif %}
+                        <div class="hp-mcard-body">
+                            <div class="hp-card-meta">
+                                {% for cat in article.cms_categories.all|slice:":1" %}
+                                <a href="{{ cat.get_absolute_url }}" class="hp-card-cat">{{ cat.name }}</a>
+                                {% endfor %}
+                            </div>
+                            <h3 class="hp-mcard-title">
+                                <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                            </h3>
+                        </div>
+                    </article>
                     {% endfor %}
                 </div>
-                <div class="hp-mini-card-title">
-                    <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
-                </div>
             </div>
-            {% endfor %}
         </div>
         {% endif %}
 
-        <!-- 3. NOTRE FLUX D'ACTU (label vertical + 3 cartes images) -->
-        <div class="hp-labeled-section hp-section-grey">
-            <span class="hp-vert-label">Notre flux d'actu</span>
+        <!-- 3. RÉSEAU : 9 derniers articles de tous les sites -->
+        {% if all_latest_articles %}
+        <div class="hp-labeled-section">
+            <span class="hp-vert-label">Le réseau</span>
             <div class="hp-section-body">
-                {% if flux_grid %}
                 <div class="hp-grid-3">
-                    {% for article in flux_grid %}
+                    {% for article in all_latest_articles %}
                     <article class="hp-card">
                         <div class="hp-card-img">
                             {% if article.featured_image %}
@@ -794,7 +874,9 @@
                         </div>
                         <div class="hp-card-body">
                             <div class="hp-card-meta">
-                                <span class="hp-badge-type">Article</span>
+                                {% if article._site_name %}
+                                <span class="hp-badge-site">{{ article._site_name }}</span>
+                                {% endif %}
                                 {% for cat in article.cms_categories.all|slice:":1" %}
                                 <a href="{{ cat.get_absolute_url }}" class="hp-card-cat">{{ cat.name }}</a>
                                 {% endfor %}
@@ -806,57 +888,11 @@
                     </article>
                     {% endfor %}
                 </div>
-                {% endif %}
             </div>
         </div>
+        {% endif %}
 
-        <!-- 4. LES LUTTES ACTUELLES (label vertical + grand article + 3 cartes texte) -->
-        <div class="hp-labeled-section">
-            <span class="hp-vert-label">Les luttes actuelles</span>
-            <div class="hp-section-body">
-                {% if luttes_featured %}
-                <div class="hp-big-article">
-                    <div class="hp-big-article-img">
-                        {% if luttes_featured.featured_image %}
-                        <a href="{{ luttes_featured.get_absolute_url }}">
-                            <img src="{{ luttes_featured.featured_image.file.url }}" alt="{{ luttes_featured.title }}">
-                        </a>
-                        {% endif %}
-                    </div>
-                    <div class="hp-big-article-text">
-                        <div class="hp-card-meta">
-                            <span class="hp-badge-type">Article</span>
-                            {% for cat in luttes_featured.cms_categories.all|slice:":1" %}
-                            <a href="{{ cat.get_absolute_url }}" class="hp-card-cat">{{ cat.name }}</a>
-                            {% endfor %}
-                        </div>
-                        <h3 class="hp-big-article-title">
-                            <a href="{{ luttes_featured.get_absolute_url }}">{{ luttes_featured.title }}</a>
-                        </h3>
-                    </div>
-                </div>
-                {% endif %}
-                {% if luttes_text_cards %}
-                <div class="hp-text-cards">
-                    {% for article in luttes_text_cards %}
-                    <div class="hp-text-card">
-                        <div class="hp-card-meta">
-                            <span class="hp-mini-dot"></span>
-                            {% for cat in article.cms_categories.all|slice:":1" %}
-                            <span class="hp-card-cat">{{ cat.name }}</span>
-                            {% endfor %}
-                        </div>
-                        <div class="hp-text-card-title">
-                            <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- 5. DROITS + SANS-PAPIERS (2 colonnes dans la colonne gauche) -->
+        <!-- 4. DROITS + ACTIONS (2 colonnes dans la colonne gauche) -->
         <div class="hp-labeled-section hp-section-grey">
             <span class="hp-vert-label" style="visibility:hidden;"></span>
             <div class="hp-section-body">
@@ -885,10 +921,10 @@
                     </div>
 
                     <div class="hp-col-section">
-                        <span class="hp-vert-label" style="font-size:9px;">Sans-papiers</span>
+                        <span class="hp-vert-label" style="font-size:9px;">Actions</span>
                         <div class="hp-col-title-block">
-                            <h2 class="hp-col-title">Sans-papiers</h2>
-                            {% for article in sanspapiers_articles %}
+                            <h2 class="hp-col-title">Actions</h2>
+                            {% for article in actions_articles %}
                             <div class="hp-col-article">
                                 <span class="hp-col-dot"></span>
                                 <div>

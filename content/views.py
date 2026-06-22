@@ -66,44 +66,37 @@ class HomeView(ListView):
                 if ci.article and ci.article.live
             ]
         if not carousel:
-            carousel = list(
-                base_qs.exclude(featured_image=None)[:5]
-            )
+            carousel = list(base_qs.exclude(featured_image=None)[:5])
         context['carousel_articles'] = carousel
+        excl = [a.pk for a in carousel]
 
-        sticky_qs = list(base_qs.filter(is_featured=True)[:4])
-        featured = sticky_qs[0] if sticky_qs else base_qs.first()
-        context['featured_article'] = featured
-        excl = [a.pk for a in carousel] + ([featured.pk] if featured else [])
+        # Manchette : 6 articles conf avec image
+        manchette = list(base_qs.exclude(pk__in=excl).exclude(featured_image=None)[:6])
+        context['manchette_articles'] = manchette
+        excl += [a.pk for a in manchette]
 
-        sticky_mini = sticky_qs[1:4]
-        if len(sticky_mini) < 3:
-            recent = list(base_qs.exclude(pk__in=excl + [a.pk for a in sticky_mini])[:3 - len(sticky_mini)])
-            mini = sticky_mini + recent
-        else:
-            mini = sticky_mini
-        context['hero_mini_cards'] = mini
-        excl += [a.pk for a in mini]
+        # 9 derniers articles de tout le réseau (conf + sous-sites)
+        section_names = dict(SectionPage.objects.filter(live=True).values_list('slug', 'title'))
+        all_latest = list(
+            ArticlePage.objects.live()
+            .order_by('-publication_date', '-first_published_at')
+            .select_related('featured_image')
+            .prefetch_related('cms_categories')
+            .exclude(pk__in=excl)[:9]
+        )
+        for a in all_latest:
+            a._site_name = section_names.get(a.section_slug, '')
+        context['all_latest_articles'] = all_latest
 
-        context['sidebar_article'] = base_qs.exclude(pk__in=excl).first()
-
-        flux = list(base_qs.exclude(pk__in=excl)[:3])
-        context['flux_grid'] = flux
-        excl += [a.pk for a in flux]
-
-        luttes_qs = base_qs.filter(cms_categories__slug='actualites-luttes')
-        luttes_featured = luttes_qs.first()
-        context['luttes_featured'] = luttes_featured
-        luttes_excl = [luttes_featured.pk] if luttes_featured else []
-        context['luttes_text_cards'] = luttes_qs.exclude(pk__in=luttes_excl)[:3]
-
+        # Droits
         context['droits_articles'] = base_qs.filter(cms_categories__slug='droit')[:5]
-        context['sanspapiers_articles'] = base_qs.filter(
-            cms_categories__slug='travailleurs-euses-sans-papiers')[:5]
+        # Actions (remplace sans-papiers)
+        context['actions_articles'] = base_qs.filter(cms_categories__slug='actions')[:5]
+
         context['campagnes_articles'] = base_qs.filter(
             cms_categories__slug__in=['international', 'solidarites', 'campagne']
         ).distinct()[:5]
-        context['manques_articles'] = base_qs.exclude(pk__in=excl)[6:11]
+        context['manques_articles'] = base_qs.exclude(pk__in=excl)[:5]
 
         return context
 
