@@ -338,38 +338,49 @@ class _MenuIndexRedirect(SnippetIndexView):
 
 
 def _scoped_menuitem_form(form):
-    """Filtre le champ category par syndicat courant."""
+    """Filtre category/article/page par syndicat courant."""
     from cms.site_context import get_current_site
+    from content.models import Article, Page as ContentPage
     request = getattr(form, 'request', None)
     current = get_current_site(request) if request else None
-    if current and 'category' in form.fields:
+    if not current:
+        return form
+    if 'category' in form.fields:
         form.fields['category'].queryset = Category.objects.filter(
-            site=current
-        ).order_by('name')
+            site=current).order_by('name')
+    if 'article' in form.fields:
+        form.fields['article'].queryset = Article.objects.filter(
+            site=current).order_by('title')
+    if 'page' in form.fields:
+        form.fields['page'].queryset = ContentPage.objects.filter(
+            site=current).order_by('title')
     return form
 
 
 @hooks.register('insert_editor_js')
-def menuitem_category_search_js():
+def menuitem_search_js():
     from django.utils.safestring import mark_safe
     return mark_safe("""
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        var sel = document.getElementById('id_category');
-        if (!sel) return;
-        var inp = document.createElement('input');
-        inp.type = 'text';
-        inp.placeholder = '🔍 Rechercher une catégorie…';
-        inp.autocomplete = 'off';
-        inp.style.cssText = 'width:100%;padding:.45rem .6rem;margin-bottom:.4rem;'
-            + 'border:1px solid #ccc;border-radius:4px;font-size:.9rem;box-sizing:border-box;display:block;';
-        inp.addEventListener('input', function() {
-            var q = this.value.toLowerCase();
-            Array.from(sel.options).forEach(function(o) {
-                o.hidden = !!o.value && !o.text.toLowerCase().includes(q);
+        ['id_category', 'id_article', 'id_page'].forEach(function(selId) {
+            var sel = document.getElementById(selId);
+            if (!sel) return;
+            var labels = {'id_category': 'catégorie', 'id_article': 'article', 'id_page': 'page'};
+            var inp = document.createElement('input');
+            inp.type = 'text';
+            inp.placeholder = '🔍 Rechercher une ' + (labels[selId] || '') + '…';
+            inp.autocomplete = 'off';
+            inp.style.cssText = 'width:100%;padding:.45rem .6rem;margin-bottom:.4rem;'
+                + 'border:1px solid #ccc;border-radius:4px;font-size:.9rem;box-sizing:border-box;display:block;';
+            inp.addEventListener('input', function() {
+                var q = this.value.toLowerCase();
+                Array.from(sel.options).forEach(function(o) {
+                    o.hidden = !!o.value && !o.text.toLowerCase().includes(q);
+                });
             });
+            sel.parentNode.insertBefore(inp, sel);
         });
-        sel.parentNode.insertBefore(inp, sel);
     });
     </script>
     """);
@@ -410,8 +421,8 @@ class MenuItemViewSet(SnippetViewSet):
         FieldPanel('title'),
         FieldPanel('link_type'),
         FieldPanel('url'),
-        FieldPanel('article'),
-        FieldPanel('page'),
+        FieldPanel('article', widget=django_forms.Select),
+        FieldPanel('page', widget=django_forms.Select),
         FieldPanel('category', widget=django_forms.Select),
         FieldPanel('target_site'),
         FieldRowPanel([
