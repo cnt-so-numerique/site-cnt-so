@@ -652,6 +652,7 @@ def register_site_admin_urls():
         path('syndicats/', SyndicatManageView.as_view(), name='cms_syndicats'),
         path('menus/', MenuTreeView.as_view(), name='cms_menus'),
         path('menus/move/', MoveMenuItemView.as_view(), name='cms_menu_move'),
+        path('menus/reorder/', ReorderMenuItemsView.as_view(), name='cms_menu_reorder'),
         path('mailing-lists/', MailingListIndexView.as_view(), name='cms_mailing_list_index'),
         path('mailing-lists/<str:list_name>/', MailingListDetailView.as_view(), name='cms_mailing_list_detail'),
     ]
@@ -735,6 +736,22 @@ class MoveMenuItemView(View):
 
     def post(self, request):
         return self._handle(request, request.POST)
+
+
+class ReorderMenuItemsView(View):
+    """Réordonne une liste de frères via drag-and-drop (AJAX POST JSON)."""
+    def post(self, request):
+        import json
+        from django.http import JsonResponse
+        from content.models import MenuItem
+        try:
+            data = json.loads(request.body)
+            item_ids = [int(pk) for pk in data.get('items', [])]
+        except (json.JSONDecodeError, ValueError, TypeError):
+            return JsonResponse({'ok': False, 'error': 'invalid payload'}, status=400)
+        for i, pk in enumerate(item_ids):
+            MenuItem.objects.filter(pk=pk).update(order=i)
+        return JsonResponse({'ok': True})
 
 
 class CurrentSiteFragmentView(View):

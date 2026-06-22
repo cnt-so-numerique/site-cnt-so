@@ -1,11 +1,21 @@
-<div style="
+<div class="menu-item-row"
+     draggable="true"
+     data-item-id="{{ item.pk }}"
+     data-parent-id="{{ item.parent_id|default:'' }}"
+     style="
     display:flex;align-items:center;gap:.5rem;
     padding:.55rem .75rem;
     padding-left:{% if depth == 0 %}1rem{% elif depth == 1 %}2.5rem{% else %}4rem{% endif %};
     border-bottom:1px solid #2d3139;
     {% if not item.is_active %}opacity:.5;{% endif %}
     background:{% if depth == 0 %}transparent{% elif depth == 1 %}#171a1f{% else %}#13151a{% endif %};
+    cursor:default;transition:background .1s;
 ">
+
+  <!-- poignée drag -->
+  <span class="drag-handle" title="Glisser pour réordonner" style="
+      color:#4b5563;font-size:.9rem;cursor:grab;flex-shrink:0;user-select:none;
+      padding:0 .2rem;">⠿</span>
 
   {% if depth == 0 %}
     <span style="color:#e63946;font-size:.7rem;flex-shrink:0;">●</span>
@@ -37,33 +47,8 @@
   <span style="font-size:.7rem;color:#4b5563;background:#252932;padding:.1rem .4rem;border-radius:3px;flex-shrink:0;">masqué</span>
   {% endif %}
 
-  <!-- ── Boutons de déplacement (POST pour éviter les modifications via GET) ── -->
+  <!-- boutons indent/outdent (haut/bas gérés par drag) -->
   <span style="display:flex;gap:.2rem;flex-shrink:0;">
-
-    <form method="post" action="/cms/menus/move/" style="display:contents;">
-      {% csrf_token %}
-      <input type="hidden" name="item" value="{{ item.pk }}">
-      <input type="hidden" name="action" value="up">
-      <input type="hidden" name="next" value="/cms/menus/">
-      <button type="submit" title="Monter" style="
-         display:inline-flex;align-items:center;justify-content:center;
-         width:22px;height:22px;border-radius:3px;cursor:pointer;
-         background:#1e2229;border:1px solid #2d3139;color:#94a3b8;font-size:.75rem;
-         line-height:1;padding:0;">▲</button>
-    </form>
-
-    <form method="post" action="/cms/menus/move/" style="display:contents;">
-      {% csrf_token %}
-      <input type="hidden" name="item" value="{{ item.pk }}">
-      <input type="hidden" name="action" value="down">
-      <input type="hidden" name="next" value="/cms/menus/">
-      <button type="submit" title="Descendre" style="
-         display:inline-flex;align-items:center;justify-content:center;
-         width:22px;height:22px;border-radius:3px;cursor:pointer;
-         background:#1e2229;border:1px solid #2d3139;color:#94a3b8;font-size:.75rem;
-         line-height:1;padding:0;">▼</button>
-    </form>
-
     {% if depth > 0 %}
     <form method="post" action="/cms/menus/move/" style="display:contents;">
       {% csrf_token %}
@@ -89,7 +74,6 @@
          background:#1e2229;border:1px solid #2d3139;color:#94a3b8;font-size:.75rem;
          padding:0;">→</button>
     </form>
-
   </span>
 
   <a href="/cms/snippets/content/menuitem/{{ item.pk }}/edit/"

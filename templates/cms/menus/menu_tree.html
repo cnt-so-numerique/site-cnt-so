@@ -35,7 +35,7 @@
       <h2 style="margin:0 0 .6rem;font-size:.9rem;color:#e2e8f0;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
         🔝 Menu principal
       </h2>
-      <div style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
+      <div class="menu-block" style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
         {% if site_data.main %}
           {% for item in site_data.main %}
           {% include "cms/menus/_menu_item_row.html" with item=item depth=0 %}
@@ -57,7 +57,7 @@
       <h2 style="margin:0 0 .6rem;font-size:.9rem;color:#e2e8f0;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
         ⬇️ Pied de page
       </h2>
-      <div style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
+      <div class="menu-block" style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
         {% if site_data.footer %}
           {% for item in site_data.footer %}
           {% include "cms/menus/_menu_item_row.html" with item=item depth=0 %}
@@ -78,7 +78,7 @@
     <h2 style="margin:0 0 .6rem;font-size:.9rem;color:#e2e8f0;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
       ↔️ Menu secondaire
     </h2>
-    <div style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
+    <div class="menu-block" style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
       {% for item in site_data.secondary %}
       {% include "cms/menus/_menu_item_row.html" with item=item depth=0 %}
       {% endfor %}
@@ -89,4 +89,83 @@
   {% endif %}
 
 </div>
+
+<script>
+(function () {
+  const REORDER_URL = '/cms/menus/reorder/';
+  let dragSrc = null;
+
+  function getCsrf() {
+    const el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+  }
+
+  function siblings(el) {
+    const parentId = el.dataset.parentId;
+    return Array.from(document.querySelectorAll('.menu-item-row'))
+      .filter(r => r.dataset.parentId === parentId && r.closest('.menu-block') === el.closest('.menu-block'));
+  }
+
+  function saveOrder(sibs) {
+    const ids = sibs.map(el => parseInt(el.dataset.itemId));
+    fetch(REORDER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ items: ids }),
+    });
+  }
+
+  document.addEventListener('dragstart', function (e) {
+    const row = e.target.closest('.menu-item-row');
+    if (!row) return;
+    dragSrc = row;
+    row.style.opacity = '.4';
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  document.addEventListener('dragend', function (e) {
+    const row = e.target.closest('.menu-item-row');
+    if (row) row.style.opacity = '';
+    document.querySelectorAll('.menu-item-row').forEach(r => r.style.outline = '');
+  });
+
+  document.addEventListener('dragover', function (e) {
+    const row = e.target.closest('.menu-item-row');
+    if (!row || !dragSrc || row === dragSrc) return;
+    if (row.dataset.parentId !== dragSrc.dataset.parentId) return;
+    if (row.closest('.menu-block') !== dragSrc.closest('.menu-block')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    row.style.outline = '2px solid #e63946';
+  });
+
+  document.addEventListener('dragleave', function (e) {
+    const row = e.target.closest('.menu-item-row');
+    if (row) row.style.outline = '';
+  });
+
+  document.addEventListener('drop', function (e) {
+    const target = e.target.closest('.menu-item-row');
+    if (!target || !dragSrc || target === dragSrc) return;
+    if (target.dataset.parentId !== dragSrc.dataset.parentId) return;
+    if (target.closest('.menu-block') !== dragSrc.closest('.menu-block')) return;
+    e.preventDefault();
+    target.style.outline = '';
+
+    const container = target.parentNode;
+    const sibs = siblings(dragSrc);
+    const srcIdx = sibs.indexOf(dragSrc);
+    const tgtIdx = sibs.indexOf(target);
+
+    // réordonne dans le DOM
+    if (srcIdx < tgtIdx) {
+      container.insertBefore(dragSrc, target.nextSibling);
+    } else {
+      container.insertBefore(dragSrc, target);
+    }
+
+    saveOrder(siblings(dragSrc));
+  });
+})();
+</script>
 {% endblock %}
