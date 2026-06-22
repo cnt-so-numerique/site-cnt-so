@@ -85,7 +85,7 @@ class HomeView(ListView):
             .exclude(pk__in=excl)[:9]
         )
         for a in all_latest:
-            a._site_name = section_names.get(a.section_slug, '')
+            a.source_site = section_names.get(a.section_slug, '')
         context['all_latest_articles'] = all_latest
 
         # Droits

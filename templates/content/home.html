@@ -874,8 +874,8 @@
                         </div>
                         <div class="hp-card-body">
                             <div class="hp-card-meta">
-                                {% if article._site_name %}
-                                <span class="hp-badge-site">{{ article._site_name }}</span>
+                                {% if article.source_site %}
+                                <span class="hp-badge-site">{{ article.source_site }}</span>
                                 {% endif %}
                                 {% for cat in article.cms_categories.all|slice:":1" %}
                                 <a href="{{ cat.get_absolute_url }}" class="hp-card-cat">{{ cat.name }}</a>
