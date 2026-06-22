@@ -47,7 +47,8 @@ class HomeView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['site'] = SectionPage.objects.filter(slug='principal').first()
+        main_site = SectionPage.objects.filter(slug='principal').first()
+        context['site'] = main_site
         context['sites'] = SectionPage.objects.filter(live=True).exclude(slug='principal')
 
         base_qs = (ArticlePage.objects.live()
@@ -56,10 +57,24 @@ class HomeView(ListView):
                    .select_related('featured_image')
                    .prefetch_related('cms_categories'))
 
+        # Carousel : carousel_items du SectionPage principal, fallback articles récents avec image
+        carousel = []
+        if main_site:
+            carousel = [
+                ci.article for ci in
+                main_site.carousel_items.select_related('article__featured_image').all()
+                if ci.article and ci.article.live
+            ]
+        if not carousel:
+            carousel = list(
+                base_qs.exclude(featured_image=None)[:5]
+            )
+        context['carousel_articles'] = carousel
+
         sticky_qs = list(base_qs.filter(is_featured=True)[:4])
         featured = sticky_qs[0] if sticky_qs else base_qs.first()
         context['featured_article'] = featured
-        excl = [featured.pk] if featured else []
+        excl = [a.pk for a in carousel] + ([featured.pk] if featured else [])
 
         sticky_mini = sticky_qs[1:4]
         if len(sticky_mini) < 3:

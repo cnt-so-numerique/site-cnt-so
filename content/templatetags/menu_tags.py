@@ -10,7 +10,7 @@ def get_menu(site, menu_type):
     """Retourne les items racines du menu demandé pour un site, avec leurs enfants."""
     if not site:
         return []
-    sr = ('category__site', 'target_site', 'article', 'page', 'site')
+    sr = ('target_site', 'article', 'page', 'site', 'category')
     children_qs = (MenuItem.objects.filter(site=site, is_active=True)
                    .select_related(*sr)
                    .order_by('order'))

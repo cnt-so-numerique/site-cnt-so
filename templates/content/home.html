@@ -29,12 +29,136 @@
 /* ----------------------------------------------------------
    COLONNE GAUCHE — HERO "À la une"
    ---------------------------------------------------------- */
+/* ----------------------------------------------------------
+   CARROUSEL HERO
+   ---------------------------------------------------------- */
+.hp-carousel {
+    position: relative;
+    overflow: hidden;
+    background: #111;
+    margin-bottom: 0;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    min-height: 340px;
+}
+
+@media (min-width: 641px) {
+    .hp-carousel { min-height: 440px; }
+}
+
+.hp-carousel-track {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.hp-carousel-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity .6s ease;
+    pointer-events: none;
+}
+
+.hp-carousel-slide--active {
+    opacity: 1;
+    pointer-events: auto;
+    position: relative;
+}
+
+.hp-carousel-img {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: #111;
+}
+
+.hp-carousel-img--empty {
+    min-height: 340px;
+    background: #1a1a1a;
+}
+
+@media (min-width: 641px) {
+    .hp-carousel-img,
+    .hp-carousel-img--empty {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        min-height: unset;
+    }
+    .hp-carousel-slide {
+        min-height: 440px;
+    }
+    .hp-carousel-slide--active {
+        position: absolute;
+        inset: 0;
+    }
+    .hp-carousel-track {
+        min-height: 440px;
+    }
+}
+
+/* Flèches nav */
+.hp-carousel-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    background: rgba(0,0,0,.45);
+    border: none;
+    color: #fff;
+    font-size: 2rem;
+    line-height: 1;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .2s;
+    border-radius: 2px;
+}
+
+.hp-carousel-btn:hover { background: rgba(196,30,58,.8); }
+.hp-carousel-btn--prev { left: .75rem; }
+.hp-carousel-btn--next { right: .75rem; }
+
+/* Points de pagination */
+.hp-carousel-dots {
+    position: absolute;
+    bottom: .75rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: .4rem;
+    z-index: 10;
+}
+
+.hp-carousel-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.4);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: background .2s, transform .2s;
+}
+
+.hp-carousel-dot--active {
+    background: var(--primary-color);
+    transform: scale(1.3);
+}
+
+/* Compat hero existant (utilisé dans .hp-hero-content etc.) */
 .hp-hero {
     position: relative;
     overflow: hidden;
     background: #111;
     margin-bottom: 0;
-    /* Casse le padding du layout pour aller bord à bord sur mobile */
     margin-left: -1rem;
     margin-right: -1rem;
 }
@@ -45,11 +169,8 @@
     height: auto;
 }
 
-/* Desktop : image couvre toute la hauteur fixe */
 @media (min-width: 641px) {
-    .hp-hero {
-        min-height: 440px;
-    }
+    .hp-hero { min-height: 440px; }
     .hp-hero-img {
         position: absolute;
         inset: 0;
@@ -594,30 +715,47 @@
          ====================================================== -->
     <div>
 
-        <!-- 1. HERO "À LA UNE" -->
-        <section class="hp-hero">
-            {% if featured_article %}
-            {% if featured_article.featured_image %}
-            <img class="hp-hero-img" src="{{ featured_article.featured_image.file.url }}" alt="{{ featured_article.title }}">
-            {% endif %}
-            <div class="hp-hero-overlay"></div>
-            <div class="hp-hero-content">
-                <div class="hp-alaune">
-                    <span class="hp-alaune-dot"></span>
-                    <span class="hp-alaune-label">À la une</span>
+        <!-- 1. CARROUSEL HERO -->
+        {% if carousel_articles %}
+        <section class="hp-carousel" aria-label="Articles à la une">
+            <div class="hp-carousel-track" id="hp-carousel-track">
+                {% for article in carousel_articles %}
+                <div class="hp-carousel-slide{% if forloop.first %} hp-carousel-slide--active{% endif %}" aria-hidden="{% if not forloop.first %}true{% else %}false{% endif %}">
+                    {% if article.featured_image %}
+                    <img class="hp-carousel-img" src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
+                    {% else %}
+                    <div class="hp-carousel-img hp-carousel-img--empty"></div>
+                    {% endif %}
+                    <div class="hp-hero-overlay"></div>
+                    <div class="hp-hero-content">
+                        <div class="hp-alaune">
+                            <span class="hp-alaune-dot"></span>
+                            <span class="hp-alaune-label">À la une</span>
+                        </div>
+                        <div class="hp-hero-meta">
+                            <span class="hp-badge-type">Article</span>
+                            {% for cat in article.cms_categories.all|slice:":2" %}
+                            <a href="{{ cat.get_absolute_url }}" class="hp-badge-cat">{{ cat.name }}</a>
+                            {% endfor %}
+                        </div>
+                        <h1 class="hp-hero-title">
+                            <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                        </h1>
+                    </div>
                 </div>
-                <div class="hp-hero-meta">
-                    <span class="hp-badge-type">Article</span>
-                    {% for cat in featured_article.cms_categories.all|slice:":2" %}
-                    <a href="{{ cat.get_absolute_url }}" class="hp-badge-cat">{{ cat.name }}</a>
-                    {% endfor %}
-                </div>
-                <h1 class="hp-hero-title">
-                    <a href="{{ featured_article.get_absolute_url }}">{{ featured_article.title }}</a>
-                </h1>
+                {% endfor %}
+            </div>
+            {% if carousel_articles|length > 1 %}
+            <button class="hp-carousel-btn hp-carousel-btn--prev" id="hp-prev" aria-label="Précédent">&#8249;</button>
+            <button class="hp-carousel-btn hp-carousel-btn--next" id="hp-next" aria-label="Suivant">&#8250;</button>
+            <div class="hp-carousel-dots" id="hp-carousel-dots">
+                {% for article in carousel_articles %}
+                <button class="hp-carousel-dot{% if forloop.first %} hp-carousel-dot--active{% endif %}" data-index="{{ forloop.counter0 }}" aria-label="Article {{ forloop.counter }}"></button>
+                {% endfor %}
             </div>
             {% endif %}
         </section>
+        {% endif %}
 
         <!-- 2. MINI CARTES TEXTE (3 sous le hero) -->
         {% if hero_mini_cards %}
@@ -792,3 +930,52 @@
 {% include "content/_newsletter.html" %}
 
 {% endblock full_content %}
+
+{% block extra_js %}
+{% if carousel_articles|length > 1 %}
+<script>
+(function() {
+    var track = document.getElementById('hp-carousel-track');
+    if (!track) return;
+    var slides = track.querySelectorAll('.hp-carousel-slide');
+    var dots   = document.querySelectorAll('.hp-carousel-dot');
+    var prev   = document.getElementById('hp-prev');
+    var next   = document.getElementById('hp-next');
+    var total  = slides.length;
+    var current = 0;
+    var timer;
+
+    function goTo(idx) {
+        slides[current].classList.remove('hp-carousel-slide--active');
+        slides[current].setAttribute('aria-hidden', 'true');
+        if (dots[current]) dots[current].classList.remove('hp-carousel-dot--active');
+        current = (idx + total) % total;
+        slides[current].classList.add('hp-carousel-slide--active');
+        slides[current].setAttribute('aria-hidden', 'false');
+        if (dots[current]) dots[current].classList.add('hp-carousel-dot--active');
+    }
+
+    function startAuto() {
+        timer = setInterval(function() { goTo(current + 1); }, 5000);
+    }
+
+    function resetAuto() {
+        clearInterval(timer);
+        startAuto();
+    }
+
+    if (prev) prev.addEventListener('click', function() { goTo(current - 1); resetAuto(); });
+    if (next) next.addEventListener('click', function() { goTo(current + 1); resetAuto(); });
+
+    dots.forEach(function(dot) {
+        dot.addEventListener('click', function() {
+            goTo(parseInt(dot.getAttribute('data-index'), 10));
+            resetAuto();
+        });
+    });
+
+    startAuto();
+})();
+</script>
+{% endif %}
+{% endblock extra_js %}
