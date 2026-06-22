@@ -497,6 +497,13 @@
 /* ----------------------------------------------------------
    MANCHETTE : grille 2+4 — cartes presse (image + titre en overlay)
    ---------------------------------------------------------- */
+.hp-manchette-section {
+    border-bottom: 1px solid var(--bg-lighter);
+}
+
+.hp-manchette-section .hp-section-body {
+    width: 100%;
+}
 .hp-manchette {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -900,8 +907,7 @@
 
         <!-- 2. MANCHETTE : 6 articles confédéraux mis en avant -->
         {% if manchette_articles %}
-        <div class="hp-labeled-section hp-section-grey">
-            <span class="hp-vert-label">À la une</span>
+        <div class="hp-manchette-section">
             <div class="hp-section-body">
                 <div class="hp-manchette">
                     {% for article in manchette_articles %}
@@ -927,7 +933,7 @@
 
         <!-- 3. RÉSEAU : 9 derniers articles de tous les sites -->
         {% if all_latest_articles %}
-        <div class="hp-labeled-section">
+        <div class="hp-labeled-section hp-section-grey">
             <span class="hp-vert-label">Le réseau</span>
             <div class="hp-section-body">
                 <div class="hp-reseau-grid">
