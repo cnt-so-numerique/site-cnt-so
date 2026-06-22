@@ -337,21 +337,32 @@ class _MenuIndexRedirect(SnippetIndexView):
         return HttpResponseRedirect('/cms/menus/')
 
 
-def _make_scoped_menuitem_view(base_class):
-    """Filtre les catégories par syndicat courant dans le formulaire menu item."""
-    class ScopedMenuItemView(base_class):
-        def get_form(self, form_class=None):
-            from wagtail.snippets.widgets import AdminSnippetChooser
-            form = super().get_form(form_class)
-            from cms.site_context import get_current_site
-            current = get_current_site(self.request)
-            if current and 'category' in form.fields:
-                form.fields['category'].queryset = Category.objects.filter(
-                    site=current
-                ).order_by('name')
-                form.fields['category'].widget = AdminSnippetChooser(Category)
-            return form
-    return ScopedMenuItemView
+def _scoped_menuitem_form(form):
+    """Filtre le champ category par syndicat courant et utilise le chooser Wagtail."""
+    from wagtail.snippets.widgets import AdminSnippetChooser
+    from cms.site_context import get_current_site
+    request = getattr(form, 'request', None)
+    current = get_current_site(request) if request else None
+    if current and 'category' in form.fields:
+        form.fields['category'].queryset = Category.objects.filter(
+            site=current
+        ).order_by('name')
+        form.fields['category'].widget = AdminSnippetChooser(Category)
+    return form
+
+
+class _MenuItemEditView(SnippetEditView):
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.request = self.request
+        return _scoped_menuitem_form(form)
+
+
+class _MenuItemCreateView(SnippetCreateView):
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.request = self.request
+        return _scoped_menuitem_form(form)
 
 
 class MenuItemViewSet(SnippetViewSet):
@@ -360,6 +371,8 @@ class MenuItemViewSet(SnippetViewSet):
     menu_label = 'Menus'
     menu_order = 400
     index_view_class = _MenuIndexRedirect
+    edit_view_class = _MenuItemEditView
+    add_view_class = _MenuItemCreateView
     list_display = ['title', 'menu', 'site', 'link_type', 'order', 'is_active']
     list_filter = ['site', 'menu']
     search_fields = ['title']
@@ -389,14 +402,6 @@ class MenuItemViewSet(SnippetViewSet):
 
     def get_queryset(self, request):
         return _scope_by_site(self.model.objects.all(), request)
-
-    @property
-    def add_view_class(self):
-        return _make_scoped_menuitem_view(super().add_view_class)
-
-    @property
-    def edit_view_class(self):
-        return _make_scoped_menuitem_view(super().edit_view_class)
 
 
 # ── Auteurs ───────────────────────────────────────────────────────────────────
