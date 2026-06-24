@@ -33,56 +33,6 @@ class Author(models.Model):
         return self.display_name or self.username
 
 
-class Category(models.Model):
-    """Catégorie d'articles"""
-    site = models.ForeignKey(
-        'cms.SectionPage',
-        on_delete=models.CASCADE,
-        related_name='categories',
-        null=True,
-        blank=True
-    )
-    wp_id = models.IntegerField(null=True, blank=True, help_text="ID WordPress original")
-    name = models.CharField(max_length=200)
-    slug = models.SlugField(max_length=200)
-    description = models.TextField(blank=True)
-    parent = models.ForeignKey(
-        'self',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='children'
-    )
-    redirect_page = models.ForeignKey(
-        'Page',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='+',
-        help_text="Si renseigné, redirige vers cette page au lieu d'afficher la liste des articles"
-    )
-
-    class Meta:
-        verbose_name = "Catégorie"
-        verbose_name_plural = "Catégories"
-        ordering = ['name']
-        unique_together = [['site', 'slug'], ['site', 'wp_id']]
-
-    def __str__(self):
-        return self.name
-
-    def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.name)
-        super().save(*args, **kwargs)
-
-    def get_absolute_url(self):
-        if self.site:
-            site_slug = self.site.legacy_site_slug or self.site.slug
-            if site_slug != 'principal':
-                return reverse('content:site_category_detail', kwargs={'site_slug': site_slug, 'slug': self.slug})
-        return reverse('content:category_detail', kwargs={'slug': self.slug})
-
 
 class Tag(models.Model):
     """Tag/étiquette pour les articles"""
@@ -139,10 +89,17 @@ class Media(models.Model):
 
     @property
     def url(self):
-        """Fichier local s'il existe, sinon URL WordPress d'origine."""
+        """Fichier local s'il existe, sinon URL WordPress d'origine (uniquement si accessible)."""
         if self.file:
             return self.file.url
-        return self.original_url
+        if self.original_url and self.original_url.startswith('/media/'):
+            import os
+            from django.conf import settings
+            rel = self.original_url[len('/media/'):]
+            if os.path.exists(os.path.join(settings.MEDIA_ROOT, rel)):
+                return self.original_url
+            return None
+        return self.original_url or None
 
 
 class Article(models.Model):
@@ -176,7 +133,6 @@ class Article(models.Model):
         blank=True,
         related_name='articles'
     )
-    categories = models.ManyToManyField(Category, blank=True, related_name='articles')
     tags = models.ManyToManyField(Tag, blank=True, related_name='articles')
     featured_image = models.ForeignKey(
         Media,

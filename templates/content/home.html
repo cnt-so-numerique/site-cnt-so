@@ -176,7 +176,7 @@
         inset: 0;
         width: 100%;
         height: 100%;
-        object-fit: cover;
+        object-fit: contain;
         object-position: center;
     }
 }
@@ -224,7 +224,7 @@
 
 .hp-alaune-label {
     color: #fff;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1.5px;
@@ -240,7 +240,7 @@
 .hp-badge-type {
     background: var(--primary-color);
     color: #fff;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
     padding: 0.2rem 0.5rem;
@@ -249,7 +249,7 @@
 .hp-badge-cat {
     background: rgba(255,255,255,0.15);
     color: #fff;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 600;
     text-transform: uppercase;
     padding: 0.2rem 0.5rem;
@@ -325,9 +325,6 @@
    ---------------------------------------------------------- */
 .hp-labeled-section.hp-section-grey {
     background: var(--bg-light);
-    margin: 0 -1rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
 }
 
 .hp-labeled-section {
@@ -335,12 +332,13 @@
     gap: 0;
     padding: 2rem 0;
     border-bottom: 1px solid var(--bg-lighter);
+    margin-top: 2rem;
 }
 
 .hp-vert-label {
     writing-mode: vertical-rl;
     transform: rotate(180deg);
-    font-size: 10px;
+    font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 2px;
@@ -415,7 +413,7 @@
 .hp-card-title a:hover { color: var(--primary-color); }
 
 .hp-card-cat {
-    font-size: 12px;
+    font-size: 14px;
     color: var(--text-muted);
     font-weight: 600;
 }
@@ -498,7 +496,7 @@
    ---------------------------------------------------------- */
 .hp-manchette-section {
     border-bottom: 1px solid var(--bg-lighter);
-    padding: 1.5rem 0 0 0;
+    padding: 1.5rem 0 2rem 0;
 }
 
 .hp-manchette-section .hp-section-body {
@@ -507,20 +505,18 @@
 .hp-manchette {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: 260px 190px;
+    grid-template-rows: 280px 220px 220px;
     gap: 5px;
 }
 
-.hp-manchette .hp-mcard:nth-child(1),
-.hp-manchette .hp-mcard:nth-child(2) { grid-column: span 2; }
+.hp-manchette .hp-mcard { grid-column: span 2; }
 
 @media (max-width: 760px) {
     .hp-manchette {
         grid-template-columns: repeat(2, 1fr);
-        grid-template-rows: 220px 175px 175px;
+        grid-template-rows: 220px 185px 185px 185px;
     }
-    .hp-manchette .hp-mcard:nth-child(1),
-    .hp-manchette .hp-mcard:nth-child(2) { grid-column: span 1; }
+    .hp-manchette .hp-mcard { grid-column: span 1; }
 }
 
 @media (max-width: 480px) {
@@ -543,7 +539,7 @@
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     object-position: center;
     display: block;
     transition: transform .4s ease;
@@ -572,8 +568,12 @@
 
 .hp-mcard:hover .hp-mcard-body { opacity: 1; }
 
+@media (max-width: 640px) {
+    .hp-mcard-body { opacity: 1; }
+}
+
 .hp-mcard-cat {
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
     color: var(--primary-color);
@@ -592,6 +592,8 @@
 .hp-manchette .hp-mcard:nth-child(1) .hp-mcard-title,
 .hp-manchette .hp-mcard:nth-child(2) .hp-mcard-title { font-size: 22px; }
 
+.hp-manchette .hp-mcard:nth-child(n+3) .hp-mcard-body { padding: .6rem; }
+
 .hp-mcard-title a { color: #fff; }
 .hp-mcard-title a:hover { text-decoration: underline; color: #fff; }
 
@@ -599,7 +601,7 @@
 .hp-badge-site {
     background: var(--dark-bg);
     color: rgba(255,255,255,.8);
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
     padding: .2rem .5rem;
@@ -708,7 +710,7 @@
 .hp-col-article-title a:hover { color: var(--primary-color); }
 
 .hp-col-article-cat {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--text-muted);
 }
 
@@ -719,6 +721,11 @@
     display: flex;
     flex-direction: column;
     gap: 0;
+}
+@media (max-width: 960px) {
+    .hp-sidebar { margin-top: 2rem; }
+    .hp-sidebar > * { margin-top: 2rem !important; }
+    .hp-sidebar > *:first-child { margin-top: 0 !important; }
 }
 
 
@@ -773,7 +780,7 @@
 
 .hp-qui-arrow {
     display: inline-block;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     color: var(--primary-color);
     margin-bottom: 0.6rem;
@@ -867,7 +874,7 @@
     .hp-col-article-cat,
     .hp-card-cat,
     .hp-reseau-meta .hp-badge-site,
-    .hp-reseau-meta .hp-card-cat { font-size: 13px; }
+    .hp-reseau-meta .hp-card-cat { font-size: 14px; }
     .hp-hero-title { font-size: 26px; }
     .hp-col-title { font-size: 18px; }
 }
@@ -884,8 +891,8 @@
     <div class="hp-carousel-track" id="hp-carousel-track">
         {% for article in carousel_articles %}
         <div class="hp-carousel-slide{% if forloop.first %} hp-carousel-slide--active{% endif %}" aria-hidden="{% if not forloop.first %}true{% else %}false{% endif %}">
-            {% if article.featured_image %}
-            <img class="hp-carousel-img" src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
+            {% if article.any_image_url %}
+            <img class="hp-carousel-img" src="{{ article.any_image_url }}" alt="{{ article.title }}">
             {% else %}
             <div class="hp-carousel-img hp-carousel-img--empty"></div>
             {% endif %}
@@ -896,7 +903,6 @@
                     <span class="hp-alaune-label">À la une</span>
                 </div>
                 <div class="hp-hero-meta">
-                    <span class="hp-badge-type">Article</span>
                     {% for cat in article.cms_categories.all|slice:":2" %}
                     <a href="{{ cat.get_absolute_url }}" class="hp-badge-cat">{{ cat.name }}</a>
                     {% endfor %}
@@ -932,13 +938,13 @@
 
         <!-- 2. MANCHETTE : 6 articles confédéraux mis en avant -->
         {% if manchette_articles %}
-        <div class="hp-manchette-section">
+        <div class="hp-manchette-section" style="margin-top:2rem;">
             <div class="hp-section-body">
                 <div class="hp-manchette">
                     {% for article in manchette_articles %}
                     <article class="hp-mcard">
-                        {% if article.featured_image %}
-                        <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
+                        {% if article.any_image_url %}
+                        <img src="{{ article.any_image_url }}" alt="{{ article.title }}">
                         {% else %}
                         <div class="hp-mcard-noimg"></div>
                         {% endif %}
@@ -990,7 +996,7 @@
                 <div class="hp-two-col-section">
 
                     <div class="hp-col-section">
-                        <span class="hp-vert-label" style="font-size:9px;">Droits</span>
+                        <span class="hp-vert-label" style="font-size:14px;">Droits</span>
                         <div class="hp-col-title-block">
                             <h2 class="hp-col-title">Droits</h2>
                             {% for article in droits_articles %}
@@ -1006,13 +1012,13 @@
                                 </div>
                             </div>
                             {% empty %}
-                            <p style="font-size:12px;color:var(--text-muted);">Aucun article.</p>
+                            <p style="font-size:14px;color:var(--text-muted);">Aucun article.</p>
                             {% endfor %}
                         </div>
                     </div>
 
                     <div class="hp-col-section">
-                        <span class="hp-vert-label" style="font-size:9px;">Actions</span>
+                        <span class="hp-vert-label" style="font-size:14px;">Actions</span>
                         <div class="hp-col-title-block">
                             <h2 class="hp-col-title">Actions</h2>
                             {% for article in actions_articles %}
@@ -1028,7 +1034,7 @@
                                 </div>
                             </div>
                             {% empty %}
-                            <p style="font-size:12px;color:var(--text-muted);">Aucun article.</p>
+                            <p style="font-size:14px;color:var(--text-muted);">Aucun article.</p>
                             {% endfor %}
                         </div>
                     </div>
@@ -1052,10 +1058,14 @@
 <!-- ============================================================
      QUI SOMMES-NOUS + CHAMP D'ACTION (full width)
      ============================================================ -->
+<div style="margin-top:2rem;">
 {% with cta1_title="Qui sommes-nous ?" cta1_arrow="Voir qui nous sommes →" cta1_url="/qui-sommes-nous/" cta1_icon="?" cta1_desc="La CNT-SO est un syndicat anarcho-syndicaliste qui prône l'action directe, l'autonomie ouvrière et la solidarité entre travailleur·euse·s." cta2_title="Quel est notre champ d'action ?" cta2_arrow="Découvrir nos actions →" cta2_url="/categorie/actualites-luttes/" cta2_icon="→" cta2_desc="De la défense des sans-papiers aux luttes dans le nettoyage, l'éducation, la restauration… Nous intervenons dans tous les secteurs." %}
 {% include "content/_cta_vignettes.html" %}
 {% endwith %}
+</div>
+<div style="margin-top:2rem;">
 {% include "content/_newsletter.html" %}
+</div>
 
 {% endblock full_content %}
 

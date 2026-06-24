@@ -7,10 +7,25 @@ from django.contrib import messages
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
-from .models import Page, Category, ContactMessage, FormulaireContact, Subscriber
+from .models import Page, ContactMessage, FormulaireContact, Subscriber
 from .forms import ContactForm, DynamicContactForm
 from cms.models import ArticlePage, CmsCategory, SectionPage
 from taggit.models import Tag as TaggitTag
+
+
+def _sidebar_context(section_slug):
+    """Contexte campagnes/incontournables pour la sidebar, filtré par section."""
+    base_qs = (
+        ArticlePage.objects.live()
+        .filter(section_slug=section_slug)
+        .order_by('-publication_date', '-first_published_at')
+        .select_related('featured_image')
+        .prefetch_related('cms_categories')
+    )
+    return {
+        'campagnes_articles': base_qs.filter(cms_categories__slug='campagne').distinct()[:5],
+        'manques_articles': base_qs.filter(cms_categories__slug='incontournables').distinct()[:5],
+    }
 
 
 def _sectoral_sidebar_context(site):
@@ -19,16 +34,9 @@ def _sectoral_sidebar_context(site):
     rejoindre_menu = MenuItem.objects.filter(
         site=site, url__icontains='rejoindre', is_active=True,
     ).first()
-    return {
-        'rejoindre_url': (rejoindre_menu.url if rejoindre_menu else None) or site.framaform_url or '#',
-        'manques_articles': (
-            ArticlePage.objects.live()
-            .filter(section_slug='principal')
-            .order_by('-publication_date', '-first_published_at')
-            .select_related('featured_image')
-            .prefetch_related('cms_categories')[:5]
-        ),
-    }
+    ctx = _sidebar_context(site.slug)
+    ctx['rejoindre_url'] = (rejoindre_menu.url if rejoindre_menu else None) or site.framaform_url or '#'
+    return ctx
 
 
 class HomeView(ListView):
@@ -93,10 +101,7 @@ class HomeView(ListView):
         # Actions (remplace sans-papiers)
         context['actions_articles'] = base_qs.filter(cms_categories__slug='actions')[:5]
 
-        context['campagnes_articles'] = base_qs.filter(
-            cms_categories__slug__in=['international', 'solidarites', 'campagne']
-        ).distinct()[:5]
-        context['manques_articles'] = base_qs.exclude(pk__in=excl)[:5]
+        context.update(_sidebar_context('principal'))
 
         return context
 
@@ -176,7 +181,6 @@ class SiteHomeView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['site'] = self.current_site
-        context['categories'] = Category.objects.filter(site=self.current_site).select_related('site')
         context['pages'] = Page.objects.filter(site=self.current_site, status='publish')
         if self.current_site.section_type in ('sectoral', 'regional'):
             carousel = [
@@ -192,17 +196,9 @@ class SiteHomeView(ListView):
                 )
                 carousel = [a for a in candidates if a.any_image_url][:5]
             context['carousel_articles'] = carousel
-            from content.models import MenuItem
-            rejoindre_menu = MenuItem.objects.filter(
-                site=self.current_site,
-                url__icontains='rejoindre',
-                is_active=True,
-            ).first()
-            context['rejoindre_url'] = (
-                (rejoindre_menu.url if rejoindre_menu else None)
-                or self.current_site.framaform_url
-                or '#'
-            )
+            context.update(_sectoral_sidebar_context(self.current_site))
+        else:
+            context.update(_sidebar_context(self.current_site.slug))
         return context
 
 
@@ -244,6 +240,7 @@ class ArticleDetailView(DetailView):
                 .exclude(pk=self.object.pk)
                 .order_by('-publication_date', '-first_published_at')
                 .select_related('featured_image')[:5])
+        context.update(_sidebar_context(section))
         return context
 
 
@@ -268,21 +265,7 @@ class SiteArticleDetailView(ArticleDetailView):
         context = super().get_context_data(**kwargs)
         site = context.get('site') or self.current_site
         if site and site.section_type in ('sectoral', 'regional'):
-            from content.models import MenuItem
-            rejoindre_menu = MenuItem.objects.filter(
-                site=site, url__icontains='rejoindre', is_active=True,
-            ).first()
-            context['rejoindre_url'] = (
-                (rejoindre_menu.url if rejoindre_menu else None)
-                or site.framaform_url or '#'
-            )
-            context['manques_articles'] = (
-                ArticlePage.objects.live()
-                .filter(section_slug='principal')
-                .order_by('-publication_date', '-first_published_at')
-                .select_related('featured_image')
-                .prefetch_related('cms_categories')[:5]
-            )
+            context.update(_sectoral_sidebar_context(site))
         return context
 
 
@@ -337,12 +320,20 @@ class CategoryDetailView(ListView):
         return (ArticlePage.objects.live()
                 .filter(cms_categories=self.category)
                 .select_related('featured_image')
-                .prefetch_related('cms_categories'))
+                .prefetch_related('cms_categories')
+                .annotate(has_img=Case(
+                    When(featured_image__isnull=False, then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ))
+                .order_by('-has_img', '-publication_date', '-first_published_at'))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['category'] = self.category
-        context['site'] = SectionPage.objects.filter(slug=self.category.section_slug or 'principal').first()
+        section_slug = self.category.section_slug or 'principal'
+        context['site'] = SectionPage.objects.filter(slug=section_slug).first()
+        context.update(_sidebar_context(section_slug))
         return context
 
 
@@ -362,12 +353,19 @@ class SiteCategoryDetailView(ListView):
         return (ArticlePage.objects.live()
                 .filter(cms_categories=self.category)
                 .select_related('featured_image')
-                .prefetch_related('cms_categories'))
+                .prefetch_related('cms_categories')
+                .annotate(has_img=Case(
+                    When(featured_image__isnull=False, then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                ))
+                .order_by('-has_img', '-publication_date', '-first_published_at'))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['category'] = self.category
         context['site'] = self.current_site
+        context.update(_sidebar_context(self.current_site.slug))
         return context
 
 
@@ -395,6 +393,7 @@ class EspacePresse(ListView):
         context = super().get_context_data(**kwargs)
         context['site'] = self.current_site
         context['category'] = self.category
+        context.update(_sidebar_context('principal'))
         return context
 
 
@@ -422,6 +421,7 @@ class SiteEspacePresse(ListView):
         context = super().get_context_data(**kwargs)
         context['site'] = self.current_site
         context['category'] = self.category
+        context.update(_sidebar_context(self.current_site.slug))
         return context
 
 
@@ -443,6 +443,7 @@ class TagDetailView(ListView):
         context = super().get_context_data(**kwargs)
         context['tag'] = self.tag
         context['site'] = SectionPage.objects.filter(slug='principal').first()
+        context.update(_sidebar_context('principal'))
         return context
 
 
@@ -674,10 +675,9 @@ class PlanDuSiteView(TemplateView):
         from os.path import commonprefix
 
         from django.db.models import Prefetch
-        children_qs = Category.objects.select_related('site')
+        children_qs = CmsCategory.objects.all()
         raw_cats = list(
-            Category.objects.filter(site=current, parent=None)
-            .select_related('site')
+            CmsCategory.objects.filter(section_slug=site_slug, parent=None)
             .prefetch_related(Prefetch('children', queryset=children_qs))
             .order_by('name')
         )
@@ -803,6 +803,16 @@ class NewsletterUnsubscribeView(View):
         })
 
 
+class SOrganiserView(TemplateView):
+    """Page S'organiser avec la CNT-SO"""
+    template_name = 'content/s_organiser.html'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['site'] = SectionPage.objects.filter(slug='principal').first()
+        return ctx
+
+
 class QuiSommesNousView(TemplateView):
     """Page Qui sommes-nous ?"""
     template_name = 'content/qui_sommes_nous.html'
@@ -822,10 +832,7 @@ class QuiSommesNousView(TemplateView):
             .select_related('featured_image')
             .prefetch_related('cms_categories')
         )
-        ctx['campagnes_articles'] = base_qs.filter(
-            cms_categories__slug__in=['international', 'solidarites', 'campagne']
-        ).distinct()[:5]
-        ctx['manques_articles'] = base_qs[:6]
+        ctx.update(_sidebar_context('principal'))
         return ctx
 
 

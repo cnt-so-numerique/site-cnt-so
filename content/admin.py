@@ -1,19 +1,11 @@
 from django.contrib import admin
-from .models import Author, Category, Tag, Media, Article, Page, MenuItem, Comment, ContactMessage
+from .models import Author, Tag, Media, Article, Page, MenuItem, Comment, ContactMessage
 
 
 @admin.register(Author)
 class AuthorAdmin(admin.ModelAdmin):
     list_display = ['username', 'display_name', 'email', 'wp_id']
     search_fields = ['username', 'display_name', 'email']
-
-
-@admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
-    list_display = ['name', 'site', 'slug', 'parent', 'wp_id']
-    list_filter = ['site', 'parent']
-    search_fields = ['name', 'slug']
-    prepopulated_fields = {'slug': ('name',)}
 
 
 @admin.register(Tag)
@@ -33,10 +25,10 @@ class MediaAdmin(admin.ModelAdmin):
 @admin.register(Article)
 class ArticleAdmin(admin.ModelAdmin):
     list_display = ['title', 'site', 'author', 'status', 'published_at', 'is_sticky']
-    list_filter = ['site', 'status', 'categories', 'author', 'is_sticky']
+    list_filter = ['site', 'status', 'author', 'is_sticky']
     search_fields = ['title', 'content', 'excerpt']
     prepopulated_fields = {'slug': ('title',)}
-    filter_horizontal = ['categories', 'tags']
+    filter_horizontal = ['tags']
     date_hierarchy = 'published_at'
 
     fieldsets = (
@@ -47,7 +39,7 @@ class ArticleAdmin(admin.ModelAdmin):
             'fields': ('status', 'author', 'published_at', 'is_sticky')
         }),
         ('Classification', {
-            'fields': ('categories', 'tags', 'featured_image')
+            'fields': ('tags', 'featured_image')
         }),
         ('Métadonnées WordPress', {
             'fields': ('wp_id', 'wp_date', 'comment_status'),

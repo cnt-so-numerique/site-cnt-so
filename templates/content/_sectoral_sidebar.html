@@ -1,42 +1,58 @@
 <!-- Inscription newsletter -->
-<div class="hp-bloc-soutenir">
-    <h3>Restez informé·e·s&nbsp;!</h3>
-    <p>Abonnez-vous à la newsletter pour recevoir nos actualités et luttes directement par e-mail.</p>
-    {% if site.slug and site.slug != 'principal' %}
-    {% url 'content:site_newsletter_subscribe' site_slug=site.slug as newsletter_url %}
-    {% else %}
-    {% url 'content:newsletter_subscribe' as newsletter_url %}
-    {% endif %}
-    <form method="post" action="{{ newsletter_url }}" style="margin-top:.7rem;">
+{% if site.slug and site.slug != 'principal' %}
+{% url 'content:site_newsletter_subscribe' site_slug=site.slug as newsletter_url %}
+{% else %}
+{% url 'content:newsletter_subscribe' as newsletter_url %}
+{% endif %}
+<div style="background:var(--dark-bg);padding:1.25rem;text-align:center;">
+    <h3 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Restez informé·e·s&nbsp;!</h3>
+    <p style="color:rgba(255,255,255,.7);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Abonnez-vous à la newsletter pour recevoir nos actualités et luttes directement par e-mail.</p>
+    <form method="post" action="{{ newsletter_url }}" style="display:flex;flex-direction:column;gap:.5rem;">
         {% csrf_token %}
         <input type="email" name="email" placeholder="votre@email.fr" required
-               style="width:100%;padding:.6rem .8rem;border:1px solid var(--border-color);border-radius:3px;font-size:.85rem;margin-bottom:.5rem;box-sizing:border-box;">
-        <button type="submit" class="hp-btn-outline" style="width:100%;cursor:pointer;font-family:inherit;">S'abonner</button>
+               style="padding:.6rem .8rem;border:none;font-size:14px;font-family:var(--font-body);background:#fff;width:100%;box-sizing:border-box;">
+        <button type="submit"
+                style="padding:.6rem;background:var(--primary-color);color:#fff;border:none;cursor:pointer;font-weight:700;font-size:14px;font-family:var(--font-body);width:100%;">
+            S'abonner
+        </button>
     </form>
 </div>
 
-<!-- Vous voulez nous rejoindre ? -->
-<div class="hp-bloc-soutenir">
-    <h3>Vous voulez nous rejoindre&nbsp;?</h3>
-    <p>Rejoignez le syndicat et participez à l'organisation collective de votre secteur.</p>
-    <a href="{{ rejoindre_url }}" class="hp-btn-outline">Nous rejoindre</a>
+<!-- Nous rejoindre -->
+<div style="background:var(--primary-color);padding:1.25rem;text-align:center;margin-top:1rem;">
+    <h3 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Nous rejoindre / nous contacter&nbsp;?</h3>
+    <p style="color:rgba(255,255,255,.85);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Rejoignez le syndicat et participez à l'organisation collective de votre secteur.</p>
+    {% if site.slug and site.slug != 'principal' %}
+    <a href="{% url 'content:site_contact' site_slug=site.slug %}"
+       style="display:block;padding:.6rem;background:#fff;color:var(--primary-color);font-weight:700;font-size:14px;font-family:var(--font-body);text-align:center;text-decoration:none;">
+        Nous contacter / Adhérer
+    </a>
+    {% else %}
+    <a href="{% url 'content:contact' %}"
+       style="display:block;padding:.6rem;background:#fff;color:var(--primary-color);font-weight:700;font-size:14px;font-family:var(--font-body);text-align:center;text-decoration:none;">
+        Nous contacter / Adhérer
+    </a>
+    {% endif %}
 </div>
 
-<!-- Vous voulez nous soutenir ? -->
-<div class="hp-bloc-soutenir">
-    <h3>Vous voulez nous soutenir&nbsp;?</h3>
-    <p>Rejoignez-nous ou faites un don pour soutenir nos actions syndicales.</p>
-    <a href="{% url 'content:souscription' %}" class="hp-btn-outline">Nous soutenir</a>
+<!-- Nous soutenir -->
+<div style="background:var(--dark-bg);padding:1.25rem;text-align:center;margin-top:1rem;">
+    <h3 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Nous soutenir&nbsp;?</h3>
+    <p style="color:rgba(255,255,255,.7);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Faites un don pour soutenir nos actions syndicales.</p>
+    <a href="{% url 'content:souscription' %}"
+       style="display:block;padding:.6rem;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);font-weight:700;font-size:14px;font-family:var(--font-body);text-align:center;text-decoration:none;">
+        Nous soutenir
+    </a>
 </div>
 
 <!-- Réseaux sociaux -->
-{% with s=site %}{% include "content/_social_icons.html" %}{% endwith %}
+<div style="margin-top:1rem;">{% with s=site %}{% include "content/_social_icons.html" %}{% endwith %}</div>
+
 
 <!-- Dernières nouvelles de la confédération -->
-<div class="hp-bloc-campagnes">
+<div class="hp-bloc-campagnes" style="margin-top:1rem;">
     <div class="hp-sidebar-header">
         <h3>Nouvelles de la confédération</h3>
-        <a href="{% url 'content:home' %}">Tout voir</a>
     </div>
     <div class="hp-sidebar-list">
         {% for article in manques_articles %}
@@ -52,14 +68,17 @@
             </div>
         </div>
         {% empty %}
-        <p style="font-size:12px;color:var(--text-muted);padding:0.5rem 0;">Aucun article.</p>
+        <p style="font-size:14px;color:var(--text-muted);padding:0.5rem 0;">Aucun article.</p>
         {% endfor %}
     </div>
 </div>
 
 <!-- Notre banque d'images -->
-<div class="hp-bloc-galerie">
-    <h3>Notre banque d'images</h3>
-    <p>Découvrez nos archives photographiques des luttes ouvrières.</p>
-    <a href="{% url 'content:category_detail' slug='banque-dimage' %}" class="hp-btn-outline">Voir la galerie</a>
+<div style="background:var(--dark-bg);padding:1.25rem;text-align:center;margin-top:1rem;">
+    <h3 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Notre banque d'images</h3>
+    <p style="color:rgba(255,255,255,.7);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Découvrez nos archives photographiques des luttes ouvrières.</p>
+    <a href="{% url 'content:category_detail' slug='banque-dimage' %}"
+       style="display:block;padding:.6rem;background:var(--primary-color);color:#fff;font-weight:700;font-size:14px;font-family:var(--font-body);text-align:center;text-decoration:none;">
+        Voir la galerie
+    </a>
 </div>

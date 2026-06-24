@@ -10,11 +10,11 @@
       color:#4b5563;font-size:.9rem;cursor:grab;flex-shrink:0;user-select:none;
       padding:0 .2rem;">⠿</span>
 
-  <span class="depth-marker" style="color:#e63946;font-size:.7rem;flex-shrink:0;">●</span>
+  <span class="depth-marker" style="color:#e63946;font-size:.875rem;flex-shrink:0;">●</span>
 
   <div style="flex:1;min-width:0;">
     <span class="item-title" style="color:#e2e8f0;font-size:.9rem;font-weight:600;">{{ item.title }}</span>
-    <span style="font-size:.72rem;color:#4b5563;margin-left:.4rem;">
+    <span style="font-size:.875rem;color:#4b5563;margin-left:.4rem;">
       {% if item.link_type == 'url' %}🔗 {{ item.url|truncatechars:35 }}
       {% elif item.link_type == 'category' %}🏷️ {% if item.category %}{{ item.category.name }}{% endif %}
       {% elif item.link_type == 'page' %}📃 {% if item.page %}{{ item.page.title }}{% endif %}
@@ -27,15 +27,15 @@
   </div>
 
   {% if not item.is_active %}
-  <span style="font-size:.7rem;color:#4b5563;background:#252932;padding:.1rem .4rem;border-radius:3px;flex-shrink:0;">masqué</span>
+  <span style="font-size:.875rem;color:#4b5563;background:#252932;padding:.1rem .4rem;border-radius:3px;flex-shrink:0;">masqué</span>
   {% endif %}
 
   <a href="/cms/snippets/content/menuitem/edit/{{ item.pk }}/"
-     style="font-size:.75rem;color:#94a3b8;text-decoration:none;padding:.2rem .5rem;border:1px solid #2d3139;border-radius:4px;white-space:nowrap;flex-shrink:0;">
+     style="font-size:.875rem;color:#94a3b8;text-decoration:none;padding:.2rem .5rem;border:1px solid #2d3139;border-radius:4px;white-space:nowrap;flex-shrink:0;">
     ✏️
   </a>
   <a href="/cms/snippets/content/menuitem/delete/{{ item.pk }}/"
-     style="font-size:.75rem;color:#94a3b8;text-decoration:none;padding:.2rem .5rem;border:1px solid #3d1a1a;border-radius:4px;white-space:nowrap;flex-shrink:0;"
+     style="font-size:.875rem;color:#94a3b8;text-decoration:none;padding:.2rem .5rem;border:1px solid #3d1a1a;border-radius:4px;white-space:nowrap;flex-shrink:0;"
      title="Supprimer">
     🗑️
   </a>

@@ -29,16 +29,16 @@
   flex-shrink: 0;
 }
 .event-date-day { font-family: var(--font-heading); font-size: 2rem; font-weight: 700; color: #fff; line-height: 1; }
-.event-date-month { font-size: .65rem; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,.85); margin-top: .2rem; }
-.event-date-year { font-size: .65rem; color: rgba(255,255,255,.7); }
+.event-date-month { font-size: .875rem; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,.85); margin-top: .2rem; }
+.event-date-year { font-size: .875rem; color: rgba(255,255,255,.7); }
 
 .event-body { padding: .9rem 1.1rem; display: flex; flex-direction: column; justify-content: center; }
 .event-title { font-family: var(--font-heading); font-size: 1.05rem; color: var(--text-color); margin-bottom: .3rem; }
 .event-title a { color: inherit; }
 .event-title a:hover { color: var(--primary-color); }
-.event-meta { font-size: .78rem; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.event-meta { font-size: .875rem; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
 .event-meta svg { opacity: .6; }
-.event-desc { font-size: .85rem; color: var(--text-secondary); margin-top: .4rem; line-height: 1.5; }
+.event-desc { font-size: .875rem; color: var(--text-secondary); margin-top: .4rem; line-height: 1.5; }
 
 .event-section-title {
   font-family: var(--font-heading);
@@ -70,7 +70,7 @@
 <div class="s-page">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;">
     <h1 class="s-section-title" style="margin-bottom:0;">Agenda</h1>
-    <a href="/cms/snippets/cms/event/add/" class="btn-red" style="font-size:.78rem;padding:.45rem .9rem;">+ Ajouter un événement</a>
+    <a href="/cms/snippets/cms/event/add/" class="btn-red" style="font-size:.875rem;padding:.45rem .9rem;">+ Ajouter un événement</a>
   </div>
 
   {# Carte Leaflet si au moins un événement géolocalisé #}
@@ -161,10 +161,10 @@
   {% else %}
     <div class="agenda-empty">
       <p style="font-size:1rem;margin-bottom:.5rem;">Aucun événement à venir.</p>
-      <p style="font-size:.83rem;margin-bottom:1.25rem;">
+      <p style="font-size:.875rem;margin-bottom:1.25rem;">
         Suis nos <a href="{{ site.linkstack_url }}" target="_blank" rel="noopener">réseaux sociaux</a> pour les prochaines dates.
       </p>
-      <a href="/cms/snippets/cms/event/add/" class="btn-red" style="font-size:.82rem;">+ Ajouter un événement</a>
+      <a href="/cms/snippets/cms/event/add/" class="btn-red" style="font-size:.875rem;">+ Ajouter un événement</a>
     </div>
   {% endif %}
 

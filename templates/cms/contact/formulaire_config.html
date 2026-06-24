@@ -4,7 +4,7 @@
 {% block content %}
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:.75rem;">
   <h1 style="font-size:1.3rem;font-weight:700;">Formulaire de contact — {{ current_site.name }}</h1>
-  <a href="/cms/contact/" style="padding:.4rem .9rem;background:#2d3139;color:#e2e8f0;border-radius:4px;text-decoration:none;font-size:.85rem;">← Messages reçus</a>
+  <a href="/cms/contact/" style="padding:.4rem .9rem;background:#2d3139;color:#e2e8f0;border-radius:4px;text-decoration:none;font-size:.875rem;">← Messages reçus</a>
 </div>
 
 <form method="post">
@@ -21,23 +21,23 @@
       </label>
 
       <div style="margin-bottom:.75rem;">
-        <label style="display:block;font-size:.85rem;color:#94a3b8;margin-bottom:.3rem;">Email de destination</label>
+        <label style="display:block;font-size:.875rem;color:#94a3b8;margin-bottom:.3rem;">Email de destination</label>
         <input type="email" name="email_destination" value="{{ formulaire.email_destination }}"
           placeholder="Laissez vide → email de contact du syndicat"
-          style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.85rem;">
+          style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.875rem;">
       </div>
 
       <div style="margin-bottom:.75rem;">
-        <label style="display:block;font-size:.85rem;color:#94a3b8;margin-bottom:.3rem;">Préfixe du sujet d'email</label>
+        <label style="display:block;font-size:.875rem;color:#94a3b8;margin-bottom:.3rem;">Préfixe du sujet d'email</label>
         <input type="text" name="email_subject_prefix" value="{{ formulaire.email_subject_prefix }}"
           placeholder="Ex : [Contact CNT-SO]"
-          style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.85rem;">
+          style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.875rem;">
       </div>
 
       <div>
-        <label style="display:block;font-size:.85rem;color:#94a3b8;margin-bottom:.3rem;">Texte d'introduction</label>
+        <label style="display:block;font-size:.875rem;color:#94a3b8;margin-bottom:.3rem;">Texte d'introduction</label>
         <textarea name="intro_text" rows="3"
-          style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.85rem;resize:vertical;">{{ formulaire.intro_text }}</textarea>
+          style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.875rem;resize:vertical;">{{ formulaire.intro_text }}</textarea>
       </div>
     </div>
 
@@ -86,12 +86,12 @@
   <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid #2d3139;">
     <span style="flex:1;font-size:.9rem;">
       {{ champ.label }}
-      <span style="color:#94a3b8;font-size:.8rem;">({{ champ.get_field_type_display }}){% if champ.is_required %} *{% endif %}</span>
+      <span style="color:#94a3b8;font-size:.875rem;">({{ champ.get_field_type_display }}){% if champ.is_required %} *{% endif %}</span>
     </span>
     <form method="post" action="/cms/contact-config/champ/{{ champ.pk }}/supprimer/" style="display:inline;">
       {% csrf_token %}
       <button type="submit" onclick="return confirm('Supprimer ce champ ?')"
-        style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.85rem;">Supprimer</button>
+        style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.875rem;">Supprimer</button>
     </form>
   </div>
   {% empty %}
@@ -101,13 +101,13 @@
   <form method="post" action="/cms/contact-config/champ/ajouter/" style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end;">
     {% csrf_token %}
     <div style="flex:1;min-width:150px;">
-      <label style="display:block;font-size:.8rem;color:#94a3b8;margin-bottom:.25rem;">Libellé</label>
+      <label style="display:block;font-size:.875rem;color:#94a3b8;margin-bottom:.25rem;">Libellé</label>
       <input type="text" name="label" placeholder="Ex : Entreprise" required
-        style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.85rem;">
+        style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.875rem;">
     </div>
     <div>
-      <label style="display:block;font-size:.8rem;color:#94a3b8;margin-bottom:.25rem;">Type</label>
-      <select name="field_type" style="padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.85rem;">
+      <label style="display:block;font-size:.875rem;color:#94a3b8;margin-bottom:.25rem;">Type</label>
+      <select name="field_type" style="padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.875rem;">
         <option value="text">Texte court</option>
         <option value="textarea">Texte long</option>
         <option value="select">Liste déroulante</option>
@@ -115,14 +115,14 @@
       </select>
     </div>
     <div>
-      <label style="display:block;font-size:.8rem;color:#94a3b8;margin-bottom:.25rem;">Options (une par ligne)</label>
+      <label style="display:block;font-size:.875rem;color:#94a3b8;margin-bottom:.25rem;">Options (une par ligne)</label>
       <input type="text" name="choices_text" placeholder="Uniquement pour liste déroulante"
-        style="padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.85rem;width:220px;">
+        style="padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.875rem;width:220px;">
     </div>
-    <label style="display:flex;align-items:center;gap:.3rem;font-size:.85rem;cursor:pointer;padding-bottom:.1rem;">
+    <label style="display:flex;align-items:center;gap:.3rem;font-size:.875rem;cursor:pointer;padding-bottom:.1rem;">
       <input type="checkbox" name="is_required"> Obligatoire
     </label>
-    <button type="submit" style="padding:.4rem .9rem;background:#e63946;color:white;border:none;border-radius:4px;cursor:pointer;font-size:.85rem;">
+    <button type="submit" style="padding:.4rem .9rem;background:#e63946;color:white;border:none;border-radius:4px;cursor:pointer;font-size:.875rem;">
       Ajouter
     </button>
   </form>

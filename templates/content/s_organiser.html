@@ -1,0 +1,323 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}S'organiser avec la CNT-SO{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Layout ── */
+.so-wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1rem 3rem;
+}
+
+/* ── Hero ── */
+.so-hero {
+    background: var(--dark-bg);
+    padding: 3rem 1rem;
+    text-align: center;
+}
+.so-hero-inner { max-width: 780px; margin: 0 auto; }
+.so-hero h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    line-height: 1.15;
+    margin-bottom: 1.25rem;
+}
+.so-hero h1 span { color: var(--primary-color); }
+.so-hero-quote {
+    font-size: 1.1rem;
+    line-height: 1.75;
+    color: rgba(255,255,255,.85);
+    margin-bottom: 1.75rem;
+    font-style: italic;
+}
+.so-hero-quote strong { color: #fff; font-style: normal; }
+.so-cta {
+    display: inline-block;
+    padding: .75rem 2rem;
+    background: var(--primary-color);
+    color: #fff;
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    text-decoration: none;
+    transition: background .15s;
+}
+.so-cta:hover { background: #c41018; color: #fff; text-decoration: none; }
+
+/* ── Sections ── */
+.so-section { margin-top: 2.5rem; }
+.so-section-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--text-color);
+    border-left: 4px solid var(--primary-color);
+    padding-left: .9rem;
+    margin-bottom: 1.25rem;
+}
+
+/* ── Documents PDF ── */
+.so-docs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+.so-doc {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--bg-lighter);
+    border-left: 3px solid var(--primary-color);
+    text-decoration: none;
+    transition: background .15s;
+}
+.so-doc:hover { background: #ddd; text-decoration: none; }
+.so-doc-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--primary-color);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: .05em;
+}
+.so-doc-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-color);
+    line-height: 1.3;
+}
+.so-doc-sub {
+    font-size: 13px;
+    color: #666;
+    margin-top: .2rem;
+}
+
+/* ── Galerie visuels ── */
+.so-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: .75rem;
+}
+.so-gallery a {
+    display: block;
+    overflow: hidden;
+    border: 2px solid transparent;
+    transition: border-color .15s;
+}
+.so-gallery a:hover { border-color: var(--primary-color); }
+.so-gallery img {
+    width: 100%;
+    height: 260px;
+    object-fit: contain;
+    background: #f5f5f5;
+    display: block;
+    transition: transform .2s;
+}
+.so-gallery a:hover img { transform: scale(1.03); }
+
+/* ── Note téléchargement ── */
+.so-dl-note {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 1rem;
+    font-style: italic;
+}
+
+@media (max-width: 640px) {
+    .so-hero h1 { font-size: 1.6rem; }
+    .so-gallery { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+{% endblock %}
+
+{% block full_content %}
+
+<!-- ══ HERO ══ -->
+<div class="so-hero">
+    <div class="so-hero-inner">
+        <h1>En 2026, on s'organise<br><span>avec la CNT-SO&nbsp;!</span></h1>
+        <p class="so-hero-quote">
+            Se syndiquer, c'est rompre l'isolement, c'est dire NON à l'exploitation et au mépris,
+            c'est résister et lutter ensemble pour défendre ses droits et en gagner de nouveaux&nbsp;!
+            <strong>Rejoins ton organisation de classe&nbsp;!</strong>
+        </p>
+        <a href="{% url 'content:contact' %}" class="so-cta">Se syndiquer</a>
+    </div>
+</div>
+
+<div class="so-wrap">
+
+    <!-- ══ PRÉSENTATION & FLYERS ══ -->
+    <div class="so-section">
+        <h2 class="so-section-title">Documents à télécharger</h2>
+
+        <div class="so-docs">
+
+            <a href="https://cnt-so.org/wp-content/uploads/2026/01/cnt_so_presentation.pdf"
+               target="_blank" rel="noopener" class="so-doc">
+                <div class="so-doc-icon">PDF</div>
+                <div>
+                    <div class="so-doc-label">Présentation générale de la CNT-SO</div>
+                    <div class="so-doc-sub">Télécharger le document de présentation</div>
+                </div>
+            </a>
+
+            <a href="https://cnt-so.org/wp-content/uploads/2026/01/cntsocestquoiflyers-1.pdf"
+               target="_blank" rel="noopener" class="so-doc">
+                <div class="so-doc-icon">PDF</div>
+                <div>
+                    <div class="so-doc-label">Flyer — La CNT-SO c'est quoi ? (1/2)</div>
+                    <div class="so-doc-sub">Télécharger le flyer</div>
+                </div>
+            </a>
+
+            <a href="https://cnt-so.org/wp-content/uploads/2026/01/cntsocestquoiflyers-2.pdf"
+               target="_blank" rel="noopener" class="so-doc">
+                <div class="so-doc-icon">PDF</div>
+                <div>
+                    <div class="so-doc-label">Flyer — La CNT-SO c'est quoi ? (2/2)</div>
+                    <div class="so-doc-sub">Télécharger le flyer</div>
+                </div>
+            </a>
+
+        </div>
+    </div>
+
+    <!-- ══ GALERIE VISUELS ══ -->
+    <div class="so-section">
+        <h2 class="so-section-title">Visuels à télécharger</h2>
+        <p class="so-dl-note">Cliquez sur un visuel pour le télécharger en haute résolution.</p>
+
+        <div class="so-gallery">
+
+            <a href="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi2022.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi2022.png' %}" alt="Organise-toi, syndique-toi 2022" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_ldclasse-725x1024.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_ldclasse-725x1024.png' %}" alt="Lutte de classe" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_ldeclasse-1-725x1024.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_ldeclasse-1-725x1024.png' %}" alt="Lutte de classe 2" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cntso_organise_toi-2-725x1024.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cntso_organise_toi-2-725x1024.png' %}" alt="Organise-toi 2" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_luttedc-1-1024x725.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_luttedc-1-1024x725.png' %}" alt="Lutte de classe 3" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cntso_organisetoi-1-1024x725.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cntso_organisetoi-1-1024x725.png' %}" alt="Organise-toi 3" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_ne_reste_pas_isolee-1.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_ne_reste_pas_isolee-1.png' %}" alt="Ne reste pas isolé·e" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_organise_toi-1.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_organise_toi-1.png' %}" alt="Organise-toi" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_un_outil-1.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_un_outil-1.png' %}" alt="Un outil pour les travailleur·euses" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi-1024x724.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi-1024x724.png' %}" alt="Organise-toi, syndique-toi" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi2-1024x724.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi2-1024x724.png' %}" alt="Organise-toi, syndique-toi 2" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi3-1024x724.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi3-1024x724.png' %}" alt="Organise-toi, syndique-toi 3" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi4-1024x724.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi4-1024x724.png' %}" alt="Organise-toi, syndique-toi 4" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi5-1024x724.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi5-1024x724.png' %}" alt="Organise-toi, syndique-toi 5" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi7-1024x724.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi7-1024x724.png' %}" alt="Organise-toi, syndique-toi 7" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi8-1024x724.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi8-1024x724.png' %}" alt="Organise-toi, syndique-toi 8" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi9-1024x724.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi9-1024x724.png' %}" alt="Organise-toi, syndique-toi 9" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi11-1024x724.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi11-1024x724.png' %}" alt="Organise-toi, syndique-toi 11" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi12-1024x724.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi12-1024x724.png' %}" alt="Organise-toi, syndique-toi 12" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi13-1024x724.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi13-1024x724.png' %}" alt="Organise-toi, syndique-toi 13" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi14-1024x724.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi14-1024x724.png' %}" alt="Organise-toi, syndique-toi 14" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi15-1024x724.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_organise_toi_syndique_toi15-1024x724.png' %}" alt="Organise-toi, syndique-toi 15" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cntso_raison_syndiquer-1024x725.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cntso_raison_syndiquer-1024x725.png' %}" alt="On a toujours raison de se syndiquer" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_sunir_se_former_agir_a3-1-725x1024.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_sunir_se_former_agir_a3-1-725x1024.png' %}" alt="S'unir, se former, agir" loading="lazy">
+            </a>
+
+            <a href="{% static 'img/s_organiser/cnt_so_luttedecl-725x1024.png' %}" target="_blank" rel="noopener">
+                <img src="{% static 'img/s_organiser/cnt_so_luttedecl-725x1024.png' %}" alt="Lutte de classe" loading="lazy">
+            </a>
+
+        </div>
+    </div>
+
+    <!-- ══ CTA BAS DE PAGE ══ -->
+    <div style="margin-top:3rem;background:var(--dark-bg);padding:2rem;text-align:center;">
+        <p style="font-family:'Oswald',sans-serif;font-size:1.2rem;color:#fff;text-transform:uppercase;letter-spacing:.05em;margin-bottom:1rem;">
+            Prêt·e à rejoindre l'organisation&nbsp;?
+        </p>
+        <a href="{% url 'content:contact' %}" class="so-cta">Nous contacter / Adhérer</a>
+    </div>
+
+</div>
+
+{% endblock full_content %}

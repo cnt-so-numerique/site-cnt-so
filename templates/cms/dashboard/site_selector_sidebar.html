@@ -2,7 +2,7 @@
 <div id="cnt-site-bar" style="
     display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;
     background:#1e2229;border-bottom:2px solid #e63946;
-    padding:.4rem .8rem;font-size:.8rem;
+    padding:.4rem .8rem;font-size:.875rem;
     position:sticky;top:0;z-index:130;
 ">
   <span style="color:#94a3b8;white-space:nowrap;margin-right:.3rem;">Syndicat :</span>
@@ -19,16 +19,16 @@
   {% endfor %}
 
   {% if not current_site %}
-  <span style="color:#f59e0b;font-size:.75rem;margin-left:.3rem;">⚠️ Aucun sélectionné</span>
+  <span style="color:#f59e0b;font-size:.875rem;margin-left:.3rem;">⚠️ Aucun sélectionné</span>
   {% endif %}
 
   <span style="margin-left:auto;display:flex;gap:.5rem;align-items:center;">
     {% if current_site %}
-    <a href="/cms/snippets/cms/articlepage/" style="color:#64748b;text-decoration:none;font-size:.8rem;">📄 Articles</a>
-    <a href="/cms/menus/" style="color:#64748b;text-decoration:none;font-size:.8rem;">🗂️ Menus</a>
-    <a href="/cms/snippets/content/newsletter/" style="color:#64748b;text-decoration:none;font-size:.8rem;">📧</a>
+    <a href="/cms/snippets/cms/articlepage/" style="color:#64748b;text-decoration:none;font-size:.875rem;">📄 Articles</a>
+    <a href="/cms/menus/" style="color:#64748b;text-decoration:none;font-size:.875rem;">🗂️ Menus</a>
+    <a href="/cms/snippets/content/newsletter/" style="color:#64748b;text-decoration:none;font-size:.875rem;">📧</a>
     {% endif %}
-    <a href="/cms/" style="color:#64748b;text-decoration:none;font-size:.8rem;">🏠</a>
+    <a href="/cms/" style="color:#64748b;text-decoration:none;font-size:.875rem;">🏠</a>
   </span>
 </div>
 {% endif %}

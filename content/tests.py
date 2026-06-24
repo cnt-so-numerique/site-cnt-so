@@ -10,7 +10,7 @@ from wagtail.models import Page as WagtailPage
 from taggit.models import Tag as TaggitTag
 
 from content.models import (
-    Author, Category, Tag, Media, Article, Page,
+    Author, Tag, Media, Article, Page,
     Comment, MenuItem, Subscriber, Newsletter,
 )
 from content.forms import ContactForm, CommentForm
@@ -172,31 +172,6 @@ class AuthorModelTest(TestCase):
         self.assertEqual(str(author), 'jdoe')
 
 
-class CategoryModelTest(TestCase):
-    def setUp(self):
-        self.site = make_site()
-        self.sub = make_site('sub', wp_blog_id=2, site_type='regional', name='Sub')
-
-    def test_auto_slug_on_save(self):
-        cat = Category.objects.create(site=self.site, name='Actualités et Luttes')
-        self.assertEqual(cat.slug, 'actualites-et-luttes')
-
-    def test_slug_not_overwritten_if_provided(self):
-        cat = Category.objects.create(site=self.site, name='Test', slug='my-slug')
-        self.assertEqual(cat.slug, 'my-slug')
-
-    def test_get_absolute_url_principal(self):
-        cat = Category.objects.create(site=self.site, name='Luttes', slug='luttes')
-        self.assertEqual(
-            cat.get_absolute_url(),
-            reverse('content:category_detail', kwargs={'slug': 'luttes'})
-        )
-
-    def test_get_absolute_url_subsite(self):
-        cat = Category.objects.create(site=self.sub, name='Luttes', slug='luttes')
-        expected = reverse('content:site_category_detail', kwargs={'site_slug': 'sub', 'slug': 'luttes'})
-        self.assertEqual(cat.get_absolute_url(), expected)
-
 
 class TagModelTest(TestCase):
     def setUp(self):
@@ -218,7 +193,7 @@ class MediaModelTest(TestCase):
 
     def test_url_empty_when_no_file_and_no_original(self):
         media = Media()
-        self.assertEqual(media.url, '')
+        self.assertIsNone(media.url)
 
 
 class ArticleModelTest(TestCase):
@@ -426,7 +401,7 @@ class MenuItemGetUrlTest(TestCase):
         self.assertEqual(item.get_url(), '#')
 
     def test_category_type(self):
-        cat = Category.objects.create(site=self.site, name='Luttes', slug='luttes')
+        cat = make_cms_category(name='Luttes', slug='luttes', section_slug='principal')
         item = MenuItem(site=self.site, link_type='category', category=cat)
         self.assertEqual(item.get_url(), cat.get_absolute_url())
 
@@ -1056,8 +1031,8 @@ class MenuContextProcessorTest(TestCase):
         self.assertIn('autres', ctx['menu_structure'])
 
     def test_main_categories_keyed_by_slug(self):
-        site = make_site()
-        cat = Category.objects.create(site=site, name='Luttes', slug='luttes')
+        make_site()
+        cat = make_cms_category(name='Luttes', slug='luttes', section_slug='principal')
         ctx = self._ctx()
         self.assertIn('luttes', ctx['main_categories'])
         self.assertEqual(ctx['main_categories']['luttes'], cat)
@@ -1313,11 +1288,9 @@ class SitemapsOtherTest(TestCase):
         self.assertIn(pub, items)
         self.assertNotIn(draft, items)
 
-    def test_category_sitemap_uses_content_category(self):
+    def test_category_sitemap_uses_cms_category(self):
         from content.sitemaps import CategorySitemap
-        from cms.models import SectionPage
-        sp = SectionPage.objects.filter(slug='principal').first()
-        cat = Category.objects.create(site=sp, name='Cat', slug='cat-s')
+        cat = make_cms_category(name='Cat', slug='cat-s', section_slug='principal')
         sitemap = CategorySitemap()
         self.assertIn(cat, sitemap.items())
 
@@ -1382,9 +1355,6 @@ class WagtailSnippetsRegisteredTest(TestCase):
     def test_contentpage_snippet_registered(self):
         from cms.models import ContentPage as CmsContentPage
         self.assertIn(CmsContentPage, self._get_snippet_models())
-
-    def test_category_snippet_registered(self):
-        self.assertIn(Category, self._get_snippet_models())
 
     def test_tag_snippet_registered(self):
         self.assertIn(Tag, self._get_snippet_models())
@@ -1488,72 +1458,6 @@ class SetupWagtailPermissionsCommandTest(TestCase):
         self.assertTrue(group.permissions.filter(codename='delete_cmscategory').exists())
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Commande migrate_categories_tags
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class MigrateCategoriesTagsCommandTest(TestCase):
-    def setUp(self):
-        from django.utils import timezone
-        self.site = make_site()
-        # Legacy article avec catégorie et tag
-        from content.models import Category as LegacyCategory, Tag as LegacyTag
-        self.legacy_cat = LegacyCategory.objects.create(
-            site=self.site, name='Test Cat', slug='test-cat'
-        )
-        self.legacy_tag = LegacyTag.objects.create(
-            site=self.site, name='Test Tag', slug='test-tag'
-        )
-        self.legacy_art = Article.objects.create(
-            site=self.site, title='Migration Art', slug='migration-art',
-            status='publish', published_at=timezone.now()
-        )
-        self.legacy_art.categories.add(self.legacy_cat)
-        self.legacy_art.tags.add(self.legacy_tag)
-        # ArticlePage correspondant
-        self.cms_cat = make_cms_category(name='Test Cat CMS', slug='test-cat-cms',
-                                         section_slug='principal', legacy_id=self.legacy_cat.pk)
-        self.art_page = make_article_page(section_slug='principal', title='Migration Art',
-                                          slug='migration-art2')
-        # Simuler le legacy_article_id
-        from cms.models import ArticlePage
-        ArticlePage.objects.filter(pk=self.art_page.pk).update(legacy_article_id=self.legacy_art.pk)
-
-    def _run_command(self):
-        from django.core.management import call_command
-        from io import StringIO
-        out = StringIO()
-        call_command('migrate_categories_tags', stdout=out)
-        return out.getvalue()
-
-    def test_links_categories(self):
-        self.art_page.refresh_from_db()
-        self._run_command()
-        self.assertIn(self.cms_cat, list(self.art_page.cms_categories.all()))
-
-    def test_creates_taggit_tags(self):
-        from taggit.models import Tag as TaggitTag
-        TaggitTag.objects.filter(slug='test-tag').delete()
-        self._run_command()
-        self.assertTrue(TaggitTag.objects.filter(slug='test-tag').exists())
-
-    def test_links_tags(self):
-        self._run_command()
-        slugs = list(self.art_page.cms_tags.values_list('slug', flat=True))
-        self.assertIn('test-tag', slugs)
-
-    def test_idempotent_categories(self):
-        self._run_command()
-        self._run_command()
-        # Pas de doublons
-        count = self.art_page.cms_categories.filter(pk=self.cms_cat.pk).count()
-        self.assertEqual(count, 1)
-
-    def test_idempotent_tags(self):
-        self._run_command()
-        self._run_command()
-        count = self.art_page.cms_tags.filter(slug='test-tag').count()
-        self.assertEqual(count, 1)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -3299,12 +3203,6 @@ class ModelStrMethodsTest(TestCase):
         from cms.models import SectionPage
         self.sp = _ensure_section_page(slug='model-str-site', name='Str Site', site_type='regional')
 
-    def test_category_str(self):
-        cat = Category.objects.create(
-            site=self.sp, name='Ma Catégorie', slug='ma-categorie',
-        )
-        self.assertEqual(str(cat), 'Ma Catégorie')
-
     def test_tag_str(self):
         tag = Tag.objects.create(site=self.sp, name='Mon Tag', slug='mon-tag')
         self.assertEqual(str(tag), 'Mon Tag')
@@ -3385,7 +3283,7 @@ class MenuItemGetUrlTest(TestCase):
         self.assertIn('art-url', item.get_url())
 
     def test_get_url_category(self):
-        cat = Category.objects.create(site=self.sp, name='Cat URL', slug='cat-url')
+        cat = make_cms_category(name='Cat URL', slug='cat-url', section_slug='principal')
         item = MenuItem.objects.create(
             site=self.sp, title='Cat', menu='main', order=1,
             link_type='category', category=cat
@@ -3455,7 +3353,7 @@ class SitemapMethodsTest(TestCase):
 
     def test_category_sitemap_location(self):
         from content.sitemaps import CategorySitemap
-        cat = Category.objects.create(site=self.sp, name='Sitemap Cat', slug='sitemap-cat')
+        cat = make_cms_category(name='Sitemap Cat', slug='sitemap-cat', section_slug='principal')
         sm = CategorySitemap()
         self.assertIn('sitemap-cat', sm.location(cat))
 
@@ -3860,8 +3758,8 @@ class MenuItemGetUrlExtraTest(TestCase):
         self.assertIn('fallback-page', url)
 
     def test_get_url_fallback_avec_category(self):
-        """link_type inconnu avec category FK → ligne 514-515."""
-        cat = Category.objects.create(site=self.sp, name='FB Cat', slug='fb-cat')
+        """link_type inconnu avec category FK → fallback sur category.get_absolute_url()."""
+        cat = make_cms_category(name='FB Cat', slug='fb-cat', section_slug='principal')
         item = MenuItem.objects.create(
             site=self.sp, title='FB3', menu='main', order=1,
             link_type='unknown_type', category=cat,
@@ -4008,8 +3906,8 @@ class PlanDuSiteCategoryGroupingTest(TestCase):
         self.site = _ensure_section_page(slug='plan-site', name='Plan Site', site_type='regional')
 
     def test_categorie_unique_par_nom(self):
-        """Line 688-692 : un seul cat par name → URL dans cat_groups."""
-        Category.objects.create(site=self.site, name='Luttes', slug='luttes-plan')
+        """Un seul cat par name → URL dans cat_groups."""
+        make_cms_category(name='Luttes', slug='luttes-plan', section_slug='plan-site')
         r = self.client.get(
             reverse('content:site_plan_du_site', kwargs={'site_slug': 'plan-site'})
         )
@@ -4021,9 +3919,9 @@ class PlanDuSiteCategoryGroupingTest(TestCase):
         self.assertIsNotNone(luttes['url'])
 
     def test_plusieurs_categories_meme_nom_groupees(self):
-        """Lines 694-702 : plusieurs cats même name → url None + secteur extrait."""
-        Category.objects.create(site=self.site, name='Droit', slug='droit-plan-paris')
-        Category.objects.create(site=self.site, name='Droit', slug='droit-plan-lyon')
+        """Plusieurs cats même name → url None + secteur extrait."""
+        make_cms_category(name='Droit', slug='droit-plan-paris', section_slug='plan-site')
+        make_cms_category(name='Droit', slug='droit-plan-lyon', section_slug='plan-site')
         r = self.client.get(
             reverse('content:site_plan_du_site', kwargs={'site_slug': 'plan-site'})
         )
@@ -4226,11 +4124,6 @@ class WagtailHookViewSetsTest(TestCase):
         qs = self._vs_qs(ContentPageViewSet)
         self.assertIsNotNone(qs)
 
-    def test_category_viewset_get_queryset(self):
-        from content.wagtail_hooks import CategoryViewSet
-        qs = self._vs_qs(CategoryViewSet)
-        self.assertIsNotNone(qs)
-
     def test_tag_viewset_get_queryset(self):
         from content.wagtail_hooks import TagViewSet
         qs = self._vs_qs(TagViewSet)
@@ -4376,7 +4269,6 @@ class ScopedArticleViewGetFormTest(TestCase):
         mock_form = MagicMock()
         mock_form.fields = {
             'site': MagicMock(),
-            'categories': MagicMock(),
             'tags': MagicMock(),
         }
         mock_form.initial = {}

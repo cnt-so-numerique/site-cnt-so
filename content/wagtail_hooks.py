@@ -15,7 +15,6 @@ from .widgets import EditorJsWidget
 from .models import (
     Article,
     Page as ContentPage,
-    Category,
     Tag,
     Media,
     Author,
@@ -48,8 +47,6 @@ def _make_scoped_article_view(base_class):
 
             # Catégories et tags filtrés par site courant
             if current:
-                if 'categories' in form.fields:
-                    form.fields['categories'].queryset = Category.objects.filter(site=current).order_by('name')
                 if 'tags' in form.fields:
                     form.fields['tags'].queryset = Tag.objects.filter(site=current).order_by('name')
             return form
@@ -139,30 +136,6 @@ class ContentPageViewSet(SnippetViewSet):
                 FieldPanel('featured_image'),
             ], heading='Image'),
         ])
-    ]
-
-    def get_queryset(self, request):
-        return _scope_by_site(self.model.objects.all(), request)
-
-
-# ── Catégories ────────────────────────────────────────────────────────────────
-
-class CategoryViewSet(SnippetViewSet):
-    model = Category
-    icon = 'folder-open-inverse'
-    menu_label = 'Catégories'
-    menu_order = 120
-    list_display = ['name', 'site', 'parent']
-    list_filter = ['site']
-    search_fields = ['name']
-
-    panels = [
-        FieldPanel('site'),
-        FieldPanel('name'),
-        FieldPanel('slug'),
-        FieldPanel('description'),
-        FieldPanel('parent'),
-        FieldPanel('redirect_page'),
     ]
 
     def get_queryset(self, request):
@@ -504,7 +477,7 @@ class ContenuGroup(SnippetViewSetGroup):
     menu_name = 'legacy-contenu'
     menu_icon = 'doc-full'
     menu_order = 950  # tout en bas
-    items = (ArticleViewSet, ContentPageViewSet, CategoryViewSet, TagViewSet, MediaViewSet)
+    items = (ArticleViewSet, ContentPageViewSet, TagViewSet, MediaViewSet)
 
 
 # ── Formulaires de contact ────────────────────────────────────────────────────

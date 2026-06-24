@@ -48,6 +48,7 @@ urlpatterns = [
     # Pages spéciales du site principal
     path('plan-du-site/', views.PlanDuSiteView.as_view(), name='plan_du_site'),
     path('qui-sommes-nous/', views.QuiSommesNousView.as_view(), name='qui_sommes_nous'),
+    path('sorganiser-avec-la-cnt-so/', views.SOrganiserView.as_view(), name='s_organiser'),
     path('souscription/', RedirectView.as_view(url='/article/souscription/', permanent=True), name='souscription'),
 
     # Articles et pages du site principal
