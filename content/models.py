@@ -477,6 +477,14 @@ class MenuItem(models.Model):
             return self.category.get_absolute_url()
         return '#'
 
+    @property
+    def should_open_new_tab(self):
+        """Ouvre dans un nouvel onglet si explicitement demandé ou si l'URL est externe."""
+        if self.opens_new_tab:
+            return True
+        url = self.get_url()
+        return url.startswith('http://') or url.startswith('https://')
+
 
 # ── Newsletter ─────────────────────────────────────────────────────────────────
 

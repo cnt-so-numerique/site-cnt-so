@@ -1563,7 +1563,7 @@
             <div class="main-nav-content">
                 {% for item in main_nav %}
                 <div class="nav-item">
-                    <a href="{{ item.get_url }}"{% if item.opens_new_tab %} target="_blank" rel="noopener"{% endif %}>
+                    <a href="{{ item.get_url }}"{% if item.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>
                         {{ item.title }}
                     </a>
                     {% with children=item.children.all %}
@@ -1574,15 +1574,15 @@
                         {% with grandchildren=child.children.all %}
                         {% if grandchildren %}
                         <div class="dropdown-item">
-                            <a href="{{ child.get_url }}"{% if child.opens_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ child.title }}</a>
+                            <a href="{{ child.get_url }}"{% if child.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ child.title }}</a>
                             <div class="sub-dropdown">
                                 {% for gc in grandchildren %}{% if gc.is_active %}
-                                <a href="{{ gc.get_url }}"{% if gc.opens_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ gc.title }}</a>
+                                <a href="{{ gc.get_url }}"{% if gc.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ gc.title }}</a>
                                 {% endif %}{% endfor %}
                             </div>
                         </div>
                         {% else %}
-                        <a href="{{ child.get_url }}"{% if child.opens_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ child.title }}</a>
+                        <a href="{{ child.get_url }}"{% if child.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ child.title }}</a>
                         {% endif %}
                         {% endwith %}
                         {% endif %}
@@ -1637,7 +1637,7 @@
                 <ul>
                     {% for item in col.children.all %}
                     {% if item.is_active %}
-                    <li>{% if item.url == '#' %}<span>{{ item.title }}</span>{% else %}<a href="{{ item.get_url }}"{% if item.opens_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ item.title }}</a>{% endif %}</li>
+                    <li>{% if item.url == '#' %}<span>{{ item.title }}</span>{% else %}<a href="{{ item.get_url }}"{% if item.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ item.title }}</a>{% endif %}</li>
                     {% endif %}
                     {% endfor %}
                 </ul>
