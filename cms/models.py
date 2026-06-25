@@ -1,5 +1,6 @@
 from django import forms
 from django.db import models
+from cms.widgets import OVHMailingListWidget
 from django.utils.text import slugify
 
 from modelcluster.contrib.taggit import ClusterTaggableManager
@@ -299,9 +300,9 @@ class SectionPage(SeoMixin, Page):
         help_text="Adresse email qui reçoit les messages du formulaire de contact",
     )
     ovh_mailing_list = models.CharField(
-        max_length=100, blank=True,
-        verbose_name="Liste mail OVH (newsletter)",
-        help_text="Nom de la liste sur cnt-so.info, ex: actu-stucs-cntso",
+        max_length=500, blank=True,
+        verbose_name="Liste(s) mail OVH (newsletter)",
+        help_text="Noms des listes sur cnt-so.info, séparés par des virgules",
     )
 
     social_mastodon = models.URLField(blank=True, verbose_name="Mastodon")
@@ -338,7 +339,7 @@ class SectionPage(SeoMixin, Page):
         FieldPanel('agenda_text'),
         FieldPanel('logo'),
         MultiFieldPanel([
-            FieldPanel('ovh_mailing_list'),
+            FieldPanel('ovh_mailing_list', widget=OVHMailingListWidget),
         ], heading="Newsletter OVH"),
         MultiFieldPanel([
             FieldPanel('social_mastodon'),

@@ -552,7 +552,7 @@ def _allowed_mailing_lists(request):
     if _is_chef(request.user):
         current = get_current_site(request)
         if current and current.ovh_mailing_list:
-            return [current.ovh_mailing_list]
+            return [n.strip() for n in current.ovh_mailing_list.split(',') if n.strip()]
         return []
     return []
 
