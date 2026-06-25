@@ -1,0 +1,42 @@
+{% if site.slug and site.slug != 'principal' %}
+{% url 'content:site_newsletter_subscribe' site_slug=site.slug as newsletter_url %}
+{% url 'content:site_contact' site_slug=site.slug as contact_url %}
+{% else %}
+{% url 'content:newsletter_subscribe' as newsletter_url %}
+{% url 'content:contact' as contact_url %}
+{% endif %}
+
+<!-- Restez informé·e·s -->
+<div style="background:var(--dark-bg);padding:1.25rem;text-align:center;">
+    <h3 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Restez informé·e·s&nbsp;!</h3>
+    <p style="color:rgba(255,255,255,.7);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Abonnez-vous à la newsletter pour recevoir nos actualités et luttes directement par e-mail.</p>
+    <form method="post" action="{{ newsletter_url }}" style="display:flex;flex-direction:column;gap:.5rem;">
+        {% csrf_token %}
+        <input type="email" name="email" placeholder="votre@email.fr" required
+               style="padding:.6rem .8rem;border:none;font-size:14px;font-family:var(--font-body);background:#fff;width:100%;box-sizing:border-box;">
+        <button type="submit"
+                style="padding:.6rem;background:var(--primary-color);color:#fff;border:none;cursor:pointer;font-weight:700;font-size:14px;font-family:var(--font-body);width:100%;">
+            S'abonner
+        </button>
+    </form>
+</div>
+
+<!-- Nous rejoindre -->
+<div style="background:var(--primary-color);padding:1.25rem;text-align:center;margin-top:1rem;">
+    <h3 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Nous rejoindre / nous contacter&nbsp;?</h3>
+    <p style="color:rgba(255,255,255,.85);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Rejoignez le syndicat et participez à l'organisation collective de votre secteur.</p>
+    <a href="{{ contact_url }}"
+       style="display:block;padding:.6rem;background:#fff;color:var(--primary-color);font-weight:700;font-size:14px;font-family:var(--font-body);text-align:center;text-decoration:none;">
+        Nous contacter / Adhérer
+    </a>
+</div>
+
+<!-- Nous soutenir -->
+<div style="background:var(--dark-bg);padding:1.25rem;text-align:center;margin-top:1rem;">
+    <h3 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Nous soutenir&nbsp;?</h3>
+    <p style="color:rgba(255,255,255,.7);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Faites un don pour soutenir nos actions syndicales.</p>
+    <a href="{% url 'content:souscription' %}"
+       style="display:block;padding:.6rem;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);font-weight:700;font-size:14px;font-family:var(--font-body);text-align:center;text-decoration:none;">
+        Nous soutenir
+    </a>
+</div>
