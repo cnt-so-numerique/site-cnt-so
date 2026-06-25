@@ -201,6 +201,7 @@ class SectionPageViewSet(SnippetViewSet):
     menu_order = 200
     list_display = ['title', 'slug', 'section_type', 'live']
     search_fields = ['title', 'slug']
+    panels = SectionPage.content_panels
 
     def get_queryset(self, request):
         qs = SectionPage.objects.all()
