@@ -35,7 +35,7 @@
         <td>{{ row.article_count }}</td>
         <td>{{ row.subscriber_count }}</td>
         <td style="display:flex;gap:.5rem;flex-wrap:wrap;">
-          <a href="/cms/pages/{{ section.pk }}/edit/" class="button button-small">✏️ Éditer</a>
+          <a href="/cms/snippets/cms/sectionpage/edit/{{ section.pk }}/" class="button button-small">✏️ Éditer</a>
           {% if row.site_id %}
           <a href="/cms/select-site/?site_id={{ row.site_id }}" class="button button-small button-secondary">Sélectionner</a>
           {% endif %}

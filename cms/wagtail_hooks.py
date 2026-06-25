@@ -431,6 +431,12 @@ def add_mailing_lists_menu_item():
 # "Menus" supprimé — "Navigation" redirige vers /cms/menus/ (voir MenuItemViewSet)
 
 
+@hooks.register('construct_main_menu')
+def hide_structure_du_site_menu(request, menu_items):
+    """Masque "Structure du site" — l'édition syndicat se fait via /cms/syndicats/."""
+    menu_items[:] = [item for item in menu_items if getattr(item, 'label', '') != 'Structure du site']
+
+
 # ── Sélecteur de syndicat dans la sidebar ────────────────────────────────────
 
 @hooks.register('insert_global_admin_css')
