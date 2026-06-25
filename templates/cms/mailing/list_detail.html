@@ -8,14 +8,24 @@ body { font-family: sans-serif; background: #f9fafb; margin: 0; color: #1f2937; 
 .header { background: #1e2229; color: #e2e8f0; padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
 .header a { color: #94a3b8; text-decoration: none; font-size: .875rem; }
 .header a:hover { color: #fff; }
-.container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+.container { max-width: 860px; margin: 2rem auto; padding: 0 1rem; }
 h1 { font-size: 1.3rem; margin-bottom: .25rem; }
 .subtitle { color: #6b7280; font-size: .875rem; margin-bottom: 1.5rem; }
-.add-form { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 1.2rem; margin-bottom: 1.5rem; display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; }
+.toolbar { display: flex; gap: .75rem; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.add-form { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 1.2rem; margin-bottom: 1rem; display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; }
 .add-form input[type=email] { flex: 1; min-width: 200px; padding: .5rem .75rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: .9rem; }
+.import-form { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 1.2rem; margin-bottom: 1.5rem; }
+.import-form label { display: block; font-size: .875rem; font-weight: 600; margin-bottom: .5rem; color: #374151; }
+.import-form .hint { font-size: .8rem; color: #6b7280; margin-bottom: .75rem; }
+.import-row { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+.import-row input[type=file] { flex: 1; font-size: .875rem; }
 .btn { display: inline-block; padding: .5rem 1rem; border-radius: 4px; font-size: .875rem; font-weight: 600; text-decoration: none; cursor: pointer; border: none; }
 .btn-primary { background: #e63946; color: #fff; }
 .btn-primary:hover { background: #c0303b; }
+.btn-secondary { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+.btn-secondary:hover { background: #f9fafb; }
+.btn-export { background: #fff; color: #1d6f42; border: 1px solid #86efac; }
+.btn-export:hover { background: #f0fdf4; }
 .btn-danger { background: #fff; color: #b91c1c; border: 1px solid #fca5a5; font-size: .875rem; padding: .3rem .6rem; }
 .btn-danger:hover { background: #fef2f2; }
 .subscriber-list { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; }
@@ -27,6 +37,8 @@ h1 { font-size: 1.3rem; margin-bottom: .25rem; }
 .msg-ok { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
 .msg-err { background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; }
 .search { width: 100%; padding: .5rem .75rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: .88rem; margin-bottom: 1rem; box-sizing: border-box; }
+details summary { cursor: pointer; font-size: .875rem; font-weight: 600; color: #374151; padding: .5rem 0; user-select: none; }
+details summary:hover { color: #e63946; }
 </style>
 </head>
 <body>
@@ -44,6 +56,11 @@ h1 { font-size: 1.3rem; margin-bottom: .25rem; }
   {% if msg_ok %}<div class="msg msg-ok">✓ {{ msg_ok }}</div>{% endif %}
   {% if msg_err %}<div class="msg msg-err">⚠️ {{ msg_err }}</div>{% endif %}
 
+  <!-- Toolbar : export -->
+  <div class="toolbar">
+    <a href="?export=csv" class="btn btn-export">⬇ Exporter la liste (CSV)</a>
+  </div>
+
   <!-- Ajouter un abonné -->
   <form method="post" class="add-form">
     {% csrf_token %}
@@ -52,24 +69,46 @@ h1 { font-size: 1.3rem; margin-bottom: .25rem; }
     <button type="submit" class="btn btn-primary">+ Ajouter</button>
   </form>
 
-  <!-- Liste -->
-  <div class="count-badge">{{ subscribers|length }} abonné{{ subscribers|length|pluralize }}</div>
-  <input class="search" type="search" placeholder="Filtrer les adresses…" id="search-input">
-  <div class="subscriber-list" id="subscriber-list">
-    {% for email in subscribers %}
-    <div class="subscriber-row" data-email="{{ email }}">
-      <span>{{ email }}</span>
-      <form method="post" style="margin:0">
+  <!-- Import fichier -->
+  <details>
+    <summary>⬆ Importer depuis un fichier CSV</summary>
+    <div style="margin-top:.75rem;">
+      <form method="post" enctype="multipart/form-data" class="import-form">
         {% csrf_token %}
-        <input type="hidden" name="action" value="remove">
-        <input type="hidden" name="email" value="{{ email }}">
-        <button type="submit" class="btn btn-danger"
-          onclick="return confirm('Retirer {{ email }} de la liste ?')">Retirer</button>
+        <input type="hidden" name="action" value="import">
+        <label>Fichier CSV ou TXT</label>
+        <div class="hint">
+          Format accepté : une adresse e-mail par ligne, ou fichier CSV avec colonne <code>email</code> en première position.
+          Les doublons sont ignorés automatiquement.
+        </div>
+        <div class="import-row">
+          <input type="file" name="csv_file" accept=".csv,.txt" required>
+          <button type="submit" class="btn btn-primary">Importer</button>
+        </div>
       </form>
     </div>
-    {% empty %}
-    <div class="subscriber-row" style="color:#9ca3af;font-style:italic;">Aucun abonné.</div>
-    {% endfor %}
+  </details>
+
+  <!-- Liste -->
+  <div style="margin-top:1.5rem;">
+    <div class="count-badge">{{ subscribers|length }} abonné{{ subscribers|length|pluralize }}</div>
+    <input class="search" type="search" placeholder="Filtrer les adresses…" id="search-input">
+    <div class="subscriber-list" id="subscriber-list">
+      {% for email in subscribers %}
+      <div class="subscriber-row" data-email="{{ email }}">
+        <span>{{ email }}</span>
+        <form method="post" style="margin:0">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="remove">
+          <input type="hidden" name="email" value="{{ email }}">
+          <button type="submit" class="btn btn-danger"
+            onclick="return confirm('Retirer {{ email }} de la liste ?')">Retirer</button>
+        </form>
+      </div>
+      {% empty %}
+      <div class="subscriber-row" style="color:#9ca3af;font-style:italic;">Aucun abonné.</div>
+      {% endfor %}
+    </div>
   </div>
 </div>
 <script>

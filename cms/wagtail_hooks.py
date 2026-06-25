@@ -615,19 +615,78 @@ class MailingListDetailView(View):
         return HttpResponse(html)
 
     def get(self, request, list_name):
-        from django.http import HttpResponseForbidden
+        import csv as csv_module
+        from django.http import HttpResponse, HttpResponseForbidden
+        from cms import ovh_client
         if not _can_access_list(request, list_name):
             return HttpResponseForbidden("Vous n'avez pas accès à cette liste.")
+        if request.GET.get('export') == 'csv':
+            try:
+                subscribers = ovh_client.get_subscribers(list_name)
+            except Exception as e:
+                return HttpResponse(f"Erreur : {e}", status=500)
+            response = HttpResponse(content_type='text/csv; charset=utf-8')
+            response['Content-Disposition'] = f'attachment; filename="{list_name}.csv"'
+            response.write('﻿')
+            writer = csv_module.writer(response)
+            writer.writerow(['email'])
+            for email in sorted(subscribers):
+                writer.writerow([email])
+            return response
         return self._render(request, list_name)
 
     def post(self, request, list_name):
         from django.http import HttpResponseForbidden
+        from django.core.validators import validate_email
+        from django.core.exceptions import ValidationError as DjangoValidationError
         from cms import ovh_client
         if not _can_access_list(request, list_name):
             return HttpResponseForbidden("Vous n'avez pas accès à cette liste.")
         action = request.POST.get('action')
-        email = request.POST.get('email', '').strip()
         msg_ok = msg_err = None
+
+        if action == 'import':
+            csv_file = request.FILES.get('csv_file')
+            if not csv_file:
+                return self._render(request, list_name, msg_err="Aucun fichier fourni.")
+            try:
+                content = csv_file.read().decode('utf-8-sig').splitlines()
+            except Exception:
+                return self._render(request, list_name, msg_err="Impossible de lire le fichier (encodage ?).")
+            emails_to_add = []
+            for line in content:
+                # Accepte CSV (1re colonne) ou simple liste d'emails
+                candidate = line.split(',')[0].strip().strip('"').lower()
+                if not candidate or candidate == 'email':
+                    continue
+                try:
+                    validate_email(candidate)
+                    emails_to_add.append(candidate)
+                except DjangoValidationError:
+                    pass
+            if not emails_to_add:
+                return self._render(request, list_name, msg_err="Aucune adresse e-mail valide trouvée dans le fichier.")
+            # Dédoublonnage avant envoi à OVH
+            emails_to_add = list(dict.fromkeys(emails_to_add))
+            added = skipped = errors = 0
+            for email in emails_to_add:
+                try:
+                    result = ovh_client.add_subscriber(list_name, email)
+                    if result:
+                        added += 1
+                    else:
+                        skipped += 1
+                except Exception:
+                    errors += 1
+            parts = [f"{added} ajouté(s)"]
+            if skipped:
+                parts.append(f"{skipped} déjà présent(s)")
+            if errors:
+                parts.append(f"{errors} erreur(s)")
+            msg_ok = " · ".join(parts) + f" (sur {len(emails_to_add)} adresses dans le fichier)."
+            return self._render(request, list_name, msg_ok=msg_ok)
+
+        email = request.POST.get('email', '').strip()
         if not email:
             return self._render(request, list_name, msg_err="Adresse e-mail manquante.")
         try:
