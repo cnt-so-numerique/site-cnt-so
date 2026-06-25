@@ -945,7 +945,7 @@
                     {% for article in manchette_articles %}
                     <article class="hp-mcard">
                         {% if article.any_image_url %}
-                        <img src="{{ article.any_image_url }}" alt="{{ article.title }}">
+                        <a href="{{ article.get_absolute_url }}"><img src="{{ article.any_image_url }}" alt="{{ article.title }}"></a>
                         {% else %}
                         <div class="hp-mcard-noimg"></div>
                         {% endif %}
