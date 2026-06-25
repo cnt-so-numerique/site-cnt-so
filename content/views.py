@@ -526,8 +526,9 @@ def _send_contact_email(site, message_obj):
     if objet:
         subject += f' — {objet}'
 
+    nom_complet = ' '.join(filter(None, [message_obj.first_name, message_obj.name]))
     lines = [
-        f'Nom : {message_obj.name}',
+        f'Nom : {nom_complet}',
         f'Email : {message_obj.email}',
     ]
     if message_obj.phone:
@@ -543,7 +544,7 @@ def _send_contact_email(site, message_obj):
             lines.append(f'{k} : {v}')
     lines += ['', message_obj.message]
 
-    safe_name = message_obj.name.replace('\n', ' ').replace('\r', ' ')
+    safe_name = nom_complet.replace('\n', ' ').replace('\r', ' ')
     email = EmailMultiAlternatives(
         subject=subject,
         body='\n'.join(lines),
@@ -580,6 +581,7 @@ class _BaseContactView(View):
                 formulaire=formulaire,
                 email=cd['email'],
                 name=cd.get('nom', ''),
+                first_name=cd.get('prenom', ''),
                 phone=cd.get('telephone', ''),
                 city=cd.get('ville', ''),
                 sector=cd.get('secteur', ''),

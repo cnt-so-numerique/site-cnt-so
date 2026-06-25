@@ -299,6 +299,7 @@ class ContactMessage(models.Model):
         related_name='submissions', verbose_name="Formulaire"
     )
     name = models.CharField(max_length=200, verbose_name="Nom")
+    first_name = models.CharField(max_length=200, default='', blank=True, verbose_name="Prénom")
     email = models.EmailField(verbose_name="Email")
     phone = models.CharField(max_length=30, default='', blank=True, verbose_name="Téléphone")
     city = models.CharField(max_length=100, default='', blank=True, verbose_name="Ville")
@@ -335,6 +336,7 @@ class FormulaireContact(models.Model):
     )
     intro_text = models.TextField(blank=True, verbose_name="Texte d'introduction")
     field_nom = models.BooleanField(default=True, verbose_name='Champ Nom')
+    field_prenom = models.BooleanField(default=False, verbose_name='Champ Prénom')
     field_telephone = models.BooleanField(default=False, verbose_name='Champ Téléphone')
     field_ville = models.BooleanField(default=False, verbose_name='Champ Ville')
     field_secteur = models.BooleanField(default=False, verbose_name='Champ Secteur')

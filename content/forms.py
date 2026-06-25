@@ -65,29 +65,30 @@ class DynamicContactForm(forms.Form):
                 label='Nom *',
                 widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Votre nom'}),
             )
+        if formulaire.field_prenom:
+            self.fields['prenom'] = forms.CharField(
+                label='Prénom *',
+                widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Votre prénom'}),
+            )
         if formulaire.field_telephone:
             self.fields['telephone'] = forms.CharField(
-                label='Téléphone',
-                required=False,
+                label='Téléphone *',
                 max_length=30,
                 widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': '06 12 34 56 78'}),
             )
         if formulaire.field_ville:
             self.fields['ville'] = forms.CharField(
-                label='Ville',
-                required=False,
+                label='Ville *',
                 widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Votre ville'}),
             )
         if formulaire.field_secteur:
             self.fields['secteur'] = forms.CharField(
-                label='Secteur professionnel',
-                required=False,
+                label='Secteur professionnel / Métier *',
                 widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Ex : Nettoyage, BTP…'}),
             )
         if formulaire.field_objet:
             self.fields['objet'] = forms.CharField(
-                label='Objet',
-                required=False,
+                label='Objet *',
                 widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': "Objet de votre message"}),
             )
 

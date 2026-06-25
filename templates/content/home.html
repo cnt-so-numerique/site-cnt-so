@@ -14,7 +14,7 @@
    ---------------------------------------------------------- */
 .hp-layout {
     max-width: 1280px;
-    margin: 1.5rem auto 0;
+    margin: 0.5rem auto 0;
     padding: 0 2rem;
     display: grid;
     grid-template-columns: 1fr 300px;
@@ -496,7 +496,7 @@
    ---------------------------------------------------------- */
 .hp-manchette-section {
     border-bottom: 1px solid var(--bg-lighter);
-    padding: 1.5rem 0 2rem 0;
+    padding: 0.5rem 0 2rem 0;
 }
 
 .hp-manchette-section .hp-section-body {
@@ -721,6 +721,7 @@
     display: flex;
     flex-direction: column;
     gap: 0;
+    padding-top: 0.5rem;
 }
 @media (max-width: 960px) {
     .hp-sidebar { margin-top: 2rem; }
@@ -938,7 +939,7 @@
 
         <!-- 2. MANCHETTE : 6 articles confédéraux mis en avant -->
         {% if manchette_articles %}
-        <div class="hp-manchette-section" style="margin-top:2rem;">
+        <div class="hp-manchette-section">
             <div class="hp-section-body">
                 <div class="hp-manchette">
                     {% for article in manchette_articles %}

@@ -1,8 +1,27 @@
-from django.urls import path, re_path
+from django.urls import path, re_path, register_converter
 from django.views.generic import RedirectView
 from . import views
 from . import api_views
 from .feeds import LatestArticlesFeed, SiteArticlesFeed, CategoryFeed
+
+
+class SectionSlugConverter:
+    """Ne matche que les slugs qui correspondent à une SectionPage existante.
+    Cela permet aux URLs Wagtail (/mentions-legales/, /cgu/, etc.)
+    de ne pas être interceptées par le catch-all <site_slug>/."""
+    regex = r'[\w-]+'
+
+    def to_python(self, value):
+        from cms.models import SectionPage
+        if SectionPage.objects.filter(slug=value).exists():
+            return value
+        raise ValueError
+
+    def to_url(self, value):
+        return value
+
+
+register_converter(SectionSlugConverter, 'section_slug')
 
 app_name = 'content'
 
@@ -66,7 +85,7 @@ urlpatterns = [
     path('<slug:site_slug>/contact/', views.SiteContactView.as_view(), name='site_contact'),
     path('<slug:site_slug>/contact/merci/', views.site_contact_success, name='site_contact_success'),
     path('<slug:site_slug>/plan-du-site/', views.PlanDuSiteView.as_view(), name='site_plan_du_site'),
-    path('<slug:site_slug>/', views.SiteHomeView.as_view(), name='site_home'),
+    path('<section_slug:site_slug>/', views.SiteHomeView.as_view(), name='site_home'),
     path('<slug:site_slug>/article/<slug:slug>/', views.SiteArticleDetailView.as_view(), name='site_article_detail'),
     path('<slug:site_slug>/page/<slug:slug>/', views.SitePageDetailView.as_view(), name='site_page_detail'),
 
