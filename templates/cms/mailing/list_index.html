@@ -10,9 +10,13 @@ body { font-family: sans-serif; background: #f9fafb; margin: 0; color: #1f2937; 
 .header a { color: #94a3b8; text-decoration: none; font-size: .875rem; }
 .header a:hover { color: #fff; }
 .container { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
-h1 { font-size: 1.4rem; margin-bottom: 1.5rem; }
+h1 { font-size: 1.4rem; margin-bottom: 1rem; }
+.search-bar { width: 100%; padding: .65rem 1rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: .95rem; margin-bottom: .5rem; box-sizing: border-box; }
+.search-bar:focus { outline: none; border-color: #e63946; box-shadow: 0 0 0 2px rgba(230,57,70,.15); }
+.search-count { font-size: .8rem; color: #6b7280; margin-bottom: 1.25rem; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
-.card { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 1rem 1.2rem; }
+.card { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 1rem 1.2rem; transition: box-shadow .15s; }
+.card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.07); }
 .card-name { font-weight: 700; font-size: 1rem; color: #111827; margin-bottom: .2rem; }
 .card-email { font-size: .875rem; color: #6b7280; margin-bottom: .75rem; }
 .card-count { font-size: .875rem; color: #374151; background: #f3f4f6; display: inline-block; padding: .2rem .6rem; border-radius: 20px; margin-bottom: .75rem; }
@@ -20,6 +24,7 @@ h1 { font-size: 1.4rem; margin-bottom: 1.5rem; }
 .btn-primary { background: #e63946; color: #fff; }
 .btn-primary:hover { background: #c0303b; }
 .error { background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; }
+.empty { color: #6b7280; font-size: .9rem; padding: 1rem 0; }
 </style>
 </head>
 <body>
@@ -33,9 +38,11 @@ h1 { font-size: 1.4rem; margin-bottom: 1.5rem; }
   {% if error %}
   <div class="error">⚠️ {{ error }}</div>
   {% else %}
-  <div class="grid">
+  <input type="search" class="search-bar" id="search-input" placeholder="Rechercher une liste…" autofocus>
+  <div class="search-count" id="search-count">{{ lists|length }} liste{{ lists|length|pluralize }}</div>
+  <div class="grid" id="cards-grid">
     {% for lst in lists %}
-    <div class="card">
+    <div class="card" data-name="{{ lst.name|lower }}">
       <div class="card-name">{{ lst.name }}</div>
       <div class="card-email">{{ lst.name }}@cnt-so.info</div>
       <div class="card-count">{{ lst.count }} abonné{{ lst.count|pluralize }}</div><br>
@@ -43,7 +50,31 @@ h1 { font-size: 1.4rem; margin-bottom: 1.5rem; }
     </div>
     {% endfor %}
   </div>
+  <div class="empty" id="no-results" style="display:none;">Aucune liste ne correspond à votre recherche.</div>
   {% endif %}
 </div>
+<script>
+(function() {
+  var input = document.getElementById('search-input');
+  var countEl = document.getElementById('search-count');
+  var noResults = document.getElementById('no-results');
+  if (!input) return;
+  var total = {{ lists|length }};
+  input.addEventListener('input', function() {
+    var q = this.value.toLowerCase().trim();
+    var cards = document.querySelectorAll('#cards-grid .card');
+    var visible = 0;
+    cards.forEach(function(card) {
+      var match = !q || card.dataset.name.includes(q);
+      card.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    countEl.textContent = q
+      ? visible + ' résultat' + (visible > 1 ? 's' : '') + ' sur ' + total
+      : total + ' liste' + (total > 1 ? 's' : '');
+    noResults.style.display = visible === 0 ? '' : 'none';
+  });
+})();
+</script>
 </body>
 </html>
