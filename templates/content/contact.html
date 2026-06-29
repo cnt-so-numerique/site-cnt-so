@@ -90,7 +90,7 @@
 <h1 class="section-title">Nous contacter</h1>
 
 {% if formulaire and formulaire.intro_text %}
-<p style="color: var(--text-muted); margin-bottom: 1.5rem;">{{ formulaire.intro_text }}</p>
+<div style="color: var(--text-muted); margin-bottom: 1.5rem;">{{ formulaire.intro_text|linebreaksbr }}</div>
 {% else %}
 <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
     Vous avez une question, une demande d'information ou souhaitez rejoindre
