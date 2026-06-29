@@ -14,10 +14,11 @@
 </div>
 
 <!-- Nous rejoindre -->
+{% if site.slug and site.slug != 'principal' %}{% url 'content:site_contact' site_slug=site.slug as sidebar_contact_url %}{% else %}{% url 'content:contact' as sidebar_contact_url %}{% endif %}
 <div style="background:var(--primary-color);padding:1.25rem;text-align:center;margin-top:1rem;">
     <h3 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Nous rejoindre / nous contacter&nbsp;?</h3>
     <p style="color:rgba(255,255,255,.85);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Rejoignez le syndicat et participez à l'organisation collective de votre secteur.</p>
-    <a href="{% url 'content:contact' %}"
+    <a href="{{ sidebar_contact_url }}"
        style="display:block;padding:.6rem;background:#fff;color:var(--primary-color);font-weight:700;font-size:14px;font-family:var(--font-body);text-align:center;text-decoration:none;">
         Nous contacter / Adhérer
     </a>
