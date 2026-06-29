@@ -1666,12 +1666,21 @@
 
             <!-- Colonne 1 : identité -->
             <div class="footer-brand">
+            {% if site and site.slug != 'principal' %}
+                <div class="footer-brand-name">{{ site.name }}</div>
+                {% if site.description %}<p class="footer-brand-desc">{{ site.description }}</p>{% endif %}
+                <div class="footer-brand-meta">
+                    {% if site.contact_email %}<a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a><br>{% endif %}
+                    <a href="{% url 'content:site_contact' site_slug=site.slug %}">Formulaire de contact</a>
+                </div>
+            {% else %}
                 <div class="footer-brand-name">CNT-SO</div>
                 <p class="footer-brand-desc">Confédération Nationale du Travail — Section Ordinaire.<br>Syndicat interprofessionnel, anarcho-syndicaliste, autogestionnaire.</p>
                 <div class="footer-brand-meta">
                     <a href="mailto:contact@cnt-so.org">contact@cnt-so.org</a><br>
                     <a href="{% url 'content:contact' %}">Formulaire de contact</a>
                 </div>
+            {% endif %}
             </div>
 
             <!-- Colonne 2 : navigation footer -->
@@ -1691,8 +1700,9 @@
             {% endif %}
 
             <!-- Colonne 3 : réseaux sociaux -->
-            {% with s=current_site %}
-            {% if not s or s.slug == 'principal' %}
+            {% if site and site.slug != 'principal' %}
+                {% with s=site %}{% include "content/_social_icons.html" %}{% endwith %}
+            {% else %}
             <div class="footer-social">
                 <h4>Suivez-nous</h4>
                 <div class="footer-social-icons">
@@ -1711,7 +1721,6 @@
                 </div>
             </div>
             {% endif %}
-            {% endwith %}
 
         </div>
         <div class="footer-bottom">
