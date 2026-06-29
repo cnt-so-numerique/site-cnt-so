@@ -89,6 +89,10 @@
 
 <h1 class="section-title">Nous contacter</h1>
 
+{% if formulaire and formulaire.featured_image %}
+<img src="{{ formulaire.featured_image.file.url }}" alt="{{ site.name }}" style="width:100%;max-width:800px;height:auto;margin-bottom:1.5rem;display:block;">
+{% endif %}
+
 {% if formulaire and formulaire.intro_text %}
 <div style="color: var(--text-muted); margin-bottom: 1.5rem;">{{ formulaire.intro_text|linebreaksbr }}</div>
 {% else %}

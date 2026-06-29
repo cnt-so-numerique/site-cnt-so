@@ -335,6 +335,10 @@ class FormulaireContact(models.Model):
         help_text='Ajouté au début du sujet (ex : [Contact CNT-SO])'
     )
     intro_text = models.TextField(blank=True, verbose_name="Texte d'introduction")
+    featured_image = models.ForeignKey(
+        'wagtailimages.Image', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='+', verbose_name="Image d'illustration",
+    )
     field_nom = models.BooleanField(default=True, verbose_name='Champ Nom')
     field_prenom = models.BooleanField(default=False, verbose_name='Champ Prénom')
     field_telephone = models.BooleanField(default=False, verbose_name='Champ Téléphone')
