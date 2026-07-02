@@ -11,83 +11,69 @@ source venv/bin/activate
 python manage.py runserver        # Start dev server
 python manage.py migrate          # Apply migrations
 python manage.py makemigrations   # Create new migrations
-python manage.py createsuperuser  # Create admin user
-python manage.py test             # Run tests
+python manage.py test             # Run tests (content + cms)
+python manage.py test content     # Run tests for a specific app
 
 # Après chaque migrate (surtout en prod avec utilisateurs connectés) :
 python manage.py fix_cms_sessions --dry-run  # vérifier les sessions à corriger
 python manage.py fix_cms_sessions            # corriger les sessions avec site_id obsolète
-python manage.py test content     # Run tests for a specific app
 ```
+
+Déploiement prod : voir `!DEPLOIEMENT.md` (serveur `debian@51.91.242.64`, `/var/www/cntso/`, supervisor service `cntso`).
 
 ## Architecture overview
 
-This is a Django 5.2 CMS for the CNT-SO (anarcho-syndicalist union) website, migrated from a WordPress multisite. It uses SQLite in development, Python 3.12, with a venv at `venv/`.
+Django 6.0 + **Wagtail 7.4** CMS for the CNT-SO (anarcho-syndicalist union) website, migrated from a WordPress multisite. SQLite in development, Python 3.12, venv at `venv/`. `/cms/` (Wagtail admin) is the only editorial interface — the old `redaction/` app was removed and `/redac/` permanently redirects to `/cms/`.
 
 ### Multisite model
 
-The central concept is `Site` (in `content/models.py`), representing either the main confederation site (`slug='principal'`) or regional/sectoral sub-sites. All major models (`Article`, `Page`, `Category`, `Tag`, `Media`, `MenuItem`) have a ForeignKey to `Site`. Views always filter by site context.
+The central concept is `SectionPage` (in `cms/models.py`), a Wagtail page representing either the main confederation site (`slug='principal'`, hardcoded throughout views and context processors) or a regional/sectoral sub-site (`section_type` field; `RegionalSectionPage`/`SectoralSectionPage` are proxies). Content models reference their site either by FK to `SectionPage` (`MenuItem`, `Subscriber`, `Newsletter`, `FormulaireContact`…) or by a `section_slug` SlugField (`ArticlePage`, `ContentPage`, `CmsCategory`). Views always filter by site context.
 
-The main site slug `'principal'` is hardcoded throughout views and context processors as the entry point.
+`SectionPage` also carries per-site identity: contact email, social links, `framaform_url` (adhésion), `linkstack_url`, `agenda_url`, carousel (`CarouselArticle` inline), OVH mailing list.
 
 ### Apps
 
-**`content/`** — Public-facing app. All models, views, URLs, feeds, sitemaps. No authentication required for reading. URL namespace: `content`.
+**`cms/`** — Wagtail page models and admin customization. `CmsCategory`, `HomePage`, `SectionPage`, `ArticlePage` (StreamField body), `ContentPage` (static pages), `Event` (agenda). `wagtail_hooks.py` customizes the admin (site scoping, menu structure). `site_context.py` handles the per-user "current site" scoping in the admin (session key; see `fix_cms_sessions`). `ovh_client.py` + `widgets.py` for OVH mailing-list management.
 
-**`redaction/`** — Internal editorial interface at `/redac/`. No Django models (no migrations). Uses `content` models directly. URL namespace: `redaction`.
+**`content/`** — Public-facing views/URLs/feeds/sitemaps (namespace `content`) plus non-page models: `MenuItem`, `Subscriber`/`Newsletter`, `ContactMessage`/`FormulaireContact`/`ChampContactCustom` (dynamic contact forms), `Comment`, `Author`. Also `wagtail_hooks.py` registering these models as snippets (SnippetViewSet groups). Legacy WordPress models (`Article`, `Page`, `Tag`, `Media`) are kept for data/import history but are no longer registered in the admin (the legacy `ContenuGroup` is unregistered).
 
-### Role-based access in `redaction/`
-
-Three access levels enforced via mixins in `redaction/mixins.py`:
-- **superuser** — full access, can manage all sites and users
-- **`redacteur_en_chef` group** — manages content, comments, categories; can switch active site via session (`redac_current_site_id`)
-- **`redacteur` group** — can create/edit articles and pages on their assigned site only
-
-Groups and permissions are created automatically on `post_migrate` signal in `redaction/apps.py`. A `redacteur` is scoped to a site via `Author.site` (linked to `Author.user` via OneToOneField `author_profile`).
-
-### Context processors
-
-- `content.context_processors.menu_context` — injects `main_site`, `sites`, `regional_sites`, `sectoral_sites`, `main_categories`, `menu_structure` (hardcoded category slugs) into all templates
-- `redaction.context_processors.redac_context` — injects `is_chef`, `user_site`, `current_site`, `all_sites` for the editorial interface
+Editorial groups (`redacteur`, `redacteur_en_chef`) are created on `post_migrate` in `content/apps.py`; a `redacteur` is scoped to a site via `Author.site` (`Author.user` OneToOneField `author_profile`).
 
 ### URL routing
 
 ```
-/                   → content app (HomeView, articles, pages, categories, tags)
-/redac/             → redaction app (dashboard, CRUD for articles/categories/tags/etc.)
-/admin/             → Django admin
-/sitemap.xml        → django.contrib.sitemaps
-/<site_slug>/       → sub-site home (SiteHomeView)
+/                     → content.views.HomeView (une de journal : carousel, manchette, réseau)
+/<slug>/              → SiteHomeView + sub-site URLs (contact, agenda, rejoindre, ressources…)
+/cms/                 → Wagtail admin (seule interface éditoriale)
+/admin/               → Django admin
+/adherer/<slug>/      → redirect vers l'app externe cnt-adhesion
+/api/newsletter/sync/ → webhook cnt-adhesion (HMAC, csrf_exempt)
+/sitemap.xml, /robots.txt
 ```
 
-WordPress legacy URL redirects are handled by `WordPressRedirectView` (date-based `/YYYY/MM/slug/` patterns).
+`content.urls` is included **before** `wagtail_urls`; Wagtail page serving is the final catch-all. WordPress legacy URLs handled by `WordPressRedirectView` (`/YYYY/MM/slug/`). Media served by Django before the `<slug>` catch-all.
 
-### WordPress import commands
+### Context processors
 
-Located in `content/management/commands/`:
-- `import_wordpress.py` — main import from WP export
-- `import_comments.py` — import comments
-- `import_featured_images.py` — import featured images
-- `fix_media_urls.py` — fix media URLs post-import
+`content.context_processors.menu_context` — injects `main_site`, `sites`, `regional_sites`, `sectoral_sites`, `main_categories`, `menu_structure` into all templates.
 
-All models include `wp_id` (nullable IntegerField) and `wp_date` fields to preserve WordPress metadata.
+### Key integrations
 
-### Templates
+- **hCaptcha** on public forms (test keys by default; mock `hcaptcha.fields.hCaptchaField.validate` in tests).
+- **wagtail-cache** (`WAGTAILCACHE_*`), **wagtail-2fa** (`WAGTAIL_2FA_REQUIRED = False` for now), **wagtailseo**.
+- **OVH** : newsletter sending throttled (`NEWSLETTER_SEND_DELAY`), mailing-list API via env keys (`OVH_*`). Guide: `docs/newsletter-ovh-guide.md`.
+- **cnt-adhesion** (separate app at `/home/arnaud/PycharmProjects/cnt-adhesion`) : `ADHESION_WEBHOOK_SECRET`, `ADHESION_BASE_URL`.
+- `local_settings.py` (gitignored) overrides credentials/DEBUG in dev; prod uses env vars. A hardening block at the end of `settings.py` refuses to start in prod with the fallback insecure `SECRET_KEY` and enables secure cookies + HSTS.
 
-- Global base: `templates/base.html`
-- Content templates: `templates/content/`
-- Redaction templates: `templates/redaction/` — uses dark-palette CSS defined inline in `templates/redaction/base.html`
-- Template tag: `content/templatetags/menu_tags.py`
+### Templates & static
 
-### Media
+- Global base: `templates/base.html`; public templates in `templates/content/` (sub-site home: `sectoral_site_home.html`, sidebar partials `_sidebar*.html`); Wagtail rendering in `templates/cms/`.
+- Template tags: `content/templatetags/menu_tags.py`, `content_tags.py` (`render_content` is legacy WordPress/EditorJS rendering).
+- Media uploads: `media/`; WordPress-era models keep `wp_id`/`original_url` fallbacks.
 
-Uploaded files go to `media/uploads/%Y/%m/`. `Media.url` property returns local file URL if available, falls back to original WordPress URL (`original_url` field).
+### Tests
 
-### Key settings
-
-- `LANGUAGE_CODE = 'fr-fr'`, `TIME_ZONE = 'Europe/Paris'`
-- Templates lookup: `DIRS=[BASE_DIR / 'templates']` plus `APP_DIRS=True`
-- Media served via Django in DEBUG mode only
+`content/tests.py` (~4300 lines) and `cms/tests.py` (~950 lines), ~550 tests. Factories at the top of `content/tests.py`: `make_site` (SectionPage), `make_article_page`, `make_content_page`, `make_cms_category`… Gotchas: dynamic contact forms require `objet` by default (`field_objet=True`); hCaptcha must be mocked; Wagtail pages are created via `add_child` under the `home-test` HomePage.
 
 ---
 
