@@ -246,3 +246,20 @@ try:
     INSTALLED_APPS = INSTALLED_APPS + INSTALLED_APPS_EXTRA
 except (ImportError, NameError):
     pass
+
+# ── Durcissement production ────────────────────────────────────────────────────
+# Après l'import de local_settings pour connaître la valeur finale de DEBUG.
+if not DEBUG:
+    if SECRET_KEY.startswith('django-insecure-'):
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured(
+            "SECRET_KEY absente en production : définir la variable "
+            "d'environnement SECRET_KEY (ou la surcharger dans local_settings.py)."
+        )
+    # Cookies uniquement sur HTTPS
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # nginx doit transmettre X-Forwarded-Proto pour que Django voie le HTTPS
+    # (nécessaire à l'émission du header HSTS derrière le reverse proxy)
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_HSTS_SECONDS = 2592000  # 30 jours — la redirection HTTP→HTTPS reste gérée par nginx
