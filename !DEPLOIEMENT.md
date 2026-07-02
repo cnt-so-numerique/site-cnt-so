@@ -58,12 +58,54 @@ sudo supervisorctl status cntso
 | Élément         | Valeur                                          |
 |-----------------|-------------------------------------------------|
 | Serveur         | `debian@51.91.242.64`                           |
+| URL actuelle    | `https://newsite.cnt-so.org`                    |
 | Dossier site    | `/var/www/cntso/`                               |
 | Remote GitHub   | `https://github.com/cnt-so-numerique/site-cnt-so.git` |
 | Process manager | `supervisor` (pas systemctl)                    |
 | Service         | `cntso`                                         |
 | Web server      | nginx (reverse proxy)                           |
 | Socket          | `/var/www/cntso/cntso.sock`                     |
+
+---
+
+## ⚠️ Bascule DNS cnt-so.org → nouveau site (checklist, constat du 2026-07-02)
+
+**État actuel** : `cnt-so.org` pointe encore vers l'ancien WordPress (`5.196.74.69`,
+un autre serveur, toujours en ligne). Le site Django/Wagtail n'est public que sur
+`newsite.cnt-so.org` (`51.91.242.64`).
+
+Le jour de la bascule (faire AVANT de changer le DNS) :
+
+1. **ALLOWED_HOSTS prod** — le `local_settings.py` du serveur rejette actuellement
+   le Host `cnt-so.org` (erreur 400). Ajouter dans
+   `/var/www/cntso/cntso/local_settings.py` :
+   ```python
+   ALLOWED_HOSTS = ['cnt-so.org', 'www.cnt-so.org', 'newsite.cnt-so.org', '51.91.242.64']
+   ```
+
+2. **nginx** — élargir le `server_name` du vhost cntso
+   (`/etc/nginx/sites-enabled/cntso`) :
+   ```
+   server_name cnt-so.org www.cnt-so.org newsite.cnt-so.org 51.91.242.64;
+   ```
+
+3. **Certificat TLS** — obtenir un certificat pour `cnt-so.org` + `www.cnt-so.org`
+   (certbot). Attention : tant que le DNS pointe ailleurs, la validation HTTP
+   échouera → utiliser la validation DNS, ou refaire le certbot juste après la
+   bascule DNS.
+
+4. **Basculer le DNS** : `cnt-so.org` (A) et `www` → `51.91.242.64`.
+
+5. **Après bascule** :
+   - `sudo supervisorctl restart cntso` puis vérifier `https://cnt-so.org/` (200)
+     et `https://cnt-so.org/cms/` (302 vers login) ;
+   - vérifier le header `Strict-Transport-Security` (déjà actif, 30 jours) ;
+   - garder l'ancien serveur WordPress accessible en lecture quelque temps
+     (redirections legacy, `wp-content/uploads` encore référencé par les
+     images non importées).
+
+Note : les redirections WordPress (`/YYYY/MM/slug/`) sont déjà gérées côté Django
+par `WordPressRedirectView`.
 
 ## Commandes supervisor utiles
 
