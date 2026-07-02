@@ -9,6 +9,14 @@ __pycache__/
 db.sqlite3
 *.log
 local_settings.py
+staticfiles/
+
+# Tests / couverture
+.coverage
+htmlcov/
+
+# Sauvegardes
+*.bak
 
 # Environnement virtuel
 venv/
