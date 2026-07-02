@@ -157,9 +157,11 @@ class StucsHomeViewTest(TestCase):
         r = self.client.get('/stucs/')
         self.assertContains(r, 'STUCS')
 
-    def test_home_shows_rejoindre_button(self):
+    def test_home_shows_rejoindre_block(self):
+        # Le bloc sidebar "Nous rejoindre" pointe vers la page contact du sous-site
         r = self.client.get('/stucs/')
-        self.assertContains(r, 'framaforms.org')
+        self.assertContains(r, 'Nous contacter / Adhérer')
+        self.assertContains(r, '/stucs/contact/')
 
 
 class StucsRejoindreViewTest(TestCase):
@@ -419,10 +421,10 @@ class CarouselHomeViewTest(TestCase):
         self.assertIn('carousel_articles', r.context)
         self.assertEqual(len(r.context['carousel_articles']), 1)
 
-    def test_carousel_not_in_context_for_main_site(self):
+    def test_carousel_in_context_for_main_site(self):
         r = self.client.get('/')
-        # La home principale n'a pas de carousel_articles dans le contexte
-        self.assertNotIn('carousel_articles', r.context or {})
+        # Depuis la refonte "une de journal", la home principale a aussi son carrousel
+        self.assertIn('carousel_articles', r.context)
 
     def test_carousel_image_url_in_html(self):
         from wagtail.images.models import Image as WagtailImage
@@ -544,8 +546,9 @@ class RejoindreUrlTest(TestCase):
         self.stucs = make_stucs_section()
 
     def test_rejoindre_url_uses_framaform_fallback(self):
+        # Sans MenuItem "rejoindre", le contexte retombe sur framaform_url
         r = Client().get('/stucs/')
-        self.assertContains(r, 'framaforms.org')
+        self.assertIn('framaforms.org', r.context['rejoindre_url'])
 
     def test_rejoindre_url_prefers_menu_item(self):
         from content.models import MenuItem

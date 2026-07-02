@@ -14,7 +14,7 @@ from content.models import (
     Comment, MenuItem, Subscriber, Newsletter,
 )
 from content.forms import ContactForm, CommentForm
-from cms.models import ArticlePage, CmsCategory, HomePage
+from cms.models import ArticlePage, CmsCategory, ContentPage, HomePage
 
 
 # ── Fixtures helpers ───────────────────────────────────────────────────────────
@@ -85,6 +85,18 @@ def make_article_page(section_slug='principal', title='Article test', slug=None,
         for cat in categories:
             through.objects.create(articlepage=art, cmscategory=cat)
     return art
+
+
+def make_content_page(section_slug='principal', title='Page test', slug=None,
+                      live=True, **kwargs):
+    parent = _get_article_parent()
+    slug = slug or title.lower().replace(' ', '-')
+    return parent.add_child(instance=ContentPage(
+        title=title, slug=slug,
+        section_slug=section_slug,
+        live=live,
+        **kwargs
+    ))
 
 
 def make_cms_category(name='Cat', slug=None, section_slug='principal', **kwargs):
@@ -519,40 +531,44 @@ class HomeViewTest(TestCase):
         response = self.client.get(reverse('content:home'))
         self.assertEqual(response.context['site'], self.site)
 
-    def test_context_has_featured_article_key(self):
+    def test_context_has_carousel_articles_key(self):
         response = self.client.get(reverse('content:home'))
-        self.assertIn('featured_article', response.context)
+        self.assertIn('carousel_articles', response.context)
 
-    def test_context_has_hero_mini_cards_key(self):
+    def test_context_has_manchette_articles_key(self):
         response = self.client.get(reverse('content:home'))
-        self.assertIn('hero_mini_cards', response.context)
+        self.assertIn('manchette_articles', response.context)
 
-    def test_sticky_article_becomes_featured(self):
-        sticky = make_article_page(section_slug='principal', title='Sticky', slug='sticky', is_featured=True)
+    def test_carousel_empty_sans_carousel_items_ni_images(self):
+        make_article_page(section_slug='principal', title='Sans image', slug='sans-image')
         response = self.client.get(reverse('content:home'))
-        self.assertEqual(response.context['featured_article'], sticky)
+        self.assertEqual(response.context['carousel_articles'], [])
 
-    def test_first_article_is_featured_when_no_sticky(self):
-        art = make_article_page(section_slug='principal', title='First', slug='first')
+    def test_carousel_uses_carousel_items_du_section_page(self):
+        from cms.models import CarouselArticle
+        art = make_article_page(section_slug='principal', title='En carrousel', slug='en-carrousel')
+        CarouselArticle.objects.create(page=self.site, article=art, sort_order=0)
         response = self.client.get(reverse('content:home'))
-        self.assertEqual(response.context['featured_article'], art)
+        self.assertIn(art, response.context['carousel_articles'])
 
-    def test_featured_article_none_when_no_articles(self):
+    def test_all_latest_articles_contains_recent_articles(self):
+        arts = [make_article_page(section_slug='principal', title=f'Art {i}', slug=f'art-{i}')
+                for i in range(4)]
         response = self.client.get(reverse('content:home'))
-        self.assertIsNone(response.context['featured_article'])
+        for art in arts:
+            self.assertIn(art, response.context['all_latest_articles'])
 
-    def test_hero_mini_cards_populated_with_multiple_articles(self):
-        for i in range(4):
-            make_article_page(section_slug='principal', title=f'Art {i}', slug=f'art-{i}')
-        response = self.client.get(reverse('content:home'))
-        self.assertIn('hero_mini_cards', response.context)
-        self.assertLessEqual(len(response.context['hero_mini_cards']), 3)
-
-    def test_flux_grid_in_context(self):
-        for i in range(5):
+    def test_all_latest_articles_capped_at_9(self):
+        for i in range(12):
             make_article_page(section_slug='principal', title=f'Flux {i}', slug=f'flux-{i}')
         response = self.client.get(reverse('content:home'))
-        self.assertIn('flux_grid', response.context)
+        self.assertLessEqual(len(response.context['all_latest_articles']), 9)
+
+    def test_all_latest_articles_includes_sous_sites(self):
+        make_site('reseau-test', wp_blog_id=42, site_type='sectoral', name='Réseau Test')
+        art = make_article_page(section_slug='reseau-test', title='Art réseau', slug='art-reseau')
+        response = self.client.get(reverse('content:home'))
+        self.assertIn(art, response.context['all_latest_articles'])
 
 
 class ArticleDetailViewTest(TestCase):
@@ -1279,10 +1295,8 @@ class SitemapsOtherTest(TestCase):
 
     def test_page_sitemap_items_are_published_pages(self):
         from content.sitemaps import PageSitemap
-        from cms.models import SectionPage
-        sp = SectionPage.objects.filter(slug='principal').first()
-        pub = Page.objects.create(site=sp, title='Pub', slug='pub-s', status='publish')
-        draft = Page.objects.create(site=sp, title='Draft', slug='draft-s', status='draft')
+        pub = make_content_page(title='Pub', slug='pub-s', live=True)
+        draft = make_content_page(title='Draft', slug='draft-s', live=False)
         sitemap = PageSitemap()
         items = list(sitemap.items())
         self.assertIn(pub, items)
@@ -1356,8 +1370,9 @@ class WagtailSnippetsRegisteredTest(TestCase):
         from cms.models import ContentPage as CmsContentPage
         self.assertIn(CmsContentPage, self._get_snippet_models())
 
-    def test_tag_snippet_registered(self):
-        self.assertIn(Tag, self._get_snippet_models())
+    def test_tag_snippet_not_registered(self):
+        """Tag legacy : le ContenuGroup (Articles & Pages legacy) n'est plus enregistré."""
+        self.assertNotIn(Tag, self._get_snippet_models())
 
     def test_subscriber_snippet_registered(self):
         self.assertIn(Subscriber, self._get_snippet_models())
@@ -2331,7 +2346,7 @@ class ContactViewWithFormulaireTest(TestCase):
     def test_post_saves_custom_data(self):
         make_champ_contact(self.formulaire, label='Code syndicat', slug='code-syndicat', field_type='text')
         self.client.post(self.url, {
-            'email': 'custom@test.fr', 'nom': 'Y',
+            'email': 'custom@test.fr', 'nom': 'Y', 'objet': 'Q',
             'message': 'M', 'custom_code-syndicat': 'XYZ',
             'h-captcha-response': 'test-token',
         })
@@ -2340,7 +2355,7 @@ class ContactViewWithFormulaireTest(TestCase):
 
     def test_post_redirects_on_success(self):
         response = self.client.post(self.url, {
-            'email': 'redir@test.fr', 'nom': 'Z', 'message': 'Hi',
+            'email': 'redir@test.fr', 'nom': 'Z', 'objet': 'Q', 'message': 'Hi',
             'h-captcha-response': 'test-token',
         })
         self.assertEqual(response.status_code, 302)
@@ -2375,7 +2390,7 @@ class SiteContactViewWithFormulaireTest(TestCase):
 
     def test_post_links_correct_site(self):
         self.client.post(self.url, {
-            'email': 'normandie@test.fr', 'nom': 'Dupont', 'message': 'Salut',
+            'email': 'normandie@test.fr', 'nom': 'Dupont', 'objet': 'Q', 'message': 'Salut',
             'h-captcha-response': 'test-token',
         })
         msg = ContactMessage.objects.get(email='normandie@test.fr')
@@ -3273,9 +3288,7 @@ class MenuItemGetUrlTest(TestCase):
         self.assertEqual(item.get_url(), 'https://external.com')
 
     def test_get_url_article(self):
-        art = Article.objects.create(
-            site=self.sp, title='Art URL', slug='art-url', status='publish'
-        )
+        art = make_article_page(section_slug=self.sp.slug, title='Art URL', slug='art-url')
         item = MenuItem.objects.create(
             site=self.sp, title='Art', menu='main', order=1,
             link_type='article', article=art
@@ -3291,14 +3304,12 @@ class MenuItemGetUrlTest(TestCase):
         self.assertIn('cat-url', item.get_url())
 
     def test_get_url_page(self):
-        page = Page.objects.create(
-            site=self.sp, title='Page URL', slug='page-url', status='publish'
-        )
+        page = make_content_page(section_slug=self.sp.slug, title='Page URL', slug='page-url')
         item = MenuItem.objects.create(
             site=self.sp, title='Page', menu='main', order=1,
             link_type='page', page=page
         )
-        self.assertIn('page-url', item.get_url())
+        self.assertEqual(item.get_url(), page.get_absolute_url())
 
     def test_get_url_contact_sous_site(self):
         item = MenuItem.objects.create(
@@ -3336,20 +3347,16 @@ class SitemapMethodsTest(TestCase):
 
     def test_page_sitemap_location(self):
         from content.sitemaps import PageSitemap
-        page = Page.objects.create(
-            site=self.sp, title='Sitemap Page', slug='sitemap-page', status='publish'
-        )
+        page = make_content_page(section_slug=self.sp.slug, title='Sitemap Page', slug='sitemap-page')
         sm = PageSitemap()
-        self.assertIn('sitemap-page', sm.location(page))
+        self.assertEqual(sm.location(page), page.get_absolute_url())
 
-    def test_page_sitemap_lastmod_retourne_updated_at(self):
+    def test_page_sitemap_lastmod_retourne_date_publication(self):
         from content.sitemaps import PageSitemap
-        page = Page.objects.create(
-            site=self.sp, title='Sitemap Page 2', slug='sitemap-page-2', status='publish'
-        )
+        page = make_content_page(section_slug=self.sp.slug, title='Sitemap Page 2', slug='sitemap-page-2')
         page.refresh_from_db()
         sm = PageSitemap()
-        self.assertEqual(sm.lastmod(page), page.updated_at)
+        self.assertEqual(sm.lastmod(page), page.last_published_at or page.first_published_at)
 
     def test_category_sitemap_location(self):
         from content.sitemaps import CategorySitemap
@@ -3732,10 +3739,8 @@ class MenuItemGetUrlExtraTest(TestCase):
         self.assertNotIn('principal', url)
 
     def test_get_url_fallback_avec_article(self):
-        """link_type inconnu avec article FK → ligne 510-511."""
-        art = Article.objects.create(
-            site=self.sp, title='Fallback Art', slug='fallback-art', status='publish'
-        )
+        """link_type inconnu avec article FK → fallback sur article.get_absolute_url()."""
+        art = make_article_page(section_slug=self.sp.slug, title='Fallback Art', slug='fallback-art')
         item = MenuItem.objects.create(
             site=self.sp, title='FB', menu='main', order=1,
             link_type='category', article=art,
@@ -3746,16 +3751,13 @@ class MenuItemGetUrlExtraTest(TestCase):
         self.assertIn('fallback-art', url)
 
     def test_get_url_fallback_avec_page(self):
-        """link_type inconnu avec page FK → ligne 512-513."""
-        page = Page.objects.create(
-            site=self.sp, title='Fallback Page', slug='fallback-page', status='publish'
-        )
+        """link_type inconnu avec page FK → fallback sur page.get_absolute_url()."""
+        page = make_content_page(section_slug=self.sp.slug, title='Fallback Page', slug='fallback-page')
         item = MenuItem.objects.create(
             site=self.sp, title='FB2', menu='main', order=1,
             link_type='unknown_type', page=page,
         )
-        url = item.get_url()
-        self.assertIn('fallback-page', url)
+        self.assertEqual(item.get_url(), page.get_absolute_url())
 
     def test_get_url_fallback_avec_category(self):
         """link_type inconnu avec category FK → fallback sur category.get_absolute_url()."""
