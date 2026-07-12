@@ -13,6 +13,9 @@
     </form>
 </div>
 
+<!-- Réseaux sociaux -->
+<div style="margin-top:1rem;">{% with s=site %}{% include "content/_social_icons.html" %}{% endwith %}</div>
+
 <!-- Nous rejoindre -->
 {% if site.slug and site.slug != 'principal' %}{% url 'content:site_contact' site_slug=site.slug as sidebar_contact_url %}{% else %}{% url 'content:contact' as sidebar_contact_url %}{% endif %}
 <div style="background:var(--primary-color);padding:1.25rem;text-align:center;margin-top:1rem;">
@@ -33,10 +36,6 @@
         Nous soutenir
     </a>
 </div>
-
-<!-- Réseaux sociaux -->
-<div style="margin-top:1rem;">{% with s=site %}{% include "content/_social_icons.html" %}{% endwith %}</div>
-
 
 <!-- Les dernières campagnes -->
 <div class="hp-bloc-campagnes" style="margin-top:1rem;">
