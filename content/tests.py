@@ -2823,6 +2823,67 @@ class NewsletterArticlePageTest(TestCase):
         self.assertIn(self.article.get_absolute_url(), mail.outbox[0].body)
 
 
+
+from django.core.mail import EmailMultiAlternatives
+
+
+class NewsletterMultiListTest(TestCase):
+    """Un syndicat peut déclarer plusieurs listes OVH : la newsletter part à chacune."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='nl-multi', name='NL Multi', site_type='sectoral')
+        self.site.ovh_mailing_list = 'liste-a, liste-b'
+        self.site.save(update_fields=['ovh_mailing_list'])
+        self.newsletter = _make_newsletter(self.site)
+        self.url = f'/cms/newsletter/{self.newsletter.pk}/envoyer/'
+
+    @patch('cms.ovh_client.get_subscribers', side_effect=[['a@b.com'], ['c@d.com', 'e@f.com']])
+    def test_un_email_par_liste(self, mock_subs):
+        from django.core import mail
+        c = _chef_client(self.site)
+        c.post(self.url, {'mode': 'send'})
+        self.assertEqual(len(mail.outbox), 2)
+        dests = {m.to[0] for m in mail.outbox}
+        self.assertEqual(dests, {'liste-a@cnt-so.info', 'liste-b@cnt-so.info'})
+        self.newsletter.refresh_from_db()
+        self.assertEqual(self.newsletter.status, 'sent')
+        self.assertEqual(self.newsletter.sent_count, 3)
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
+    def test_entete_desabonnement_propre_a_chaque_liste(self, mock_subs):
+        from django.core import mail
+        c = _chef_client(self.site)
+        c.post(self.url, {'mode': 'send'})
+        headers = {m.extra_headers.get('List-Unsubscribe', '') for m in mail.outbox}
+        self.assertIn('<mailto:liste-a-unsubscribe@cnt-so.info>', headers)
+        self.assertIn('<mailto:liste-b-unsubscribe@cnt-so.info>', headers)
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
+    def test_echec_partiel_marque_quand_meme_envoyee(self, mock_subs):
+        from django.core import mail
+        real_send = EmailMultiAlternatives.send
+
+        def flaky_send(msg_self, *args, **kwargs):
+            if 'liste-b@cnt-so.info' in msg_self.to:
+                raise Exception('SMTP down')
+            return real_send(msg_self, *args, **kwargs)
+
+        c = _chef_client(self.site)
+        with patch.object(EmailMultiAlternatives, 'send', flaky_send):
+            r = c.post(self.url, {'mode': 'send'}, follow=True)
+        self.assertEqual(len(mail.outbox), 1)
+        self.newsletter.refresh_from_db()
+        self.assertEqual(self.newsletter.status, 'sent')
+        self.assertContains(r, 'liste-b@cnt-so.info')
+
+    def test_get_affiche_toutes_les_listes(self):
+        with patch('cms.ovh_client.get_subscribers', return_value=['a@b.com']):
+            c = _chef_client(self.site)
+            r = c.get(self.url)
+        self.assertContains(r, 'liste-a@cnt-so.info')
+        self.assertContains(r, 'liste-b@cnt-so.info')
+
+
 # ════════════════════════════════════════════════════════════════════════════════
 # API VIEWS — ImageUploadView, FileUploadView, NewsletterSyncView
 # ════════════════════════════════════════════════════════════════════════════════

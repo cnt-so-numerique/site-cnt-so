@@ -19,6 +19,12 @@ from content.admin_utils import WagtailChefRequiredMixin, get_current_site_for_v
 from content.models import Newsletter, Subscriber
 
 
+def _ovh_list_names(site):
+    """Noms des listes OVH du syndicat (champ multi-valeurs, séparées par des virgules)."""
+    raw = getattr(site, 'ovh_mailing_list', '') if site else ''
+    return [n.strip() for n in (raw or '').split(',') if n.strip()]
+
+
 def _annotate_image_urls(articles, site_url):
     """Pose na.image_url en URL absolue (any_image_url peut être relative ou legacy absolue)."""
     base = site_url.rstrip('/')
@@ -46,13 +52,14 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
             return redirect('/cms/snippets/content/newsletter/')
 
         site = newsletter.site
-        list_name = getattr(site, 'ovh_mailing_list', '').strip() if site else ''
-        if list_name:
+        list_names = _ovh_list_names(site)
+        if list_names:
             from django.conf import settings as _s
-            ovh_list_email = f"{list_name}@{getattr(_s, 'OVH_DOMAIN', 'cnt-so.info')}"
+            ovh_domain = getattr(_s, 'OVH_DOMAIN', 'cnt-so.info')
+            ovh_list_email = ', '.join(f'{n}@{ovh_domain}' for n in list_names)
             try:
                 from cms.ovh_client import get_subscribers
-                nb_subscribers = len(get_subscribers(list_name))
+                nb_subscribers = sum(len(get_subscribers(n)) for n in list_names)
             except Exception:
                 nb_subscribers = None
         else:
@@ -117,12 +124,11 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
         from django.conf import settings as django_settings
 
         site = newsletter.site
-        list_name = getattr(site, 'ovh_mailing_list', '').strip() if site else ''
+        list_names = _ovh_list_names(site)
 
-        if list_name:
-            # ── Envoi via liste OVH ───────────────────────────────────────────
+        if list_names:
+            # ── Envoi via liste(s) OVH — un e-mail par liste ──────────────────
             ovh_domain = getattr(django_settings, 'OVH_DOMAIN', 'cnt-so.info')
-            list_email = f"{list_name}@{ovh_domain}"
             site_slug = (site.legacy_site_slug or site.slug) if site else ''
             unsubscribe_url = request.build_absolute_uri(
                 reverse('content:site_newsletter_subscribe', args=[site_slug])
@@ -143,34 +149,48 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
                 )
                 + f"\n\nGérer votre abonnement : {unsubscribe_url}"
             )
-            try:
-                msg = EmailMultiAlternatives(
-                    subject=newsletter.title,
-                    body=text_body,
-                    from_email=None,
-                    to=[list_email],
-                )
-                msg.extra_headers['List-Unsubscribe'] = (
-                    f'<mailto:{list_name}-unsubscribe@{ovh_domain}>'
-                )
-                msg.attach_alternative(html_body, 'text/html')
-                msg.send()
-            except Exception as e:
-                messages.error(request, f'Erreur lors de l\'envoi à {list_email} : {e}')
+
+            sent_lists = []
+            failed = []
+            for list_name in list_names:
+                list_email = f'{list_name}@{ovh_domain}'
+                try:
+                    msg = EmailMultiAlternatives(
+                        subject=newsletter.title,
+                        body=text_body,
+                        from_email=None,
+                        to=[list_email],
+                    )
+                    msg.extra_headers['List-Unsubscribe'] = (
+                        f'<mailto:{list_name}-unsubscribe@{ovh_domain}>'
+                    )
+                    msg.attach_alternative(html_body, 'text/html')
+                    msg.send()
+                    sent_lists.append(list_name)
+                except Exception as e:
+                    failed.append(f'{list_email} ({e})')
+
+            if not sent_lists:
+                messages.error(request, f'Erreur lors de l\'envoi : {" ; ".join(failed)}')
                 return redirect(request.path)
 
-            try:
-                from cms.ovh_client import get_subscribers
-                sent_count = len(get_subscribers(list_name))
-            except Exception:
-                sent_count = 0
+            sent_count = 0
+            for list_name in sent_lists:
+                try:
+                    from cms.ovh_client import get_subscribers
+                    sent_count += len(get_subscribers(list_name))
+                except Exception:
+                    pass
 
             newsletter.status = 'sent'
             newsletter.sent_at = timezone.now()
             newsletter.sent_by = request.user
             newsletter.sent_count = sent_count
             newsletter.save(update_fields=['status', 'sent_at', 'sent_by', 'sent_count'])
-            messages.success(request, f'Newsletter envoyée à {list_email} ({sent_count} abonné(s) OVH).')
+            sent_emails = ', '.join(f'{n}@{ovh_domain}' for n in sent_lists)
+            messages.success(request, f'Newsletter envoyée à {sent_emails} ({sent_count} abonné(s) OVH).')
+            if failed:
+                messages.warning(request, f'Échec pour : {" ; ".join(failed)}')
             return redirect('/cms/snippets/content/newsletter/')
 
         # ── Envoi direct abonné par abonné (fallback sans liste OVH) ─────────
