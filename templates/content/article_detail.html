@@ -338,8 +338,11 @@ document.addEventListener('DOMContentLoaded', function () {
 {% endblock %}
 
 {% block pre_footer %}
+{% if not site or site.slug == 'principal' %}
+{# Vignettes confédérales : uniquement sur les articles du site principal #}
 {% with cta1_title="Quel est notre champ d'action ?" cta1_arrow="Découvrir nos actions →" cta1_url="/categorie/actualites-luttes/" cta1_icon="→" cta1_desc="De la défense des sans-papiers aux luttes dans le nettoyage, l'éducation, la restauration… Nous intervenons dans tous les secteurs." cta2_title="Quels sont vos droits ?" cta2_arrow="Découvrez vos droits →" cta2_url="/categorie/droit/" cta2_icon="§" cta2_desc="Licenciement abusif, heures sup non payées, harcèlement… Retrouvez nos fiches pratiques pour défendre vos droits au travail." %}
 {% include "content/_cta_vignettes.html" %}
 {% endwith %}
+{% endif %}
 {% include "content/_newsletter.html" %}
 {% endblock %}

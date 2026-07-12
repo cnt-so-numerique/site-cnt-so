@@ -670,6 +670,21 @@ class SiteArticleDetailViewTest(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.context['site'].slug, 'sub')
 
+    def test_no_confederal_cta_on_subsite_article(self):
+        """Les vignettes CTA confédérales n'apparaissent pas sur les articles de sous-site."""
+        url = reverse('content:site_article_detail', kwargs={'site_slug': 'sub', 'slug': 'sub-article'})
+        response = self.client.get(url)
+        self.assertNotContains(response, "Quel est notre champ d'action")
+        self.assertNotContains(response, 'Quels sont vos droits')
+
+    def test_confederal_cta_on_principal_article(self):
+        """Les vignettes CTA confédérales restent présentes sur les articles du site principal."""
+        make_article_page(section_slug='principal', title='Princ', slug='princ-cta')
+        url = reverse('content:article_detail', kwargs={'slug': 'princ-cta'})
+        response = self.client.get(url)
+        self.assertContains(response, "Quel est notre champ d'action")
+        self.assertContains(response, 'Quels sont vos droits')
+
 
 class PageDetailViewTest(TestCase):
     def setUp(self):
