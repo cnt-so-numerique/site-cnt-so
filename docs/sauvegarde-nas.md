@@ -38,7 +38,9 @@ Côté **NAS** (« nononas », DS224+, `192.168.1.27`) — fait :
   (volume2 chiffré, ~900 Go libres)
 - [x] Script : `/volume2/sauvegarde a froid/backup-cnt/backup-cnt.sh`
 - [x] Testé : pull des dumps OK ; écriture vers le serveur bien refusée par rrsync
-- [x] Premier passage complet lancé (media ~7,5 Go)
+- [x] Premier passage complet effectué (media 7,5 Go) ; `--exclude=matomo/tmp`
+  ajouté au rsync media (caches Matomo hérités de WordPress, illisibles et sans
+  valeur) ; second passage incrémental sans erreur
 
 Reste à faire **une fois, dans l'interface DSM** (seule étape impossible en SSH sans root) :
 - [ ] **Créer la tâche planifiée** : Panneau de configuration → Planificateur de tâches
