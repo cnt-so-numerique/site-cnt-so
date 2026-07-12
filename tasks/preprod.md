@@ -8,27 +8,21 @@ Tout ce qui doit être fait **avant** la mise en prod de cnt-so.org.
 
 ### Sécurité
 
-- [ ] **Remplacer `SECRET_KEY`** par une vraie clé (50+ chars, aléatoire) via variable d'environnement
-  ```bash
-  python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
-  ```
-  `cntso/settings.py` ligne 23 — la clé actuelle commence par `django-insecure-`
+- [x] **Remplacer `SECRET_KEY`** — vérifié en prod le 2026-07-12 : clé de 67 chars,
+  non-insecure, définie dans `/var/www/cntso/cntso/local_settings.py` (voie acceptée
+  par le garde-fou de `settings.py`)
 
-- [ ] **`DEBUG = False`** en production (via variable d'environnement)
-  - Ne jamais déployer avec `DEBUG = True`
-  - Les tracebacks complets seraient exposés publiquement
+- [x] **`DEBUG = False`** en production — vérifié en prod le 2026-07-12
+  (`local_settings.py` + défaut `False` dans `settings.py`)
 
 ### Données prod
 
-- [ ] **Créer le SectionPage 'principal'** avant de lancer `migrate` en prod
-  - En dev il n'existait pas → la migration `adhesion/0002` l'a créé automatiquement
-  - En prod, vérifier que `SectionPage.objects.filter(slug='principal').exists()` avant migration
+- [x] **SectionPage 'principal'** — vérifié en prod le 2026-07-12 :
+  `SectionPage.objects.filter(slug='principal').exists()` → `True` ;
+  0 migration en attente sur le serveur
 
-- [ ] **Lancer `fix_cms_sessions` après `migrate`** si des utilisateurs sont connectés pendant le déploiement
-  ```bash
-  python manage.py fix_cms_sessions --dry-run  # vérifier
-  python manage.py fix_cms_sessions            # corriger
-  ```
+- [x] **`fix_cms_sessions`** — exécuté en prod le 2026-07-12 :
+  0 sessions à corriger
 
 ---
 
@@ -42,36 +36,29 @@ Tout ce qui doit être fait **avant** la mise en prod de cnt-so.org.
 - [ ] **`WAGTAILADMIN_BASE_URL = 'https://cnt-so.org'`** ✅ déjà fait
   - Était sur `http://localhost:8000` → liens emails cassés
 
-- [ ] **`DEFAULT_CONTACT_EMAIL`** non défini dans settings
-  - Si un FormContact n'a pas d'email configuré, le fallback est vide → contact silencieux
-  - Ajouter : `DEFAULT_CONTACT_EMAIL = 'contact@cnt-so.org'`
+- [x] **`DEFAULT_CONTACT_EMAIL`** — ajouté le 2026-07-12 dans `cntso/settings.py` :
+  `DEFAULT_CONTACT_EMAIL = 'contact@cnt-so.org'` (fallback déjà en place dans
+  `content/views.py::_send_contact_email`)
 
 ### Logging
 
-- [ ] **Configurer `LOGGING`** pour capturer les erreurs 500 en production
-  ```python
-  LOGGING = {
-      'version': 1,
-      'disable_existing_loggers': False,
-      'handlers': {
-          'file': {
-              'class': 'logging.FileHandler',
-              'filename': BASE_DIR / 'logs/django.log',
-          },
-      },
-      'root': {
-          'handlers': ['file'],
-          'level': 'WARNING',
-      },
-  }
-  ```
-  Créer le dossier `logs/` et l'ajouter à `.gitignore`
+- [x] **`LOGGING` configuré** — ajouté le 2026-07-12 dans `cntso/settings.py` :
+  `logs/django.log` (RotatingFileHandler 5 Mo × 3) + console (stderr → repris par
+  supervisor dans `/var/log/cntso.log`), niveau WARNING. `logs/` créé automatiquement
+  au démarrage et ajouté à `.gitignore`.
 
 ### Données manquantes
 
-- [ ] **8 MenuItems désactivés** (URSSAF, Pôle Emploi, TPE, Lexique, Tableurs, Liens utiles, Radio/Podcasts, CNT-SO Thiers) — ils étaient type=category sans catégorie liée. À reconfigurer dans le CMS avec les bonnes URLs si nécessaire.
+- [ ] **MenuItems désactivés** — état prod au 2026-07-12 : 5 sur 8 ont été supprimés
+  (URSSAF, Pôle Emploi, Lexique, Tableurs, Liens utiles). Il en reste **3**, tous
+  type=category sans catégorie liée — décision éditoriale à prendre dans le CMS :
+  - `TPE` (auvergne, sous Ressources) — candidat probable : catégorie « TPE 2021 » (pk 171)
+  - `Radio / Podcasts` (poitiers, sous Ressources) — aucune catégorie correspondante
+  - `CNT-SO Thiers` (auvergne, sous CNT-SO Auvergne) — aucune catégorie correspondante
 
-- [ ] **Données des sous-sites** : stucs, education, test n'ont aucun article. Vérifier si c'est voulu.
+- [x] **Données des sous-sites** — vérifié en prod le 2026-07-12 : education a
+  **100 articles**, stucs **31**, le site `test` n'existe pas en prod (dev uniquement).
+  Seul `numerique` n'a qu'1 article (site récent, attendu). Rien à faire.
 
 ---
 
@@ -82,15 +69,13 @@ Tout ce qui doit être fait **avant** la mise en prod de cnt-so.org.
 - [ ] **Open Graph / meta description** ✅ déjà fait sur les articles
   - À étendre aux autres pages (catégorie, sous-site, home) si besoin
 
-- [ ] **Mettre à jour les dépendances**
-  ```
-  Django 6.0.2 → 6.0.5
-  Pillow 12.1.1 → 12.2.0
-  requests 2.32.5 → 2.34.2
-  ```
+- [x] **Dépendances mises à jour** — 2026-07-12 : Django 6.0.2 → 6.0.7,
+  Pillow 12.1.1 → 12.3.0, requests 2.32.5 → 2.34.2, certifi et urllib3 aussi.
+  562 tests verts après mise à jour.
 
-- [ ] **`Adhesion.status` index** — full scan sur une table qui va grossir
-  Ajouter `db_index=True` sur `Adhesion.status` dans `adhesion/models.py`
+- [x] **`Adhesion.status` index** — 2026-07-12 : `db_index=True` ajouté dans
+  `cnt-adhesion/adhesion/models.py` + migration `0011_alter_adhesion_status`
+  (l'app adhesion vit désormais dans le repo cnt-adhesion). 525 tests verts.
 
 ---
 

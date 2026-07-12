@@ -190,6 +190,8 @@ EMAIL_HOST_USER = ''
 EMAIL_HOST_PASSWORD = ''
 DEFAULT_FROM_EMAIL = 'CNT-SO <newsletter@cnt-so.org>'
 SERVER_EMAIL = 'newsletter@cnt-so.org'
+# Destinataire de secours des formulaires de contact sans e-mail configuré
+DEFAULT_CONTACT_EMAIL = 'contact@cnt-so.org'
 
 # Délai entre chaque e-mail pour respecter les limites OVH (~200/heure)
 NEWSLETTER_SEND_DELAY = 18  # secondes entre chaque envoi (200/h = 1 toutes les 18s)
@@ -238,6 +240,39 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
 # Limite les ressources dans les iframes (Clickjacking) — déjà géré par XFrameOptionsMiddleware
 X_FRAME_OPTIONS = 'SAMEORIGIN'
+
+# ── Logging ────────────────────────────────────────────────────────────────────
+# Erreurs et warnings dans logs/django.log (rotation 5 Mo × 3) + stderr
+# (repris par supervisor dans /var/log/cntso.log en prod).
+LOGS_DIR = BASE_DIR / 'logs'
+LOGS_DIR.mkdir(exist_ok=True)
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{asctime} {levelname} {name} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'django.log',
+            'maxBytes': 5 * 1024 * 1024,
+            'backupCount': 3,
+            'formatter': 'verbose',
+        },
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['file', 'console'],
+        'level': 'WARNING',
+    },
+}
 
 # Surcharge par local_settings.py (credentials, DEBUG, etc.) — jamais commité
 try:

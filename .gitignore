@@ -44,3 +44,6 @@ Thumbs.db
 dist/
 build/
 *.egg-info/
+
+# Logs applicatifs
+logs/
