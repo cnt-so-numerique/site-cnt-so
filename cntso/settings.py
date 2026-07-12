@@ -56,7 +56,7 @@ INSTALLED_APPS = [
     'wagtail.contrib.settings',
     'wagtail.embeds',
     'wagtail.sites',
-    'wagtail.users',
+    'content.apps.CustomUsersAppConfig',  # wagtail.users + champ Syndicat sur les formulaires
     'wagtail.snippets',
     'wagtail.documents',
     'wagtail.images',

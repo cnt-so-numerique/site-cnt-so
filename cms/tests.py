@@ -1079,3 +1079,70 @@ class DashboardPanelRoleTest(TestCase):
         self.assertIn('Listes mails OVH', content)
         self.assertIn('Menus du site', content)
         self.assertNotIn('Comment publier', content)
+
+
+class UserSyndicatFormTest(TestCase):
+    """Le formulaire Utilisateurs (/cms/users/) porte un champ Syndicat
+    qui synchronise la fiche Author (cloisonnement par site)."""
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        self.site = _ensure_section_page(slug='fusion-synd', name='Fusion Synd', site_type='sectoral')
+        self.group, _ = Group.objects.get_or_create(name='redacteur')
+        self.admin = make_superuser(username='su-fusion')
+        self.client = Client()
+        self.client.force_login(self.admin)
+
+    def _user_data(self, **extra):
+        data = {
+            'username': 'fusion-user', 'email': 'fusion@example.org',
+            'first_name': 'Fu', 'last_name': 'Sion',
+            'password1': 'mdp-Tres-solide-42', 'password2': 'mdp-Tres-solide-42',
+            'groups': [self.group.pk],
+        }
+        data.update(extra)
+        return data
+
+    def test_champ_syndicat_affiche_dans_les_formulaires(self):
+        r = self.client.get(reverse('wagtailusers_users:add'))
+        self.assertContains(r, 'name="syndicat"')
+
+    def test_creation_utilisateur_cree_la_fiche_auteur(self):
+        from content.models import Author
+        self.client.post(reverse('wagtailusers_users:add'),
+                         self._user_data(syndicat=self.site.pk))
+        from django.contrib.auth.models import User
+        user = User.objects.get(username='fusion-user')
+        author = Author.objects.get(user=user)
+        self.assertEqual(author.site, self.site)
+
+    def test_edition_change_le_syndicat(self):
+        from content.models import Author
+        from django.contrib.auth.models import User
+        self.client.post(reverse('wagtailusers_users:add'),
+                         self._user_data(syndicat=self.site.pk))
+        user = User.objects.get(username='fusion-user')
+        autre = _ensure_section_page(slug='fusion-autre', name='Fusion Autre', site_type='sectoral')
+        self.client.post(reverse('wagtailusers_users:edit', args=[user.pk]),
+                         self._user_data(is_active='on', syndicat=autre.pk))
+        self.assertEqual(Author.objects.get(user=user).site, autre)
+
+    def test_creation_sans_syndicat_ne_cree_pas_de_fiche(self):
+        from content.models import Author
+        from django.contrib.auth.models import User
+        self.client.post(reverse('wagtailusers_users:add'), self._user_data())
+        user = User.objects.get(username='fusion-user')
+        self.assertFalse(Author.objects.filter(user=user).exists())
+
+    def test_reutilise_une_fiche_wordpress_orpheline(self):
+        """Une fiche Author legacy (même username, sans user) est reliée au compte."""
+        from content.models import Author
+        from django.contrib.auth.models import User
+        legacy = Author.objects.create(username='fusion-user', display_name='Legacy WP')
+        self.client.post(reverse('wagtailusers_users:add'),
+                         self._user_data(syndicat=self.site.pk))
+        user = User.objects.get(username='fusion-user')
+        legacy.refresh_from_db()
+        self.assertEqual(legacy.user, user)
+        self.assertEqual(legacy.site, self.site)
+        self.assertEqual(Author.objects.filter(username='fusion-user').count(), 1)

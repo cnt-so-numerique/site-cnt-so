@@ -1,7 +1,17 @@
 from django.apps import AppConfig
 
+from wagtail.users.apps import WagtailUsersAppConfig
+
+
+class CustomUsersAppConfig(WagtailUsersAppConfig):
+    """Remplace 'wagtail.users' dans INSTALLED_APPS : formulaires
+    utilisateur avec champ « Syndicat » (fiche Author synchronisée)."""
+    default = False  # pas l'AppConfig de l'app content
+    user_viewset = 'content.viewsets.UserViewSet'
+
 
 class ContentConfig(AppConfig):
+    default = True
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'content'
 

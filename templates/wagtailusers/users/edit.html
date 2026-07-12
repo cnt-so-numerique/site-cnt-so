@@ -1,0 +1,6 @@
+{% extends "wagtailusers/users/edit.html" %}
+{% load wagtailadmin_tags %}
+
+{% block extra_fields %}
+    <li>{% formattedfield form.syndicat %}</li>
+{% endblock extra_fields %}
