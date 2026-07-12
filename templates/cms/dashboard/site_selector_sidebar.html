@@ -8,6 +8,7 @@
   <span style="color:#94a3b8;white-space:nowrap;margin-right:.3rem;">Syndicat :</span>
 
   {% for site in available_sites %}
+  {% if is_chef %}
   <a href="/cms/select-site/?site_id={{ site.pk }}" style="
       padding:.2rem .6rem;border-radius:4px;text-decoration:none;white-space:nowrap;
       {% if current_site and site.pk == current_site.pk %}
@@ -16,6 +17,9 @@
         background:#252932;color:#94a3b8;border:1px solid #2d3139;
       {% endif %}
   ">{{ site.name }}</a>
+  {% else %}
+  <span style="padding:.2rem .6rem;border-radius:4px;white-space:nowrap;background:#e63946;color:#fff;font-weight:600;">{{ site.name }}</span>
+  {% endif %}
   {% endfor %}
 
   {% if not current_site %}
@@ -25,8 +29,10 @@
   <span style="margin-left:auto;display:flex;gap:.5rem;align-items:center;">
     {% if current_site %}
     <a href="/cms/snippets/cms/articlepage/" style="color:#64748b;text-decoration:none;font-size:.875rem;">📄 Articles</a>
+    {% if is_chef %}
     <a href="/cms/menus/" style="color:#64748b;text-decoration:none;font-size:.875rem;">🗂️ Menus</a>
     <a href="/cms/snippets/content/newsletter/" style="color:#64748b;text-decoration:none;font-size:.875rem;">📧</a>
+    {% endif %}
     {% endif %}
     <a href="/cms/" style="color:#64748b;text-decoration:none;font-size:.875rem;">🏠</a>
   </span>

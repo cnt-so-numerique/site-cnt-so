@@ -15,6 +15,8 @@ from wagtail.snippets.views.snippets import (
 )
 from wagtail.admin.panels import FieldPanel, FieldRowPanel, MultiFieldPanel, ObjectList, TabbedInterface, InlinePanel
 
+from content.admin_utils import WagtailChefRequiredMixin, is_chef as _is_chef
+
 from .models import ArticlePage, ContentPage, CmsCategory, Event, SectionPage
 from .site_context import SESSION_KEY, get_current_site, get_available_sites, set_current_site
 
@@ -32,11 +34,6 @@ def _safe_redirect(url, fallback='/cms/'):
     if parsed.scheme or parsed.netloc:
         return fallback
     return url or fallback
-
-
-def _is_chef(user):
-    return user.is_superuser or user.groups.filter(name='redacteur_en_chef').exists()
-
 
 
 def _make_scoped_article_page_view(base_class):
@@ -118,6 +115,8 @@ class ArticlePageViewSet(SnippetViewSet):
     panels = [
         FieldPanel('title'),
         TabbedInterface([
+            # Contenu en premier : c'est là qu'un rédacteur débutant commence
+            ObjectList([FieldPanel('body')], heading='Contenu'),
             ObjectList([
                 FieldPanel('section_slug'),
                 MultiFieldPanel([
@@ -133,7 +132,6 @@ class ArticlePageViewSet(SnippetViewSet):
                 FieldPanel('cms_categories', widget=forms.CheckboxSelectMultiple),
                 FieldPanel('cms_tags'),
             ], heading='Métadonnées'),
-            ObjectList([FieldPanel('body')], heading='Contenu'),
         ]),
     ]
 
@@ -150,13 +148,13 @@ _CONTENT_PAGE_PANELS = [
     FieldPanel('title'),
     TabbedInterface([
         ObjectList([
+            FieldPanel('body'),
+        ], heading='Contenu'),
+        ObjectList([
             FieldPanel('section_slug'),
             FieldPanel('author_name'),
             FieldPanel('featured_image'),
         ], heading='Métadonnées'),
-        ObjectList([
-            FieldPanel('body'),
-        ], heading='Contenu'),
     ]),
 ]
 
@@ -394,6 +392,7 @@ class SiteDashboardPanel(Component):
             'available_sites': available,
             'stats': stats,
             'section_page_id': section_page_id,
+            'is_chef': _is_chef(request.user),
             'request': request,
         }, request=request)
 
@@ -407,9 +406,16 @@ def add_site_dashboard_panel(request, panels):
 
 from wagtail.admin.menu import MenuItem as WagtailMenuItem
 
+
+class ChefOnlyMenuItem(WagtailMenuItem):
+    """Entrée de menu réservée aux superusers et rédacteurs-en-chef."""
+    def is_shown(self, request):
+        return _is_chef(request.user)
+
+
 @hooks.register('register_admin_menu_item')
 def add_syndicats_menu_item():
-    return WagtailMenuItem(
+    return ChefOnlyMenuItem(
         'Syndicats',
         '/cms/syndicats/',
         name='syndicats',
@@ -420,7 +426,7 @@ def add_syndicats_menu_item():
 
 @hooks.register('register_admin_menu_item')
 def add_mailing_lists_menu_item():
-    return WagtailMenuItem(
+    return ChefOnlyMenuItem(
         'Listes mails',
         '/cms/mailing-lists/',
         name='mailing-lists',
@@ -728,7 +734,7 @@ def register_site_admin_urls():
     ]
 
 
-class MoveMenuItemView(View):
+class MoveMenuItemView(WagtailChefRequiredMixin, View):
     """Déplace un élément de menu : haut/bas ou indent/outdent."""
     def _handle(self, request, data):
         from django.http import HttpResponse
@@ -801,20 +807,18 @@ class MoveMenuItemView(View):
 
         return HttpResponseRedirect(next_url)
 
-    def get(self, request):
-        return self._handle(request, request.GET)
-
     def post(self, request):
         return self._handle(request, request.POST)
 
 
-class ReorderMenuItemsView(View):
+class ReorderMenuItemsView(WagtailChefRequiredMixin, View):
     """Réordonne et/ou re-parent les éléments de menu (AJAX POST JSON).
 
     Formats acceptés :
       { moves: [{id, parent, order}, ...] }   — drag-and-drop SortableJS (nesting inclus)
       { items: [pk, ...] }                    — compat ancienne version (ordre seul)
     """
+    raise_exception = True  # vue JSON : 403 explicite plutôt qu'une redirection
     def post(self, request):
         import json
         from django.http import JsonResponse
@@ -854,11 +858,12 @@ class CurrentSiteFragmentView(View):
         html = render_to_string('cms/dashboard/site_selector_sidebar.html', {
             'current_site': current,
             'available_sites': available,
+            'is_chef': _is_chef(request.user),
         }, request=request)
         return HttpResponse(html)
 
 
-class MenuTreeView(View):
+class MenuTreeView(WagtailChefRequiredMixin, View):
     """Vue arborescente des menus — tous les syndicats sur une page."""
 
     def get(self, request):
@@ -903,7 +908,7 @@ class MenuTreeView(View):
         return HttpResponse(html)
 
 
-class SyndicatManageView(View):
+class SyndicatManageView(WagtailChefRequiredMixin, View):
     """Vue de gestion des syndicats (créer, voir, désactiver)."""
     def get(self, request):
         from django.http import HttpResponse

@@ -944,3 +944,130 @@ class MailingListAccessControlTest(TestCase):
         c.force_login(make_superuser(username='su-detail'))
         r = c.get('/cms/mailing-lists/info-cntso/')
         self.assertEqual(r.status_code, 200)
+
+
+# ── Simplification de l'admin pour les rédacteurs débutants ───────────────────
+
+def _make_redacteur(site, username='redacteur-simpl', password='pass'):
+    """Crée un utilisateur du groupe redacteur rattaché à un syndicat."""
+    from content.tests import _setup_editorial_groups
+    from django.contrib.auth.models import User, Group
+    from content.models import Author
+    _setup_editorial_groups()
+    user = User.objects.create_user(username=username, password=password)
+    user.groups.add(Group.objects.get(name='redacteur'))
+    Author.objects.create(user=user, site=site, username=username, display_name=username)
+    return user
+
+
+class AdminChefOnlyViewsTest(TestCase):
+    """Les vues de gestion (syndicats, menus) sont réservées aux chefs."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='simpl-admin', name='Simpl Admin', site_type='sectoral')
+        self.redacteur = _make_redacteur(self.site)
+        self.redac_client = Client()
+        self.redac_client.force_login(self.redacteur)
+
+    def _chef_client(self, username):
+        chef = _make_chef(username=username)
+        return _client_with_site(chef, self.site)
+
+    def test_syndicats_redirige_redacteur(self):
+        r = self.redac_client.get('/cms/syndicats/')
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r['Location'], '/cms/')
+
+    def test_syndicats_ok_chef(self):
+        r = self._chef_client('chef-synd').get('/cms/syndicats/')
+        self.assertEqual(r.status_code, 200)
+
+    def test_menus_redirige_redacteur(self):
+        r = self.redac_client.get('/cms/menus/')
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r['Location'], '/cms/')
+
+    def test_menus_ok_chef(self):
+        r = self._chef_client('chef-menus').get('/cms/menus/')
+        self.assertEqual(r.status_code, 200)
+
+    def test_menu_move_redirige_redacteur(self):
+        r = self.redac_client.get('/cms/menus/move/', {'item': 1, 'action': 'up'})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r['Location'], '/cms/')
+
+    def test_menu_move_get_refuse_meme_pour_chef(self):
+        # Un GET mutateur contournerait la protection CSRF : POST uniquement
+        r = self._chef_client('chef-move-get').get('/cms/menus/move/', {'item': 1, 'action': 'up'})
+        self.assertEqual(r.status_code, 405)
+
+    def test_menu_reorder_403_redacteur(self):
+        # Vue JSON : 403 explicite, pas de redirection qu'un fetch suivrait
+        r = self.redac_client.post(
+            '/cms/menus/reorder/', '{"items": []}', content_type='application/json'
+        )
+        self.assertEqual(r.status_code, 403)
+
+    def test_menu_reorder_ok_chef(self):
+        r = self._chef_client('chef-reorder').post(
+            '/cms/menus/reorder/', '{"items": []}', content_type='application/json'
+        )
+        self.assertEqual(r.status_code, 200)
+
+
+class AdminMenuVisibilityTest(TestCase):
+    """Les entrées de menu chef-only sont masquées pour les rédacteurs."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='simpl-menu', name='Simpl Menu', site_type='sectoral')
+        self.redacteur = _make_redacteur(self.site, username='redacteur-menu')
+
+    def _request_for(self, user):
+        from django.test import RequestFactory
+        request = RequestFactory().get('/cms/')
+        request.user = user
+        request.session = {}
+        return request
+
+    def test_syndicats_cache_pour_redacteur(self):
+        from cms.wagtail_hooks import add_syndicats_menu_item
+        item = add_syndicats_menu_item()
+        self.assertFalse(item.is_shown(self._request_for(self.redacteur)))
+        self.assertTrue(item.is_shown(self._request_for(make_superuser(username='su-menu-synd'))))
+
+    def test_listes_mails_cache_pour_redacteur(self):
+        from cms.wagtail_hooks import add_mailing_lists_menu_item
+        item = add_mailing_lists_menu_item()
+        self.assertFalse(item.is_shown(self._request_for(self.redacteur)))
+        self.assertTrue(item.is_shown(self._request_for(make_superuser(username='su-menu-ml'))))
+
+
+class DashboardPanelRoleTest(TestCase):
+    """Le panneau dashboard n'affiche que les outils accessibles au rôle."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='simpl-dash', name='Simpl Dash', site_type='sectoral')
+
+    def test_redacteur_ne_voit_pas_les_outils_chef(self):
+        redacteur = _make_redacteur(self.site, username='redacteur-dash')
+        c = Client()
+        c.force_login(redacteur)
+        r = c.get('/cms/')
+        self.assertEqual(r.status_code, 200)
+        content = r.content.decode()
+        self.assertIn('Nouvel article', content)
+        self.assertIn('Comment publier', content)
+        self.assertNotIn('Listes mails OVH', content)
+        self.assertNotIn('Menus du site', content)
+        self.assertNotIn('Config formulaire', content)
+
+    def test_chef_voit_tous_les_outils(self):
+        chef = _make_chef(username='chef-dash')
+        c = _client_with_site(chef, self.site)
+        r = c.get('/cms/')
+        self.assertEqual(r.status_code, 200)
+        content = r.content.decode()
+        self.assertIn('Nouvel article', content)
+        self.assertIn('Listes mails OVH', content)
+        self.assertIn('Menus du site', content)
+        self.assertNotIn('Comment publier', content)

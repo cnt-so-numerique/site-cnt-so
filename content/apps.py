@@ -30,6 +30,12 @@ def create_editorial_groups(sender, **kwargs):
         'content.add_tag', 'content.change_tag', 'content.delete_tag', 'content.view_tag',
         'content.change_comment', 'content.view_comment', 'content.delete_comment',
         'content.view_contactmessage', 'content.change_contactmessage',
+        'content.view_formulairecontact', 'content.change_formulairecontact',
+        # Outils par syndicat : newsletter, abonnés, menus — le dashboard et
+        # /cms/menus/ pointent vers ces snippets, le chef doit pouvoir y accéder
+        'content.add_newsletter', 'content.change_newsletter', 'content.delete_newsletter', 'content.view_newsletter',
+        'content.add_subscriber', 'content.change_subscriber', 'content.delete_subscriber', 'content.view_subscriber',
+        'content.add_menuitem', 'content.change_menuitem', 'content.delete_menuitem', 'content.view_menuitem',
     ]
     _REDACTEUR_CONTENT = [
         'content.add_article', 'content.change_article', 'content.view_article',
@@ -43,6 +49,7 @@ def create_editorial_groups(sender, **kwargs):
         'cms.add_articlepage', 'cms.change_articlepage', 'cms.delete_articlepage', 'cms.view_articlepage',
         'cms.add_contentpage', 'cms.change_contentpage', 'cms.delete_contentpage', 'cms.view_contentpage',
         'cms.add_cmscategory', 'cms.change_cmscategory', 'cms.delete_cmscategory', 'cms.view_cmscategory',
+        'cms.add_event', 'cms.change_event', 'cms.delete_event', 'cms.view_event',
         'wagtailimages.add_image', 'wagtailimages.change_image', 'wagtailimages.view_image',
         'wagtailimages.choose_image', 'wagtailimages.delete_image',
         'wagtaildocs.add_document', 'wagtaildocs.change_document', 'wagtaildocs.view_document',

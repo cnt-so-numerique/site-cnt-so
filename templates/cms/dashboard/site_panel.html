@@ -53,6 +53,7 @@
       </div>
     </a>
 
+    {% if is_chef %}
     <a href="/cms/snippets/content/subscriber/" style="text-decoration:none;">
       <div style="background:#252932;border:1px solid #2d3139;border-radius:6px;padding:.75rem;text-align:center;" onmouseover="this.style.borderColor='#e63946'" onmouseout="this.style.borderColor='#2d3139'">
         <div style="font-size:1.5rem;font-weight:700;color:#e2e8f0;">{{ stats.subscribers }}</div>
@@ -66,7 +67,7 @@
         <div style="font-size:.875rem;color:#94a3b8;margin-top:.1rem;">Messages</div>
       </div>
     </a>
-
+    {% endif %}
 
   </div>
 
@@ -77,15 +78,31 @@
     <div style="background:#252932;border:1px solid #2d3139;border-radius:6px;padding:1rem;">
       <div style="font-size:.875rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">✏️ Rédaction</div>
       <div style="display:flex;flex-direction:column;gap:.4rem;">
+        <a href="/cms/snippets/cms/articlepage/add/" style="color:#e63946;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;font-weight:600;">+ Nouvel article</a>
         <a href="/cms/snippets/cms/articlepage/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">📄 Tous les articles</a>
-        <a href="/cms/snippets/cms/articlepage/add/" style="color:#e63946;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">+ Nouvel article</a>
         <a href="/cms/snippets/cms/contentpage/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">📃 Pages du site</a>
         <a href="/cms/snippets/cms/cmscategory/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">🏷️ Catégories</a>
+        {% if is_chef %}
         <a href="/cms/snippets/cms/event/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">📅 Agenda</a>
         <a href="/cms/snippets/cms/event/add/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">+ Nouvel événement</a>
+        {% endif %}
       </div>
     </div>
 
+    {% if not is_chef %}
+    <!-- Aide rapide pour les rédacteurs -->
+    <div style="background:#252932;border:1px solid #2d3139;border-radius:6px;padding:1rem;">
+      <div style="font-size:.875rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">💡 Comment publier ?</div>
+      <ol style="margin:0;padding-left:1.1rem;color:#e2e8f0;font-size:.875rem;line-height:1.7;">
+        <li>Cliquez sur <strong style="color:#e63946;">+ Nouvel article</strong></li>
+        <li>Donnez un titre, écrivez dans l'onglet <strong>Contenu</strong></li>
+        <li>Ajoutez une image et une catégorie (onglet <strong>Métadonnées</strong>)</li>
+        <li>Cliquez sur <strong>Enregistrer</strong> puis <strong>Publier</strong></li>
+      </ol>
+    </div>
+    {% endif %}
+
+    {% if is_chef %}
     <!-- Navigation -->
     <div style="background:#252932;border:1px solid #2d3139;border-radius:6px;padding:1rem;">
       <div style="font-size:.875rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">🗂️ Navigation</div>
@@ -115,7 +132,7 @@
         <a href="/cms/mailing-lists/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">📮 Listes mails OVH</a>
       </div>
     </div>
-
+    {% endif %}
 
   </div>
 

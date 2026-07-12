@@ -566,6 +566,10 @@ def hide_unused_wagtail_menus(request, menu_items):
     # On masque seulement les menus Wagtail natifs non utilisés dans ce projet
     # articles-pages-legacy = ContenuGroup (content.Article/Page — remplacé par cms.ArticlePage)
     hidden = {'documents', 'images', 'explorer'}
+    from content.admin_utils import is_chef
+    if not is_chef(request.user):
+        # Rédacteurs débutants : on épure — les rapports Wagtail ne leur servent pas
+        hidden |= {'reports'}
     menu_items[:] = [item for item in menu_items if item.name not in hidden]
 
 
