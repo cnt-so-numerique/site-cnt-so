@@ -179,14 +179,23 @@ grep -rn "from content.models import.*\bSite\b\|content\.Site\b" --include="*.py
 # Doit retourner zéro résultat (hors models.py lui-même et sa migration de suppression)
 ```
 
-- [ ] Supprimer `class Site` de `content/models.py`
-- [ ] Supprimer `SiteAdmin` de `content/admin.py`
-- [ ] Supprimer `SiteViewSet` de `content/wagtail_hooks.py`
-- [ ] Créer migration de suppression `content/migrations/XXXX_delete_site.py`
-- [ ] Supprimer `SectionPage._sync_content_site()` dans `cms/models.py`
-- [ ] Évaluer suppression des modèles legacy `content.Article` / `content.Page`
-  si entièrement remplacés par `cms.ArticlePage` / `cms.ContentPage`
-- [ ] Suite complète verte ✓
+- [x] Supprimer `class Site` de `content/models.py`
+- [x] Supprimer `SiteAdmin` de `content/admin.py`
+- [x] Supprimer `SiteViewSet` de `content/wagtail_hooks.py`
+- [x] Créer migration de suppression (`content/migrations/0020_delete_site.py`)
+- [x] Supprimer `SectionPage._sync_content_site()` dans `cms/models.py`
+- [x] Supprimer les commandes d'import WP cassées par la suppression de Site
+  (`import_comments`, `import_featured_images`, `create_users_from_authors`) — 2026-07-12
+- [x] Évaluer suppression des modèles legacy `content.Article` / `content.Page` — 2026-07-12
+  **Verdict : on garde les deux.**
+  - `content.Page` sert encore les vues publiques (pages statiques des sous-sites,
+    `content/views.py`)
+  - `content.Article` est utilisé activement par la composition de newsletters
+    (`NewsletterArticle.article` FK CASCADE, `content/newsletter_views.py`) et par
+    le fallback images legacy (`ArticlePage.any_image_url` via `legacy_article_id`)
+  - Suppression possible seulement après : migration de `NewsletterArticle` vers
+    `cms.ArticlePage` + import des images legacy dans Wagtail (cf. chantier STUCS)
+- [x] Suite complète verte ✓ (562 tests, 2026-07-12)
 
 ---
 
