@@ -1,11 +1,11 @@
 {% if available_sites %}
 <div id="cnt-site-bar" style="
     display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;
-    background:#1e2229;border-bottom:2px solid #e63946;
+    background:var(--w-color-surface-field);border-bottom:2px solid #e63946;
     padding:.4rem .8rem;font-size:.875rem;
     position:sticky;top:0;z-index:130;
 ">
-  <span style="color:#94a3b8;white-space:nowrap;margin-right:.3rem;">Syndicat :</span>
+  <span style="color:var(--w-color-text-meta);white-space:nowrap;margin-right:.3rem;">Syndicat :</span>
 
   {% for site in available_sites %}
   {% if is_chef %}
@@ -14,7 +14,7 @@
       {% if current_site and site.pk == current_site.pk %}
         background:#e63946;color:#fff;font-weight:600;
       {% else %}
-        background:#252932;color:#94a3b8;border:1px solid #2d3139;
+        background:var(--w-color-surface-field);color:var(--w-color-text-meta);border:1px solid var(--w-color-border-furniture);
       {% endif %}
   ">{{ site.name }}</a>
   {% else %}
@@ -28,13 +28,13 @@
 
   <span style="margin-left:auto;display:flex;gap:.5rem;align-items:center;">
     {% if current_site %}
-    <a href="/cms/snippets/cms/articlepage/" style="color:#64748b;text-decoration:none;font-size:.875rem;">📄 Articles</a>
+    <a href="/cms/snippets/cms/articlepage/" style="color:var(--w-color-text-meta);text-decoration:none;font-size:.875rem;">📄 Articles</a>
     {% if is_chef %}
-    <a href="/cms/menus/" style="color:#64748b;text-decoration:none;font-size:.875rem;">🗂️ Menus</a>
-    <a href="/cms/snippets/content/newsletter/" style="color:#64748b;text-decoration:none;font-size:.875rem;">📧</a>
+    <a href="/cms/menus/" style="color:var(--w-color-text-meta);text-decoration:none;font-size:.875rem;">🗂️ Menus</a>
+    <a href="/cms/snippets/content/newsletter/" style="color:var(--w-color-text-meta);text-decoration:none;font-size:.875rem;">📧</a>
     {% endif %}
     {% endif %}
-    <a href="/cms/" style="color:#64748b;text-decoration:none;font-size:.875rem;">🏠</a>
+    <a href="/cms/" style="color:var(--w-color-text-meta);text-decoration:none;font-size:.875rem;">🏠</a>
   </span>
 </div>
 {% endif %}

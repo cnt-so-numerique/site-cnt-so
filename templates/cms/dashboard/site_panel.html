@@ -1,8 +1,8 @@
 {% load i18n %}
 
 <section class="cms-site-panel" style="
-    background: #1e2229;
-    border: 1px solid #2d3139;
+    background: var(--w-color-surface-field);
+    border: 1px solid var(--w-color-border-furniture);
     border-radius: 8px;
     padding: 1.5rem;
     margin-bottom: 1.5rem;
@@ -13,18 +13,18 @@
 
   <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem;">
     <div>
-      <div style="font-size:.875rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.2rem;">
+      <div style="font-size:.875rem;color:var(--w-color-text-meta);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.2rem;">
         Vous éditez le syndicat
       </div>
-      <h2 style="margin:0;font-size:1.5rem;color:#e2e8f0;font-weight:700;">
+      <h2 style="margin:0;font-size:1.5rem;color:var(--w-color-text-context);font-weight:700;">
         {{ current_site.name }}
       </h2>
     </div>
 
     {% if available_sites|length > 1 %}
     <form method="get" action="/cms/select-site/" style="display:flex;align-items:center;gap:.5rem;">
-      <label style="font-size:.875rem;color:#94a3b8;">Changer :</label>
-      <select name="site_id" style="background:#252932;border:1px solid #2d3139;border-radius:5px;color:#e2e8f0;font-size:.875rem;padding:.35rem .6rem;cursor:pointer;">
+      <label style="font-size:.875rem;color:var(--w-color-text-meta);">Changer :</label>
+      <select name="site_id" style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:5px;color:var(--w-color-text-context);font-size:.875rem;padding:.35rem .6rem;cursor:pointer;">
         {% for site in available_sites %}
         <option value="{{ site.pk }}" {% if site.pk == current_site.pk %}selected{% endif %}>
           {{ site.name }}{% if site.site_type == 'regional' %} [UR]{% elif site.site_type == 'sectoral' %} [SI]{% endif %}
@@ -40,31 +40,31 @@
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.75rem;margin-bottom:1.25rem;">
 
     <a href="/cms/snippets/cms/articlepage/" style="text-decoration:none;">
-      <div style="background:#252932;border:1px solid #2d3139;border-radius:6px;padding:.75rem;text-align:center;transition:border-color .2s;" onmouseover="this.style.borderColor='#e63946'" onmouseout="this.style.borderColor='#2d3139'">
+      <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:.75rem;text-align:center;transition:border-color .2s;" onmouseover="this.style.borderColor='#e63946'" onmouseout="this.style.borderColor='var(--w-color-border-furniture)'">
         <div style="font-size:1.5rem;font-weight:700;color:#e63946;">{{ stats.articles }}</div>
-        <div style="font-size:.875rem;color:#94a3b8;margin-top:.1rem;">Articles</div>
+        <div style="font-size:.875rem;color:var(--w-color-text-meta);margin-top:.1rem;">Articles</div>
       </div>
     </a>
 
     <a href="/cms/snippets/cms/contentpage/" style="text-decoration:none;">
-      <div style="background:#252932;border:1px solid #2d3139;border-radius:6px;padding:.75rem;text-align:center;" onmouseover="this.style.borderColor='#e63946'" onmouseout="this.style.borderColor='#2d3139'">
-        <div style="font-size:1.5rem;font-weight:700;color:#e2e8f0;">{{ stats.pages }}</div>
-        <div style="font-size:.875rem;color:#94a3b8;margin-top:.1rem;">Pages</div>
+      <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:.75rem;text-align:center;" onmouseover="this.style.borderColor='#e63946'" onmouseout="this.style.borderColor='var(--w-color-border-furniture)'">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--w-color-text-context);">{{ stats.pages }}</div>
+        <div style="font-size:.875rem;color:var(--w-color-text-meta);margin-top:.1rem;">Pages</div>
       </div>
     </a>
 
     {% if is_chef %}
     <a href="/cms/snippets/content/subscriber/" style="text-decoration:none;">
-      <div style="background:#252932;border:1px solid #2d3139;border-radius:6px;padding:.75rem;text-align:center;" onmouseover="this.style.borderColor='#e63946'" onmouseout="this.style.borderColor='#2d3139'">
-        <div style="font-size:1.5rem;font-weight:700;color:#e2e8f0;">{{ stats.subscribers }}</div>
-        <div style="font-size:.875rem;color:#94a3b8;margin-top:.1rem;">Abonnés</div>
+      <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:.75rem;text-align:center;" onmouseover="this.style.borderColor='#e63946'" onmouseout="this.style.borderColor='var(--w-color-border-furniture)'">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--w-color-text-context);">{{ stats.subscribers }}</div>
+        <div style="font-size:.875rem;color:var(--w-color-text-meta);margin-top:.1rem;">Abonnés</div>
       </div>
     </a>
 
     <a href="/cms/snippets/content/contactmessage/" style="text-decoration:none;">
-      <div style="background:#252932;border:1px solid #2d3139;border-radius:6px;padding:.75rem;text-align:center;" onmouseover="this.style.borderColor='#e63946'" onmouseout="this.style.borderColor='#2d3139'">
-        <div style="font-size:1.5rem;font-weight:700;color:#e2e8f0;">{{ stats.contacts_unread }}</div>
-        <div style="font-size:.875rem;color:#94a3b8;margin-top:.1rem;">Messages</div>
+      <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:.75rem;text-align:center;" onmouseover="this.style.borderColor='#e63946'" onmouseout="this.style.borderColor='var(--w-color-border-furniture)'">
+        <div style="font-size:1.5rem;font-weight:700;color:var(--w-color-text-context);">{{ stats.contacts_unread }}</div>
+        <div style="font-size:.875rem;color:var(--w-color-text-meta);margin-top:.1rem;">Messages</div>
       </div>
     </a>
     {% endif %}
@@ -75,25 +75,25 @@
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;">
 
     <!-- Rédaction -->
-    <div style="background:#252932;border:1px solid #2d3139;border-radius:6px;padding:1rem;">
-      <div style="font-size:.875rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">✏️ Rédaction</div>
+    <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:1rem;">
+      <div style="font-size:.875rem;color:var(--w-color-text-meta);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">✏️ Rédaction</div>
       <div style="display:flex;flex-direction:column;gap:.4rem;">
-        <a href="/cms/snippets/cms/articlepage/add/" style="color:#e63946;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;font-weight:600;">+ Nouvel article</a>
-        <a href="/cms/snippets/cms/articlepage/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">📄 Tous les articles</a>
-        <a href="/cms/snippets/cms/contentpage/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">📃 Pages du site</a>
-        <a href="/cms/snippets/cms/cmscategory/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">🏷️ Catégories</a>
+        <a href="/cms/snippets/cms/articlepage/add/" style="color:#e63946;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);font-weight:600;">+ Nouvel article</a>
+        <a href="/cms/snippets/cms/articlepage/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">📄 Tous les articles</a>
+        <a href="/cms/snippets/cms/contentpage/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">📃 Pages du site</a>
+        <a href="/cms/snippets/cms/cmscategory/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">🏷️ Catégories</a>
         {% if is_chef %}
-        <a href="/cms/snippets/cms/event/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">📅 Agenda</a>
-        <a href="/cms/snippets/cms/event/add/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">+ Nouvel événement</a>
+        <a href="/cms/snippets/cms/event/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">📅 Agenda</a>
+        <a href="/cms/snippets/cms/event/add/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">+ Nouvel événement</a>
         {% endif %}
       </div>
     </div>
 
     {% if not is_chef %}
     <!-- Aide rapide pour les rédacteurs -->
-    <div style="background:#252932;border:1px solid #2d3139;border-radius:6px;padding:1rem;">
-      <div style="font-size:.875rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">💡 Comment publier ?</div>
-      <ol style="margin:0;padding-left:1.1rem;color:#e2e8f0;font-size:.875rem;line-height:1.7;">
+    <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:1rem;">
+      <div style="font-size:.875rem;color:var(--w-color-text-meta);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">💡 Comment publier ?</div>
+      <ol style="margin:0;padding-left:1.1rem;color:var(--w-color-text-context);font-size:.875rem;line-height:1.7;">
         <li>Cliquez sur <strong style="color:#e63946;">+ Nouvel article</strong></li>
         <li>Donnez un titre, écrivez dans l'onglet <strong>Contenu</strong></li>
         <li>Ajoutez une image et une catégorie (onglet <strong>Métadonnées</strong>)</li>
@@ -104,32 +104,32 @@
 
     {% if is_chef %}
     <!-- Navigation -->
-    <div style="background:#252932;border:1px solid #2d3139;border-radius:6px;padding:1rem;">
-      <div style="font-size:.875rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">🗂️ Navigation</div>
+    <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:1rem;">
+      <div style="font-size:.875rem;color:var(--w-color-text-meta);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">🗂️ Navigation</div>
       <div style="display:flex;flex-direction:column;gap:.4rem;">
-        <a href="/cms/menus/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">🔗 Menus du site</a>
+        <a href="/cms/menus/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">🔗 Menus du site</a>
       </div>
     </div>
 
     <!-- Contact -->
-    <div style="background:#252932;border:1px solid #2d3139;border-radius:6px;padding:1rem;">
-      <div style="font-size:.875rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">📬 Contact</div>
+    <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:1rem;">
+      <div style="font-size:.875rem;color:var(--w-color-text-meta);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">📬 Contact</div>
       <div style="display:flex;flex-direction:column;gap:.4rem;">
-        <a href="/cms/contact/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">
+        <a href="/cms/contact/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">
           📨 Messages reçus{% if stats.contacts_unread > 0 %} <span style="background:#e63946;color:white;padding:.1rem .4rem;border-radius:10px;font-size:.875rem;">{{ stats.contacts_unread }}</span>{% endif %}
         </a>
-        <a href="/cms/contact-config/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">⚙️ Config formulaire</a>
+        <a href="/cms/contact-config/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">⚙️ Config formulaire</a>
       </div>
     </div>
 
     <!-- Newsletter -->
-    <div style="background:#252932;border:1px solid #2d3139;border-radius:6px;padding:1rem;">
-      <div style="font-size:.875rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">📧 Newsletter</div>
+    <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:1rem;">
+      <div style="font-size:.875rem;color:var(--w-color-text-meta);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">📧 Newsletter</div>
       <div style="display:flex;flex-direction:column;gap:.4rem;">
-        <a href="/cms/snippets/content/newsletter/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">📨 Newsletters</a>
-        <a href="/cms/snippets/content/subscriber/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">👥 Abonnés ({{ stats.subscribers }})</a>
-        <a href="/cms/abonnes/export/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">⬇️ Exporter CSV</a>
-        <a href="/cms/mailing-lists/" style="color:#e2e8f0;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:#1e2229;">📮 Listes mails OVH</a>
+        <a href="/cms/snippets/content/newsletter/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">📨 Newsletters</a>
+        <a href="/cms/snippets/content/subscriber/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">👥 Abonnés ({{ stats.subscribers }})</a>
+        <a href="/cms/abonnes/export/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">⬇️ Exporter CSV</a>
+        <a href="/cms/mailing-lists/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">📮 Listes mails OVH</a>
       </div>
     </div>
     {% endif %}
@@ -138,16 +138,16 @@
 
   {% else %}
   <!-- ── Sélection du syndicat ─────────────────────────────────── -->
-  <h2 style="margin:0 0 .5rem;font-size:1.1rem;color:#e2e8f0;">Choisissez votre syndicat</h2>
-  <p style="font-size:.875rem;color:#94a3b8;margin:0 0 1rem;">Tous vos outils (articles, newsletter, adhésions...) seront filtrés pour ce syndicat.</p>
+  <h2 style="margin:0 0 .5rem;font-size:1.1rem;color:var(--w-color-text-context);">Choisissez votre syndicat</h2>
+  <p style="font-size:.875rem;color:var(--w-color-text-meta);margin:0 0 1rem;">Tous vos outils (articles, newsletter, adhésions...) seront filtrés pour ce syndicat.</p>
   <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
     {% for site in available_sites %}
     <a href="/cms/select-site/?site_id={{ site.pk }}" style="
-        display:inline-block;padding:.6rem 1.2rem;background:#252932;
-        border:1px solid #2d3139;border-radius:6px;
-        color:#e2e8f0;text-decoration:none;font-size:.9rem;">
+        display:inline-block;padding:.6rem 1.2rem;background:var(--w-color-surface-field);
+        border:1px solid var(--w-color-border-furniture);border-radius:6px;
+        color:var(--w-color-text-context);text-decoration:none;font-size:.9rem;">
       {{ site.name }}
-      {% if site.site_type == 'regional' %}<span style="font-size:.875rem;color:#94a3b8;display:block;">Union régionale</span>{% elif site.site_type == 'sectoral' %}<span style="font-size:.875rem;color:#94a3b8;display:block;">Syndicat d'industrie</span>{% endif %}
+      {% if site.site_type == 'regional' %}<span style="font-size:.875rem;color:var(--w-color-text-meta);display:block;">Union régionale</span>{% elif site.site_type == 'sectoral' %}<span style="font-size:.875rem;color:var(--w-color-text-meta);display:block;">Syndicat d'industrie</span>{% endif %}
     </a>
     {% endfor %}
   </div>

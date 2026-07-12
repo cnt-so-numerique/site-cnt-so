@@ -10,13 +10,13 @@
 .menu-li > .sortable-list { min-height: 4px; }
 body.cnt-dragging .menu-li > .sortable-list:empty {
   min-height: 30px;
-  border: 1px dashed #3d4451;
+  border: 1px dashed var(--w-color-border-furniture);
   border-radius: 4px;
   margin: 3px 12px;
   box-sizing: border-box;
 }
-.sortable-ghost > .menu-item-row { opacity: 0.35; background: #252932 !important; outline: 2px dashed #e63946; }
-.sortable-chosen > .menu-item-row { background: #252932 !important; }
+.sortable-ghost > .menu-item-row { opacity: 0.35; background: var(--w-color-surface-field) !important; outline: 2px dashed #e63946; }
+.sortable-chosen > .menu-item-row { background: var(--w-color-surface-field) !important; }
 </style>
 
 <div class="nice-padding">
@@ -25,7 +25,7 @@ body.cnt-dragging .menu-li > .sortable-list:empty {
     <div>
       <h1 class="w-h1" style="margin:0;">Menus</h1>
       {% if current_site %}
-      <p style="margin:.25rem 0 0;color:#94a3b8;font-size:.9rem;">{{ current_site.name }}</p>
+      <p style="margin:.25rem 0 0;color:var(--w-color-text-meta);font-size:.9rem;">{{ current_site.name }}</p>
       {% endif %}
     </div>
     {% if current_site %}
@@ -38,7 +38,7 @@ body.cnt-dragging .menu-li > .sortable-list:empty {
   </div>
 
   {% if not current_site %}
-  <div style="padding:2rem;text-align:center;color:#94a3b8;background:#1e2229;border-radius:8px;border:1px solid #2d3139;">
+  <div style="padding:2rem;text-align:center;color:var(--w-color-text-meta);background:var(--w-color-surface-field);border-radius:8px;border:1px solid var(--w-color-border-furniture);">
     Sélectionnez un syndicat dans la barre en haut pour voir ses menus.
   </div>
 
@@ -48,10 +48,10 @@ body.cnt-dragging .menu-li > .sortable-list:empty {
 
     <!-- ── Menu principal ───────────────── -->
     <div>
-      <h2 style="margin:0 0 .6rem;font-size:.9rem;color:#e2e8f0;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
+      <h2 style="margin:0 0 .6rem;font-size:.9rem;color:var(--w-color-text-context);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
         🔝 Menu principal
       </h2>
-      <div class="menu-block" data-menu-type="main" style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
+      <div class="menu-block" data-menu-type="main" style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:8px;overflow:hidden;">
         {% if site_data.main %}
         <ul class="sortable-list" data-parent="">
           {% for item in site_data.main %}
@@ -76,17 +76,17 @@ body.cnt-dragging .menu-li > .sortable-list:empty {
           {% endfor %}
         </ul>
         {% else %}
-        <p style="padding:1.5rem;color:#94a3b8;text-align:center;margin:0;">Aucun élément</p>
+        <p style="padding:1.5rem;color:var(--w-color-text-meta);text-align:center;margin:0;">Aucun élément</p>
         {% endif %}
       </div>
     </div>
 
     <!-- ── Pied de page ─────────────────── -->
     <div>
-      <h2 style="margin:0 0 .6rem;font-size:.9rem;color:#e2e8f0;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
+      <h2 style="margin:0 0 .6rem;font-size:.9rem;color:var(--w-color-text-context);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
         ⬇️ Pied de page
       </h2>
-      <div class="menu-block" data-menu-type="footer" style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
+      <div class="menu-block" data-menu-type="footer" style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:8px;overflow:hidden;">
         {% if site_data.footer %}
         <ul class="sortable-list" data-parent="">
           {% for item in site_data.footer %}
@@ -104,7 +104,7 @@ body.cnt-dragging .menu-li > .sortable-list:empty {
           {% endfor %}
         </ul>
         {% else %}
-        <p style="padding:1.5rem;color:#94a3b8;text-align:center;margin:0;">Aucun élément</p>
+        <p style="padding:1.5rem;color:var(--w-color-text-meta);text-align:center;margin:0;">Aucun élément</p>
         {% endif %}
       </div>
     </div>
@@ -113,10 +113,10 @@ body.cnt-dragging .menu-li > .sortable-list:empty {
 
   {% if site_data.secondary %}
   <div>
-    <h2 style="margin:0 0 .6rem;font-size:.9rem;color:#e2e8f0;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
+    <h2 style="margin:0 0 .6rem;font-size:.9rem;color:var(--w-color-text-context);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
       ↔️ Menu secondaire
     </h2>
-    <div class="menu-block" data-menu-type="secondary" style="background:#1e2229;border:1px solid #2d3139;border-radius:8px;overflow:hidden;">
+    <div class="menu-block" data-menu-type="secondary" style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:8px;overflow:hidden;">
       <ul class="sortable-list" data-parent="">
         {% for item in site_data.secondary %}
         <li class="menu-li" data-id="{{ item.pk }}">
@@ -157,17 +157,17 @@ body.cnt-dragging .menu-li > .sortable-list:empty {
       if (!row) return;
 
       row.style.paddingLeft = depth === 0 ? '1rem' : depth === 1 ? '2.5rem' : '4rem';
-      row.style.background   = depth === 0 ? '' : depth === 1 ? '#171a1f' : '#13151a';
+      row.style.background   = depth === 0 ? '' : depth === 1 ? 'rgba(128,128,128,.08)' : 'rgba(128,128,128,.16)';
 
       const marker = row.querySelector('.depth-marker');
       if (marker) {
         marker.textContent = depth === 0 ? '●' : '└─';
-        marker.style.color    = depth === 0 ? '#e63946' : '#94a3b8';
+        marker.style.color    = depth === 0 ? '#e63946' : 'var(--w-color-text-meta)';
         marker.style.fontSize = depth === 0 ? '.7rem'   : '.65rem';
       }
       const title = row.querySelector('.item-title');
       if (title) {
-        title.style.color      = depth === 0 ? '#e2e8f0' : '#94a3b8';
+        title.style.color      = depth === 0 ? 'var(--w-color-text-context)' : 'var(--w-color-text-meta)';
         title.style.fontSize   = depth === 0 ? '.9rem'   : '.85rem';
         title.style.fontWeight = depth === 0 ? '600'     : '400';
       }

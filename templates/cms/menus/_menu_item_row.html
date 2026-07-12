@@ -1,7 +1,7 @@
 <div class="menu-item-row" style="
     display:flex;align-items:center;gap:.5rem;
     padding:.55rem .75rem;
-    border-bottom:1px solid #2d3139;
+    border-bottom:1px solid var(--w-color-border-furniture);
     background:transparent;
     cursor:default;transition:background .1s;
 ">
@@ -13,7 +13,7 @@
   <span class="depth-marker" style="color:#e63946;font-size:.875rem;flex-shrink:0;">●</span>
 
   <div style="flex:1;min-width:0;">
-    <span class="item-title" style="color:#e2e8f0;font-size:.9rem;font-weight:600;">{{ item.title }}</span>
+    <span class="item-title" style="color:var(--w-color-text-context);font-size:.9rem;font-weight:600;">{{ item.title }}</span>
     <span style="font-size:.875rem;color:#4b5563;margin-left:.4rem;">
       {% if item.link_type == 'url' %}🔗 {{ item.url|truncatechars:35 }}
       {% elif item.link_type == 'category' %}🏷️ {% if item.category %}{{ item.category.name }}{% endif %}
@@ -27,15 +27,15 @@
   </div>
 
   {% if not item.is_active %}
-  <span style="font-size:.875rem;color:#4b5563;background:#252932;padding:.1rem .4rem;border-radius:3px;flex-shrink:0;">masqué</span>
+  <span style="font-size:.875rem;color:#4b5563;background:var(--w-color-surface-field);padding:.1rem .4rem;border-radius:3px;flex-shrink:0;">masqué</span>
   {% endif %}
 
   <a href="/cms/snippets/content/menuitem/edit/{{ item.pk }}/"
-     style="font-size:.875rem;color:#94a3b8;text-decoration:none;padding:.2rem .5rem;border:1px solid #2d3139;border-radius:4px;white-space:nowrap;flex-shrink:0;">
+     style="font-size:.875rem;color:var(--w-color-text-meta);text-decoration:none;padding:.2rem .5rem;border:1px solid var(--w-color-border-furniture);border-radius:4px;white-space:nowrap;flex-shrink:0;">
     ✏️
   </a>
   <a href="/cms/snippets/content/menuitem/delete/{{ item.pk }}/"
-     style="font-size:.875rem;color:#94a3b8;text-decoration:none;padding:.2rem .5rem;border:1px solid #3d1a1a;border-radius:4px;white-space:nowrap;flex-shrink:0;"
+     style="font-size:.875rem;color:var(--w-color-text-meta);text-decoration:none;padding:.2rem .5rem;border:1px solid rgba(239,68,68,.5);border-radius:4px;white-space:nowrap;flex-shrink:0;"
      title="Supprimer">
     🗑️
   </a>

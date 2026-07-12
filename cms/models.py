@@ -584,14 +584,9 @@ class ArticlePage(SeoMixin, Page):
         return context
 
     def get_template(self, request, *args, **kwargs):
-        return 'cms/article_detail.html'
-
-    def is_previewable(self):
-        return False
-
-    def serve_preview(self, request, mode_name):
-        from django.shortcuts import redirect
-        return redirect(self.get_absolute_url())
+        # Même gabarit que les vues publiques (content.views) : la préview
+        # dans l'éditeur est ainsi fidèle au rendu réel de l'article.
+        return 'content/article_detail.html'
 
     def get_absolute_url(self):
         from django.urls import reverse, NoReverseMatch

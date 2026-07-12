@@ -1,34 +1,35 @@
 {% extends 'wagtailadmin/base.html' %}
 {% block title %}Message — {{ submission.name }}{% endblock %}
 
+{# Couleurs via les tokens du thème admin Wagtail : lisible en clair comme en sombre #}
 {% block content %}
 <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;">
-  <a href="/cms/contact/" style="color:#94a3b8;text-decoration:none;font-size:.9rem;">← Retour</a>
+  <a href="/cms/contact/" style="color:var(--w-color-text-meta);text-decoration:none;font-size:.9rem;">← Retour</a>
   <h1 style="font-size:1.3rem;font-weight:700;margin:0;">{{ submission.name }}</h1>
   <span style="padding:.2rem .6rem;border-radius:3px;font-size:.875rem;
-    {% if submission.is_read %}background:#1e2229;color:#94a3b8;{% else %}background:#3b0a0a;color:#f59e0b;{% endif %}">
+    {% if submission.is_read %}border:1px solid var(--w-color-border-furniture);color:var(--w-color-text-meta);{% else %}background:rgba(230,57,70,.12);color:#e63946;{% endif %}">
     {% if submission.is_read %}Lu{% else %}Non lu{% endif %}
   </span>
 </div>
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
 
-  <div style="background:#1e2229;border:1px solid #2d3139;border-radius:6px;padding:1.25rem;">
-    <h2 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:#94a3b8;">Expéditeur</h2>
+  <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:1.25rem;">
+    <h2 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:var(--w-color-text-meta);">Expéditeur</h2>
     <dl style="display:grid;grid-template-columns:auto 1fr;gap:.4rem .75rem;font-size:.9rem;">
-      <dt style="color:#94a3b8;">Nom</dt><dd>{{ submission.name }}</dd>
-      <dt style="color:#94a3b8;">Email</dt>
+      <dt style="color:var(--w-color-text-meta);">Nom</dt><dd>{{ submission.name }}</dd>
+      <dt style="color:var(--w-color-text-meta);">Email</dt>
       <dd><a href="mailto:{{ submission.email }}" style="color:#e63946;">{{ submission.email }}</a></dd>
-      {% if submission.phone %}<dt style="color:#94a3b8;">Tél.</dt><dd>{{ submission.phone }}</dd>{% endif %}
-      {% if submission.city %}<dt style="color:#94a3b8;">Ville</dt><dd>{{ submission.city }}</dd>{% endif %}
-      {% if submission.sector %}<dt style="color:#94a3b8;">Secteur</dt><dd>{{ submission.sector }}</dd>{% endif %}
-      <dt style="color:#94a3b8;">Date</dt><dd>{{ submission.created_at|date:"d/m/Y H:i" }}</dd>
-      <dt style="color:#94a3b8;">Syndicat</dt><dd>{{ submission.site.name|default:"—" }}</dd>
+      {% if submission.phone %}<dt style="color:var(--w-color-text-meta);">Tél.</dt><dd>{{ submission.phone }}</dd>{% endif %}
+      {% if submission.city %}<dt style="color:var(--w-color-text-meta);">Ville</dt><dd>{{ submission.city }}</dd>{% endif %}
+      {% if submission.sector %}<dt style="color:var(--w-color-text-meta);">Secteur</dt><dd>{{ submission.sector }}</dd>{% endif %}
+      <dt style="color:var(--w-color-text-meta);">Date</dt><dd>{{ submission.created_at|date:"d/m/Y H:i" }}</dd>
+      <dt style="color:var(--w-color-text-meta);">Syndicat</dt><dd>{{ submission.site.name|default:"—" }}</dd>
     </dl>
   </div>
 
-  <div style="background:#1e2229;border:1px solid #2d3139;border-radius:6px;padding:1.25rem;">
-    <h2 style="font-size:1rem;font-weight:600;margin-bottom:.75rem;color:#94a3b8;">
+  <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:1.25rem;">
+    <h2 style="font-size:1rem;font-weight:600;margin-bottom:.75rem;color:var(--w-color-text-meta);">
       {% if submission.subject %}{{ submission.subject }}{% else %}Message{% endif %}
     </h2>
     <p style="font-size:.9rem;line-height:1.6;white-space:pre-wrap;">{{ submission.message }}</p>
@@ -37,11 +38,11 @@
 </div>
 
 {% if submission.custom_data %}
-<div style="background:#1e2229;border:1px solid #2d3139;border-radius:6px;padding:1.25rem;margin-bottom:1.5rem;">
-  <h2 style="font-size:.95rem;font-weight:600;margin-bottom:.75rem;color:#94a3b8;">Champs supplémentaires</h2>
+<div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:1.25rem;margin-bottom:1.5rem;">
+  <h2 style="font-size:.95rem;font-weight:600;margin-bottom:.75rem;color:var(--w-color-text-meta);">Champs supplémentaires</h2>
   <dl style="display:grid;grid-template-columns:auto 1fr;gap:.4rem .75rem;font-size:.9rem;">
     {% for k, v in submission.custom_data.items %}
-    <dt style="color:#94a3b8;">{{ k }}</dt><dd>{{ v }}</dd>
+    <dt style="color:var(--w-color-text-meta);">{{ k }}</dt><dd>{{ v }}</dd>
     {% endfor %}
   </dl>
 </div>
@@ -51,7 +52,7 @@
   <form method="post">
     {% csrf_token %}
     <input type="hidden" name="action" value="toggle_read">
-    <button type="submit" style="padding:.4rem .9rem;background:#2d3139;color:#e2e8f0;border:none;border-radius:4px;cursor:pointer;font-size:.875rem;">
+    <button type="submit" style="padding:.4rem .9rem;background:transparent;border:1px solid var(--w-color-border-field-default);color:var(--w-color-text-context);border-radius:4px;cursor:pointer;font-size:.875rem;">
       {% if submission.is_read %}Marquer non lu{% else %}Marquer lu{% endif %}
     </button>
   </form>
@@ -62,7 +63,7 @@
   <form method="post" onsubmit="return confirm('Supprimer ce message définitivement ?')">
     {% csrf_token %}
     <input type="hidden" name="action" value="delete">
-    <button type="submit" style="padding:.4rem .9rem;background:none;border:1px solid #3b0a0a;color:#ef4444;border-radius:4px;cursor:pointer;font-size:.875rem;">
+    <button type="submit" style="padding:.4rem .9rem;background:none;border:1px solid rgba(239,68,68,.5);color:#ef4444;border-radius:4px;cursor:pointer;font-size:.875rem;">
       Supprimer
     </button>
   </form>

@@ -1,6 +1,7 @@
 {% extends 'wagtailadmin/base.html' %}
 {% block title %}Messages de contact{% endblock %}
 
+{# Couleurs via les tokens du thème admin Wagtail : lisible en clair comme en sombre #}
 {% block content %}
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:.75rem;">
   <h1 style="font-size:1.4rem;font-weight:700;">Messages de contact{% if current_site %} — {{ current_site.name }}{% endif %}</h1>
@@ -9,8 +10,8 @@
 
 <form method="get" style="display:flex;gap:.5rem;margin-bottom:1.25rem;flex-wrap:wrap;">
   <input name="q" value="{{ q }}" placeholder="Rechercher nom, email, objet…"
-    style="flex:1;min-width:200px;padding:.4rem .75rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.9rem;">
-  <select name="status" style="padding:.4rem .75rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.9rem;">
+    style="flex:1;min-width:200px;padding:.4rem .75rem;background:var(--w-color-surface-field);border:1px solid var(--w-color-border-field-default);border-radius:4px;color:var(--w-color-text-context);font-size:.9rem;">
+  <select name="status" style="padding:.4rem .75rem;background:var(--w-color-surface-field);border:1px solid var(--w-color-border-field-default);border-radius:4px;color:var(--w-color-text-context);font-size:.9rem;">
     <option value="">Tous</option>
     <option value="unread" {% if status_filter == 'unread' %}selected{% endif %}>Non lus</option>
     <option value="read" {% if status_filter == 'read' %}selected{% endif %}>Lus</option>
@@ -19,7 +20,7 @@
 </form>
 
 {% if not current_site %}
-<div style="background:#2d2200;border:1px solid #f59e0b;border-radius:4px;padding:.75rem 1rem;margin-bottom:1rem;color:#f59e0b;font-size:.9rem;">
+<div style="background:rgba(245,158,11,.12);border:1px solid #f59e0b;border-radius:4px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.9rem;">
   Sélectionnez un syndicat pour filtrer les messages.
 </div>
 {% endif %}
@@ -27,7 +28,7 @@
 <div style="overflow-x:auto;">
   <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
     <thead>
-      <tr style="border-bottom:1px solid #2d3139;color:#94a3b8;text-align:left;">
+      <tr style="border-bottom:1px solid var(--w-color-border-furniture);color:var(--w-color-text-meta);text-align:left;">
         <th style="padding:.5rem .75rem;"></th>
         <th style="padding:.5rem .75rem;">Nom</th>
         <th style="padding:.5rem .75rem;">Email</th>
@@ -39,23 +40,23 @@
     </thead>
     <tbody>
       {% for s in submissions %}
-      <tr style="border-bottom:1px solid #2d3139;{% if not s.is_read %}background:#1a1e28;{% endif %}">
+      <tr style="border-bottom:1px solid var(--w-color-border-furniture);{% if not s.is_read %}background:rgba(230,57,70,.07);{% endif %}">
         <td style="padding:.5rem .75rem;">
           {% if not s.is_read %}
           <span style="display:inline-block;width:8px;height:8px;background:#e63946;border-radius:50%;"></span>
           {% endif %}
         </td>
         <td style="padding:.5rem .75rem;font-weight:{% if not s.is_read %}600{% else %}400{% endif %};">{{ s.name }}</td>
-        <td style="padding:.5rem .75rem;color:#94a3b8;">{{ s.email }}</td>
+        <td style="padding:.5rem .75rem;color:var(--w-color-text-meta);">{{ s.email }}</td>
         <td style="padding:.5rem .75rem;">{{ s.subject|default:"—" }}</td>
-        <td style="padding:.5rem .75rem;color:#94a3b8;">{{ s.site.name|default:"—" }}</td>
-        <td style="padding:.5rem .75rem;color:#94a3b8;">{{ s.created_at|date:"d/m/Y H:i" }}</td>
+        <td style="padding:.5rem .75rem;color:var(--w-color-text-meta);">{{ s.site.name|default:"—" }}</td>
+        <td style="padding:.5rem .75rem;color:var(--w-color-text-meta);">{{ s.created_at|date:"d/m/Y H:i" }}</td>
         <td style="padding:.5rem .75rem;">
           <a href="/cms/contact/{{ s.pk }}/" style="color:#e63946;font-size:.875rem;">Lire</a>
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="7" style="padding:2rem;text-align:center;color:#94a3b8;">Aucun message.</td></tr>
+      <tr><td colspan="7" style="padding:2rem;text-align:center;color:var(--w-color-text-meta);">Aucun message.</td></tr>
       {% endfor %}
     </tbody>
   </table>

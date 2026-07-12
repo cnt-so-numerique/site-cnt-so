@@ -1,10 +1,11 @@
 {% extends 'wagtailadmin/base.html' %}
 {% block title %}Config formulaire de contact{% endblock %}
 
+{# Couleurs via les tokens du thème admin Wagtail : lisible en clair comme en sombre #}
 {% block content %}
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:.75rem;">
   <h1 style="font-size:1.3rem;font-weight:700;">Formulaire de contact — {{ current_site.name }}</h1>
-  <a href="/cms/contact/" style="padding:.4rem .9rem;background:#2d3139;color:#e2e8f0;border-radius:4px;text-decoration:none;font-size:.875rem;">← Messages reçus</a>
+  <a href="/cms/contact/" style="padding:.4rem .9rem;background:transparent;border:1px solid var(--w-color-border-field-default);color:var(--w-color-text-context);border-radius:4px;text-decoration:none;font-size:.875rem;">← Messages reçus</a>
 </div>
 
 <form method="post">
@@ -12,8 +13,8 @@
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
 
-    <div style="background:#1e2229;border:1px solid #2d3139;border-radius:6px;padding:1.25rem;">
-      <h2 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:#94a3b8;">Général</h2>
+    <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:1.25rem;">
+      <h2 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:var(--w-color-text-meta);">Général</h2>
 
       <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;cursor:pointer;">
         <input type="checkbox" name="is_active" {% if formulaire.is_active %}checked{% endif %}>
@@ -21,28 +22,28 @@
       </label>
 
       <div style="margin-bottom:.75rem;">
-        <label style="display:block;font-size:.875rem;color:#94a3b8;margin-bottom:.3rem;">Email de destination</label>
+        <label style="display:block;font-size:.875rem;color:var(--w-color-text-meta);margin-bottom:.3rem;">Email de destination</label>
         <input type="email" name="email_destination" value="{{ formulaire.email_destination }}"
           placeholder="Laissez vide → email de contact du syndicat"
-          style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.875rem;">
+          style="width:100%;padding:.4rem .6rem;background:var(--w-color-surface-field);border:1px solid var(--w-color-border-field-default);border-radius:4px;color:var(--w-color-text-context);font-size:.875rem;">
       </div>
 
       <div style="margin-bottom:.75rem;">
-        <label style="display:block;font-size:.875rem;color:#94a3b8;margin-bottom:.3rem;">Préfixe du sujet d'email</label>
+        <label style="display:block;font-size:.875rem;color:var(--w-color-text-meta);margin-bottom:.3rem;">Préfixe du sujet d'email</label>
         <input type="text" name="email_subject_prefix" value="{{ formulaire.email_subject_prefix }}"
           placeholder="Ex : [Contact CNT-SO]"
-          style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.875rem;">
+          style="width:100%;padding:.4rem .6rem;background:var(--w-color-surface-field);border:1px solid var(--w-color-border-field-default);border-radius:4px;color:var(--w-color-text-context);font-size:.875rem;">
       </div>
 
       <div>
-        <label style="display:block;font-size:.875rem;color:#94a3b8;margin-bottom:.3rem;">Texte d'introduction</label>
+        <label style="display:block;font-size:.875rem;color:var(--w-color-text-meta);margin-bottom:.3rem;">Texte d'introduction</label>
         <textarea name="intro_text" rows="3"
-          style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.875rem;resize:vertical;">{{ formulaire.intro_text }}</textarea>
+          style="width:100%;padding:.4rem .6rem;background:var(--w-color-surface-field);border:1px solid var(--w-color-border-field-default);border-radius:4px;color:var(--w-color-text-context);font-size:.875rem;resize:vertical;">{{ formulaire.intro_text }}</textarea>
       </div>
     </div>
 
-    <div style="background:#1e2229;border:1px solid #2d3139;border-radius:6px;padding:1.25rem;">
-      <h2 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:#94a3b8;">Champs activés</h2>
+    <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:1.25rem;">
+      <h2 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:var(--w-color-text-meta);">Champs activés</h2>
 
       <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;cursor:pointer;">
         <input type="checkbox" name="field_nom" {% if formulaire.field_nom %}checked{% endif %}> Nom
@@ -59,10 +60,10 @@
       <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;cursor:pointer;">
         <input type="checkbox" name="field_objet" {% if formulaire.field_objet %}checked{% endif %}> Objet
       </label>
-      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;color:#64748b;cursor:default;">
+      <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;color:var(--w-color-text-meta);cursor:default;">
         <input type="checkbox" disabled checked> Email (toujours obligatoire)
       </label>
-      <label style="display:flex;align-items:center;gap:.5rem;color:#64748b;cursor:default;">
+      <label style="display:flex;align-items:center;gap:.5rem;color:var(--w-color-text-meta);cursor:default;">
         <input type="checkbox" disabled checked> Message (toujours obligatoire)
       </label>
     </div>
@@ -74,19 +75,19 @@
   </button>
   {% if formulaire.is_active %}
   <a href="{% url 'content:contact' %}" target="_blank"
-     style="margin-left:1rem;color:#94a3b8;font-size:.9rem;text-decoration:none;">Voir le formulaire public ↗</a>
+     style="margin-left:1rem;color:var(--w-color-text-meta);font-size:.9rem;text-decoration:none;">Voir le formulaire public ↗</a>
   {% endif %}
 </form>
 
 <!-- Champs personnalisés -->
-<div style="background:#1e2229;border:1px solid #2d3139;border-radius:6px;padding:1.25rem;margin-top:1.5rem;">
-  <h2 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:#94a3b8;">Champs personnalisés</h2>
+<div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:1.25rem;margin-top:1.5rem;">
+  <h2 style="font-size:1rem;font-weight:600;margin-bottom:1rem;color:var(--w-color-text-meta);">Champs personnalisés</h2>
 
   {% for champ in champs %}
-  <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid #2d3139;">
+  <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid var(--w-color-border-furniture);">
     <span style="flex:1;font-size:.9rem;">
       {{ champ.label }}
-      <span style="color:#94a3b8;font-size:.875rem;">({{ champ.get_field_type_display }}){% if champ.is_required %} *{% endif %}</span>
+      <span style="color:var(--w-color-text-meta);font-size:.875rem;">({{ champ.get_field_type_display }}){% if champ.is_required %} *{% endif %}</span>
     </span>
     <form method="post" action="/cms/contact-config/champ/{{ champ.pk }}/supprimer/" style="display:inline;">
       {% csrf_token %}
@@ -95,19 +96,19 @@
     </form>
   </div>
   {% empty %}
-  <p style="color:#94a3b8;font-size:.9rem;">Aucun champ personnalisé.</p>
+  <p style="color:var(--w-color-text-meta);font-size:.9rem;">Aucun champ personnalisé.</p>
   {% endfor %}
 
   <form method="post" action="/cms/contact-config/champ/ajouter/" style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end;">
     {% csrf_token %}
     <div style="flex:1;min-width:150px;">
-      <label style="display:block;font-size:.875rem;color:#94a3b8;margin-bottom:.25rem;">Libellé</label>
+      <label style="display:block;font-size:.875rem;color:var(--w-color-text-meta);margin-bottom:.25rem;">Libellé</label>
       <input type="text" name="label" placeholder="Ex : Entreprise" required
-        style="width:100%;padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.875rem;">
+        style="width:100%;padding:.4rem .6rem;background:var(--w-color-surface-field);border:1px solid var(--w-color-border-field-default);border-radius:4px;color:var(--w-color-text-context);font-size:.875rem;">
     </div>
     <div>
-      <label style="display:block;font-size:.875rem;color:#94a3b8;margin-bottom:.25rem;">Type</label>
-      <select name="field_type" style="padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.875rem;">
+      <label style="display:block;font-size:.875rem;color:var(--w-color-text-meta);margin-bottom:.25rem;">Type</label>
+      <select name="field_type" style="padding:.4rem .6rem;background:var(--w-color-surface-field);border:1px solid var(--w-color-border-field-default);border-radius:4px;color:var(--w-color-text-context);font-size:.875rem;">
         <option value="text">Texte court</option>
         <option value="textarea">Texte long</option>
         <option value="select">Liste déroulante</option>
@@ -115,9 +116,9 @@
       </select>
     </div>
     <div>
-      <label style="display:block;font-size:.875rem;color:#94a3b8;margin-bottom:.25rem;">Options (une par ligne)</label>
+      <label style="display:block;font-size:.875rem;color:var(--w-color-text-meta);margin-bottom:.25rem;">Options (une par ligne)</label>
       <input type="text" name="choices_text" placeholder="Uniquement pour liste déroulante"
-        style="padding:.4rem .6rem;background:#252932;border:1px solid #2d3139;border-radius:4px;color:#e2e8f0;font-size:.875rem;width:220px;">
+        style="padding:.4rem .6rem;background:var(--w-color-surface-field);border:1px solid var(--w-color-border-field-default);border-radius:4px;color:var(--w-color-text-context);font-size:.875rem;width:220px;">
     </div>
     <label style="display:flex;align-items:center;gap:.3rem;font-size:.875rem;cursor:pointer;padding-bottom:.1rem;">
       <input type="checkbox" name="is_required"> Obligatoire
