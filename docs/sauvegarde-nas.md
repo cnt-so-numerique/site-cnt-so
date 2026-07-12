@@ -71,8 +71,12 @@ sudo -u postgres pg_restore -d cntso --clean --if-exists cntso-YYYYMMDD-HHMMSS.d
 # Media : rsync du NAS vers /var/www/cntso/media/ (inverser le sens, clé admin)
 ```
 
-Tester la restauration au moins une fois après la mise en place (sur la base de dev
-par exemple) — une sauvegarde jamais restaurée n'est pas une sauvegarde.
+Tester la restauration une fois par an (ou après changement de config serveur) —
+une sauvegarde jamais restaurée n'est pas une sauvegarde.
+
+**Dernier test réussi : 2026-07-12** — dump récupéré depuis le NAS et restauré dans
+un PostgreSQL 15 jetable (Docker local) : 83 tables, 1 800 articles, 1 878 pages
+Wagtail, requêtes de cohérence OK.
 
 ## Surveillance
 
