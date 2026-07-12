@@ -18,81 +18,48 @@ verrouillé, connexion par clé uniquement, chaque clé étant **forcée en lect
 sur un seul dossier** via `rrsync -ro` (impossible d'écrire, de lire autre chose,
 ou d'obtenir un shell).
 
-## Côté serveur — état
+## État de la mise en place (2026-07-12)
 
+Côté **serveur** (fait) :
 - [x] Cron `pg_backup` : dump quotidien des deux bases à 3h30 (`/etc/cron.d/pg_backup`)
-- [x] Utilisateur `nasbackup` créé, mot de passe verrouillé, `~/.ssh/authorized_keys` prêt
-- [ ] Coller les deux clés publiques du NAS (voir ci-dessous) dans
-  `/home/nasbackup/.ssh/authorized_keys` :
+- [x] Utilisateur `nasbackup` créé, mot de passe verrouillé
+- [x] Clés publiques du NAS installées dans `/home/nasbackup/.ssh/authorized_keys`
+  avec restrictions :
 
 ```
-restrict,command="/usr/bin/rrsync -ro /var/backups/postgres" ssh-ed25519 AAAA… nas-dumps
-restrict,command="/usr/bin/rrsync -ro /var/www/cntso/media" ssh-ed25519 AAAA… nas-media
+restrict,command="/usr/bin/rrsync -ro /var/backups/postgres" ssh-ed25519 … nas-dumps
+restrict,command="/usr/bin/rrsync -ro /var/www/cntso/media" ssh-ed25519 … nas-media
 ```
 
-## Côté NAS Synology — procédure
+Côté **NAS** (« nononas », DS224+, `192.168.1.27`) — fait :
+- [x] Clés privées : `/var/services/homes/nononas/.ssh/id_dumps` et `id_media`
+  (⚠️ pas dans le partage : le chemin avec espaces casse l'option `-e` de rsync)
+- [x] Destination : `/volume2/sauvegarde a froid/backup-cnt/{postgres,media}`
+  (volume2 chiffré, ~900 Go libres)
+- [x] Script : `/volume2/sauvegarde a froid/backup-cnt/backup-cnt.sh`
+- [x] Testé : pull des dumps OK ; écriture vers le serveur bien refusée par rrsync
+- [x] Premier passage complet lancé (media ~7,5 Go)
 
-### 1. Activer SSH (si pas déjà fait)
-DSM → Panneau de configuration → Terminal & SNMP → cocher « Activer le service SSH ».
-(Peut être désactivé après la mise en place si souhaité — la tâche planifiée tourne en local.)
+Reste à faire **une fois, dans l'interface DSM** (seule étape impossible en SSH sans root) :
+- [ ] **Créer la tâche planifiée** : Panneau de configuration → Planificateur de tâches
+  → Créer → Tâche planifiée → Script défini par l'utilisateur :
+  - Utilisateur : **nononas** (pas besoin de root)
+  - Planification : tous les jours à **4h30** (après le dump serveur de 3h30)
+  - Script : `sh "/volume2/sauvegarde a froid/backup-cnt/backup-cnt.sh"`
+  - Onglet Paramètres du planificateur : activer l'e-mail en cas d'échec (optionnel)
 
-### 2. Créer le dossier partagé et les clés
-DSM → Panneau de configuration → Dossier partagé → créer **`backup-cnt`**
-(désactiver la corbeille réseau, accès admin uniquement).
-
-Puis en SSH sur le NAS (`ssh <admin>@<ip-du-nas>`) :
-
+### Vérification (à tout moment)
 ```bash
-sudo mkdir -p /volume1/backup-cnt/keys /volume1/backup-cnt/postgres /volume1/backup-cnt/media
-sudo ssh-keygen -t ed25519 -N '' -C nas-dumps -f /volume1/backup-cnt/keys/id_dumps
-sudo ssh-keygen -t ed25519 -N '' -C nas-media -f /volume1/backup-cnt/keys/id_media
-sudo chmod 600 /volume1/backup-cnt/keys/id_*
-cat /volume1/backup-cnt/keys/id_dumps.pub /volume1/backup-cnt/keys/id_media.pub
+ssh nononas@192.168.1.27
+tail "/volume2/sauvegarde a froid/backup-cnt/backup.log"
+ls -lh "/volume2/sauvegarde a froid/backup-cnt/postgres/"   # les .dump
+du -sh "/volume2/sauvegarde a froid/backup-cnt/media/"      # ≈ taille du media serveur
 ```
 
-→ transmettre les **deux lignes `.pub`** pour installation sur le serveur (cf. ci-dessus).
-
-### 3. Créer la tâche planifiée
-DSM → Panneau de configuration → Planificateur de tâches → Créer → Tâche planifiée
-→ Script défini par l'utilisateur :
-
-- **Utilisateur** : `root`
-- **Planification** : tous les jours à **4h30** (après le dump serveur de 3h30)
-- **Script** :
-
-```sh
-#!/bin/sh
-KEYS=/volume1/backup-cnt/keys
-DEST=/volume1/backup-cnt
-LOG=$DEST/backup.log
-{
-  echo "=== $(date '+%F %T') ==="
-  # 1. Dumps PostgreSQL — accumulation, purge à 60 jours
-  rsync -a -e "ssh -i $KEYS/id_dumps -o StrictHostKeyChecking=accept-new" \
-    nasbackup@51.91.242.64:./ "$DEST/postgres/"
-  find "$DEST/postgres" -name '*.dump' -mtime +60 -delete
-  # 2. Media — miroir
-  rsync -a --delete -e "ssh -i $KEYS/id_media -o StrictHostKeyChecking=accept-new" \
-    nasbackup@51.91.242.64:./ "$DEST/media/"
-  echo "OK $(date '+%F %T')"
-} >> "$LOG" 2>&1
-```
-
-### 4. Premier lancement et vérification
-Lancer la tâche manuellement (Planificateur → Exécuter). Le premier passage copie
-les ~7,5 Go de media (long) ; les suivants ne transfèrent que les nouveautés.
-
-Vérifier :
-```bash
-tail /volume1/backup-cnt/backup.log
-ls -lh /volume1/backup-cnt/postgres/   # les .dump du jour
-du -sh /volume1/backup-cnt/media/      # ≈ taille du media serveur
-```
-
-### 5. (Recommandé) Snapshots
-Si le volume est en **btrfs** : installer « Snapshot Replication » et planifier un
-snapshot quotidien de `backup-cnt` (rétention ~4 semaines). Protège le miroir media
-contre une suppression accidentelle côté serveur qui serait propagée par `--delete`.
+### (Recommandé) Snapshots
+Si le volume 2 est en **btrfs** : installer « Snapshot Replication » et planifier un
+snapshot quotidien de « sauvegarde a froid » (rétention ~4 semaines). Protège le miroir
+media contre une suppression accidentelle côté serveur qui serait propagée par `--delete`.
 
 ## Restauration (résumé)
 
