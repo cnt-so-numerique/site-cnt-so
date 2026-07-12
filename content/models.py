@@ -532,7 +532,7 @@ class Newsletter(ClusterableModel, models.Model):
     title = models.CharField(max_length=300, verbose_name="Sujet de l'e-mail")
     intro = models.TextField(verbose_name="Texte d'introduction")
     articles = models.ManyToManyField(
-        Article, through='NewsletterArticle', blank=True,
+        'cms.ArticlePage', through='NewsletterArticle', blank=True,
         verbose_name='Articles sélectionnés'
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
@@ -558,7 +558,10 @@ class NewsletterArticle(models.Model):
     newsletter = ParentalKey(
         Newsletter, on_delete=models.CASCADE, related_name='newsletter_articles'
     )
-    article = models.ForeignKey(Article, on_delete=models.CASCADE)
+    article = models.ForeignKey(
+        'cms.ArticlePage', on_delete=models.CASCADE,
+        related_name='+', verbose_name='Article'
+    )
     order = models.PositiveIntegerField(default=0)
 
     class Meta:

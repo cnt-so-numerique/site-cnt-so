@@ -2789,6 +2789,40 @@ class NewsletterSendOvhPostTest(TestCase):
         self.assertContains(r, 'SMTP down')
 
 
+
+class NewsletterArticlePageTest(TestCase):
+    """Les newsletters référencent les articles Wagtail (ArticlePage), plus le modèle legacy."""
+
+    def setUp(self):
+        from content.models import NewsletterArticle
+        self.site = _ensure_section_page(slug='nl-artpage', name='NL ArtPage', site_type='sectoral')
+        self.site.ovh_mailing_list = 'nl-artpage-liste'
+        self.site.save(update_fields=['ovh_mailing_list'])
+        self.newsletter = _make_newsletter(self.site)
+        self.article = make_article_page(
+            title='Un article Wagtail dans la newsletter', section_slug='nl-artpage')
+        NewsletterArticle.objects.create(
+            newsletter=self.newsletter, article=self.article, order=0)
+        self.url = f'/cms/newsletter/{self.newsletter.pk}/envoyer/'
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
+    def test_email_contient_l_article_wagtail(self, mock_subs):
+        from django.core import mail
+        c = _chef_client(self.site)
+        c.post(self.url, {'mode': 'send'})
+        self.assertEqual(len(mail.outbox), 1)
+        html = mail.outbox[0].alternatives[0][0]
+        self.assertIn('Un article Wagtail dans la newsletter', html)
+        self.assertIn(self.article.get_absolute_url(), html)
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
+    def test_texte_brut_contient_le_lien_article(self, mock_subs):
+        from django.core import mail
+        c = _chef_client(self.site)
+        c.post(self.url, {'mode': 'send'})
+        self.assertIn(self.article.get_absolute_url(), mail.outbox[0].body)
+
+
 # ════════════════════════════════════════════════════════════════════════════════
 # API VIEWS — ImageUploadView, FileUploadView, NewsletterSyncView
 # ════════════════════════════════════════════════════════════════════════════════

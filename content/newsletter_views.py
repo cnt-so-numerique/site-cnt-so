@@ -19,6 +19,16 @@ from content.admin_utils import WagtailChefRequiredMixin, get_current_site_for_v
 from content.models import Newsletter, Subscriber
 
 
+def _annotate_image_urls(articles, site_url):
+    """Pose na.image_url en URL absolue (any_image_url peut être relative ou legacy absolue)."""
+    base = site_url.rstrip('/')
+    for na in articles:
+        img = na.article.any_image_url
+        if img and not img.startswith('http'):
+            img = base + img
+        na.image_url = img
+
+
 class NewsletterSendView(WagtailChefRequiredMixin, View):
     """Confirmation puis envoi de la newsletter."""
 
@@ -66,6 +76,7 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
             newsletter.newsletter_articles.select_related('article__featured_image').order_by('order')
         )
         site_url = request.build_absolute_uri('/')
+        _annotate_image_urls(articles, site_url)
 
         if mode == 'test':
             from django.core.validators import validate_email
