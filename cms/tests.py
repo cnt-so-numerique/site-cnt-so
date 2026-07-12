@@ -237,9 +237,17 @@ class StucsRessourcesViewTest(TestCase):
         self.assertContains(r, 'Ressources')
 
     def test_shows_categories_pills(self):
-        make_cms_category(name='Grève', slug='greve', section_slug='stucs')
+        # Seules les catégories avec au moins un article publié sont affichées
+        cat = make_cms_category(name='Grève', slug='greve', section_slug='stucs')
+        make_article_page(section_slug='stucs', title='Art Grève', slug='art-greve',
+                          categories=[cat])
         r = self.client.get('/stucs/ressources/')
         self.assertContains(r, 'Grève')
+
+    def test_empty_category_hidden_from_pills(self):
+        make_cms_category(name='Catégorie Vide', slug='cat-vide', section_slug='stucs')
+        r = self.client.get('/stucs/ressources/')
+        self.assertNotContains(r, 'Catégorie Vide')
 
 
 class StucsAgendaViewTest(TestCase):

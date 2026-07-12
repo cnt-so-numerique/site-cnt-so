@@ -32,6 +32,9 @@ class Command(BaseCommand):
         parser.add_argument('--dry-run', action='store_true')
         parser.add_argument('--media-only', action='store_true',
                             help='Importer uniquement les médias (images+docs) pour les articles existants')
+        parser.add_argument('--categories-only', action='store_true',
+                            help='Réaffecter uniquement les catégories des articles existants '
+                                 '(répare les imports faits avant le fix du save() modelcluster)')
 
     def handle(self, *args, **options):
         self.base_url = options['url'].rstrip('/')
@@ -56,6 +59,9 @@ class Command(BaseCommand):
 
         if self.media_only:
             self._import_media_for_existing()
+        elif options['categories_only']:
+            self.cat_map = self._import_categories()
+            self._reassign_categories_for_existing()
         else:
             self.cat_map = self._import_categories()
             self._import_posts()
@@ -140,6 +146,9 @@ class Command(BaseCommand):
                             if cid in self.cat_map]
                     if cats:
                         page.cms_categories.set(cats)
+                        # ParentalManyToManyField (modelcluster) : set() ne persiste
+                        # qu'au save() suivant — sans lui les catégories sont perdues.
+                        page.save()
 
                     created += 1
                     if created % 10 == 0:
@@ -153,6 +162,40 @@ class Command(BaseCommand):
                 transaction.set_rollback(True)
 
         self.stdout.write(f'  {created} créés, {skipped} existants, {errors} erreurs')
+
+    # ── Réaffectation des catégories pour articles existants ───────────────────
+
+    def _reassign_categories_for_existing(self):
+        """Réapplique les catégories WP aux ArticlePage déjà importés (match par legacy_wp_id)."""
+        from cms.models import ArticlePage
+
+        self.stdout.write('Réaffectation des catégories...')
+        posts = self._fetch_all('/posts', {
+            '_fields': 'id,slug,categories',
+            'status': 'publish',
+        })
+
+        updated = unchanged = missing = 0
+        for post in posts:
+            ap = ArticlePage.objects.filter(
+                legacy_wp_id=post['id'], section_slug=self.section
+            ).first()
+            if not ap:
+                missing += 1
+                continue
+            cats = [self.cat_map[cid] for cid in post.get('categories', [])
+                    if cid in self.cat_map]
+            current = set(ap.cms_categories.values_list('pk', flat=True))
+            if current == {c.pk for c in cats}:
+                unchanged += 1
+                continue
+            if not self.dry_run:
+                ap.cms_categories.set(cats)
+                ap.save()
+            updated += 1
+        self.stdout.write(
+            f'  {updated} mis à jour, {unchanged} déjà corrects, {missing} sans ArticlePage'
+        )
 
     # ── Import médias pour articles existants ──────────────────────────────────
 

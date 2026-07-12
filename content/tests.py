@@ -3602,6 +3602,31 @@ class SiteRessourcesViewTest(TestCase):
         r = self.client.get(reverse('content:site_ressources', kwargs={'site_slug': 'inexistant'}))
         self.assertEqual(r.status_code, 404)
 
+    def test_categories_vides_masquees(self):
+        """Seules les catégories avec au moins un article publié sont proposées en filtre."""
+        pleine = make_cms_category(name='Pleine', slug='pleine', section_slug='ressources-site')
+        make_cms_category(name='Vide', slug='vide', section_slug='ressources-site')
+        brouillon = make_cms_category(name='Brouillon Only', slug='brouillon-only',
+                                      section_slug='ressources-site')
+        make_article_page(section_slug='ressources-site', title='Pub', slug='res-pub',
+                          categories=[pleine])
+        make_article_page(section_slug='ressources-site', title='Draft', slug='res-draft',
+                          categories=[brouillon], live=False)
+        r = self.client.get(self.url)
+        slugs = [c.slug for c in r.context['categories']]
+        self.assertIn('pleine', slugs)
+        self.assertNotIn('vide', slugs)
+        self.assertNotIn('brouillon-only', slugs)
+
+    def test_categorie_pas_dupliquee_avec_plusieurs_articles(self):
+        """Une catégorie liée à plusieurs articles n'apparaît qu'une fois (distinct)."""
+        cat = make_cms_category(name='Multi', slug='multi', section_slug='ressources-site')
+        make_article_page(section_slug='ressources-site', title='A1', slug='res-a1', categories=[cat])
+        make_article_page(section_slug='ressources-site', title='A2', slug='res-a2', categories=[cat])
+        r = self.client.get(self.url)
+        slugs = [c.slug for c in r.context['categories']]
+        self.assertEqual(slugs.count('multi'), 1)
+
 
 # ════════════════════════════════════════════════════════════════════════════════
 # CONTACT CMS VIEWS — chemins non couverts

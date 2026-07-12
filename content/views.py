@@ -877,7 +877,13 @@ class SiteRessourcesView(View):
 
     def get(self, request, site_slug):
         site = get_object_or_404(SectionPage, slug=site_slug)
-        categories = CmsCategory.objects.filter(section_slug=site_slug)
+        # Uniquement les catégories contenant au moins un article publié
+        # (l'import WordPress a laissé beaucoup de catégories vides ou en doublon)
+        categories = CmsCategory.objects.filter(
+            section_slug=site_slug,
+            articles__live=True,
+            articles__section_slug=site_slug,
+        ).distinct().order_by('name')
         slug = request.GET.get('cat', '')
         active_cat = CmsCategory.objects.filter(section_slug=site_slug, slug=slug).first() if slug else None
         qs = ArticlePage.objects.live().filter(section_slug=site_slug)
