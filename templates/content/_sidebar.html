@@ -1,5 +1,19 @@
+<!-- Nous rejoindre -->
+{% if site.slug and site.slug != 'principal' %}{% url 'content:site_contact' site_slug=site.slug as sidebar_contact_url %}{% else %}{% url 'content:contact' as sidebar_contact_url %}{% endif %}
+<div style="background:var(--primary-color);padding:1.25rem;text-align:center;">
+    <h3 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Nous rejoindre / nous contacter&nbsp;?</h3>
+    <p style="color:rgba(255,255,255,.85);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Rejoignez le syndicat et participez à l'organisation collective de votre secteur.</p>
+    <a href="{{ sidebar_contact_url }}"
+       style="display:block;padding:.6rem;background:#fff;color:var(--primary-color);font-weight:700;font-size:14px;font-family:var(--font-body);text-align:center;text-decoration:none;">
+        Nous contacter / Adhérer
+    </a>
+</div>
+
+<!-- Réseaux sociaux -->
+<div style="margin-top:1rem;">{% with s=site %}{% include "content/_social_icons.html" %}{% endwith %}</div>
+
 <!-- Restez informé·e·s -->
-<div style="background:var(--dark-bg);padding:1.25rem;text-align:center;">
+<div style="background:var(--dark-bg);padding:1.25rem;text-align:center;margin-top:1rem;">
     <h3 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Restez informé·e·s&nbsp;!</h3>
     <p style="color:rgba(255,255,255,.7);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Abonnez-vous à la newsletter pour recevoir nos actualités et luttes directement par e-mail.</p>
     <form method="post" action="{% url 'content:newsletter_subscribe' %}" style="display:flex;flex-direction:column;gap:.5rem;">
@@ -11,20 +25,6 @@
             S'abonner
         </button>
     </form>
-</div>
-
-<!-- Réseaux sociaux -->
-<div style="margin-top:1rem;">{% with s=site %}{% include "content/_social_icons.html" %}{% endwith %}</div>
-
-<!-- Nous rejoindre -->
-{% if site.slug and site.slug != 'principal' %}{% url 'content:site_contact' site_slug=site.slug as sidebar_contact_url %}{% else %}{% url 'content:contact' as sidebar_contact_url %}{% endif %}
-<div style="background:var(--primary-color);padding:1.25rem;text-align:center;margin-top:1rem;">
-    <h3 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Nous rejoindre / nous contacter&nbsp;?</h3>
-    <p style="color:rgba(255,255,255,.85);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Rejoignez le syndicat et participez à l'organisation collective de votre secteur.</p>
-    <a href="{{ sidebar_contact_url }}"
-       style="display:block;padding:.6rem;background:#fff;color:var(--primary-color);font-weight:700;font-size:14px;font-family:var(--font-body);text-align:center;text-decoration:none;">
-        Nous contacter / Adhérer
-    </a>
 </div>
 
 <!-- Nous soutenir -->
