@@ -1146,3 +1146,27 @@ class UserSyndicatFormTest(TestCase):
         self.assertEqual(legacy.user, user)
         self.assertEqual(legacy.site, self.site)
         self.assertEqual(Author.objects.filter(username='fusion-user').count(), 1)
+
+
+class SyndicatSansBrouillonTest(TestCase):
+    """« Mon syndicat » : le bouton principal publie directement, pas de brouillon
+    qui dort en attente de « Publier » (piège pour les rédacteurs)."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='synd-direct', name='Synd Direct', site_type='sectoral')
+        self.client = Client()
+        self.client.force_login(make_superuser(username='su-synd-direct'))
+
+    def test_publier_est_le_bouton_principal(self):
+        r = self.client.get(f'/cms/snippets/cms/sectionpage/edit/{self.site.pk}/')
+        self.assertEqual(r.status_code, 200)
+        content = r.content.decode()
+        self.assertIn('name="action-publish"', content)
+        self.assertNotIn('Enregistrer le brouillon', content)
+
+    def test_les_articles_gardent_leur_brouillon(self):
+        """Le hook ne touche que SectionPage : les articles gardent le circuit brouillon."""
+        art = make_article_page(title='Article brouillon test', section_slug='synd-direct')
+        r = self.client.get(f'/cms/snippets/cms/articlepage/edit/{art.pk}/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('brouillon', r.content.decode().lower())

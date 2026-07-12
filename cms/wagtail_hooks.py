@@ -213,6 +213,21 @@ class SectionPageViewSet(SnippetViewSet):
         return qs.none()
 
 
+@hooks.register('construct_snippet_action_menu')
+def syndicat_enregistrer_publie_directement(menu_items, request, context):
+    """« Mon syndicat » est une fiche de réglages : le bouton principal publie
+    directement — sinon les modifs dorment en brouillon en attente de « Publier »."""
+    if context.get('model') is not SectionPage:
+        return
+    publish = next((i for i in menu_items if i.name == 'action-publish'), None)
+    if publish is None:
+        return
+    publish.label = 'Enregistrer'
+    menu_items[:] = [publish] + [
+        i for i in menu_items if i.name not in ('action-publish', 'action-save')
+    ]
+
+
 # ── Événements ────────────────────────────────────────────────────────────────
 
 class EventViewSet(SnippetViewSet):
