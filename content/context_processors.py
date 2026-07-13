@@ -89,8 +89,17 @@ def menu_context(request):
         _canonical_base = getattr(_settings, 'MAIN_SITE_BASE_URL', '')
     canonical_url = f'{_canonical_base}{request.path}' if _canonical_base else ''
 
+    # Home du site principal : absolue sur un domaine autonome (un href="/"
+    # y bouclerait sur la home du sous-site), relative partout ailleurs.
+    if _section is not None and _section.custom_domain:
+        _main = getattr(_settings, 'MAIN_SITE_BASE_URL', '')
+        main_site_url = f'{_main}/' if _main else '/'
+    else:
+        main_site_url = '/'
+
     return {
         'canonical_url': canonical_url,
+        'main_site_url': main_site_url,
         'main_site': main_site,
         'sites': subsites,
         'regional_sites': regional_sites,

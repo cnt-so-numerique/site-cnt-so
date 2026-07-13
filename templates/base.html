@@ -1589,7 +1589,7 @@
                     {% endif %}
                 </div>
             </a>
-            <a href="{% url 'content:home' %}" class="subsite-back-btn">
+            <a href="{{ main_site_url }}" class="subsite-back-btn">
                 <img src="{% static 'image/CNT SO.jpg' %}" alt="CNT-SO">
                 ← Retour au site confédéral
             </a>
@@ -1693,7 +1693,7 @@
                 <div class="footer-brand-links">
                     {% if site.contact_email %}<a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>{% endif %}
                     <a href="{% url 'content:site_contact' site_slug=site.slug %}">Formulaire de contact</a>
-                    <a href="{% url 'content:home' %}" class="footer-confed-link">← Retour au site confédéral</a>
+                    <a href="{{ main_site_url }}" class="footer-confed-link">← Retour au site confédéral</a>
                 </div>
             {% else %}
                 <div class="footer-brand-name">CNT-SO</div>

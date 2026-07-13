@@ -1367,6 +1367,26 @@ class SectionDomainWagtailPageTest(TestCase):
         cache.clear()
         self.assertEqual(self.page.get_absolute_url(), self.page.url)
 
+    def test_retour_confederal_absolu_sur_le_domaine(self):
+        r = self.client.get('/', HTTP_HOST=self.HOST)
+        self.assertContains(r, 'href="https://cnt-so.org/" class="subsite-back-btn"')
+        self.assertContains(r, 'href="https://cnt-so.org/" class="footer-confed-link"')
+
+    def test_retour_confederal_relatif_en_chemins(self):
+        self.stucs.custom_domain = ''
+        self.stucs.save(update_fields=['custom_domain'])
+        from django.core.cache import cache
+        cache.clear()
+        r = self.client.get('/stucs/')
+        self.assertContains(r, 'href="/" class="subsite-back-btn"')
+
+    def test_sitemap_liste_url_canonique_de_la_page(self):
+        r = self.client.get('/sitemap.xml', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+        content = r.content.decode()
+        self.assertIn(f'https://{self.HOST}/qui-sommes-nous/', content)
+        self.assertNotIn('/page/qui-sommes-nous/', content)
+
 
 class OutgoingUrlsWithDomainTest(TestCase):
     """Phase 3 domaines fédérations : URLs sortantes absolues quand la section

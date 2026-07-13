@@ -124,7 +124,12 @@ class SectionPageSitemap(Sitemap):
         return obj.last_published_at or obj.first_published_at
 
     def location(self, obj):
-        return f'/page/{obj.slug}/'
+        # URL canonique de la page Wagtail (l'ancienne forme /page/<slug>/
+        # 301 vers elle) ; ramenée en chemin si le domaine autonome l'absolutise
+        url = obj.get_absolute_url()
+        if url.startswith('https://'):
+            url = '/' + url.split('/', 3)[3]
+        return url
 
 
 class SectionCategorySitemap(Sitemap):
