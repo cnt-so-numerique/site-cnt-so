@@ -782,6 +782,7 @@ class NewsletterConfirmView(View):
             subscriber.is_active = True
             subscriber.confirmed_at = timezone.now()
             subscriber.save(update_fields=['is_active', 'confirmed_at'])
+            # (le signal post_save de cms/apps.py répercute l'ajout sur la liste OVH)
         return render(request, 'content/newsletter_confirm.html', {
             'subscriber': subscriber, 'site': subscriber.site,
         })
@@ -800,6 +801,7 @@ class NewsletterUnsubscribeView(View):
         subscriber = get_object_or_404(Subscriber, token=token)
         subscriber.is_active = False
         subscriber.save(update_fields=['is_active'])
+        # (le signal post_save de cms/apps.py répercute le retrait des listes OVH)
         return render(request, 'content/newsletter_unsubscribe_done.html', {
             'site': subscriber.site,
         })

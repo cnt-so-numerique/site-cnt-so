@@ -144,6 +144,8 @@ def _get_section_page(slug: str):
 
 
 def _sync_sub(email: str, site, actif: bool) -> str:
+    # La répercussion vers les listes OVH passe par le signal post_save
+    # de cms/apps.py — d'où les save() unitaires plutôt qu'un .update().
     if actif:
         sub, created = Subscriber.objects.get_or_create(
             site=site, email=email,
@@ -155,7 +157,11 @@ def _sync_sub(email: str, site, actif: bool) -> str:
             sub.save(update_fields=['is_active', 'confirmed_at'])
         return 'subscribed' if created else 'updated'
     else:
-        updated = Subscriber.objects.filter(site=site, email=email).update(is_active=False)
+        updated = 0
+        for sub in Subscriber.objects.filter(site=site, email=email):
+            sub.is_active = False
+            sub.save(update_fields=['is_active'])
+            updated += 1
         return 'unsubscribed' if updated else 'noop'
 
 

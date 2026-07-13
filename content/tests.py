@@ -2884,6 +2884,78 @@ class NewsletterMultiListTest(TestCase):
         self.assertContains(r, 'liste-b@cnt-so.info')
 
 
+
+class OvhSyncSubscriptionTest(TestCase):
+    """Les consentements newsletter du site sont répercutés sur les listes OVH."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='ovh-sync', name='OVH Sync', site_type='sectoral')
+        self.site.ovh_mailing_list = 'liste-un, liste-deux'
+        self.site.save(update_fields=['ovh_mailing_list'])
+
+    def _make_subscriber(self, active=False):
+        return Subscriber.objects.create(
+            site=self.site, email='militant@example.org', is_active=active)
+
+    @patch('cms.ovh_client.add_subscriber')
+    def test_confirmation_ajoute_a_la_premiere_liste(self, mock_add):
+        sub = self._make_subscriber(active=False)
+        r = self.client.get(f'/newsletter/confirmer/{sub.token}/')
+        self.assertEqual(r.status_code, 200)
+        mock_add.assert_called_once_with('liste-un', 'militant@example.org')
+
+    @patch('cms.ovh_client.add_subscriber')
+    def test_deja_confirme_pas_de_double_ajout(self, mock_add):
+        sub = self._make_subscriber(active=True)
+        mock_add.reset_mock()  # l'appel de la création (signal) ne compte pas
+        self.client.get(f'/newsletter/confirmer/{sub.token}/')
+        mock_add.assert_not_called()
+
+    @patch('cms.ovh_client.add_subscriber')
+    def test_webhook_adhesion_conf_alimente_la_liste_du_principal(self, mock_add):
+        import hashlib as _hashlib
+        import hmac as _hmac
+        import json as _json
+        from django.test import override_settings
+        principal = _ensure_section_page(slug='principal', name='CNT-SO')
+        principal.ovh_mailing_list = 'news'
+        principal.save(update_fields=['ovh_mailing_list'])
+        body = _json.dumps({'email': 'adherent@example.org', 'newsletter_conf': True}).encode()
+        with override_settings(ADHESION_WEBHOOK_SECRET='s3cret'):
+            sig = _hmac.new(b's3cret', body, _hashlib.sha256).hexdigest()
+            r = self.client.post('/api/newsletter/sync/', body,
+                                 content_type='application/json',
+                                 HTTP_X_WEBHOOK_SECRET=sig)
+        self.assertEqual(r.status_code, 200)
+        mock_add.assert_called_once_with('news', 'adherent@example.org')
+
+    @patch('cms.ovh_client.add_subscriber')
+    @patch('cms.ovh_client.remove_subscriber')
+    def test_desabonnement_retire_de_toutes_les_listes(self, mock_remove, mock_add):
+        sub = self._make_subscriber(active=True)
+        r = self.client.post(f'/newsletter/desinscription/{sub.token}/')
+        self.assertEqual(r.status_code, 200)
+        calls = {c.args for c in mock_remove.call_args_list}
+        self.assertEqual(calls, {('liste-un', 'militant@example.org'),
+                                 ('liste-deux', 'militant@example.org')})
+
+    @patch('cms.ovh_client.add_subscriber')
+    def test_site_sans_liste_ovh_aucun_appel(self, mock_add):
+        self.site.ovh_mailing_list = ''
+        self.site.save(update_fields=['ovh_mailing_list'])
+        sub = self._make_subscriber(active=False)
+        self.client.get(f'/newsletter/confirmer/{sub.token}/')
+        mock_add.assert_not_called()
+
+    @patch('cms.ovh_client.add_subscriber', side_effect=Exception('API OVH KO'))
+    def test_erreur_ovh_ne_bloque_pas_le_visiteur(self, mock_add):
+        sub = self._make_subscriber(active=False)
+        r = self.client.get(f'/newsletter/confirmer/{sub.token}/')
+        self.assertEqual(r.status_code, 200)
+        sub.refresh_from_db()
+        self.assertTrue(sub.is_active)
+
+
 # ════════════════════════════════════════════════════════════════════════════════
 # API VIEWS — ImageUploadView, FileUploadView, NewsletterSyncView
 # ════════════════════════════════════════════════════════════════════════════════

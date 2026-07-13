@@ -8,23 +8,27 @@ class CmsConfig(AppConfig):
 
     def ready(self):
         from django.db.models.signals import post_save
-        from django.dispatch import receiver
 
         def _sync_subscriber_to_ovh(sender, instance, created, **kwargs):
-            """Ajoute à OVH quand un abonné est confirmé (is_active=True)."""
-            if not instance.is_active:
-                return
+            """Répercute le consentement d'un abonné sur les listes OVH du syndicat.
+
+            Confirmé (is_active=True) → ajout à la première liste du site ;
+            désactivé sur une fiche existante → retrait de toutes les listes.
+            La création d'une fiche inactive (double opt-in en attente) ne
+            touche pas à OVH.
+            """
+            from content.ovh_sync import ovh_subscribe, ovh_unsubscribe
+
             site = instance.site
-            if not site:
-                return
-            list_name = getattr(site, 'ovh_mailing_list', '').strip()
-            if not list_name:
-                return
-            try:
-                from cms import ovh_client
-                ovh_client.add_subscriber(list_name, instance.email)
-            except Exception:
-                pass  # ne pas bloquer la sauvegarde si OVH est indisponible
+            if site is None:
+                # Abonné confédéral (webhook adhésion) → listes du site principal
+                from cms.models import SectionPage
+                site = SectionPage.objects.filter(slug='principal').first()
+
+            if instance.is_active:
+                ovh_subscribe(site, instance.email)
+            elif not created:
+                ovh_unsubscribe(site, instance.email)
 
         # Import différé pour éviter les problèmes d'imports circulaires au démarrage
         from content.models import Subscriber

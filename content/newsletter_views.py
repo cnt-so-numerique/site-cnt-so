@@ -19,10 +19,7 @@ from content.admin_utils import WagtailChefRequiredMixin, get_current_site_for_v
 from content.models import Newsletter, Subscriber
 
 
-def _ovh_list_names(site):
-    """Noms des listes OVH du syndicat (champ multi-valeurs, séparées par des virgules)."""
-    raw = getattr(site, 'ovh_mailing_list', '') if site else ''
-    return [n.strip() for n in (raw or '').split(',') if n.strip()]
+from content.ovh_sync import lists_for_site as _ovh_list_names
 
 
 def _annotate_image_urls(articles, site_url):
