@@ -8,26 +8,18 @@ from django.conf.urls.static import static
 def _adhesion_redirect(request, site_slug):
     base_url = getattr(settings, 'ADHESION_BASE_URL', 'https://adhesion.cnt-so.org')
     return redirect(f"{base_url}/adherer/{site_slug}/")
-from django.contrib.sitemaps.views import sitemap
 from django.views.generic import RedirectView, TemplateView
-from content.sitemaps import ArticleSitemap, PageSitemap, CategorySitemap, SiteSitemap
+from content.sitemaps import sitemap_view
 from wagtail.admin import urls as wagtailadmin_urls
 from wagtail import urls as wagtail_urls
 from wagtail.documents import urls as wagtaildocs_urls
-
-sitemaps = {
-    'articles': ArticleSitemap,
-    'pages': PageSitemap,
-    'categories': CategorySitemap,
-    'sites': SiteSitemap,
-}
 
 urlpatterns = [
     path('cms/', include(wagtailadmin_urls)),
     path('documents/', include(wagtaildocs_urls)),
     path('redac/', RedirectView.as_view(url='/cms/', permanent=True)),
     path('admin/', admin.site.urls),
-    path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='sitemap'),
+    path('sitemap.xml', sitemap_view, name='sitemap'),
     path('robots.txt', TemplateView.as_view(
         template_name='robots.txt', content_type='text/plain'
     )),

@@ -78,7 +78,19 @@ def menu_context(request):
 
     manques_articles = base_qs[:5]
 
+    # URL canonique de la page : domaine autonome si la requête est servie
+    # dessus (request.section_page posé par SectionDomainMiddleware),
+    # sinon l'origine publique du site principal.
+    from django.conf import settings as _settings
+    _section = getattr(request, 'section_page', None)
+    if _section is not None and _section.custom_domain:
+        _canonical_base = _section.base_url
+    else:
+        _canonical_base = getattr(_settings, 'MAIN_SITE_BASE_URL', '')
+    canonical_url = f'{_canonical_base}{request.path}' if _canonical_base else ''
+
     return {
+        'canonical_url': canonical_url,
         'main_site': main_site,
         'sites': subsites,
         'regional_sites': regional_sites,

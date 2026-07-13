@@ -4,4 +4,4 @@ Disallow: /cms/
 Disallow: /admin/
 Disallow: /upload/
 
-Sitemap: https://cnt-so.org/sitemap.xml
+Sitemap: {{ request.scheme }}://{{ request.get_host }}/sitemap.xml

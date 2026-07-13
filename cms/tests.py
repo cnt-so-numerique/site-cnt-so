@@ -1232,9 +1232,21 @@ class SectionDomainMiddlewareTest(TestCase):
         self.autre = _ensure_section_page(slug='mw-autre', name='MW Autre', site_type='sectoral')
         self.article = make_article_page(title='Article middleware', section_slug='stucs')
 
-    def test_hote_principal_inchange(self):
+    def test_hote_principal_redirige_vers_le_domaine(self):
+        # Phase 4 : le chemin d'une section à domaine 301 vers ce domaine
         r = self.client.get('/stucs/')
-        self.assertEqual(r.status_code, 200)  # chemin classique toujours servi
+        self.assertEqual(r.status_code, 301)
+        self.assertEqual(r['Location'], f'https://{self.HOST}/')
+
+    def test_hote_principal_redirige_article_vers_le_domaine(self):
+        r = self.client.get('/stucs/article/article-middleware/?p=2')
+        self.assertEqual(r.status_code, 301)
+        self.assertEqual(r['Location'],
+                         f'https://{self.HOST}/article/article-middleware/?p=2')
+
+    def test_section_sans_domaine_reste_en_chemin(self):
+        r = self.client.get('/mw-autre/')
+        self.assertEqual(r.status_code, 200)
 
     def test_racine_du_domaine_sert_la_home_du_sous_site(self):
         r = self.client.get('/', HTTP_HOST=self.HOST)
@@ -1344,3 +1356,55 @@ class OutgoingUrlsWithDomainTest(TestCase):
             link_type='url', url='https://exemple.org/x/',
         )
         self.assertTrue(item.should_open_new_tab)
+
+
+@override_settings(ALLOWED_HOSTS=['testserver', 'seo-dom.cnt-so.org'],
+                   MAIN_SITE_BASE_URL='https://cnt-so.org')
+class DomainSeoTest(TestCase):
+    """Phase 4 domaines fédérations : sitemaps, robots, canonicals par hôte."""
+
+    HOST = 'seo-dom.cnt-so.org'
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.site = _ensure_section_page(slug='seo-dom', name='SEO Dom', site_type='sectoral')
+        self.site.custom_domain = self.HOST
+        self.site.save(update_fields=['custom_domain'])
+        self.article = make_article_page(title='Article SEO dom', section_slug='seo-dom')
+        self.autre_article = make_article_page(title='Article SEO conf', section_slug='principal')
+
+    def test_sitemap_du_domaine_ne_liste_que_la_section(self):
+        r = self.client.get('/sitemap.xml', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+        xml = r.content.decode()
+        self.assertIn(f'https://{self.HOST}/article/article-seo-dom/', xml)
+        self.assertIn(f'https://{self.HOST}/contact/', xml)
+        self.assertNotIn('article-seo-conf', xml)
+
+    def test_sitemap_principal_exclut_la_section_a_domaine(self):
+        r = self.client.get('/sitemap.xml')
+        self.assertEqual(r.status_code, 200)
+        xml = r.content.decode()
+        self.assertIn('article-seo-conf', xml)
+        self.assertNotIn('article-seo-dom', xml)
+        self.assertNotIn('/seo-dom/', xml)
+
+    def test_robots_txt_pointe_vers_le_sitemap_de_l_hote(self):
+        r = self.client.get('/robots.txt', HTTP_HOST=self.HOST)
+        self.assertContains(r, f'http://{self.HOST}/sitemap.xml')
+
+    def test_canonical_sur_le_domaine(self):
+        r = self.client.get('/article/article-seo-dom/', HTTP_HOST=self.HOST)
+        self.assertContains(
+            r, f'<link rel="canonical" href="https://{self.HOST}/article/article-seo-dom/">')
+
+    def test_canonical_sur_le_site_principal(self):
+        r = self.client.get('/article/article-seo-conf/')
+        self.assertContains(
+            r, '<link rel="canonical" href="https://cnt-so.org/article/article-seo-conf/">')
+
+    def test_feed_du_domaine_liens_absolus(self):
+        r = self.client.get('/feed/', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(f'https://{self.HOST}/article/article-seo-dom/', r.content.decode())

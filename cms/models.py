@@ -475,11 +475,13 @@ class SectionPage(SeoMixin, Page):
         slug = self.legacy_site_slug or self.slug
         if slug and not self.legacy_site_slug:
             SectionPage.objects.filter(pk=self.pk).update(legacy_site_slug=slug)
-        # Invalide les caches domaine (middleware + section_base_url)
+        # Invalide les caches domaine (middleware + section_base_url + menus)
         from django.core.cache import cache
         cache.delete_many([
             f'section-base-url:{self.slug}',
             f'section-base-url:{self.legacy_site_slug or self.slug}',
+            'section-domain-map',
+            'menu-internal-hosts',
         ] + ([f'section-domain:{self.custom_domain}'] if self.custom_domain else []))
 
 

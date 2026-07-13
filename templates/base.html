@@ -10,6 +10,10 @@
     <meta property="og:description" content="{% block og_description %}Confédération Nationale du Travail — Solidarité Ouvrière.{% endblock %}">
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:site_name" content="CNT-SO">
+    {% if canonical_url %}
+    <link rel="canonical" href="{{ canonical_url }}">
+    <meta property="og:url" content="{{ canonical_url }}">
+    {% endif %}
     {% block og_image %}{% endblock %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

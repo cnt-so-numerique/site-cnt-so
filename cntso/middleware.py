@@ -64,6 +64,18 @@ class SectionDomainMiddleware:
         host = request.get_host().split(':')[0].lower()
         section = self._resolve_section(host)
         if section is None:
+            # Hôte principal : le chemin d'une section à domaine autonome
+            # redirige vers ce domaine (URL canonique unique)
+            if request.method in ('GET', 'HEAD'):
+                path = request.path_info
+                seg = path.lstrip('/').split('/', 1)[0]
+                domain = self._domain_map().get(seg) if seg else None
+                if domain:
+                    from django.http import HttpResponsePermanentRedirect
+                    rest = path[len(seg) + 1:] or '/'
+                    qs = request.META.get('QUERY_STRING', '')
+                    return HttpResponsePermanentRedirect(
+                        f'https://{domain}{rest}' + (f'?{qs}' if qs else ''))
             return self.get_response(request)
 
         request.section_page = section
@@ -107,6 +119,21 @@ class SectionDomainMiddleware:
     def _main_base():
         return getattr(settings, 'MAIN_SITE_BASE_URL',
                        getattr(settings, 'WAGTAILADMIN_BASE_URL', 'https://cnt-so.org'))
+
+    @staticmethod
+    def _domain_map():
+        """{ slug (et legacy_site_slug) → custom_domain } des sections à domaine."""
+        from django.core.cache import cache
+        mapping = cache.get('section-domain-map')
+        if mapping is None:
+            from cms.models import SectionPage
+            mapping = {}
+            for s in SectionPage.objects.exclude(custom_domain='').filter(live=True):
+                mapping[s.slug] = s.custom_domain
+                if s.legacy_site_slug:
+                    mapping[s.legacy_site_slug] = s.custom_domain
+            cache.set('section-domain-map', mapping, 60)
+        return mapping
 
     @staticmethod
     def _resolve_section(host):
