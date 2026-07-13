@@ -340,6 +340,7 @@ class SectionPage(SeoMixin, Page):
     social_youtube = models.URLField(blank=True, verbose_name="YouTube")
     social_telegram = models.URLField(blank=True, verbose_name="Telegram")
     social_discord = models.URLField(blank=True, verbose_name="Discord")
+    social_linkedin = models.URLField(blank=True, verbose_name="LinkedIn")
 
     legacy_site_slug = models.SlugField(max_length=100, blank=True, db_index=True)
     wp_blog_id = models.IntegerField(
@@ -377,6 +378,7 @@ class SectionPage(SeoMixin, Page):
             FieldPanel('social_youtube'),
             FieldPanel('social_telegram'),
             FieldPanel('social_discord'),
+            FieldPanel('social_linkedin'),
         ], heading="Réseaux sociaux"),
         MultiFieldPanel([
             FieldPanel('custom_domain', permission='superuser'),
