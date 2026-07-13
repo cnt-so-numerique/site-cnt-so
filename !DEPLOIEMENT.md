@@ -156,3 +156,39 @@ ps aux | grep gunicorn | grep daemon   # chercher d'anciens processus --daemon
 kill <PID1> <PID2> ...
 sudo supervisorctl restart cntso
 ```
+
+---
+
+## Domaines autonomes des fédérations (chantier 2026-07)
+
+Le code (middleware `SectionDomainMiddleware`, SEO par hôte) est déployé et
+**inerte** tant que `custom_domain` est vide sur toutes les SectionPages.
+
+### Activation d'un sous-domaine (ex. stucs.cnt-so.org)
+
+1. **DNS** (zone cnt-so.org chez OVH) : enregistrement `A` → `51.91.242.64`
+   (ou CNAME vers le nom du serveur). Attendre la propagation (`dig +short stucs.cnt-so.org`).
+2. **nginx** : ajouter le nom au `server_name` du vhost cntso (bloc 80 ET 443).
+3. **certbot** : `sudo certbot --nginx -d stucs.cnt-so.org` (étend ou crée le certificat).
+4. **Django** : ajouter le domaine à `FEDERATION_DOMAINS` (env supervisor ou
+   local_settings : `FEDERATION_DOMAINS = "stucs.cnt-so.org"` — liste séparée
+   par des virgules), puis `sudo supervisorctl restart cntso`.
+5. **hCaptcha** : ajouter le domaine dans le dashboard hCaptcha (sinon les
+   formulaires contact/newsletter seront rejetés sur ce domaine).
+6. **Activation** : dans /cms/ → Mon syndicat → fiche du syndicat → panneau
+   « Domaine autonome » (superuser) → renseigner `stucs.cnt-so.org` → Publier.
+   Effet immédiat : le domaine sert le sous-site, `cnt-so.org/stucs/…` 301 vers
+   le domaine, sitemaps/canonicals séparés.
+7. **Recette** : home, article, catégorie, contact (envoi réel), feed,
+   sitemap.xml, robots.txt, 301 depuis le chemin, /cms/ redirigé vers l'admin
+   central.
+
+**Rollback** : vider `custom_domain` sur la fiche → tout revient en chemins.
+
+⚠️ Prérequis global : `MAIN_SITE_BASE_URL` doit pointer vers l'origine publique
+du site principal (`https://newsite.cnt-so.org` avant la bascule DNS,
+`https://cnt-so.org` après) — utilisé par les canonicals et les renvois
+inter-domaines.
+
+⚠️ Cas Éducation : reprendre `educ.cnt-so.org` (référencement existant) n'est
+possible qu'à la bascule DNS — ce nom pointe encore vers le vieux serveur WP.

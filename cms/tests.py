@@ -1408,3 +1408,42 @@ class DomainSeoTest(TestCase):
         r = self.client.get('/feed/', HTTP_HOST=self.HOST)
         self.assertEqual(r.status_code, 200)
         self.assertIn(f'https://{self.HOST}/article/article-seo-dom/', r.content.decode())
+
+
+@override_settings(ALLOWED_HOSTS=['testserver', 'p5-dom.cnt-so.org'],
+                   MAIN_SITE_BASE_URL='https://cnt-so.org')
+class DomainFormsTest(TestCase):
+    """Phase 5 domaines fédérations : formulaires et liens transactionnels."""
+
+    HOST = 'p5-dom.cnt-so.org'
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.site = _ensure_section_page(slug='p5-dom', name='P5 Dom', site_type='sectoral')
+        self.site.custom_domain = self.HOST
+        self.site.save(update_fields=['custom_domain'])
+
+    def test_inscription_newsletter_sur_le_domaine(self):
+        from content.models import Subscriber
+        r = self.client.post('/newsletter/inscription/', {'email': 'fed@example.org'},
+                             HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+        sub = Subscriber.objects.get(email='fed@example.org')
+        self.assertEqual(sub.site, self.site)
+
+    def test_lien_confirmation_rebondit_vers_le_site_principal(self):
+        # Le lien de confirmation généré sur le domaine (URL globale) doit
+        # être renvoyé proprement vers le site principal, pas donner un 404.
+        from content.models import Subscriber
+        sub = Subscriber.objects.create(site=self.site, email='c@example.org')
+        r = self.client.get(f'/newsletter/confirmer/{sub.token}/', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 301)
+        self.assertEqual(r['Location'],
+                         f'https://cnt-so.org/newsletter/confirmer/{sub.token}/')
+
+    def test_contact_post_sur_le_domaine(self):
+        # Le formulaire de contact du sous-site répond en POST sur le domaine
+        # (pas de redirection qui perdrait les données)
+        r = self.client.post('/contact/', {}, HTTP_HOST=self.HOST)
+        self.assertNotIn(r.status_code, (301, 302, 404, 500))

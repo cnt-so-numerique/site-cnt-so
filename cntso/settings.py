@@ -287,6 +287,19 @@ try:
 except (ImportError, NameError):
     pass
 
+# Domaines autonomes des fédérations (chantier domaines) — appliqués après
+# local_settings pour valoir quelle que soit la valeur finale des listes.
+# En prod : FEDERATION_DOMAINS="stucs.cnt-so.org,numerique.cnt-so.org,…"
+FEDERATION_DOMAINS = [
+    d.strip().lower()
+    for d in _os.environ.get('FEDERATION_DOMAINS', '').split(',') if d.strip()
+]
+ALLOWED_HOSTS += [d for d in FEDERATION_DOMAINS if d not in ALLOWED_HOSTS]
+CSRF_TRUSTED_ORIGINS += [
+    o for o in (f'https://{d}' for d in FEDERATION_DOMAINS)
+    if o not in CSRF_TRUSTED_ORIGINS
+]
+
 # ── Durcissement production ────────────────────────────────────────────────────
 # Après l'import de local_settings pour connaître la valeur finale de DEBUG.
 if not DEBUG:
