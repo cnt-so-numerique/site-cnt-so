@@ -689,6 +689,21 @@ class ArticlePage(SeoMixin, Page):
         return self.cms_tags
 
     @property
+    def meta_description(self):
+        """Extrait/résumé pour les balises meta description et og:description.
+        Priorité : excerpt saisi, sinon premier bloc de texte du corps —
+        jamais le titre dupliqué (mauvais pour le référencement)."""
+        if self.excerpt:
+            return self.excerpt.strip()
+        from django.utils.html import strip_tags
+        for block in self.body:
+            if block.block_type == 'rich_text':
+                text = strip_tags(str(block.value)).strip()
+                if text:
+                    return text
+        return ''
+
+    @property
     def any_image_url(self):
         """Wagtail featured_image d'abord, puis URL de l'image legacy (content.Media) en fallback."""
         if self.featured_image_id:
@@ -762,6 +777,19 @@ class ContentPage(Page):
 
     def get_template(self, request, *args, **kwargs):
         return 'cms/content_page.html'
+
+    @property
+    def meta_description(self):
+        """Voir ArticlePage.meta_description : évite de dupliquer le titre."""
+        if self.excerpt:
+            return self.excerpt.strip()
+        from django.utils.html import strip_tags
+        for block in self.body:
+            if block.block_type == 'rich_text':
+                text = strip_tags(str(block.value)).strip()
+                if text:
+                    return text
+        return ''
 
     def is_previewable(self):
         return False

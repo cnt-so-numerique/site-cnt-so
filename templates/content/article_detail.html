@@ -2,11 +2,17 @@
 {% load content_tags %}
 
 {% block title %}{{ article.title }} - {{ site.name }}{% endblock %}
-{% block meta_description %}{% if article.excerpt %}{{ article.excerpt|striptags|truncatechars:160 }}{% else %}{{ article.title }} — {{ site.name }}{% endif %}{% endblock %}
+{% block meta_description %}{{ article.meta_description|default:article.title|truncatechars:160 }}{% endblock %}
 {% block og_title %}{{ article.title }}{% endblock %}
-{% block og_description %}{% if article.excerpt %}{{ article.excerpt|striptags|truncatechars:200 }}{% else %}{{ article.title }} — {{ site.name }}{% endif %}{% endblock %}
+{% block og_description %}{{ article.meta_description|default:article.title|truncatechars:200 }}{% endblock %}
+{% block twitter_title %}{{ article.title }}{% endblock %}
+{% block twitter_description %}{{ article.meta_description|default:article.title|truncatechars:200 }}{% endblock %}
 {% block og_type %}article{% endblock %}
-{% if article.any_image_url %}{% block og_image %}<meta property="og:image" content="{{ article.any_image_url }}">{% endblock %}{% endif %}
+{% if article.any_image_url %}
+{% block og_image %}<meta property="og:image" content="{% absolute_url article.any_image_url site_base_url %}">{% endblock %}
+{% block twitter_card_type %}summary_large_image{% endblock %}
+{% block twitter_image %}<meta name="twitter:image" content="{% absolute_url article.any_image_url site_base_url %}">{% endblock %}
+{% endif %}
 
 {% block extra_css %}
 <style>

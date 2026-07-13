@@ -1,8 +1,16 @@
 {% extends 'base.html' %}
 
 {% block title %}{{ site.name }}{% endblock %}
+{% if site.description %}
+{% block meta_description %}{{ site.description|striptags|truncatechars:160 }}{% endblock %}
+{% block og_title %}{{ site.name }}{% endblock %}
+{% block og_description %}{{ site.description|striptags|truncatechars:200 }}{% endblock %}
+{% block twitter_title %}{{ site.name }}{% endblock %}
+{% block twitter_description %}{{ site.description|striptags|truncatechars:200 }}{% endblock %}
+{% endif %}
 
 {% block content %}
+<h1 class="section-title">{{ site.name }}</h1>
 <h2 class="section-title">Dernières actualités</h2>
 
 {% with empty_message="Aucun article pour le moment." %}

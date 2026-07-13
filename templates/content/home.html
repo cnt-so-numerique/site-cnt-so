@@ -908,9 +908,15 @@
                     <a href="{{ cat.get_absolute_url }}" class="hp-badge-cat">{{ cat.name }}</a>
                     {% endfor %}
                 </div>
+                {% if forloop.first %}
                 <h1 class="hp-hero-title">
                     <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
                 </h1>
+                {% else %}
+                <h2 class="hp-hero-title">
+                    <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                </h2>
+                {% endif %}
             </div>
         </div>
         {% endfor %}

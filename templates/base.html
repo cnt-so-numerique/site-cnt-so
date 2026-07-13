@@ -15,6 +15,10 @@
     <meta property="og:url" content="{{ canonical_url }}">
     {% endif %}
     {% block og_image %}{% endblock %}
+    <meta name="twitter:card" content="{% block twitter_card_type %}summary{% endblock %}">
+    <meta name="twitter:title" content="{% block twitter_title %}CNT-SO{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}Confédération Nationale du Travail — Solidarité Ouvrière.{% endblock %}">
+    {% block twitter_image %}{% endblock %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Sans:wght@400;600;700&family=Oswald:wght@500;700&display=swap" rel="stylesheet">

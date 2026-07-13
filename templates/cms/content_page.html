@@ -2,6 +2,16 @@
 {% load wagtailcore_tags wagtailimages_tags %}
 
 {% block title %}{{ page.title }} - {% if site %}{{ site.title }}{% else %}CNT-SO{% endif %}{% endblock %}
+{% block meta_description %}{{ page.meta_description|default:page.title|truncatechars:160 }}{% endblock %}
+{% block og_title %}{{ page.title }}{% endblock %}
+{% block og_description %}{{ page.meta_description|default:page.title|truncatechars:200 }}{% endblock %}
+{% block twitter_title %}{{ page.title }}{% endblock %}
+{% block twitter_description %}{{ page.meta_description|default:page.title|truncatechars:200 }}{% endblock %}
+{% if page.featured_image %}
+{% block og_image %}<meta property="og:image" content="{{ site_base_url }}{{ page.featured_image.file.url }}">{% endblock %}
+{% block twitter_card_type %}summary_large_image{% endblock %}
+{% block twitter_image %}<meta name="twitter:image" content="{{ site_base_url }}{{ page.featured_image.file.url }}">{% endblock %}
+{% endif %}
 
 {% block content %}
 <article>

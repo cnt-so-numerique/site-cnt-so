@@ -99,6 +99,7 @@ def menu_context(request):
 
     return {
         'canonical_url': canonical_url,
+        'site_base_url': _canonical_base,
         'main_site_url': main_site_url,
         'main_site': main_site,
         'sites': subsites,

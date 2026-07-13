@@ -11,6 +11,17 @@ register = template.Library()
 _SAFE_URL_SCHEMES = {'http', 'https', '/'}
 
 
+@register.simple_tag
+def absolute_url(url, base):
+    """Préfixe `url` avec `base` si elle n'est pas déjà absolue (image legacy,
+    article d'une section à domaine autonome — voir newsletter_views._annotate_image_urls)."""
+    if not url:
+        return ''
+    if url.startswith('http'):
+        return url
+    return f'{base}{url}'
+
+
 def _safe_url(url):
     """
     Valide une URL : accepte http(s) et chemins relatifs.
