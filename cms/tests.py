@@ -1289,3 +1289,58 @@ class SectionDomainMiddlewareTest(TestCase):
         # plus de section pour cet hôte → home confédérale servie normalement
         self.assertEqual(r.status_code, 200)
         self.assertTemplateUsed(r, 'content/home.html')
+
+
+class OutgoingUrlsWithDomainTest(TestCase):
+    """Phase 3 domaines fédérations : URLs sortantes absolues quand la section
+    a un domaine autonome, relatives sinon (comportement historique)."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()  # section_base_url est mis en cache 60 s
+        self.site = _ensure_section_page(slug='dom-urls', name='Dom URLs', site_type='sectoral')
+        self.article = make_article_page(title='Article domaine', section_slug='dom-urls')
+        self.cat = make_cms_category(name='Cat domaine', section_slug='dom-urls')
+
+    def _activate(self):
+        from django.core.cache import cache
+        self.site.custom_domain = 'dom-urls.cnt-so.org'
+        self.site.save(update_fields=['custom_domain'])
+        cache.clear()
+
+    def test_urls_relatives_sans_domaine(self):
+        self.assertEqual(self.article.get_absolute_url(), '/dom-urls/article/article-domaine/')
+        self.assertEqual(self.cat.get_absolute_url(), '/dom-urls/categorie/cat-domaine/')
+        self.assertEqual(self.site.get_absolute_url(), '/dom-urls/')
+
+    def test_urls_absolues_avec_domaine(self):
+        self._activate()
+        self.assertEqual(self.article.get_absolute_url(),
+                         'https://dom-urls.cnt-so.org/article/article-domaine/')
+        self.assertEqual(self.cat.get_absolute_url(),
+                         'https://dom-urls.cnt-so.org/categorie/cat-domaine/')
+        self.site.refresh_from_db()
+        self.assertEqual(self.site.get_absolute_url(), 'https://dom-urls.cnt-so.org/')
+
+    def test_articles_principal_restent_relatifs(self):
+        self._activate()
+        art = make_article_page(title='Article conf', section_slug='principal')
+        self.assertEqual(art.get_absolute_url(), '/article/article-conf/')
+
+    def test_menu_item_vers_domaine_reste_interne(self):
+        from content.models import MenuItem
+        self._activate()
+        item = MenuItem.objects.create(
+            site=self.site, menu='main', title='Cat',
+            link_type='category', category=self.cat,
+        )
+        self.assertTrue(item.get_url().startswith('https://dom-urls.cnt-so.org/'))
+        self.assertFalse(item.should_open_new_tab)
+
+    def test_menu_item_externe_ouvre_nouvel_onglet(self):
+        from content.models import MenuItem
+        item = MenuItem.objects.create(
+            site=self.site, menu='main', title='Ext',
+            link_type='url', url='https://exemple.org/x/',
+        )
+        self.assertTrue(item.should_open_new_tab)

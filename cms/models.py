@@ -22,6 +22,24 @@ from wagtail.snippets.models import register_snippet
 from wagtailseo.models import SeoMixin
 
 
+def section_base_url(section_slug):
+    """Préfixe absolu (https://domaine) de la section si elle a un domaine
+    autonome, '' sinon (les URLs restent relatives). Mis en cache 60 s —
+    appelé pour chaque lien d'article dans les listes."""
+    if not section_slug or section_slug == 'principal':
+        return ''
+    from django.core.cache import cache
+    key = f'section-base-url:{section_slug}'
+    val = cache.get(key)
+    if val is None:
+        section = SectionPage.objects.filter(
+            models.Q(legacy_site_slug=section_slug) | models.Q(slug=section_slug)
+        ).only('custom_domain').first()
+        val = f'https://{section.custom_domain}' if section and section.custom_domain else ''
+        cache.set(key, val, 60)
+    return val
+
+
 # ── Taxonomie ─────────────────────────────────────────────────────────────────
 
 class CmsCategory(models.Model):
@@ -61,6 +79,9 @@ class CmsCategory(models.Model):
         from django.urls import reverse, NoReverseMatch
         try:
             if self.section_slug and self.section_slug != 'principal':
+                base = section_base_url(self.section_slug)
+                if base:
+                    return f'{base}/categorie/{self.slug}/'
                 return reverse('content:site_category_detail',
                                kwargs={'site_slug': self.section_slug, 'slug': self.slug})
             return reverse('content:category_detail', kwargs={'slug': self.slug})
@@ -438,6 +459,8 @@ class SectionPage(SeoMixin, Page):
         from django.urls import reverse, NoReverseMatch
         if self.external_url:
             return self.external_url
+        if self.custom_domain:
+            return f'{self.base_url}/'
         slug = self.legacy_site_slug or self.slug
         try:
             if slug == 'principal':
@@ -452,6 +475,12 @@ class SectionPage(SeoMixin, Page):
         slug = self.legacy_site_slug or self.slug
         if slug and not self.legacy_site_slug:
             SectionPage.objects.filter(pk=self.pk).update(legacy_site_slug=slug)
+        # Invalide les caches domaine (middleware + section_base_url)
+        from django.core.cache import cache
+        cache.delete_many([
+            f'section-base-url:{self.slug}',
+            f'section-base-url:{self.legacy_site_slug or self.slug}',
+        ] + ([f'section-domain:{self.custom_domain}'] if self.custom_domain else []))
 
 
 class ArticlePage(SeoMixin, Page):
@@ -624,6 +653,9 @@ class ArticlePage(SeoMixin, Page):
         from django.urls import reverse, NoReverseMatch
         try:
             if self.section_slug and self.section_slug != 'principal':
+                base = section_base_url(self.section_slug)
+                if base:
+                    return f'{base}/article/{self.slug}/'
                 return reverse('content:site_article_detail',
                                kwargs={'site_slug': self.section_slug, 'slug': self.slug})
             return reverse('content:article_detail', kwargs={'slug': self.slug})
@@ -730,6 +762,10 @@ class ContentPage(Page):
         return redirect(self.get_absolute_url())
 
     def get_absolute_url(self):
+        if self.section_slug and self.section_slug != 'principal':
+            base = section_base_url(self.section_slug)
+            if base:
+                return f'{base}/page/{self.slug}/'
         return self.url or '/'
 
 

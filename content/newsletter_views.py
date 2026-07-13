@@ -23,13 +23,18 @@ from content.ovh_sync import lists_for_site as _ovh_list_names
 
 
 def _annotate_image_urls(articles, site_url):
-    """Pose na.image_url en URL absolue (any_image_url peut être relative ou legacy absolue)."""
+    """Pose na.image_url et na.link_url en URLs absolues.
+
+    any_image_url et get_absolute_url peuvent être relatives ou déjà absolues
+    (image legacy, article d'une section à domaine autonome)."""
     base = site_url.rstrip('/')
     for na in articles:
         img = na.article.any_image_url
         if img and not img.startswith('http'):
             img = base + img
         na.image_url = img
+        link = na.article.get_absolute_url()
+        na.link_url = link if link.startswith('http') else base + link
 
 
 class NewsletterSendView(WagtailChefRequiredMixin, View):
@@ -141,7 +146,7 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
             text_body = (
                 f"{newsletter.title}\n\n{newsletter.intro}\n\n"
                 + "\n".join(
-                    f"- {na.article.title}: {site_url.rstrip('/')}{na.article.get_absolute_url()}"
+                    f"- {na.article.title}: {na.link_url}"
                     for na in articles
                 )
                 + f"\n\nGérer votre abonnement : {unsubscribe_url}"
@@ -213,7 +218,7 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
                 'is_preview': False,
             }, request=request)
             text_body = f"{newsletter.title}\n\n{newsletter.intro}\n\n" + "\n".join(
-                f"- {na.article.title}: {site_url.rstrip('/')}{na.article.get_absolute_url()}"
+                f"- {na.article.title}: {na.link_url}"
                 for na in articles
             ) + f"\n\nSe désabonner : {unsubscribe_url}"
             try:

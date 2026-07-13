@@ -485,11 +485,32 @@ class MenuItem(models.Model):
 
     @property
     def should_open_new_tab(self):
-        """Ouvre dans un nouvel onglet si explicitement demandé ou si l'URL est externe."""
+        """Ouvre dans un nouvel onglet si explicitement demandé ou si l'URL est
+        réellement externe (les domaines autonomes des sections restent internes)."""
         if self.opens_new_tab:
             return True
         url = self.get_url()
-        return url.startswith('http://') or url.startswith('https://')
+        if not (url.startswith('http://') or url.startswith('https://')):
+            return False
+        from urllib.parse import urlparse
+        host = urlparse(url).hostname or ''
+        return host not in self._internal_hosts()
+
+    @staticmethod
+    def _internal_hosts():
+        from django.core.cache import cache
+        hosts = cache.get('menu-internal-hosts')
+        if hosts is None:
+            from urllib.parse import urlparse
+            from django.conf import settings
+            from cms.models import SectionPage
+            hosts = set(SectionPage.objects.exclude(custom_domain='')
+                        .values_list('custom_domain', flat=True))
+            main = getattr(settings, 'MAIN_SITE_BASE_URL', '')
+            if main:
+                hosts.add(urlparse(main).hostname or '')
+            cache.set('menu-internal-hosts', hosts, 60)
+        return hosts
 
 
 # ── Newsletter ─────────────────────────────────────────────────────────────────
