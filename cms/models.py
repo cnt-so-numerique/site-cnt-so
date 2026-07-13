@@ -764,11 +764,17 @@ class ContentPage(Page):
         return redirect(self.get_absolute_url())
 
     def get_absolute_url(self):
+        url = self.url or '/'
         if self.section_slug and self.section_slug != 'principal':
             base = section_base_url(self.section_slug)
             if base:
-                return f'{base}/page/{self.slug}/'
-        return self.url or '/'
+                # Sur le domaine autonome, l'URL canonique n'a pas le
+                # préfixe de section (/numerique/x/ → https://domaine/x/)
+                prefix = f'/{self.section_slug}/'
+                if url.startswith(prefix):
+                    return f'{base}/{url[len(prefix):]}'
+                return f'{base}{url}'
+        return url
 
 
 # ── Sous-sites spécialisés (proxy) ───────────────────────────────────────────

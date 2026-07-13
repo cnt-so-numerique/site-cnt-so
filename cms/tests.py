@@ -1303,6 +1303,71 @@ class SectionDomainMiddlewareTest(TestCase):
         self.assertTemplateUsed(r, 'content/home.html')
 
 
+@override_settings(ALLOWED_HOSTS=['testserver', 'stucs.cnt-so.org'],
+                   MAIN_SITE_BASE_URL='https://cnt-so.org')
+class SectionDomainWagtailPageTest(TestCase):
+    """Pages Wagtail d'une section (ContentPage) servies sur son domaine
+    autonome — cas découvert avec la page « Qui sommes-nous ? » de Numérique."""
+
+    HOST = 'stucs.cnt-so.org'
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.stucs = make_stucs_section()
+        self.stucs.custom_domain = self.HOST
+        self.stucs.save(update_fields=['custom_domain'])
+        self.page = self.stucs.add_child(instance=ContentPage(
+            title='Qui sommes-nous ?', slug='qui-sommes-nous',
+            section_slug='stucs', live=True,
+        ))
+        # Le Site Wagtail doit pointer sur la HomePage de test pour que le
+        # catch-all Wagtail serve les pages (page.url sinon None)
+        from wagtail.models import Site
+        from content.tests import _get_article_parent
+        site = Site.objects.get(is_default_site=True)
+        site.root_page = _get_article_parent()
+        site.save()
+
+    def test_page_wagtail_de_la_section_servie_sur_le_domaine(self):
+        r = self.client.get('/qui-sommes-nous/', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Qui sommes-nous')
+
+    def test_get_absolute_url_sans_prefixe_sur_le_domaine(self):
+        self.assertEqual(self.page.get_absolute_url(),
+                         f'https://{self.HOST}/qui-sommes-nous/')
+
+    def test_ancienne_url_page_redirige_sans_boucle(self):
+        r = self.client.get('/page/qui-sommes-nous/', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 301)
+        self.assertEqual(r['Location'], f'https://{self.HOST}/qui-sommes-nous/')
+
+    def test_prefixe_de_section_redirige_vers_url_nue(self):
+        r = self.client.get('/stucs/qui-sommes-nous/', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 301)
+        self.assertEqual(r['Location'], '/qui-sommes-nous/')
+
+    def test_page_inconnue_toujours_renvoyee_au_principal(self):
+        r = self.client.get('/page-inexistante/', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 301)
+        self.assertEqual(r['Location'], 'https://cnt-so.org/page-inexistante/')
+
+    def test_page_depubliee_renvoyee_au_principal(self):
+        self.page.live = False
+        self.page.save(update_fields=['live'])
+        r = self.client.get('/qui-sommes-nous/', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 301)
+        self.assertEqual(r['Location'], 'https://cnt-so.org/qui-sommes-nous/')
+
+    def test_sans_domaine_url_relative_wagtail(self):
+        self.stucs.custom_domain = ''
+        self.stucs.save(update_fields=['custom_domain'])
+        from django.core.cache import cache
+        cache.clear()
+        self.assertEqual(self.page.get_absolute_url(), self.page.url)
+
+
 class OutgoingUrlsWithDomainTest(TestCase):
     """Phase 3 domaines fédérations : URLs sortantes absolues quand la section
     a un domaine autonome, relatives sinon (comportement historique)."""

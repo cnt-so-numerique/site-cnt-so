@@ -104,8 +104,14 @@ class SectionDomainMiddleware:
         try:
             resolve(prefixed, urlconf='content.urls')
         except Resolver404:
-            # Pas un contenu de la section → renvoi vers le site principal
-            if safe_method:
+            # Pas une URL de content.urls — mais peut-être une page Wagtail
+            # de la section (ContentPage…), servie par le catch-all Wagtail.
+            if self._is_section_wagtail_page(section, path):
+                # Réécriture avec le slug Wagtail réel de la section (le
+                # préfixe de content.urls peut être le legacy_site_slug)
+                request.path_info = f'/{section.slug}{path}'
+            elif safe_method:
+                # Pas un contenu de la section → renvoi vers le site principal
                 from django.http import HttpResponsePermanentRedirect
                 qs = request.META.get('QUERY_STRING', '')
                 return HttpResponsePermanentRedirect(
@@ -114,6 +120,16 @@ class SectionDomainMiddleware:
             request.path_info = prefixed
 
         return self.get_response(request)
+
+    @staticmethod
+    def _is_section_wagtail_page(section, path):
+        """True si `path` correspond à une page Wagtail vivante sous la
+        SectionPage (ex. une ContentPage de la section)."""
+        candidate = path if path.endswith('/') else f'{path}/'
+        from wagtail.models import Page
+        return Page.objects.live().filter(
+            url_path=f'{section.url_path}{candidate.lstrip("/")}'
+        ).exists()
 
     @staticmethod
     def _main_base():
