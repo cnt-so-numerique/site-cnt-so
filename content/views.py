@@ -30,12 +30,8 @@ def _sidebar_context(section_slug):
 
 def _sectoral_sidebar_context(site):
     """Contexte commun pour la sidebar des sous-sites sectoriel/régional."""
-    from content.models import MenuItem
-    rejoindre_menu = MenuItem.objects.filter(
-        site=site, url__icontains='rejoindre', is_active=True,
-    ).first()
     ctx = _sidebar_context(site.slug)
-    ctx['rejoindre_url'] = (rejoindre_menu.url if rejoindre_menu else None) or site.framaform_url or '#'
+    ctx['rejoindre_url'] = site.get_rejoindre_url()
     return ctx
 
 
@@ -558,9 +554,9 @@ def _send_contact_email(site, message_obj):
         pass
 
 
-class _BaseContactView(View):
-    """Mixin partagé pour les vues de contact (principal et sous-sites)."""
-    template_name = 'content/contact.html'
+class ContactFormMixin:
+    """Logique partagée pour construire/traiter un formulaire de contact
+    (dynamique par section si un FormulaireContact existe, sinon générique)."""
 
     def _get_formulaire(self, site):
         try:
@@ -602,6 +598,11 @@ class _BaseContactView(View):
             )
         msg.save()
         return msg
+
+
+class _BaseContactView(ContactFormMixin, View):
+    """Vue de contact partagée (principal et sous-sites)."""
+    template_name = 'content/contact.html'
 
     def get(self, request, site, success_url):
         formulaire = self._get_formulaire(site)
@@ -842,7 +843,7 @@ class QuiSommesNousView(TemplateView):
 
 # ── Vues STUCS ────────────────────────────────────────────────────────────────
 
-class SiteRejoindreView(View):
+class SiteRejoindreView(ContactFormMixin, View):
     """Page 'Nous rejoindre' générique pour tout sous-site."""
 
     def _ctx(self, site_slug):
@@ -853,22 +854,18 @@ class SiteRejoindreView(View):
 
     def get(self, request, site_slug):
         ctx = self._ctx(site_slug)
-        ctx['form'] = ContactForm()
+        formulaire = self._get_formulaire(ctx['site'])
+        ctx['form'] = self._build_form(formulaire)
         return render(request, 'content/site_rejoindre.html', ctx)
 
     def post(self, request, site_slug):
         ctx = self._ctx(site_slug)
-        form = ContactForm(request.POST)
+        site = ctx['site']
+        formulaire = self._get_formulaire(site)
+        form = self._build_form(formulaire, request.POST)
         ctx['form'] = form
         if form.is_valid():
-            site = ctx['site']
-            msg = ContactMessage(
-                site=site,
-                name=form.cleaned_data['name'],
-                email=form.cleaned_data['email'],
-                message=form.cleaned_data['message'],
-            )
-            msg.save()
+            msg = self._save_submission(form, site, formulaire)
             _send_contact_email(site, msg)
             ctx['success'] = True
         return render(request, 'content/site_rejoindre.html', ctx)

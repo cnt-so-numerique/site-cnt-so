@@ -471,6 +471,11 @@ class SectionPage(SeoMixin, Page):
         except NoReverseMatch:
             return self.url or '/'
 
+    def get_rejoindre_url(self):
+        from django.urls import reverse
+        slug = self.legacy_site_slug or self.slug
+        return reverse('content:site_rejoindre', kwargs={'site_slug': slug})
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         # S'assurer que legacy_site_slug est renseigné
@@ -829,15 +834,7 @@ class RegionalSectionPage(SectionPage):
         context['carousel_articles'] = [
             ci.article for ci in self.carousel_items.select_related('article').all()
         ]
-        from content.models import MenuItem as _MenuItem
-        rejoindre_menu = _MenuItem.objects.filter(
-            site=self, url__icontains='rejoindre', is_active=True,
-        ).first()
-        context['rejoindre_url'] = (
-            (rejoindre_menu.url if rejoindre_menu else None)
-            or self.framaform_url
-            or '#'
-        )
+        context['rejoindre_url'] = self.get_rejoindre_url()
         return context
 
 
@@ -868,15 +865,7 @@ class SectoralSectionPage(SectionPage):
         context['carousel_articles'] = [
             ci.article for ci in self.carousel_items.select_related('article').all()
         ]
-        from content.models import MenuItem as _MenuItem
-        rejoindre_menu = _MenuItem.objects.filter(
-            site=self, url__icontains='rejoindre', is_active=True,
-        ).first()
-        context['rejoindre_url'] = (
-            (rejoindre_menu.url if rejoindre_menu else None)
-            or self.framaform_url
-            or '#'
-        )
+        context['rejoindre_url'] = self.get_rejoindre_url()
         return context
 
 

@@ -1,6 +1,6 @@
 {% extends "content/site_subpage_base.html" %}
 {% block nav_rejoindre %}class="active"{% endblock %}
-{% block title %}Nous rejoindre — STUCS CNT-SO{% endblock %}
+{% block title %}Nous rejoindre — {{ site.name }}{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -38,20 +38,28 @@
   margin-bottom: .4rem;
 }
 .rj-form-wrap .sub { font-size: .875rem; color: var(--text-muted); margin-bottom: 1.25rem; }
-.rj-iframe-container iframe {
-  width: 100%;
-  height: 640px;
-  border: none;
-  background: #fff;
-  border-radius: 2px;
-}
-.rj-fallback-btn {
-  display: block;
+
+.rj-adherer-box {
+  background: var(--primary-color);
+  color: #fff;
+  padding: 2rem 1.75rem;
   text-align: center;
-  margin-top: .75rem;
-  font-size: .875rem;
-  color: var(--muted);
 }
+.rj-adherer-box h2 { font-family: var(--font-heading); font-size: 1.3rem; margin-bottom: .75rem; }
+.rj-adherer-box p { font-size: .9rem; line-height: 1.7; color: rgba(255,255,255,.9); margin-bottom: 1.5rem; }
+.rj-adherer-btn {
+  display: block;
+  padding: 1rem;
+  background: #fff;
+  color: var(--primary-color);
+  font-weight: 700;
+  font-size: 1rem;
+  text-align: center;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.rj-adherer-btn:hover { opacity: .9; }
 
 .rj-contact-sep {
   border: none;
@@ -65,10 +73,6 @@
 .rj-info-cms li { margin-bottom: .3rem; }
 .rj-info-cms strong { color: var(--text-color); }
 .rj-info-cms p { margin-bottom: .75rem; }
-.stucs-intro-cms { color: var(--text-secondary); font-size: .9rem; line-height: 1.75; }
-.stucs-intro-cms h2, .stucs-intro-cms h3 { font-family: var(--font-heading); color: var(--text-color); margin: 1rem 0 .5rem; }
-.stucs-intro-cms ul, .stucs-intro-cms ol { padding-left: 1.4rem; }
-.stucs-intro-cms li { margin-bottom: .3rem; color: var(--text-secondary); }
 .success-box {
   background: rgba(40,120,40,.1);
   border: 1px solid rgba(40,120,40,.3);
@@ -80,7 +84,6 @@
 
 @media (max-width: 900px) {
   .rj-grid { grid-template-columns: 1fr; }
-  .rj-iframe-container iframe { height: 520px; }
 }
 </style>
 {% endblock %}
@@ -97,11 +100,11 @@
         <div class="rj-info-cms">{{ site.rejoindre_text }}</div>
       {% else %}
       <div class="rj-info-card">
-        <h3>Pourquoi adhérer au STUCS ?</h3>
-        <p>Le STUCS est le syndicat CNT-SO pour les travailleur·ses de la culture et du spectacle.</p>
+        <h3>Pourquoi adhérer {% if site.name %}à {{ site.name }}{% else %}à la CNT-SO{% endif %} ?</h3>
+        <p>La CNT-SO est un syndicat autogestionnaire, sans permanents rémunérés, qui organise les travailleur·ses de ce secteur.</p>
         <ul class="rj-list">
           <li>Défense individuelle en cas de litige avec l'employeur</li>
-          <li>Rapport de force collectif dans le secteur culturel</li>
+          <li>Rapport de force collectif dans le secteur</li>
           <li>Syndicat autogestionnaire, sans permanents rémunérés</li>
           <li>Cotisation libre et solidaire</li>
           <li>Réseau national CNT-SO</li>
@@ -109,7 +112,7 @@
       </div>
       <div class="rj-info-card">
         <h3>Comment ça marche ?</h3>
-        <p>Remplis le formulaire d'adhésion ci-contre. Un·e militant·e te contactera pour finaliser.</p>
+        <p>Clique sur « Adhérer » ci-contre pour remplir le formulaire d'adhésion en ligne. Un·e militant·e te contactera pour finaliser.</p>
         <p>La cotisation est libre — nous suggérons environ <strong style="color:#ccc;">1 % de ton salaire net mensuel</strong>.</p>
       </div>
       {% endif %}
@@ -123,46 +126,30 @@
       {% else %}
         <form method="post">
           {% csrf_token %}
+          {% for field in form %}
           <div class="s-field">
-            <label class="s-label" for="id_name">Nom</label>
-            <input class="s-input" type="text" id="id_name" name="name" required
-                   value="{{ form.name.value|default:'' }}" autocomplete="name">
+            <label class="s-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}
+            <ul class="error-list" style="color:#c00;font-size:.85rem;margin-top:.25rem;list-style:none;">
+              {% for error in field.errors %}<li>{{ error }}</li>{% endfor %}
+            </ul>
+            {% endif %}
           </div>
-          <div class="s-field">
-            <label class="s-label" for="id_email">Email</label>
-            <input class="s-input" type="email" id="id_email" name="email" required
-                   value="{{ form.email.value|default:'' }}" autocomplete="email">
-          </div>
-          <div class="s-field">
-            <label class="s-label" for="id_message">Message</label>
-            <textarea class="s-textarea" id="id_message" name="message" required>{{ form.message.value|default:'' }}</textarea>
-          </div>
-          <div class="s-field">{{ form.captcha }}</div>
+          {% endfor %}
           <button type="submit" class="btn-red">Envoyer</button>
         </form>
       {% endif %}
     </div>
 
-    <!-- Colonne droite : Framaform -->
+    <!-- Colonne droite : Adhérer -->
     <div>
-      <div class="rj-form-wrap">
-        <h2>Formulaire d'adhésion</h2>
-        <p class="sub">Remplis ce formulaire pour nous rejoindre</p>
-        {% if site.framaform_url %}
-          <div class="rj-iframe-container">
-            <iframe
-              src="{{ site.framaform_url }}"
-              title="Formulaire d'adhésion STUCS"
-              loading="lazy"
-              allow="autoplay">
-            </iframe>
-          </div>
-          <a href="{{ site.framaform_url }}" target="_blank" rel="noopener" class="rj-fallback-btn">
-            Ouvrir le formulaire dans un nouvel onglet →
-          </a>
-        {% else %}
-          <p style="color:var(--muted);font-size:.9rem;">Formulaire en cours de configuration.</p>
-        {% endif %}
+      <div class="rj-adherer-box">
+        <h2>Adhérer {% if site.name %}à {{ site.name }}{% endif %}</h2>
+        <p>Remplis le formulaire d'adhésion en ligne, paiement de la cotisation inclus.</p>
+        <a href="{% url 'adherer' site_slug=site.slug %}" class="rj-adherer-btn">
+          Adhérer maintenant
+        </a>
       </div>
     </div>
 

@@ -158,10 +158,10 @@ class StucsHomeViewTest(TestCase):
         self.assertContains(r, 'STUCS')
 
     def test_home_shows_rejoindre_block(self):
-        # Le bloc sidebar "Nous rejoindre" pointe vers la page contact du sous-site
+        # Le bloc sidebar "Nous rejoindre" pointe vers la page unifiée de la section
         r = self.client.get('/stucs/')
-        self.assertContains(r, 'Nous contacter / Adhérer')
-        self.assertContains(r, '/stucs/contact/')
+        self.assertContains(r, 'Nous rejoindre')
+        self.assertContains(r, '/stucs/rejoindre/')
 
 
 class StucsRejoindreViewTest(TestCase):
@@ -178,9 +178,9 @@ class StucsRejoindreViewTest(TestCase):
         r = self.client.get('/stucs/rejoindre/')
         self.assertTemplateUsed(r, 'content/site_rejoindre.html')
 
-    def test_shows_framaform_url(self):
+    def test_shows_adherer_button(self):
         r = self.client.get('/stucs/rejoindre/')
-        self.assertContains(r, 'framaforms.org')
+        self.assertContains(r, '/adherer/stucs/')
 
     def test_contact_form_present(self):
         r = self.client.get('/stucs/rejoindre/')
@@ -546,19 +546,20 @@ class SocialFieldsTest(TestCase):
         self.assertNotContains(r, '<div class="social-icons-row">')
 
 
-# ── rejoindre_url depuis MenuItem ─────────────────────────────────────────────
+# ── rejoindre_url : toujours la page interne unifiée ──────────────────────────
 
 class RejoindreUrlTest(TestCase):
 
     def setUp(self):
         self.stucs = make_stucs_section()
 
-    def test_rejoindre_url_uses_framaform_fallback(self):
-        # Sans MenuItem "rejoindre", le contexte retombe sur framaform_url
+    def test_rejoindre_url_is_internal_page(self):
+        # rejoindre_url pointe toujours vers la page /rejoindre/ de la section,
+        # quel que soit framaform_url ou les MenuItem existants.
         r = Client().get('/stucs/')
-        self.assertIn('framaforms.org', r.context['rejoindre_url'])
+        self.assertEqual(r.context['rejoindre_url'], '/stucs/rejoindre/')
 
-    def test_rejoindre_url_prefers_menu_item(self):
+    def test_rejoindre_url_ignores_menu_item(self):
         from content.models import MenuItem
         MenuItem.objects.create(
             site=self.stucs, menu='main', title='Nous rejoindre',
@@ -566,7 +567,7 @@ class RejoindreUrlTest(TestCase):
             link_type='url', order=1, is_active=True,
         )
         r = Client().get('/stucs/')
-        self.assertContains(r, 'mon-formulaire.org/rejoindre')
+        self.assertEqual(r.context['rejoindre_url'], '/stucs/rejoindre/')
 
     def test_article_page_has_rejoindre_url_in_context(self):
         art = make_article_page(section_slug='stucs', title='Article STUCS ctx', slug='article-stucs-ctx')

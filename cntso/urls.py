@@ -26,7 +26,7 @@ urlpatterns = [
     path('favicon.ico', RedirectView.as_view(
         url='/static/image/logocntso.png', permanent=True
     )),
-    path('adherer/<slug:site_slug>/', _adhesion_redirect),
+    path('adherer/<slug:site_slug>/', _adhesion_redirect, name='adherer'),
     path('', include('content.urls')),
     path('', include(wagtail_urls)),  # Wagtail page serving (en dernier)
 ]
