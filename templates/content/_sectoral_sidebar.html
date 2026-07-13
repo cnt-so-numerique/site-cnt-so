@@ -1,12 +1,14 @@
+{% if not on_rejoindre_page %}
 <!-- Nous rejoindre -->
 <div style="background:var(--primary-color);padding:1.25rem;text-align:center;">
     <h3 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Nous rejoindre&nbsp;?</h3>
     <p style="color:rgba(255,255,255,.85);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Rejoignez le syndicat et participez à l'organisation collective de votre secteur.</p>
     <a href="{{ rejoindre_url }}"
        style="display:block;padding:.6rem;background:#fff;color:var(--primary-color);font-weight:700;font-size:14px;font-family:var(--font-body);text-align:center;text-decoration:none;">
-        Nous rejoindre
+        Nous contacter / Adhérer
     </a>
 </div>
+{% endif %}
 
 <!-- Réseaux sociaux -->
 <div style="margin-top:1rem;">{% with s=site %}{% include "content/_social_icons.html" %}{% endwith %}</div>

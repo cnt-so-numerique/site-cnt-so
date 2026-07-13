@@ -4,7 +4,7 @@
 
 {% block extra_head %}
 <style>
-.rj-grid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 2.5rem; align-items: start; }
+.rj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; }
 .rj-info-card {
   background: var(--bg-light);
   border: 1px solid var(--border-color);
@@ -39,17 +39,36 @@
 }
 .rj-form-wrap .sub { font-size: .875rem; color: var(--text-muted); margin-bottom: 1.25rem; }
 
-.rj-adherer-box {
+.rj-adherer-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
   background: var(--primary-color);
   color: #fff;
-  padding: 2rem 1.75rem;
-  text-align: center;
+  padding: 1.75rem 2rem;
+  margin-bottom: 2.5rem;
+  box-shadow: 0 4px 18px rgba(0,0,0,.18);
 }
-.rj-adherer-box h2 { font-family: var(--font-heading); font-size: 1.3rem; margin-bottom: .75rem; }
-.rj-adherer-box p { font-size: .9rem; line-height: 1.7; color: rgba(255,255,255,.9); margin-bottom: 1.5rem; }
+.rj-adherer-text h2 { font-family: var(--font-heading); font-size: 1.3rem; margin-bottom: .4rem; }
+.rj-adherer-text p { font-size: .9rem; color: rgba(255,255,255,.9); margin-bottom: .6rem; }
+.rj-adherer-perks {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem 1.5rem;
+}
+.rj-adherer-perks li {
+  font-size: .82rem;
+  color: rgba(255,255,255,.92);
+  padding-left: 1.3rem;
+  position: relative;
+}
+.rj-adherer-perks li::before { content: '✓'; position: absolute; left: 0; font-weight: 700; }
 .rj-adherer-btn {
   display: block;
-  padding: 1rem;
+  flex-shrink: 0;
+  padding: 1rem 1.75rem;
   background: #fff;
   color: var(--primary-color);
   font-weight: 700;
@@ -58,13 +77,14 @@
   text-decoration: none;
   text-transform: uppercase;
   letter-spacing: .03em;
+  white-space: nowrap;
+  transition: transform .15s, box-shadow .15s;
 }
-.rj-adherer-btn:hover { opacity: .9; }
+.rj-adherer-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,.25); }
 
-.rj-contact-sep {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 2rem 0 1.75rem;
+@media (max-width: 700px) {
+  .rj-adherer-banner { flex-direction: column; align-items: stretch; text-align: center; }
+  .rj-adherer-perks { justify-content: center; }
 }
 
 .rj-info-cms { color: var(--text-secondary); font-size: .9rem; line-height: 1.75; margin-bottom: 1.5rem; }
@@ -90,11 +110,27 @@
 
 {% block content %}
 <div class="s-page">
-  <h1 class="s-section-title" style="margin-bottom:2rem;">Nous rejoindre</h1>
+  <h1 class="s-section-title" style="margin-bottom:1.5rem;">Nous rejoindre</h1>
+
+  <!-- Bandeau Adhérer : priorité visuelle maximale, pleine largeur -->
+  <div class="rj-adherer-banner">
+    <div class="rj-adherer-text">
+      <h2>Adhérer {% if site.name %}à {{ site.name }}{% endif %}</h2>
+      <p>Remplis le formulaire d'adhésion en ligne, paiement de la cotisation inclus.</p>
+      <ul class="rj-adherer-perks">
+        <li>Formulaire en ligne, 5 minutes</li>
+        <li>Cotisation libre et solidaire</li>
+        <li>Un·e militant·e te recontacte pour finaliser</li>
+      </ul>
+    </div>
+    <a href="{% url 'adherer' site_slug=site.slug %}" class="rj-adherer-btn">
+      Adhérer maintenant
+    </a>
+  </div>
 
   <div class="rj-grid">
 
-    <!-- Colonne gauche : infos + contact -->
+    <!-- Colonne gauche : pourquoi / comment -->
     <div>
       {% if site.rejoindre_text %}
         <div class="rj-info-cms">{{ site.rejoindre_text }}</div>
@@ -112,44 +148,37 @@
       </div>
       <div class="rj-info-card">
         <h3>Comment ça marche ?</h3>
-        <p>Clique sur « Adhérer » ci-contre pour remplir le formulaire d'adhésion en ligne. Un·e militant·e te contactera pour finaliser.</p>
+        <p>Clique sur « Adhérer maintenant » ci-dessus pour remplir le formulaire d'adhésion en ligne. Un·e militant·e te contactera pour finaliser.</p>
         <p>La cotisation est libre — nous suggérons environ <strong style="color:#ccc;">1 % de ton salaire net mensuel</strong>.</p>
       </div>
       {% endif %}
-
-      <!-- Formulaire contact -->
-      <hr class="rj-contact-sep">
-      <h2 class="s-section-title" style="font-size:1.2rem;margin-bottom:1.25rem;">Une question avant d'adhérer ?</h2>
-
-      {% if success %}
-        <div class="success-box">Ton message a bien été envoyé. Nous te répondrons rapidement !</div>
-      {% else %}
-        <form method="post">
-          {% csrf_token %}
-          {% for field in form %}
-          <div class="s-field">
-            <label class="s-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% if field.errors %}
-            <ul class="error-list" style="color:#c00;font-size:.85rem;margin-top:.25rem;list-style:none;">
-              {% for error in field.errors %}<li>{{ error }}</li>{% endfor %}
-            </ul>
-            {% endif %}
-          </div>
-          {% endfor %}
-          <button type="submit" class="btn-red">Envoyer</button>
-        </form>
-      {% endif %}
     </div>
 
-    <!-- Colonne droite : Adhérer -->
+    <!-- Colonne droite : une question avant d'adhérer -->
     <div>
-      <div class="rj-adherer-box">
-        <h2>Adhérer {% if site.name %}à {{ site.name }}{% endif %}</h2>
-        <p>Remplis le formulaire d'adhésion en ligne, paiement de la cotisation inclus.</p>
-        <a href="{% url 'adherer' site_slug=site.slug %}" class="rj-adherer-btn">
-          Adhérer maintenant
-        </a>
+      <div class="rj-form-wrap">
+        <h2>Une question avant d'adhérer ?</h2>
+        <p class="sub">On te répond avant, si besoin.</p>
+
+        {% if success %}
+          <div class="success-box">Ton message a bien été envoyé. Nous te répondrons rapidement !</div>
+        {% else %}
+          <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="s-field">
+              <label class="s-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}
+              <ul class="error-list" style="color:#c00;font-size:.85rem;margin-top:.25rem;list-style:none;">
+                {% for error in field.errors %}<li>{{ error }}</li>{% endfor %}
+              </ul>
+              {% endif %}
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn-red">Envoyer</button>
+          </form>
+        {% endif %}
       </div>
     </div>
 

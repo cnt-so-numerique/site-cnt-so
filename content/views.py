@@ -848,7 +848,11 @@ class SiteRejoindreView(ContactFormMixin, View):
 
     def _ctx(self, site_slug):
         site = get_object_or_404(SectionPage, slug=site_slug)
-        ctx = {'site': site, 'categories': CmsCategory.objects.filter(section_slug=site_slug)}
+        ctx = {
+            'site': site,
+            'categories': CmsCategory.objects.filter(section_slug=site_slug),
+            'on_rejoindre_page': True,
+        }
         ctx.update(_sectoral_sidebar_context(site))
         return ctx
 
