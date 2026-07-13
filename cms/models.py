@@ -304,6 +304,12 @@ class SectionPage(SeoMixin, Page):
         verbose_name="Liste(s) mail OVH (newsletter)",
         help_text="Noms des listes sur cnt-so.info, séparés par des virgules",
     )
+    custom_domain = models.CharField(
+        max_length=253, blank=True, default='',
+        verbose_name="Domaine autonome",
+        help_text="Nom d'hôte nu, ex. stucs.cnt-so.org — vide = le sous-site "
+                  "reste servi sous cnt-so.org/<slug>/ (comportement actuel)",
+    )
 
     social_mastodon = models.URLField(blank=True, verbose_name="Mastodon")
     social_bluesky = models.URLField(blank=True, verbose_name="BlueSky")
@@ -351,6 +357,9 @@ class SectionPage(SeoMixin, Page):
             FieldPanel('social_telegram'),
             FieldPanel('social_discord'),
         ], heading="Réseaux sociaux"),
+        MultiFieldPanel([
+            FieldPanel('custom_domain', permission='superuser'),
+        ], heading="Domaine autonome", permission='superuser'),
     ]
     promote_panels = Page.promote_panels + [
         FieldPanel('legacy_site_slug'),
@@ -394,6 +403,29 @@ class SectionPage(SeoMixin, Page):
     @property
     def site_type(self):
         return self.section_type
+
+    @property
+    def base_url(self):
+        """Préfixe absolu du sous-site : https://<domaine> si domaine autonome,
+        chaîne vide sinon (les URLs restent relatives = comportement actuel)."""
+        if self.custom_domain:
+            return f'https://{self.custom_domain}'
+        return ''
+
+    def clean(self):
+        super().clean()
+        if self.custom_domain:
+            domain = self.custom_domain.strip().lower()
+            if '://' in domain or '/' in domain or ' ' in domain or '@' in domain:
+                from django.core.exceptions import ValidationError
+                raise ValidationError({'custom_domain':
+                    "Nom d'hôte nu attendu (ex. stucs.cnt-so.org), sans https:// ni /"})
+            clash = SectionPage.objects.filter(custom_domain=domain).exclude(pk=self.pk)
+            if clash.exists():
+                from django.core.exceptions import ValidationError
+                raise ValidationError({'custom_domain':
+                    f"Ce domaine est déjà utilisé par « {clash.first().title} »"})
+            self.custom_domain = domain
 
     def is_previewable(self):
         return False

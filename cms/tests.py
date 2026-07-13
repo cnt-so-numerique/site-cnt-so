@@ -1170,3 +1170,122 @@ class SyndicatSansBrouillonTest(TestCase):
         r = self.client.get(f'/cms/snippets/cms/articlepage/edit/{art.pk}/')
         self.assertEqual(r.status_code, 200)
         self.assertIn('brouillon', r.content.decode().lower())
+
+
+class CustomDomainFieldTest(TestCase):
+    """Phase 1 domaines fédérations : champ custom_domain sur SectionPage."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='dom-test', name='Dom Test', site_type='sectoral')
+
+    def test_vide_par_defaut_et_base_url_relative(self):
+        self.assertEqual(self.site.custom_domain, '')
+        self.assertEqual(self.site.base_url, '')
+
+    def test_base_url_avec_domaine(self):
+        self.site.custom_domain = 'stucs.cnt-so.org'
+        self.assertEqual(self.site.base_url, 'https://stucs.cnt-so.org')
+
+    def test_clean_rejette_schema_et_slash(self):
+        from django.core.exceptions import ValidationError
+        for bad in ['https://stucs.cnt-so.org', 'stucs.cnt-so.org/', 'stucs cnt', 'a@b.org']:
+            self.site.custom_domain = bad
+            with self.assertRaises(ValidationError, msg=bad):
+                self.site.clean()
+
+    def test_clean_normalise_en_minuscules(self):
+        self.site.custom_domain = ' STUCS.CNT-SO.ORG '
+        self.site.clean()
+        self.assertEqual(self.site.custom_domain, 'stucs.cnt-so.org')
+
+    def test_clean_refuse_les_doublons(self):
+        from django.core.exceptions import ValidationError
+        autre = _ensure_section_page(slug='dom-autre', name='Dom Autre', site_type='sectoral')
+        autre.custom_domain = 'stucs.cnt-so.org'
+        autre.save(update_fields=['custom_domain'])
+        self.site.custom_domain = 'stucs.cnt-so.org'
+        with self.assertRaises(ValidationError):
+            self.site.clean()
+
+    def test_domaines_vides_multiples_autorises(self):
+        # Deux sections sans domaine ne doivent pas se bloquer mutuellement
+        _ensure_section_page(slug='dom-vide2', name='Dom Vide2', site_type='sectoral')
+        self.site.clean()  # ne lève pas
+
+
+from django.test import override_settings
+
+
+@override_settings(ALLOWED_HOSTS=['testserver', 'stucs.cnt-so.org'],
+                   MAIN_SITE_BASE_URL='https://cnt-so.org')
+class SectionDomainMiddlewareTest(TestCase):
+    """Phase 2 domaines fédérations : résolution par hôte."""
+
+    HOST = 'stucs.cnt-so.org'
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()  # le lookup hôte→section est mis en cache 60 s
+        self.stucs = make_stucs_section()
+        self.stucs.custom_domain = self.HOST
+        self.stucs.save(update_fields=['custom_domain'])
+        self.autre = _ensure_section_page(slug='mw-autre', name='MW Autre', site_type='sectoral')
+        self.article = make_article_page(title='Article middleware', section_slug='stucs')
+
+    def test_hote_principal_inchange(self):
+        r = self.client.get('/stucs/')
+        self.assertEqual(r.status_code, 200)  # chemin classique toujours servi
+
+    def test_racine_du_domaine_sert_la_home_du_sous_site(self):
+        r = self.client.get('/', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'STUCS')
+
+    def test_article_sans_prefixe(self):
+        r = self.client.get('/article/article-middleware/', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Article middleware')
+
+    def test_contact_sans_prefixe(self):
+        r = self.client.get('/contact/', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+
+    def test_propre_prefixe_redirige_en_301_sans_prefixe(self):
+        r = self.client.get('/stucs/article/article-middleware/?x=1', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 301)
+        self.assertEqual(r['Location'], '/article/article-middleware/?x=1')
+
+    def test_post_sur_prefixe_non_redirige(self):
+        r = self.client.post('/stucs/newsletter/inscription/', {'email': 'x@y.fr'},
+                             HTTP_HOST=self.HOST)
+        self.assertNotEqual(r.status_code, 301)
+
+    def test_cms_redirige_vers_admin_central(self):
+        r = self.client.get('/cms/dashboard/', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 301)
+        self.assertEqual(r['Location'], 'https://cnt-so.org/cms/dashboard/')
+
+    def test_contenu_autre_section_renvoye_au_site_principal(self):
+        r = self.client.get('/mw-autre/', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 301)
+        self.assertEqual(r['Location'], 'https://cnt-so.org/mw-autre/')
+
+    def test_page_globale_renvoyee_au_site_principal(self):
+        r = self.client.get('/qui-sommes-nous/', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 301)
+        self.assertEqual(r['Location'], 'https://cnt-so.org/qui-sommes-nous/')
+
+    def test_feed_de_la_section(self):
+        r = self.client.get('/feed/', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('xml', r['Content-Type'])
+
+    def test_domaine_vide_aucun_effet(self):
+        self.stucs.custom_domain = ''
+        self.stucs.save(update_fields=['custom_domain'])
+        from django.core.cache import cache
+        cache.clear()
+        r = self.client.get('/', HTTP_HOST=self.HOST)
+        # plus de section pour cet hôte → home confédérale servie normalement
+        self.assertEqual(r.status_code, 200)
+        self.assertTemplateUsed(r, 'content/home.html')

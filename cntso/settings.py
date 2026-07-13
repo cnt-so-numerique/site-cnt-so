@@ -89,6 +89,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'cntso.middleware.BasicAuthMiddleware',
+    'cntso.middleware.SectionDomainMiddleware',
     'wagtail.contrib.redirects.middleware.RedirectMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -212,6 +213,10 @@ ADHESION_USE_NEW_APP = _os.environ.get('ADHESION_USE_NEW_APP', 'false').lower() 
 
 WAGTAIL_SITE_NAME = 'CNT-SO'
 WAGTAILADMIN_BASE_URL = 'https://cnt-so.org'
+# Origine publique du site principal — utilisée par les domaines de fédérations
+# pour renvoyer vers le site confédéral. Tant que la bascule DNS n'est pas faite,
+# la prod doit la surcharger avec https://newsite.cnt-so.org (env ou local_settings).
+MAIN_SITE_BASE_URL = _os.environ.get('MAIN_SITE_BASE_URL', WAGTAILADMIN_BASE_URL)
 
 # ── wagtail-2fa ───────────────────────────────────────────────────────────────
 WAGTAIL_2FA_REQUIRED = False  # True = obligatoire pour tous les rédacteurs
