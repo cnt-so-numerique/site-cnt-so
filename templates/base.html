@@ -1479,6 +1479,13 @@
             .top-bar-search input { width: 130px; }
             .cta-vignette { gap: 1rem; padding: 1rem; }
             .cta-vignette-circle { width: 56px; height: 56px; font-size: 20px; }
+
+            /* Header sous-site : le bouton "Retour" et le bloc logo se
+               chevauchaient (flex sans wrap, aucune règle responsive). */
+            .subsite-header-main { flex-wrap: wrap; }
+            .subsite-logo img { height: 56px; }
+            .subsite-name { font-size: 1.4rem; }
+            .subsite-subtitle { display: none; }
         }
 
         /* Téléphone (≤ 600px) — déjà partiellement couvert */
@@ -1489,6 +1496,13 @@
             .logo-text { font-size: 1.6rem; }
             .logo-subtitle { display: none; }
             .search-box { display: none; } /* remplacée par la top-bar */
+
+            .subsite-header-main { padding: .75rem; gap: .6rem; }
+            .subsite-logo { gap: .75rem; }
+            .subsite-logo img { height: 44px; }
+            .subsite-name { font-size: 1.15rem; }
+            .subsite-logo-info { padding-left: .75rem; }
+            .subsite-back-btn { font-size: 12px; padding: .35rem .6rem; }
 
             /* Top bar */
             .top-bar-content { flex-wrap: wrap; gap: .4rem; }
