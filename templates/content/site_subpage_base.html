@@ -65,7 +65,7 @@
 
 .s-field { margin-bottom: 1.1rem; }
 .s-label { display: block; font-size: .875rem; color: var(--text-secondary); margin-bottom: .35rem; font-weight: 600; }
-.s-input, .s-textarea {
+.s-input, .s-textarea, .form-input, .form-textarea, .form-select {
   width: 100%;
   padding: .65rem 1rem;
   background: var(--white);
@@ -76,8 +76,10 @@
   border-radius: 3px;
   outline: none;
   transition: border-color .15s;
+  box-sizing: border-box;
 }
-.s-input:focus, .s-textarea:focus { border-color: var(--primary-color); }
+.s-input:focus, .s-textarea:focus, .form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--primary-color); }
+.form-checkbox { margin-right: .4rem; }
 .s-textarea { min-height: 110px; resize: vertical; }
 
 /* Variables legacy pour les templates existants */
