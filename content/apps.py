@@ -57,6 +57,7 @@ def create_editorial_groups(sender, **kwargs):
     _CHEF_CMS = [
         'wagtailadmin.access_admin',
         'cms.add_articlepage', 'cms.change_articlepage', 'cms.delete_articlepage', 'cms.view_articlepage',
+        'cms.publish_articlepage', 'cms.publish_contentpage', 'cms.publish_sectionpage',
         'cms.add_contentpage', 'cms.change_contentpage', 'cms.delete_contentpage', 'cms.view_contentpage',
         'cms.add_cmscategory', 'cms.change_cmscategory', 'cms.delete_cmscategory', 'cms.view_cmscategory',
         'cms.add_event', 'cms.change_event', 'cms.delete_event', 'cms.view_event',
@@ -68,6 +69,10 @@ def create_editorial_groups(sender, **kwargs):
     _REDACTEUR_CMS = [
         'wagtailadmin.access_admin',
         'cms.add_articlepage', 'cms.change_articlepage', 'cms.view_articlepage',
+        # Publication directe : pas de circuit d'approbation (décision 2026-07-16,
+        # cf. tasks/chantier-autonomie-syndicats.md) — le brouillon reste un état
+        # de travail, le queryset scoppé par syndicat borne ce qui est publiable.
+        'cms.publish_articlepage', 'cms.publish_contentpage',
         'cms.add_contentpage', 'cms.change_contentpage', 'cms.view_contentpage',
         'cms.view_cmscategory',
         'wagtailimages.add_image', 'wagtailimages.change_image', 'wagtailimages.view_image',

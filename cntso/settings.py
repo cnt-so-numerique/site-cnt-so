@@ -221,6 +221,11 @@ MAIN_SITE_BASE_URL = _os.environ.get('MAIN_SITE_BASE_URL', WAGTAILADMIN_BASE_URL
 # ── wagtail-2fa ───────────────────────────────────────────────────────────────
 WAGTAIL_2FA_REQUIRED = False  # True = obligatoire pour tous les rédacteurs
 
+# Pas de circuit d'approbation : les rédacteurs publient directement
+# (le brouillon reste disponible comme état de travail). Le workflow Wagtail
+# par défaut « Moderators approval » envoyait les soumissions dans le vide.
+WAGTAIL_WORKFLOW_ENABLED = False
+
 # ── hCaptcha ──────────────────────────────────────────────────────────────────
 # Clés de test (toujours valides en dev — remplacer en prod via local_settings.py)
 # Créer un compte sur https://dashboard.hcaptcha.com/

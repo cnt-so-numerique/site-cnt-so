@@ -1764,6 +1764,51 @@ class Phase6SiteSwitchTest(TestCase):
         self.assertEqual(site.slug, self.site_b.slug)
 
 
+class DirectPublicationTest(TestCase):
+    """Publication directe (lot 2 du chantier autonomie syndicats) : les
+    rédacteurs publient sans circuit d'approbation — le workflow Wagtail
+    « Moderators approval » est désactivé (WAGTAIL_WORKFLOW_ENABLED=False)
+    et les groupes portent les permissions modèle publish_* que l'interface
+    snippets exige (les GroupPagePermission d'arbre ne suffisent pas)."""
+
+    def setUp(self):
+        _setup_editorial_groups()
+        self.site_a = make_site(slug='principal', wp_blog_id=1)
+        self.redacteur = make_redacteur(site=self.site_a)
+        self.chef = make_chef(site=self.site_a)
+        self.article = make_article_page(
+            section_slug='principal', title='Brouillon', slug='pub-directe')
+
+    def test_redacteur_has_publish_model_perms(self):
+        self.assertTrue(self.redacteur.has_perm('cms.publish_articlepage'))
+        self.assertTrue(self.redacteur.has_perm('cms.publish_contentpage'))
+
+    def test_redacteur_cannot_publish_section_sheet(self):
+        """La fiche syndicat reste hors périmètre du rédacteur générique."""
+        self.assertFalse(self.redacteur.has_perm('cms.publish_sectionpage'))
+
+    def test_chef_has_all_publish_model_perms(self):
+        self.assertTrue(self.chef.has_perm('cms.publish_articlepage'))
+        self.assertTrue(self.chef.has_perm('cms.publish_contentpage'))
+        self.assertTrue(self.chef.has_perm('cms.publish_sectionpage'))
+
+    def test_article_edit_shows_publish_button(self):
+        self.client.force_login(self.redacteur)
+        r = self.client.get(f'/cms/snippets/cms/articlepage/edit/{self.article.pk}/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'action-publish')
+
+    def test_no_moderation_workflow_button(self):
+        """Le bouton « Soumettre à ... approval » ne doit plus apparaître."""
+        self.client.force_login(self.redacteur)
+        r = self.client.get(f'/cms/snippets/cms/articlepage/edit/{self.article.pk}/')
+        self.assertNotContains(r, 'Soumettre à')
+
+    def test_workflow_disabled_in_settings(self):
+        from django.conf import settings
+        self.assertFalse(getattr(settings, 'WAGTAIL_WORKFLOW_ENABLED', True))
+
+
 class SectionGroupScopingTest(TestCase):
     """Résolution du site via les groupes par section (redacteur_<slug> /
     chef_<slug>, créés par setup_cms_permissions) — sans fiche Author.
