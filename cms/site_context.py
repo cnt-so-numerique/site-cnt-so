@@ -2,11 +2,46 @@
 Gestion du syndicat courant dans la session Wagtail.
 Source unique de vérité : cms.SectionPage.
 """
+import re
+
 from django.db.models import Q
 
 
 SESSION_KEY = 'cms_current_site_id'
 _LEGACY_KEY = 'redac_current_site_id'  # rétrocompatibilité session
+
+# Groupes par section créés par setup_cms_permissions.py :
+# redacteur_<slug> (add/change) et chef_<slug> (add/change/publish).
+# redacteur_en_chef est le chef confédéral — il matcherait le pattern avec un
+# slug fantôme "en_chef", d'où l'exclusion explicite.
+_SECTION_GROUP_RE = re.compile(r'^(?:redacteur|chef)_(.+)$')
+
+
+def _is_global_chef(user):
+    """Superuser ou chef confédéral (groupe redacteur_en_chef) — les seuls
+    rôles multi-sites, avec sélecteur de syndicat en session."""
+    return user.is_superuser or user.groups.filter(name='redacteur_en_chef').exists()
+
+
+def get_group_scoped_site(user):
+    """Résout le SectionPage d'un utilisateur via ses groupes par section
+    (redacteur_<slug> / chef_<slug>). None si aucun groupe ne matche."""
+    from cms.models import SectionPage
+    for name in user.groups.values_list('name', flat=True):
+        if name == 'redacteur_en_chef':
+            continue
+        m = _SECTION_GROUP_RE.match(name)
+        if not m:
+            continue
+        slug = m.group(1)
+        # Les groupes sont nommés d'après legacy_site_slug or slug
+        # (setup_cms_permissions.py) — on accepte les deux.
+        section = SectionPage.objects.filter(
+            Q(slug=slug) | Q(legacy_site_slug=slug)
+        ).first()
+        if section:
+            return section
+    return None
 
 
 def get_current_site(request):
@@ -16,7 +51,7 @@ def get_current_site(request):
     if not user.is_authenticated:
         return None
 
-    if user.is_superuser or user.groups.filter(name='redacteur_en_chef').exists():
+    if _is_global_chef(user):
         site_id = request.session.get(SESSION_KEY) or request.session.get(_LEGACY_KEY)
         if site_id:
             try:
@@ -25,7 +60,11 @@ def get_current_site(request):
                 pass
         return None
 
-    # Rédacteur : site fixé via Author.site (FK SectionPage depuis Phase 2)
+    # Rédacteur/chef de section : groupe par section d'abord (prioritaire),
+    # sinon site fixé via Author.site (FK SectionPage depuis Phase 2).
+    section = get_group_scoped_site(user)
+    if section:
+        return section
     try:
         return user.author_profile.site
     except Exception:
@@ -47,15 +86,8 @@ def scope_qs(qs, request, site_field='site'):
     current = get_current_site(request)
     if current:
         return qs.filter(**{site_field: current})
-    user = request.user
-    if user.is_superuser or user.groups.filter(name='redacteur_en_chef').exists():
+    if _is_global_chef(request.user):
         return qs  # chef sans site sélectionné → tout voir
-    try:
-        sp = user.author_profile.site
-        if sp:
-            return qs.filter(**{site_field: sp})
-    except Exception:
-        pass
     return qs.none()
 
 
@@ -65,16 +97,8 @@ def scope_qs_slug(qs, request, slug_field='section_slug'):
     if current:
         slug = current.legacy_site_slug or current.slug
         return qs.filter(**{slug_field: slug})
-    user = request.user
-    if user.is_superuser or user.groups.filter(name='redacteur_en_chef').exists():
+    if _is_global_chef(request.user):
         return qs
-    try:
-        sp = user.author_profile.site
-        if sp:
-            slug = sp.legacy_site_slug or sp.slug
-            return qs.filter(**{slug_field: slug})
-    except Exception:
-        pass
     return qs.none()
 
 
@@ -82,10 +106,9 @@ def get_available_sites(request):
     """Liste des SectionPage accessibles à cet utilisateur."""
     from cms.models import SectionPage
     user = request.user
-    if user.is_superuser or user.groups.filter(name='redacteur_en_chef').exists():
+    if _is_global_chef(user):
         return SectionPage.objects.filter(live=True).order_by('title')
-    try:
-        sp = user.author_profile.site
-        return SectionPage.objects.filter(pk=sp.pk) if sp else SectionPage.objects.none()
-    except Exception:
-        return SectionPage.objects.none()
+    current = get_current_site(request)
+    if current:
+        return SectionPage.objects.filter(pk=current.pk)
+    return SectionPage.objects.none()

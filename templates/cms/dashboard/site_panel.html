@@ -136,7 +136,7 @@
 
   </div>
 
-  {% else %}
+  {% elif available_sites %}
   <!-- ── Sélection du syndicat ─────────────────────────────────── -->
   <h2 style="margin:0 0 .5rem;font-size:1.1rem;color:var(--w-color-text-context);">Choisissez votre syndicat</h2>
   <p style="font-size:.875rem;color:var(--w-color-text-meta);margin:0 0 1rem;">Tous vos outils (articles, newsletter, adhésions...) seront filtrés pour ce syndicat.</p>
@@ -151,6 +151,13 @@
     </a>
     {% endfor %}
   </div>
+  {% else %}
+  <!-- ── Aucun syndicat assigné ───────────────────────────────── -->
+  <h2 style="margin:0 0 .5rem;font-size:1.1rem;color:var(--w-color-text-context);">Aucun syndicat ne vous est assigné</h2>
+  <p style="font-size:.875rem;color:var(--w-color-text-meta);margin:0;">
+    Votre compte n'est rattaché à aucun syndicat : vous ne pouvez pas encore créer ou modifier de contenu.
+    Contactez un·e administrateur·rice du site pour être ajouté·e au groupe de votre syndicat.
+  </p>
   {% endif %}
 
 </section>

@@ -1764,6 +1764,125 @@ class Phase6SiteSwitchTest(TestCase):
         self.assertEqual(site.slug, self.site_b.slug)
 
 
+class SectionGroupScopingTest(TestCase):
+    """Résolution du site via les groupes par section (redacteur_<slug> /
+    chef_<slug>, créés par setup_cms_permissions) — sans fiche Author.
+
+    Quand un utilisateur a à la fois un groupe par section ET un Author.site
+    divergent, le groupe gagne (les groupes portent les permissions Wagtail
+    réelles ; Author.site est la voie historique)."""
+
+    def setUp(self):
+        _setup_editorial_groups()
+        self.site_a = make_site(slug='principal', wp_blog_id=1)
+        self.site_b = make_site(slug='other', wp_blog_id=2, site_type='regional', name='Other')
+        self.art_a = make_article_page(section_slug='principal', title='Art A', slug='sg-art-a')
+        self.art_b = make_article_page(section_slug='other', title='Art B', slug='sg-art-b')
+
+    def _user_in_group(self, username, group_name):
+        group, _ = Group.objects.get_or_create(name=group_name)
+        user = User.objects.create_user(username=username, password='pass')
+        user.groups.add(group)
+        return User.objects.get(pk=user.pk)
+
+    def _request(self, user, session=None):
+        from django.test import RequestFactory
+        request = RequestFactory().get('/')
+        request.user = user
+        request.session = session or {}
+        return request
+
+    def test_group_redacteur_resolves_current_site(self):
+        from cms.site_context import get_current_site
+        user = self._user_in_group('g-redac', 'redacteur_other')
+        site = get_current_site(self._request(user))
+        self.assertIsNotNone(site)
+        self.assertEqual(site.slug, 'other')
+
+    def test_group_chef_resolves_current_site(self):
+        from cms.site_context import get_current_site
+        user = self._user_in_group('g-chef', 'chef_other')
+        site = get_current_site(self._request(user))
+        self.assertIsNotNone(site)
+        self.assertEqual(site.slug, 'other')
+
+    def test_group_matches_legacy_site_slug(self):
+        from cms.site_context import get_current_site
+        self.site_b.legacy_site_slug = 'ancien-nom'
+        self.site_b.save()
+        user = self._user_in_group('g-legacy', 'chef_ancien-nom')
+        site = get_current_site(self._request(user))
+        self.assertIsNotNone(site)
+        self.assertEqual(site.pk, self.site_b.pk)
+
+    def test_group_scoped_articles_list(self):
+        from cms.site_context import scope_qs_slug
+        from cms.models import ArticlePage
+        user = self._user_in_group('g-scope', 'redacteur_other')
+        qs = scope_qs_slug(ArticlePage.objects.all(), self._request(user),
+                           slug_field='section_slug')
+        pks = list(qs.values_list('pk', flat=True))
+        self.assertIn(self.art_b.pk, pks)
+        self.assertNotIn(self.art_a.pk, pks)
+
+    def test_group_available_sites_only_own(self):
+        from cms.site_context import get_available_sites
+        user = self._user_in_group('g-avail', 'chef_other')
+        slugs = [s.slug for s in get_available_sites(self._request(user))]
+        self.assertEqual(slugs, ['other'])
+
+    def test_group_chef_is_not_global_chef(self):
+        """chef_<slug> ne passe pas is_chef() — pas d'accès aux capacités
+        confédérales (featured_on_conf, sélecteur multi-sites, menus chef)."""
+        from content.admin_utils import is_chef
+        user = self._user_in_group('g-notchef', 'chef_other')
+        self.assertFalse(is_chef(user))
+
+    def test_group_chef_cannot_switch_site_via_selector(self):
+        """SelectSiteView reste un no-op pour un chef de section : la session
+        ne change pas et le scoping reste sur son propre site."""
+        user = self._user_in_group('g-switch', 'chef_other')
+        user.user_permissions.add(
+            Permission.objects.get(codename='access_admin'))
+        user = User.objects.get(pk=user.pk)
+        self.client.force_login(user)
+        self.client.get(f'/cms/select-site/?site_id={self.site_a.pk}')
+        self.assertNotEqual(
+            self.client.session.get('cms_current_site_id'), self.site_a.pk)
+
+    def test_redacteur_en_chef_does_not_match_pattern(self):
+        """Le groupe redacteur_en_chef ne doit pas être lu comme un groupe de
+        section avec le slug fantôme 'en_chef'."""
+        from cms.site_context import get_group_scoped_site
+        user = self._user_in_group('g-enchef', 'redacteur_en_chef')
+        self.assertIsNone(get_group_scoped_site(user))
+
+    def test_group_wins_over_divergent_author_site(self):
+        from cms.site_context import get_current_site
+        user = self._user_in_group('g-both', 'redacteur_other')
+        Author.objects.create(user=user, site=self.site_a, username='g-both')
+        user = User.objects.get(pk=user.pk)
+        site = get_current_site(self._request(user))
+        self.assertEqual(site.slug, 'other')
+
+    def test_author_site_still_works_without_group(self):
+        """Non-régression : la voie historique Author.site reste fonctionnelle."""
+        from cms.site_context import get_current_site
+        user = make_redacteur(username='g-author-only', site=self.site_a)
+        site = get_current_site(self._request(user))
+        self.assertIsNotNone(site)
+        self.assertEqual(site.slug, 'principal')
+
+    def test_admin_utils_resolver_delegates(self):
+        """get_current_site_for_view (newsletter/contact CMS) voit aussi les
+        groupes par section — garde anti-envoi-croisé de NewsletterSendView."""
+        from content.admin_utils import get_current_site_for_view
+        user = self._user_in_group('g-nl', 'chef_other')
+        site = get_current_site_for_view(self._request(user))
+        self.assertIsNotNone(site)
+        self.assertEqual(site.slug, 'other')
+
+
 class Phase6SectionSlugEnforcementTest(TestCase):
     """Vérifie l'enforcement de section_slug côté serveur."""
 

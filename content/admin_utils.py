@@ -10,21 +10,14 @@ def is_chef(user):
 
 
 def get_current_site_for_view(request):
-    """Retourne le SectionPage courant selon le rôle et la session."""
-    from cms.models import SectionPage
-    user = request.user
-    if is_chef(user):
-        site_id = request.session.get('redac_current_site_id')
-        if site_id:
-            try:
-                return SectionPage.objects.get(pk=site_id)
-            except SectionPage.DoesNotExist:
-                pass
-        return None
-    author_profile = getattr(user, 'author_profile', None)
-    if author_profile:
-        return author_profile.site  # FK SectionPage
-    return None
+    """Retourne le SectionPage courant selon le rôle et la session.
+
+    Délègue au résolveur unique cms.site_context.get_current_site (session
+    pour les chefs, groupe par section ou Author.site pour les rédacteurs) —
+    ce module en réimplémentait une copie qui ignorait les groupes par section.
+    """
+    from cms.site_context import get_current_site
+    return get_current_site(request)
 
 
 class WagtailLoginRequiredMixin(LoginRequiredMixin):
