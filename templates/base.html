@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-{% load menu_tags %}
+{% load menu_tags static content_tags %}
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -19,6 +19,8 @@
     <meta name="twitter:title" content="{% block twitter_title %}CNT-SO{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}Confédération Nationale du Travail — Solidarité Ouvrière.{% endblock %}">
     {% block twitter_image %}{% endblock %}
+    <script type="application/ld+json">{{ org_structured_data|json_ld }}</script>
+    {% block structured_data %}{% endblock %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Sans:wght@400;600;700&family=Oswald:wght@500;700&display=swap" rel="stylesheet">

@@ -1,4 +1,30 @@
+from django.templatetags.static import static
+
 from cms.models import ArticlePage, CmsCategory, SectionPage
+
+
+def _organization_structured_data(main_site, base_url):
+    """Dict JSON-LD Organization (schema.org) — sérialisé côté template via
+    le filtre `json_ld` (content_tags), affiché sur toutes les pages."""
+    data = {
+        '@context': 'https://schema.org',
+        '@type': 'Organization',
+        'name': 'CNT-SO',
+        'alternateName': 'Confédération Nationale du Travail — Solidarité Ouvrière',
+        'url': f'{base_url}/',
+        'logo': f"{base_url}{static('image/CNT SO.jpg')}",
+    }
+    if main_site:
+        same_as = [
+            url for url in (
+                main_site.social_facebook, main_site.social_twitter,
+                main_site.social_instagram, main_site.social_bluesky,
+                main_site.social_mastodon, main_site.social_youtube,
+            ) if url
+        ]
+        if same_as:
+            data['sameAs'] = same_as
+    return data
 
 
 def menu_context(request):
@@ -97,9 +123,12 @@ def menu_context(request):
     else:
         main_site_url = '/'
 
+    org_base_url = _canonical_base or getattr(_settings, 'MAIN_SITE_BASE_URL', '') or 'https://cnt-so.org'
+
     return {
         'canonical_url': canonical_url,
         'site_base_url': _canonical_base,
+        'org_structured_data': _organization_structured_data(main_site, org_base_url),
         'main_site_url': main_site_url,
         'main_site': main_site,
         'sites': subsites,

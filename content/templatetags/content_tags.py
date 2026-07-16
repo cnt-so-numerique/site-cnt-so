@@ -2,6 +2,7 @@ import json
 from urllib.parse import urlparse
 
 from django import template
+from django.templatetags.static import static
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 
@@ -9,6 +10,10 @@ register = template.Library()
 
 # Schémas d'URL autorisés pour les liens et médias
 _SAFE_URL_SCHEMES = {'http', 'https', '/'}
+
+# Échappement JS-safe pour insérer du JSON dans un <script> — même logique
+# que django.utils.html.json_script (échappe </script>, pas de quotes HTML).
+_JSON_SCRIPT_ESCAPES = {ord('>'): '\\u003E', ord('<'): '\\u003C', ord('&'): '\\u0026'}
 
 
 @register.simple_tag
@@ -20,6 +25,37 @@ def absolute_url(url, base):
     if url.startswith('http'):
         return url
     return f'{base}{url}'
+
+
+@register.filter
+def json_ld(data):
+    """Sérialise un dict en JSON sûr à insérer tel quel dans un <script type="application/ld+json">."""
+    if not data:
+        return ''
+    return mark_safe(json.dumps(data).translate(_JSON_SCRIPT_ESCAPES))
+
+
+@register.simple_tag
+def article_structured_data(article, base_url, canonical_url):
+    """Dict JSON-LD Article (schema.org) — à sérialiser avec le filtre `json_ld`."""
+    data = {
+        '@context': 'https://schema.org',
+        '@type': 'NewsArticle',
+        'headline': article.title,
+        'description': article.meta_description or article.title,
+        'datePublished': article.published_at.isoformat() if article.published_at else None,
+        'author': {'@type': 'Organization', 'name': article.author_name or 'CNT-SO'},
+        'publisher': {
+            '@type': 'Organization',
+            'name': 'CNT-SO',
+            'logo': {'@type': 'ImageObject', 'url': f"{base_url}{static('image/CNT SO.jpg')}"},
+        },
+    }
+    if canonical_url:
+        data['mainEntityOfPage'] = {'@type': 'WebPage', '@id': canonical_url}
+    if article.any_image_url:
+        data['image'] = [absolute_url(article.any_image_url, base_url)]
+    return {k: v for k, v in data.items() if v is not None}
 
 
 def _safe_url(url):

@@ -13,6 +13,10 @@
 {% block twitter_card_type %}summary_large_image{% endblock %}
 {% block twitter_image %}<meta name="twitter:image" content="{% absolute_url article.any_image_url site_base_url %}">{% endblock %}
 {% endif %}
+{% block structured_data %}
+{% article_structured_data article site_base_url canonical_url as article_sd %}
+<script type="application/ld+json">{{ article_sd|json_ld }}</script>
+{% endblock %}
 
 {% block extra_css %}
 <style>
