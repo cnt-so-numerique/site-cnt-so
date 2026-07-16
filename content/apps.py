@@ -47,10 +47,24 @@ def create_editorial_groups(sender, **kwargs):
         'content.add_subscriber', 'content.change_subscriber', 'content.delete_subscriber', 'content.view_subscriber',
         'content.add_menuitem', 'content.change_menuitem', 'content.delete_menuitem', 'content.view_menuitem',
     ]
+    # Autonomie des syndicats (décision 2026-07-16, tasks/chantier-autonomie-
+    # syndicats.md) : un rédacteur gère TOUT le contenu de son syndicat —
+    # menus, newsletter, abonnés, formulaire de contact inclus. Le périmètre
+    # est borné par le scoping par syndicat des querysets, pas par les perms.
+    # Pas de delete sur articles/pages (dépublication seulement).
     _REDACTEUR_CONTENT = [
         'content.add_article', 'content.change_article', 'content.view_article',
         'content.add_page', 'content.change_page', 'content.view_page',
         'content.view_category', 'content.view_tag',
+        # Menus : PAS encore ouverts aux rédacteurs — les vues de
+        # réorganisation (/cms/menus/) manipulent les MenuItem par pk brut
+        # sans filtre de site (lot 6 : sécuriser avant d'ouvrir).
+        'content.add_newsletter', 'content.change_newsletter', 'content.view_newsletter',
+        'content.add_subscriber', 'content.change_subscriber', 'content.delete_subscriber', 'content.view_subscriber',
+        'content.view_contactmessage', 'content.change_contactmessage',
+        'content.view_formulairecontact', 'content.change_formulairecontact',
+        'content.add_champcontactcustom', 'content.change_champcontactcustom',
+        'content.delete_champcontactcustom', 'content.view_champcontactcustom',
     ]
 
     # Permissions CMS Wagtail (cms.ArticlePage, ContentPage, CmsCategory, images, docs)
@@ -74,7 +88,12 @@ def create_editorial_groups(sender, **kwargs):
         # de travail, le queryset scoppé par syndicat borne ce qui est publiable.
         'cms.publish_articlepage', 'cms.publish_contentpage',
         'cms.add_contentpage', 'cms.change_contentpage', 'cms.view_contentpage',
-        'cms.view_cmscategory',
+        # Fiche du syndicat (logo, réseaux sociaux, textes) : éditable et
+        # publiable par ses rédacteurs — le queryset la limite à leur section.
+        'cms.change_sectionpage', 'cms.view_sectionpage', 'cms.publish_sectionpage',
+        # Catégories et agenda gérés en autonomie (pas de delete catégorie).
+        'cms.add_cmscategory', 'cms.change_cmscategory', 'cms.view_cmscategory',
+        'cms.add_event', 'cms.change_event', 'cms.view_event',
         'wagtailimages.add_image', 'wagtailimages.change_image', 'wagtailimages.view_image',
         'wagtailimages.choose_image',
         'wagtaildocs.add_document', 'wagtaildocs.change_document', 'wagtaildocs.view_document',
@@ -94,5 +113,15 @@ def create_editorial_groups(sender, **kwargs):
     chef_group, _ = Group.objects.get_or_create(name='redacteur_en_chef')
     chef_group.permissions.add(*get_permissions(_CHEF_CONTENT + _CHEF_CMS))
 
+    redacteur_perms = get_permissions(_REDACTEUR_CONTENT + _REDACTEUR_CMS)
     redacteur_group, _ = Group.objects.get_or_create(name='redacteur')
-    redacteur_group.permissions.add(*get_permissions(_REDACTEUR_CONTENT + _REDACTEUR_CMS))
+    redacteur_group.permissions.add(*redacteur_perms)
+
+    # Groupes par section (redacteur_<slug>, créés par setup_cms_permissions) :
+    # mêmes permissions modèle que le groupe redacteur — ils n'avaient que
+    # access_admin + les permissions d'arbre Wagtail, d'où des 403/302 sur
+    # toute l'interface snippets (articles, pages, catégories…).
+    section_groups = Group.objects.filter(name__startswith='redacteur_').exclude(
+        name='redacteur_en_chef')
+    for group in section_groups:
+        group.permissions.add(*redacteur_perms)

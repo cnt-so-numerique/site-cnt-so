@@ -1044,11 +1044,17 @@ class AdminMenuVisibilityTest(TestCase):
         self.assertFalse(item.is_shown(self._request_for(self.redacteur)))
         self.assertTrue(item.is_shown(self._request_for(make_superuser(username='su-menu-synd'))))
 
-    def test_listes_mails_cache_pour_redacteur(self):
+    def test_listes_mails_visible_pour_redacteur_avec_syndicat(self):
+        """Autonomie 2026-07-16 : la liste OVH du syndicat est gérée par ses
+        rédacteurs — l'entrée apparaît dès qu'un syndicat est résolu, et
+        reste cachée pour un compte sans syndicat."""
         from cms.wagtail_hooks import add_mailing_lists_menu_item
         item = add_mailing_lists_menu_item()
-        self.assertFalse(item.is_shown(self._request_for(self.redacteur)))
+        self.assertTrue(item.is_shown(self._request_for(self.redacteur)))
         self.assertTrue(item.is_shown(self._request_for(make_superuser(username='su-menu-ml'))))
+        from django.contrib.auth.models import User
+        sans_syndicat = User.objects.create_user(username='sans-synd-menu', password='pass')
+        self.assertFalse(item.is_shown(self._request_for(sans_syndicat)))
 
 
 class DashboardPanelRoleTest(TestCase):
@@ -1057,7 +1063,10 @@ class DashboardPanelRoleTest(TestCase):
     def setUp(self):
         self.site = _ensure_section_page(slug='simpl-dash', name='Simpl Dash', site_type='sectoral')
 
-    def test_redacteur_ne_voit_pas_les_outils_chef(self):
+    def test_redacteur_voit_les_outils_de_son_syndicat_mais_pas_les_menus(self):
+        """Autonomie 2026-07-16 : contact, newsletter et listes OVH sont des
+        outils du syndicat, visibles par ses rédacteurs. Les menus restent
+        chef-only tant que leurs vues ne sont pas sécurisées (lot 6)."""
         redacteur = _make_redacteur(self.site, username='redacteur-dash')
         c = Client()
         c.force_login(redacteur)
@@ -1066,9 +1075,9 @@ class DashboardPanelRoleTest(TestCase):
         content = r.content.decode()
         self.assertIn('Nouvel article', content)
         self.assertIn('Comment publier', content)
-        self.assertNotIn('Listes mails OVH', content)
+        self.assertIn('Listes mails OVH', content)
+        self.assertIn('Config formulaire', content)
         self.assertNotIn('Menus du site', content)
-        self.assertNotIn('Config formulaire', content)
 
     def test_chef_voit_tous_les_outils(self):
         chef = _make_chef(username='chef-dash')

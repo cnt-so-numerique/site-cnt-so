@@ -53,7 +53,6 @@
       </div>
     </a>
 
-    {% if is_chef %}
     <a href="/cms/snippets/content/subscriber/" style="text-decoration:none;">
       <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:.75rem;text-align:center;" onmouseover="this.style.borderColor='#e63946'" onmouseout="this.style.borderColor='var(--w-color-border-furniture)'">
         <div style="font-size:1.5rem;font-weight:700;color:var(--w-color-text-context);">{{ stats.subscribers }}</div>
@@ -67,7 +66,6 @@
         <div style="font-size:.875rem;color:var(--w-color-text-meta);margin-top:.1rem;">Messages</div>
       </div>
     </a>
-    {% endif %}
 
   </div>
 
@@ -82,10 +80,8 @@
         <a href="/cms/snippets/cms/articlepage/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">📄 Tous les articles</a>
         <a href="/cms/snippets/cms/contentpage/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">📃 Pages du site</a>
         <a href="/cms/snippets/cms/cmscategory/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">🏷️ Catégories</a>
-        {% if is_chef %}
         <a href="/cms/snippets/cms/event/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">📅 Agenda</a>
         <a href="/cms/snippets/cms/event/add/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">+ Nouvel événement</a>
-        {% endif %}
       </div>
     </div>
 
@@ -103,14 +99,16 @@
     {% endif %}
 
     {% if is_chef %}
-    <!-- Navigation -->
+    <!-- Navigation (chef uniquement tant que les vues menus ne sont pas sécurisées — lot 6) -->
     <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:1rem;">
       <div style="font-size:.875rem;color:var(--w-color-text-meta);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">🗂️ Navigation</div>
       <div style="display:flex;flex-direction:column;gap:.4rem;">
         <a href="/cms/menus/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">🔗 Menus du site</a>
       </div>
     </div>
+    {% endif %}
 
+    <!-- Contact / Newsletter : gérés en autonomie par chaque syndicat -->
     <!-- Contact -->
     <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:1rem;">
       <div style="font-size:.875rem;color:var(--w-color-text-meta);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">📬 Contact</div>
@@ -132,7 +130,6 @@
         <a href="/cms/mailing-lists/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">📮 Listes mails OVH</a>
       </div>
     </div>
-    {% endif %}
 
   </div>
 

@@ -1,5 +1,12 @@
 """
-Crée les groupes de permissions par section pour les rédacteurs Wagtail.
+Crée/synchronise les groupes de permissions par section pour les rédacteurs Wagtail.
+
+Modèle à un seul niveau par syndicat (décision 2026-07-16,
+tasks/chantier-autonomie-syndicats.md) : un groupe redacteur_<slug> par
+SectionPage, avec add/change/publish sur son sous-arbre de pages. Les anciens
+groupes chef_<slug> sont fusionnés dedans (membres déplacés, groupe supprimé).
+Les permissions modèle (articles, newsletter…) sont synchronisées par
+content.apps.create_editorial_groups à chaque migrate.
 
 Usage:
     python manage.py setup_cms_permissions
@@ -8,7 +15,7 @@ from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
-    help = "Crée les groupes redacteur_<slug> et chef_<slug> par SectionPage"
+    help = "Crée/synchronise les groupes redacteur_<slug> par SectionPage (fusionne les anciens chef_<slug>)"
 
     def handle(self, *args, **options):
         from django.contrib.auth.models import Group, Permission
@@ -37,29 +44,37 @@ class Command(BaseCommand):
             GroupPagePermission.objects.get_or_create(
                 group=chef_global, page=home, permission=perm
             )
-        self.stdout.write(f'  redacteur_en_chef → accès HomePage')
+        self.stdout.write('  redacteur_en_chef → accès HomePage')
 
-        # Groupes par section
+        # Un groupe par section : add + change + publish sur son sous-arbre
         for section in SectionPage.objects.all():
             slug = section.legacy_site_slug or section.slug
 
-            # Rédacteur (add + change, pas publish)
             redac_group, _ = Group.objects.get_or_create(name=f'redacteur_{slug}')
             redac_group.permissions.add(access_admin)
-            for perm in [add_perm, change_perm]:
+            for perm in [add_perm, change_perm, publish_perm]:
                 GroupPagePermission.objects.get_or_create(
                     group=redac_group, page=section, permission=perm
                 )
 
-            # Chef (add + change + publish)
-            chef_group, _ = Group.objects.get_or_create(name=f'chef_{slug}')
-            chef_group.permissions.add(access_admin)
-            for perm in [add_perm, change_perm, publish_perm]:
-                GroupPagePermission.objects.get_or_create(
-                    group=chef_group, page=section, permission=perm
-                )
+            # Fusion de l'ancien groupe chef_<slug> (deux niveaux abandonnés)
+            chef_group = Group.objects.filter(name=f'chef_{slug}').first()
+            if chef_group:
+                moved = 0
+                for user in chef_group.user_set.all():
+                    user.groups.add(redac_group)
+                    moved += 1
+                chef_group.delete()
+                self.stdout.write(
+                    f'  {slug} → redacteur_{slug} (chef_{slug} fusionné : {moved} membre(s))')
+            else:
+                self.stdout.write(f'  {slug} → redacteur_{slug}')
 
-            self.stdout.write(f'  {slug} → groupes redacteur_{slug}, chef_{slug}')
+        # Synchronise aussi les permissions modèle (articles, newsletter…)
+        from content.apps import create_editorial_groups
+        from django.apps import apps as django_apps
+        create_editorial_groups(django_apps.get_app_config('cms'))
+        self.stdout.write('  permissions modèle synchronisées (create_editorial_groups)')
 
         # Migration des utilisateurs existants : Author.site → redacteur_<slug>
         self._migrate_existing_users(access_admin)
@@ -73,9 +88,9 @@ class Command(BaseCommand):
 
         migrated = 0
         for author in Author.objects.filter(user__isnull=False, site__isnull=False):
-            slug = author.site.slug
-            group_name = f'redacteur_{slug}'
-            group = Group.objects.filter(name=group_name).first()
+            site = author.site
+            slug = site.legacy_site_slug or site.slug
+            group = Group.objects.filter(name=f'redacteur_{slug}').first()
             if group and author.user:
                 author.user.groups.add(group)
                 author.user.user_permissions.add(access_admin)

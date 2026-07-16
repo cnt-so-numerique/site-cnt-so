@@ -15,7 +15,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
-from content.admin_utils import WagtailChefRequiredMixin, get_current_site_for_view
+from content.admin_utils import WagtailSyndicatRequiredMixin, get_current_site_for_view
 from content.models import Newsletter, Subscriber
 
 
@@ -37,7 +37,7 @@ def _annotate_image_urls(articles, site_url):
         na.link_url = link if link.startswith('http') else base + link
 
 
-class NewsletterSendView(WagtailChefRequiredMixin, View):
+class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
     """Confirmation puis envoi de la newsletter."""
 
     def _get_newsletter(self, request, pk):
@@ -249,7 +249,7 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
         return redirect('/cms/snippets/content/newsletter/')
 
 
-class SubscriberExportView(WagtailChefRequiredMixin, View):
+class SubscriberExportView(WagtailSyndicatRequiredMixin, View):
     """Export CSV des abonnés actifs du site courant."""
 
     def get(self, request):

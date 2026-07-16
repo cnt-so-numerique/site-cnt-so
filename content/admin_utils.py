@@ -36,3 +36,16 @@ class WagtailChefRequiredMixin(WagtailLoginRequiredMixin, UserPassesTestMixin):
         if self.raise_exception and self.request.user.is_authenticated:
             return JsonResponse({'error': 'Permission refusée'}, status=403)
         return redirect('/cms/')
+
+
+class WagtailSyndicatRequiredMixin(WagtailChefRequiredMixin):
+    """Chef confédéral OU membre d'un syndicat (site résolu par groupe/Author).
+
+    Pour les outils que chaque syndicat gère en autonomie (contact, newsletter,
+    abonnés — décision 2026-07-16) : la vue DOIT ensuite scoper ses données par
+    get_current_site_for_view, jamais servir cross-site à un non-chef."""
+
+    def test_func(self):
+        if is_chef(self.request.user):
+            return True
+        return get_current_site_for_view(self.request) is not None

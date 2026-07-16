@@ -3,7 +3,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.utils.text import slugify
 
-from content.admin_utils import WagtailChefRequiredMixin as ChefRequiredMixin
+# Outils gérés en autonomie par chaque syndicat (décision 2026-07-16) :
+# accessibles aux rédacteurs de syndicat, scoppés par get_current_site_for_view.
+from content.admin_utils import WagtailSyndicatRequiredMixin as ChefRequiredMixin
 from content.admin_utils import get_current_site_for_view as _get_current_site
 from content.models import ContactMessage, FormulaireContact, ChampContactCustom
 

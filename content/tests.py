@@ -1514,9 +1514,11 @@ class Phase6RedacteurPermissionsTest(TestCase):
     def test_redacteur_cannot_delete_articlepage(self):
         self.assertFalse(self.redacteur.has_perm('cms.delete_articlepage'))
 
-    def test_redacteur_cannot_manage_categories(self):
-        self.assertFalse(self.redacteur.has_perm('cms.add_cmscategory'))
-        self.assertFalse(self.redacteur.has_perm('cms.change_cmscategory'))
+    def test_redacteur_manages_categories_but_cannot_delete(self):
+        # Autonomie 2026-07-16 : les catégories du syndicat sont gérées par
+        # ses rédacteurs (create/rename) ; la suppression reste confédérale.
+        self.assertTrue(self.redacteur.has_perm('cms.add_cmscategory'))
+        self.assertTrue(self.redacteur.has_perm('cms.change_cmscategory'))
         self.assertFalse(self.redacteur.has_perm('cms.delete_cmscategory'))
 
     def test_redacteur_can_view_categories(self):
@@ -1783,9 +1785,11 @@ class DirectPublicationTest(TestCase):
         self.assertTrue(self.redacteur.has_perm('cms.publish_articlepage'))
         self.assertTrue(self.redacteur.has_perm('cms.publish_contentpage'))
 
-    def test_redacteur_cannot_publish_section_sheet(self):
-        """La fiche syndicat reste hors périmètre du rédacteur générique."""
-        self.assertFalse(self.redacteur.has_perm('cms.publish_sectionpage'))
+    def test_redacteur_publishes_section_sheet(self):
+        """Autonomie 2026-07-16 : la fiche du syndicat (logo, RS, textes) est
+        éditable ET publiable par ses rédacteurs — bornée à leur section par
+        le queryset de SectionPageViewSet."""
+        self.assertTrue(self.redacteur.has_perm('cms.publish_sectionpage'))
 
     def test_chef_has_all_publish_model_perms(self):
         self.assertTrue(self.chef.has_perm('cms.publish_articlepage'))
@@ -1807,6 +1811,139 @@ class DirectPublicationTest(TestCase):
     def test_workflow_disabled_in_settings(self):
         from django.conf import settings
         self.assertFalse(getattr(settings, 'WAGTAIL_WORKFLOW_ENABLED', True))
+
+
+class SectionAutonomyPermissionsTest(TestCase):
+    """Lots 3-4 du chantier autonomie : permissions modèle complètes pour les
+    rédacteurs (outils du syndicat inclus) et fusion chef_<slug> →
+    redacteur_<slug> par la commande setup_cms_permissions."""
+
+    def setUp(self):
+        _setup_editorial_groups()
+        self.site_a = make_site(slug='principal', wp_blog_id=1)
+        self.site_b = make_site(slug='other', wp_blog_id=2, site_type='sectoral', name='Other')
+
+    def test_redacteur_has_syndicat_tool_perms(self):
+        redacteur = make_redacteur(site=self.site_a)
+        for perm in ['content.add_newsletter',
+                     'content.add_subscriber', 'content.delete_subscriber',
+                     'content.change_contactmessage', 'content.change_formulairecontact',
+                     'content.add_champcontactcustom',
+                     'cms.change_sectionpage', 'cms.publish_sectionpage',
+                     'cms.add_event', 'cms.add_cmscategory']:
+            self.assertTrue(redacteur.has_perm(perm), f'manquante : {perm}')
+
+    def test_redacteur_still_cannot_delete_content(self):
+        redacteur = make_redacteur(site=self.site_a)
+        for perm in ['content.delete_menuitem', 'content.delete_newsletter',
+                     'cms.delete_articlepage', 'cms.delete_contentpage',
+                     'cms.delete_cmscategory', 'cms.delete_sectionpage',
+                     'wagtailimages.delete_image']:
+            self.assertFalse(redacteur.has_perm(perm), f'ne devrait pas avoir : {perm}')
+
+    def test_redacteur_has_no_menu_perms_until_lot6(self):
+        """Menus reportés : les vues de réorganisation manipulent les MenuItem
+        par pk brut sans filtre de site — à sécuriser avant d'ouvrir (lot 6)."""
+        redacteur = make_redacteur(site=self.site_a)
+        self.assertFalse(redacteur.has_perm('content.add_menuitem'))
+        self.assertFalse(redacteur.has_perm('content.change_menuitem'))
+
+    def test_setup_command_merges_chef_groups(self):
+        from django.core.management import call_command
+        chef_g, _ = Group.objects.get_or_create(name='chef_other')
+        u = User.objects.create_user('ex-chef', password='pass')
+        u.groups.add(chef_g)
+        call_command('setup_cms_permissions')
+        u = User.objects.get(pk=u.pk)
+        self.assertFalse(Group.objects.filter(name='chef_other').exists())
+        self.assertIn('redacteur_other', [g.name for g in u.groups.all()])
+
+    def test_setup_command_grants_publish_on_section_subtree(self):
+        from django.core.management import call_command
+        from wagtail.models import GroupPagePermission
+        call_command('setup_cms_permissions')
+        g = Group.objects.get(name='redacteur_other')
+        self.assertTrue(GroupPagePermission.objects.filter(
+            group=g, page=self.site_b, permission__codename='publish_page').exists())
+
+    def test_section_group_user_can_create_and_publish_articles(self):
+        """Un membre de redacteur_<slug> ouvre le formulaire de création
+        d'article (302 avant le lot 3) et dispose du bouton Publier."""
+        from django.core.management import call_command
+        call_command('setup_cms_permissions')
+        u = User.objects.create_user('sec-redac', password='pass')
+        u.groups.add(Group.objects.get(name='redacteur_other'))
+        u = User.objects.get(pk=u.pk)
+        self.client.force_login(u)
+        r = self.client.get('/cms/snippets/cms/articlepage/add/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'action-publish')
+
+    def test_section_redacteur_accesses_own_contact_config(self):
+        """Lot 5 : la config du formulaire de contact est accessible au
+        rédacteur du syndicat (avant : réservée chef, redirect /cms/)."""
+        redacteur = make_redacteur(site=self.site_b, username='contact-redac')
+        self.client.force_login(redacteur)
+        r = self.client.get('/cms/contact-config/')
+        self.assertEqual(r.status_code, 200)
+
+    def test_no_syndicat_user_still_blocked_on_contact_config(self):
+        u = User.objects.create_user('sans-syndicat', password='pass')
+        from django.contrib.auth.models import Permission
+        u.user_permissions.add(Permission.objects.get(codename='access_admin'))
+        u = User.objects.get(pk=u.pk)
+        self.client.force_login(u)
+        r = self.client.get('/cms/contact-config/')
+        self.assertEqual(r.status_code, 302)  # bounce vers /cms/
+
+    def test_section_redacteur_exports_own_subscribers(self):
+        """Lot 5 : export CSV des abonnés du syndicat, décision d'Arnaud
+        « accès complet avec export »."""
+        from content.models import Subscriber
+        Subscriber.objects.create(site=self.site_b, email='abo@example.org', is_active=True)
+        Subscriber.objects.create(site=self.site_a, email='autre@example.org', is_active=True)
+        redacteur = make_redacteur(site=self.site_b, username='export-redac')
+        self.client.force_login(redacteur)
+        r = self.client.get('/cms/abonnes/export/')
+        self.assertEqual(r.status_code, 200)
+        content = r.content.decode('utf-8')
+        self.assertIn('abo@example.org', content)
+        self.assertNotIn('autre@example.org', content)  # jamais cross-site
+
+    def test_section_redacteur_cannot_send_other_site_newsletter(self):
+        """Lot 5 : le garde anti-envoi-croisé de NewsletterSendView bloque un
+        rédacteur de syndicat sur la newsletter d'un autre site (PermissionDenied,
+        que le wrapper admin Wagtail transforme en 302 — jamais 200)."""
+        from content.models import Newsletter
+        nl = Newsletter.objects.create(site=self.site_a, title='Conf', intro='x')
+        redacteur = make_redacteur(site=self.site_b, username='nl-redac')
+        self.client.force_login(redacteur)
+        r = self.client.get(f'/cms/newsletter/{nl.pk}/envoyer/')
+        self.assertIn(r.status_code, (302, 403))
+
+    def test_section_redacteur_can_open_own_newsletter_send(self):
+        from content.models import Newsletter
+        nl = Newsletter.objects.create(site=self.site_b, title='Locale', intro='x')
+        redacteur = make_redacteur(site=self.site_b, username='nl-redac2')
+        self.client.force_login(redacteur)
+        r = self.client.get(f'/cms/newsletter/{nl.pk}/envoyer/')
+        self.assertEqual(r.status_code, 200)
+
+    def test_section_sheet_queryset_scoped_to_own_section(self):
+        """La fiche « Mon syndicat » n'expose que la section de l'utilisateur,
+        y compris pour un rédacteur de syndicat (plus seulement les chefs)."""
+        from django.core.management import call_command
+        from django.test import RequestFactory
+        from cms.wagtail_hooks import SectionPageViewSet
+        call_command('setup_cms_permissions')
+        u = User.objects.create_user('sec-redac2', password='pass')
+        u.groups.add(Group.objects.get(name='redacteur_other'))
+        u = User.objects.get(pk=u.pk)
+        request = RequestFactory().get('/')
+        request.user = u
+        request.session = {}
+        qs = SectionPageViewSet.get_queryset(None, request)
+        self.assertEqual([s.slug for s in qs], ['other'])
 
 
 class SectionGroupScopingTest(TestCase):
@@ -3545,9 +3682,18 @@ class WagtailChefMixinPermissionTest(TestCase):
         _setup_editorial_groups()
         self.site = _ensure_section_page(slug='chef-perm', name='Chef Perm')
 
-    def test_non_chef_authentifie_redirige(self):
-        """Un rédacteur (non chef) authentifié est redirigé vers /cms/."""
+    def test_redacteur_avec_syndicat_accede_au_contact(self):
+        """Autonomie 2026-07-16 : les messages de contact du syndicat sont un
+        outil de ses rédacteurs (WagtailSyndicatRequiredMixin, scoping par
+        site courant)."""
         user = make_redacteur('notchef-wcm', site=self.site)
+        self.client.force_login(user)
+        r = self.client.get('/cms/contact/')
+        self.assertEqual(r.status_code, 200)
+
+    def test_authentifie_sans_syndicat_redirige(self):
+        """Sans syndicat résolu (ni groupe ni Author.site), toujours refusé."""
+        user = User.objects.create_user(username='sans-synd-wcm', password='pass')
         self.client.force_login(user)
         r = self.client.get('/cms/contact/')
         self.assertEqual(r.status_code, 302)

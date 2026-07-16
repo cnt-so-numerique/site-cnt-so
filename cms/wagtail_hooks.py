@@ -205,11 +205,12 @@ class SectionPageViewSet(SnippetViewSet):
         qs = SectionPage.objects.all()
         if request.user.is_superuser:
             return qs
-        # Chefs : uniquement leur propre syndicat
-        if _is_chef(request.user):
-            current = get_current_site(request)
-            if current:
-                return qs.filter(pk=current.pk)
+        # Chef comme rédacteur de syndicat : uniquement le syndicat courant
+        # (session pour le chef, groupe par section ou Author.site sinon) —
+        # la fiche est gérée en autonomie par chaque syndicat.
+        current = get_current_site(request)
+        if current:
+            return qs.filter(pk=current.pk)
         return qs.none()
 
 
@@ -428,6 +429,12 @@ class ChefOnlyMenuItem(WagtailMenuItem):
         return _is_chef(request.user)
 
 
+class SyndicatMenuItem(WagtailMenuItem):
+    """Entrée visible pour les chefs ET les rédacteurs rattachés à un syndicat."""
+    def is_shown(self, request):
+        return _is_chef(request.user) or get_current_site(request) is not None
+
+
 @hooks.register('register_admin_menu_item')
 def add_syndicats_menu_item():
     return ChefOnlyMenuItem(
@@ -441,7 +448,9 @@ def add_syndicats_menu_item():
 
 @hooks.register('register_admin_menu_item')
 def add_mailing_lists_menu_item():
-    return ChefOnlyMenuItem(
+    # Autonomie des syndicats : chaque rédacteur gère la liste OVH de son
+    # syndicat (_allowed_mailing_lists le borne à celle-ci).
+    return SyndicatMenuItem(
         'Listes mails',
         '/cms/mailing-lists/',
         name='mailing-lists',
@@ -576,16 +585,16 @@ def _allowed_mailing_lists(request):
     """
     Retourne la liste des noms de listes OVH accessibles à l'utilisateur courant.
     - Superadmin : toutes les listes
-    - Rédacteur-en-chef : uniquement la liste assignée à son syndicat courant
-    - Autre : liste vide (accès refusé côté appelant)
+    - Chef confédéral comme rédacteur de syndicat : uniquement la ou les
+      listes assignées à son syndicat courant (autonomie des syndicats,
+      décision 2026-07-16)
+    - Aucun syndicat résolu : liste vide (accès refusé côté appelant)
     """
     if request.user.is_superuser:
         return None  # None = pas de restriction
-    if _is_chef(request.user):
-        current = get_current_site(request)
-        if current and current.ovh_mailing_list:
-            return [n.strip() for n in current.ovh_mailing_list.split(',') if n.strip()]
-        return []
+    current = get_current_site(request)
+    if current and current.ovh_mailing_list:
+        return [n.strip() for n in current.ovh_mailing_list.split(',') if n.strip()]
     return []
 
 
@@ -603,7 +612,9 @@ class MailingListIndexView(View):
 
         allowed = _allowed_mailing_lists(request)
         if allowed is not None and len(allowed) == 0:
-            return HttpResponseForbidden("Accès réservé aux administrateurs et rédacteurs-en-chef.")
+            return HttpResponseForbidden(
+                "Aucune liste mail n'est rattachée à votre syndicat "
+                "(ou aucun syndicat n'est rattaché à votre compte).")
 
         error = None
         lists = []
