@@ -79,6 +79,9 @@ class Command(BaseCommand):
         # Médias cloisonnés : une Collection par syndicat + « Commun »
         self._setup_collections()
 
+        # Ménage : groupes orphelins et groupes Wagtail par défaut
+        self._prune_obsolete_groups()
+
         # Synchronise aussi les permissions modèle (articles, newsletter…)
         from content.apps import create_editorial_groups
         from django.apps import apps as django_apps
@@ -167,6 +170,37 @@ class Command(BaseCommand):
             grant(group, commun, choose_perms)
             self.stdout.write(
                 f'  collection « {collection.name} » → redacteur_{slug}')
+
+    def _prune_obsolete_groups(self):
+        """Garde l'onglet Rôles de /cms/users/ lisible : supprime les groupes
+        redacteur_<slug> dont la SectionPage n'existe plus et les groupes
+        Wagtail par défaut (Editors/Moderators, remplacés par notre modèle
+        éditorial). Un groupe qui a encore des membres est signalé, jamais
+        supprimé en silence."""
+        from django.contrib.auth.models import Group
+        from cms.models import SectionPage
+
+        valid_slugs = set()
+        for slug, legacy in SectionPage.objects.values_list('slug', 'legacy_site_slug'):
+            valid_slugs.add(slug)
+            if legacy:
+                valid_slugs.add(legacy)
+
+        obsolete = [
+            g for g in Group.objects.filter(name__startswith='redacteur_')
+                                    .exclude(name='redacteur_en_chef')
+            if g.name.removeprefix('redacteur_') not in valid_slugs
+        ]
+        obsolete += list(Group.objects.filter(name__in=('Editors', 'Moderators')))
+
+        for group in obsolete:
+            members = group.user_set.count()
+            if members:
+                self.stderr.write(
+                    f'  ⚠ groupe obsolète « {group.name} » conservé : {members} membre(s)')
+                continue
+            group.delete()
+            self.stdout.write(f'  groupe obsolète supprimé : {group.name}')
 
     def _migrate_existing_users(self, access_admin):
         """Assigne les utilisateurs existants au groupe de leur section."""

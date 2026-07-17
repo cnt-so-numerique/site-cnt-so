@@ -1910,6 +1910,23 @@ class SectionAutonomyPermissionsTest(TestCase):
         self.assertTrue(GroupPagePermission.objects.filter(
             group=g, page=self.site_b, permission__codename='publish_page').exists())
 
+    def test_setup_command_prunes_obsolete_groups(self):
+        """Ménage de l'onglet Rôles (/cms/users/) : les groupes redacteur_<slug>
+        sans SectionPage et les groupes Wagtail par défaut (Editors/Moderators)
+        sont supprimés — sauf s'ils ont encore des membres."""
+        from io import StringIO
+        from django.core.management import call_command
+        Group.objects.create(name='redacteur_fantome')
+        habite = Group.objects.create(name='redacteur_fantome-habite')
+        u = User.objects.create_user('membre-fantome', password='pass')
+        u.groups.add(habite)
+        call_command('setup_cms_permissions', stdout=StringIO(), stderr=StringIO())
+        self.assertFalse(Group.objects.filter(name='redacteur_fantome').exists())
+        self.assertTrue(Group.objects.filter(name='redacteur_fantome-habite').exists())
+        self.assertFalse(Group.objects.filter(name__in=('Editors', 'Moderators')).exists())
+        for kept in ('redacteur_other', 'redacteur', 'redacteur_en_chef'):
+            self.assertTrue(Group.objects.filter(name=kept).exists(), kept)
+
     def test_section_group_user_can_create_and_publish_articles(self):
         """Un membre de redacteur_<slug> ouvre le formulaire de création
         d'article (302 avant le lot 3) et dispose du bouton Publier."""
