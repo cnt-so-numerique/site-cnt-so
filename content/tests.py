@@ -1841,12 +1841,56 @@ class SectionAutonomyPermissionsTest(TestCase):
                      'wagtailimages.delete_image']:
             self.assertFalse(redacteur.has_perm(perm), f'ne devrait pas avoir : {perm}')
 
-    def test_redacteur_has_no_menu_perms_until_lot6(self):
-        """Menus reportés : les vues de réorganisation manipulent les MenuItem
-        par pk brut sans filtre de site — à sécuriser avant d'ouvrir (lot 6)."""
+    def test_redacteur_has_menu_perms(self):
+        """Lot 6 : menus ouverts après sécurisation des vues Move/Reorder."""
         redacteur = make_redacteur(site=self.site_a)
-        self.assertFalse(redacteur.has_perm('content.add_menuitem'))
-        self.assertFalse(redacteur.has_perm('content.change_menuitem'))
+        self.assertTrue(redacteur.has_perm('content.add_menuitem'))
+        self.assertTrue(redacteur.has_perm('content.change_menuitem'))
+        self.assertFalse(redacteur.has_perm('content.delete_menuitem'))
+
+    def test_redacteur_cannot_move_other_site_menuitem(self):
+        """Lot 6 : MoveMenuItemView refuse de déplacer un item d'un autre site
+        (le pk vient du POST — sans garde, manipulation cross-site possible)."""
+        from content.models import MenuItem
+        a1 = MenuItem.objects.create(site=self.site_a, menu='main', title='A1', order=0)
+        a2 = MenuItem.objects.create(site=self.site_a, menu='main', title='A2', order=1)
+        redacteur = make_redacteur(site=self.site_b, username='menu-redac')
+        self.client.force_login(redacteur)
+        self.client.post('/cms/menus/move/', {'item': a2.pk, 'action': 'up'})
+        a1.refresh_from_db(); a2.refresh_from_db()
+        self.assertEqual((a1.order, a2.order), (0, 1))  # inchangé
+
+    def test_redacteur_moves_own_site_menuitem(self):
+        from content.models import MenuItem
+        b1 = MenuItem.objects.create(site=self.site_b, menu='main', title='B1', order=0)
+        b2 = MenuItem.objects.create(site=self.site_b, menu='main', title='B2', order=1)
+        redacteur = make_redacteur(site=self.site_b, username='menu-redac2')
+        self.client.force_login(redacteur)
+        self.client.post('/cms/menus/move/', {'item': b2.pk, 'action': 'up'})
+        b1.refresh_from_db(); b2.refresh_from_db()
+        self.assertLess(b2.order, b1.order)
+
+    def test_redacteur_cannot_reorder_other_site_menuitems(self):
+        """Lot 6 : ReorderMenuItemsView borne les updates au syndicat courant,
+        re-parentage cross-site inclus."""
+        import json
+        from content.models import MenuItem
+        a1 = MenuItem.objects.create(site=self.site_a, menu='main', title='A1', order=0)
+        b1 = MenuItem.objects.create(site=self.site_b, menu='main', title='B1', order=0)
+        redacteur = make_redacteur(site=self.site_b, username='menu-redac3')
+        self.client.force_login(redacteur)
+        r = self.client.post(
+            '/cms/menus/reorder/',
+            json.dumps({'moves': [
+                {'id': a1.pk, 'order': 99, 'parent': None},   # autre site → ignoré
+                {'id': b1.pk, 'order': 5, 'parent': a1.pk},   # parent cross-site → ignoré
+            ]}),
+            content_type='application/json')
+        self.assertEqual(r.status_code, 200)
+        a1.refresh_from_db(); b1.refresh_from_db()
+        self.assertEqual(a1.order, 0)
+        self.assertEqual(b1.order, 0)
+        self.assertIsNone(b1.parent_id)
 
     def test_setup_command_merges_chef_groups(self):
         from django.core.management import call_command

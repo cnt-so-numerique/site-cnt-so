@@ -98,15 +98,13 @@
     </div>
     {% endif %}
 
-    {% if is_chef %}
-    <!-- Navigation (chef uniquement tant que les vues menus ne sont pas sécurisées — lot 6) -->
+    <!-- Navigation : vues sécurisées (scoping par syndicat), ouvertes à tous les rédacteurs -->
     <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:1rem;">
       <div style="font-size:.875rem;color:var(--w-color-text-meta);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">🗂️ Navigation</div>
       <div style="display:flex;flex-direction:column;gap:.4rem;">
         <a href="/cms/menus/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">🔗 Menus du site</a>
       </div>
     </div>
-    {% endif %}
 
     <!-- Contact / Newsletter : gérés en autonomie par chaque syndicat -->
     <!-- Contact -->

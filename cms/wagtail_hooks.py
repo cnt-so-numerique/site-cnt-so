@@ -15,7 +15,9 @@ from wagtail.snippets.views.snippets import (
 )
 from wagtail.admin.panels import FieldPanel, FieldRowPanel, MultiFieldPanel, ObjectList, TabbedInterface, InlinePanel
 
-from content.admin_utils import WagtailChefRequiredMixin, is_chef as _is_chef
+from content.admin_utils import (
+    WagtailChefRequiredMixin, WagtailSyndicatRequiredMixin, is_chef as _is_chef,
+)
 
 from .models import ArticlePage, ContentPage, CmsCategory, Event, SectionPage
 from .site_context import SESSION_KEY, get_current_site, get_available_sites, set_current_site
@@ -760,7 +762,7 @@ def register_site_admin_urls():
     ]
 
 
-class MoveMenuItemView(WagtailChefRequiredMixin, View):
+class MoveMenuItemView(WagtailSyndicatRequiredMixin, View):
     """Déplace un élément de menu : haut/bas ou indent/outdent."""
     def _handle(self, request, data):
         from django.http import HttpResponse
@@ -774,6 +776,14 @@ class MoveMenuItemView(WagtailChefRequiredMixin, View):
             item = MenuItem.objects.get(pk=pk)
         except (MenuItem.DoesNotExist, TypeError, ValueError):
             return HttpResponseRedirect(next_url)
+
+        # Un rédacteur de syndicat ne manipule que les menus de SON syndicat
+        # (le pk vient du POST : sans ce garde, n'importe quel item de
+        # n'importe quel site serait déplaçable).
+        if not _is_chef(request.user):
+            current = get_current_site(request)
+            if current is None or item.site_id != current.pk:
+                return HttpResponseRedirect(next_url)
 
         if action == 'up':
             siblings = MenuItem.objects.filter(
@@ -837,7 +847,7 @@ class MoveMenuItemView(WagtailChefRequiredMixin, View):
         return self._handle(request, request.POST)
 
 
-class ReorderMenuItemsView(WagtailChefRequiredMixin, View):
+class ReorderMenuItemsView(WagtailSyndicatRequiredMixin, View):
     """Réordonne et/ou re-parent les éléments de menu (AJAX POST JSON).
 
     Formats acceptés :
@@ -854,19 +864,33 @@ class ReorderMenuItemsView(WagtailChefRequiredMixin, View):
         except (json.JSONDecodeError, ValueError, TypeError):
             return JsonResponse({'ok': False, 'error': 'invalid payload'}, status=400)
 
+        # Les pk (items ET parents) viennent du JSON : un rédacteur de
+        # syndicat est borné aux MenuItem de son syndicat, sinon il pourrait
+        # réordonner/re-parenter les menus des autres sites.
+        if _is_chef(request.user):
+            scoped = MenuItem.objects.all()
+        else:
+            current = get_current_site(request)
+            if current is None:
+                return JsonResponse({'ok': False, 'error': 'aucun syndicat'}, status=403)
+            scoped = MenuItem.objects.filter(site=current)
+
         if 'moves' in data:
             for move in data.get('moves', []):
                 try:
-                    MenuItem.objects.filter(pk=int(move['id'])).update(
+                    parent_id = move.get('parent')
+                    if parent_id is not None and not scoped.filter(pk=int(parent_id)).exists():
+                        continue
+                    scoped.filter(pk=int(move['id'])).update(
                         order=int(move['order']),
-                        parent_id=move.get('parent'),
+                        parent_id=parent_id,
                     )
                 except (KeyError, ValueError, TypeError):
                     continue
         elif 'items' in data:
             for i, pk in enumerate(data.get('items', [])):
                 try:
-                    MenuItem.objects.filter(pk=int(pk)).update(order=i)
+                    scoped.filter(pk=int(pk)).update(order=i)
                 except (ValueError, TypeError):
                     continue
 
@@ -889,8 +913,8 @@ class CurrentSiteFragmentView(View):
         return HttpResponse(html)
 
 
-class MenuTreeView(WagtailChefRequiredMixin, View):
-    """Vue arborescente des menus — tous les syndicats sur une page."""
+class MenuTreeView(WagtailSyndicatRequiredMixin, View):
+    """Vue arborescente des menus du syndicat courant."""
 
     def get(self, request):
         from django.http import HttpResponse

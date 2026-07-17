@@ -56,9 +56,9 @@ def create_editorial_groups(sender, **kwargs):
         'content.add_article', 'content.change_article', 'content.view_article',
         'content.add_page', 'content.change_page', 'content.view_page',
         'content.view_category', 'content.view_tag',
-        # Menus : PAS encore ouverts aux rédacteurs — les vues de
-        # réorganisation (/cms/menus/) manipulent les MenuItem par pk brut
-        # sans filtre de site (lot 6 : sécuriser avant d'ouvrir).
+        # Menus : vues Move/Reorder sécurisées (scoping par syndicat) et champ
+        # site verrouillé côté formulaire ET serveur — ouvert depuis le lot 6.
+        'content.add_menuitem', 'content.change_menuitem', 'content.view_menuitem',
         'content.add_newsletter', 'content.change_newsletter', 'content.view_newsletter',
         'content.add_subscriber', 'content.change_subscriber', 'content.delete_subscriber', 'content.view_subscriber',
         'content.view_contactmessage', 'content.change_contactmessage',

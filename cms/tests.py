@@ -91,9 +91,13 @@ class EventModelTest(TestCase):
         self.assertFalse(ev.is_past)
 
     def test_past_event(self):
+        # timezone.now().date() et non date.today() : autour de minuit, la date
+        # locale et la date du fuseau Django divergent et is_past compare à
+        # now().date() — test flaky sinon.
+        from django.utils import timezone
         ev = Event.objects.create(
             section=self.stucs, title='Passé',
-            date=date.today() - timedelta(days=1),
+            date=timezone.now().date() - timedelta(days=1),
         )
         self.assertTrue(ev.is_past)
 
@@ -991,8 +995,20 @@ class AdminChefOnlyViewsTest(TestCase):
         r = self._chef_client('chef-synd').get('/cms/syndicats/')
         self.assertEqual(r.status_code, 200)
 
-    def test_menus_redirige_redacteur(self):
+    def test_menus_ok_redacteur_avec_syndicat(self):
+        """Lot 6 : les menus du syndicat sont un outil de ses rédacteurs
+        (vues Move/Reorder sécurisées par scoping site)."""
         r = self.redac_client.get('/cms/menus/')
+        self.assertEqual(r.status_code, 200)
+
+    def test_menus_redirige_sans_syndicat(self):
+        from django.contrib.auth.models import User, Permission
+        sans = User.objects.create_user(username='menus-sans-synd', password='pass')
+        sans.user_permissions.add(Permission.objects.get(codename='access_admin'))
+        sans = User.objects.get(pk=sans.pk)
+        c = Client()
+        c.force_login(sans)
+        r = c.get('/cms/menus/')
         self.assertEqual(r.status_code, 302)
         self.assertEqual(r['Location'], '/cms/')
 
@@ -1000,19 +1016,22 @@ class AdminChefOnlyViewsTest(TestCase):
         r = self._chef_client('chef-menus').get('/cms/menus/')
         self.assertEqual(r.status_code, 200)
 
-    def test_menu_move_redirige_redacteur(self):
-        r = self.redac_client.get('/cms/menus/move/', {'item': 1, 'action': 'up'})
-        self.assertEqual(r.status_code, 302)
-        self.assertEqual(r['Location'], '/cms/')
-
-    def test_menu_move_get_refuse_meme_pour_chef(self):
+    def test_menu_move_get_refuse_pour_tous(self):
         # Un GET mutateur contournerait la protection CSRF : POST uniquement
+        r = self.redac_client.get('/cms/menus/move/', {'item': 1, 'action': 'up'})
+        self.assertEqual(r.status_code, 405)
         r = self._chef_client('chef-move-get').get('/cms/menus/move/', {'item': 1, 'action': 'up'})
         self.assertEqual(r.status_code, 405)
 
-    def test_menu_reorder_403_redacteur(self):
+    def test_menu_reorder_403_sans_syndicat(self):
         # Vue JSON : 403 explicite, pas de redirection qu'un fetch suivrait
-        r = self.redac_client.post(
+        from django.contrib.auth.models import User, Permission
+        sans = User.objects.create_user(username='reorder-sans-synd', password='pass')
+        sans.user_permissions.add(Permission.objects.get(codename='access_admin'))
+        sans = User.objects.get(pk=sans.pk)
+        c = Client()
+        c.force_login(sans)
+        r = c.post(
             '/cms/menus/reorder/', '{"items": []}', content_type='application/json'
         )
         self.assertEqual(r.status_code, 403)
@@ -1063,10 +1082,10 @@ class DashboardPanelRoleTest(TestCase):
     def setUp(self):
         self.site = _ensure_section_page(slug='simpl-dash', name='Simpl Dash', site_type='sectoral')
 
-    def test_redacteur_voit_les_outils_de_son_syndicat_mais_pas_les_menus(self):
-        """Autonomie 2026-07-16 : contact, newsletter et listes OVH sont des
-        outils du syndicat, visibles par ses rédacteurs. Les menus restent
-        chef-only tant que leurs vues ne sont pas sécurisées (lot 6)."""
+    def test_redacteur_voit_tous_les_outils_de_son_syndicat(self):
+        """Autonomie 2026-07-16 : contact, newsletter, listes OVH et menus
+        (sécurisés au lot 6) sont des outils du syndicat, visibles par ses
+        rédacteurs."""
         redacteur = _make_redacteur(self.site, username='redacteur-dash')
         c = Client()
         c.force_login(redacteur)
@@ -1077,7 +1096,7 @@ class DashboardPanelRoleTest(TestCase):
         self.assertIn('Comment publier', content)
         self.assertIn('Listes mails OVH', content)
         self.assertIn('Config formulaire', content)
-        self.assertNotIn('Menus du site', content)
+        self.assertIn('Menus du site', content)
 
     def test_chef_voit_tous_les_outils(self):
         chef = _make_chef(username='chef-dash')

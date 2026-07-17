@@ -311,15 +311,24 @@ class _MenuIndexRedirect(SnippetIndexView):
 
 
 def _scoped_menuitem_form(form):
-    """Filtre category/article/page par syndicat courant (modèles Wagtail). Rend site obligatoire."""
+    """Filtre category/article/page par syndicat courant (modèles Wagtail). Rend site obligatoire.
+    Pour un rédacteur de syndicat, verrouille le champ site sur SON syndicat."""
     from cms.site_context import get_current_site
     from cms.models import CmsCategory, ArticlePage, ContentPage
+    from content.admin_utils import is_chef
     request = getattr(form, 'request', None)
     current = get_current_site(request) if request else None
 
     if 'site' in form.fields:
         form.fields['site'].required = True
         form.fields['site'].empty_label = '— Choisir un syndicat (obligatoire) —'
+        if request and not is_chef(request.user) and current:
+            # Rédacteur : pas de choix — son syndicat, verrouillé (l'enforcement
+            # serveur est dans _MenuItemCreateView/_MenuItemEditView.form_valid).
+            from cms.models import SectionPage
+            form.fields['site'].queryset = SectionPage.objects.filter(pk=current.pk)
+            form.fields['site'].initial = current.pk
+            form.fields['site'].widget = django_forms.HiddenInput()
 
     if not current:
         return form
@@ -400,12 +409,31 @@ class _MenuItemEditView(SnippetEditView):
         form.request = self.request
         return _scoped_menuitem_form(form)
 
+    def form_valid(self, form):
+        _enforce_menuitem_site(self.request, form)
+        return super().form_valid(form)
+
+
+def _enforce_menuitem_site(request, form):
+    """Enforcement serveur : un rédacteur de syndicat ne peut créer/modifier
+    des MenuItem que pour SON syndicat (le champ site du POST est écrasé)."""
+    from cms.site_context import get_current_site
+    from content.admin_utils import is_chef
+    if not is_chef(request.user):
+        current = get_current_site(request)
+        if current:
+            form.instance.site = current
+
 
 class _MenuItemCreateView(SnippetCreateView):
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
         form.request = self.request
         return _scoped_menuitem_form(form)
+
+    def form_valid(self, form):
+        _enforce_menuitem_site(self.request, form)
+        return super().form_valid(form)
 
 
 class MenuItemViewSet(SnippetViewSet):
