@@ -2121,10 +2121,11 @@ class AssignMediaCollectionsTest(TestCase):
         self.site_b = make_site(slug='other', wp_blog_id=2,
                                 site_type='sectoral', name='Other')
 
-    def _image(self, title):
+    def _image(self, title, filename='test.png'):
         from wagtail.images.models import Image
         from wagtail.images.tests.utils import get_test_image_file
-        return Image.objects.create(title=title, file=get_test_image_file())
+        return Image.objects.create(
+            title=title, file=get_test_image_file(filename=filename))
 
     def _run(self, *args):
         from io import StringIO
@@ -2166,6 +2167,18 @@ class AssignMediaCollectionsTest(TestCase):
         img.refresh_from_db()
         self.assertEqual(img.collection.name, 'Root')
         self.assertIn('Dry-run', out)
+
+    def test_url_embedded_in_legacy_content_counts(self):
+        """Deuxième passe : un média cité par URL brute dans un contenu
+        legacy WordPress (import Éducation…) est rattaché à ce syndicat,
+        même sans référence structurée."""
+        img = self._image('Visuel URL legacy', filename='vent-url-legacy.png')
+        fname = img.file.name.rsplit('/', 1)[-1]
+        make_article(self.site_b, title='Legacy vent',
+                     content=f'<p><img src="/media/uploads/{fname}"></p>')
+        self._run()
+        img.refresh_from_db()
+        self.assertEqual(img.collection.name, 'Other')
 
     def test_section_page_logo_counts_for_its_section(self):
         img = self._image('Logo Other')

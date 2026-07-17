@@ -8,6 +8,12 @@ Règles :
 - non utilisé (ou utilisé hors contenu de syndicat) → reste dans Root,
   visible du seul chef ; signalé dans le rapport.
 
+Deux passes de détection : les références structurées (ReferenceIndex
+Wagtail : image mise en avant, blocs image…), puis une recherche du nom de
+fichier dans les corps de contenus (Wagtail + legacy WordPress) — l'import
+Éducation, notamment, insérait les médias par URL brute, invisibles pour
+l'index.
+
 À lancer après `rebuild_references_index` si le contenu a été importé par
 scripts (l'index n'est maintenu automatiquement qu'aux saves).
 
@@ -35,6 +41,7 @@ class Command(BaseCommand):
         self.dry = options['dry_run']
         self._coll_cache = {}
         self._src_cache = {}
+        self._corpus = None
         root = Collection.get_first_root_node()
         commun = commun_collection()
 
@@ -94,6 +101,44 @@ class Command(BaseCommand):
                 self._src_cache[key] = None
         return self._src_cache[key]
 
+    def _url_corpus(self):
+        """Corps de contenus par syndicat (texte brut), construit une fois :
+        pages Wagtail (StreamField) + modèles legacy WordPress."""
+        if self._corpus is not None:
+            return self._corpus
+        from collections import defaultdict
+        from django.db import models as djm
+        from cms.models import ArticlePage, ContentPage
+
+        parts = defaultdict(list)
+        for page_model in (ArticlePage, ContentPage):
+            for page in page_model.objects.only('section_slug', 'body').iterator():
+                parts[page.section_slug].append(str(page.body.raw_data))
+        try:
+            from content.models import Article as WpArticle
+            from content.models import Page as WpPage
+            for legacy_model in (WpArticle, WpPage):
+                tfields = [f.name for f in legacy_model._meta.fields
+                           if isinstance(f, djm.TextField)]
+                for obj in legacy_model.objects.select_related('site').iterator():
+                    site = getattr(obj, 'site', None)
+                    if site is None:
+                        continue
+                    parts[site.legacy_site_slug or site.slug].append(
+                        ' '.join(str(getattr(obj, n) or '') for n in tfields))
+        except Exception:
+            pass
+        self._corpus = {slug: ' '.join(chunks) for slug, chunks in parts.items()}
+        return self._corpus
+
+    def _slugs_from_urls(self, obj):
+        """Syndicats dont les contenus citent le fichier par son nom (URL brute)."""
+        import os
+        name = os.path.basename(obj.file.name or '')
+        if not name:
+            return set()
+        return {slug for slug, text in self._url_corpus().items() if name in text}
+
     def _assign(self, model, label, root, commun):
         from django.contrib.contenttypes.models import ContentType
         from wagtail.models import ReferenceIndex
@@ -112,6 +157,8 @@ class Command(BaseCommand):
         left_in_root = 0
         for obj in model.objects.filter(collection=root).order_by('pk'):
             slugs = {s for s in slugs_by_target.get(str(obj.pk), set()) if s}
+            if not slugs:
+                slugs = self._slugs_from_urls(obj)
             if len(slugs) == 1:
                 target = self._collection_for_slug(next(iter(slugs)))
             elif slugs:
