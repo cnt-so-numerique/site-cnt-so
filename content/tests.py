@@ -2110,6 +2110,72 @@ class MediaCollectionsTest(TestCase):
         self.assertNotContains(resp, 'Visuel Other-B')
 
 
+class AssignMediaCollectionsTest(TestCase):
+    """Ventilation des médias de Root vers les collections par syndicat
+    (assign_media_collections) : un seul syndicat utilisateur → sa collection,
+    plusieurs → « Commun », inutilisé → reste dans Root."""
+
+    def setUp(self):
+        _setup_editorial_groups()
+        self.site_a = make_site(slug='principal', wp_blog_id=1)
+        self.site_b = make_site(slug='other', wp_blog_id=2,
+                                site_type='sectoral', name='Other')
+
+    def _image(self, title):
+        from wagtail.images.models import Image
+        from wagtail.images.tests.utils import get_test_image_file
+        return Image.objects.create(title=title, file=get_test_image_file())
+
+    def _run(self, *args):
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        call_command('assign_media_collections', *args, stdout=out)
+        return out.getvalue()
+
+    def test_single_section_usage_moves_to_section_collection(self):
+        img = self._image('Visuel Other')
+        make_article_page(section_slug='other', title='Art vent-o',
+                          featured_image=img)
+        self._run()
+        img.refresh_from_db()
+        self.assertEqual(img.collection.name, 'Other')
+
+    def test_multi_section_usage_goes_to_commun(self):
+        img = self._image('Visuel partagé')
+        make_article_page(section_slug='other', title='Art vent-m1',
+                          featured_image=img)
+        make_article_page(section_slug='principal', title='Art vent-m2',
+                          featured_image=img)
+        self._run()
+        img.refresh_from_db()
+        self.assertEqual(img.collection.name, 'Commun')
+
+    def test_unreferenced_stays_in_root(self):
+        img = self._image('Visuel orphelin')
+        out = self._run()
+        img.refresh_from_db()
+        self.assertEqual(img.collection.name, 'Root')
+        self.assertIn('restent dans Root', out)
+
+    def test_dry_run_moves_nothing(self):
+        img = self._image('Visuel dry')
+        make_article_page(section_slug='other', title='Art vent-d',
+                          featured_image=img)
+        out = self._run('--dry-run')
+        img.refresh_from_db()
+        self.assertEqual(img.collection.name, 'Root')
+        self.assertIn('Dry-run', out)
+
+    def test_section_page_logo_counts_for_its_section(self):
+        img = self._image('Logo Other')
+        self.site_b.logo = img
+        self.site_b.save()
+        self._run()
+        img.refresh_from_db()
+        self.assertEqual(img.collection.name, 'Other')
+
+
 class SectionAutoProvisioningTest(TestCase):
     """Créer un syndicat suffit : le signal post_save (cms/apps.py) provisionne
     le groupe redacteur_<slug>, ses permissions d'arbre, les permissions
