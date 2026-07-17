@@ -2110,6 +2110,38 @@ class MediaCollectionsTest(TestCase):
         self.assertNotContains(resp, 'Visuel Other-B')
 
 
+class SectionAutoProvisioningTest(TestCase):
+    """Créer un syndicat suffit : le signal post_save (cms/apps.py) provisionne
+    le groupe redacteur_<slug>, ses permissions d'arbre, les permissions
+    modèle (copiées du groupe socle redacteur) et sa collection de médias —
+    sans repasser par setup_cms_permissions."""
+
+    def setUp(self):
+        _setup_editorial_groups()
+
+    def test_new_section_gets_group_permissions_and_collection(self):
+        from wagtail.models import Collection, GroupPagePermission
+        site = make_site(slug='tout-neuf', name='Syndicat Tout Neuf',
+                         site_type='sectoral', wp_blog_id=97)
+        group = Group.objects.get(name='redacteur_tout-neuf')
+        self.assertTrue(GroupPagePermission.objects.filter(
+            group=group, page=site, permission__codename='publish_page').exists())
+        self.assertTrue(Collection.objects.filter(name='Syndicat Tout Neuf').exists())
+        self.assertTrue(group.permissions.filter(codename='publish_articlepage').exists())
+        self.assertTrue(group.permissions.filter(codename='access_admin').exists())
+
+    def test_provisioned_user_can_choose_media(self):
+        from wagtail.images.permissions import permission_policy
+        make_site(slug='tout-neuf2', name='Tout Neuf 2',
+                  site_type='regional', wp_blog_id=96)
+        u = User.objects.create_user('redac-neuf', password='pass')
+        u.groups.add(Group.objects.get(name='redacteur_tout-neuf2'))
+        u = User.objects.get(pk=u.pk)
+        names = {c.name for c in
+                 permission_policy.collections_user_has_permission_for(u, 'choose')}
+        self.assertEqual(names, {'Tout Neuf 2', 'Commun'})
+
+
 class SectionGroupScopingTest(TestCase):
     """Résolution du site via les groupes par section (redacteur_<slug> /
     chef_<slug>, créés par setup_cms_permissions) — sans fiche Author.

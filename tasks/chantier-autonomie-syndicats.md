@@ -114,6 +114,13 @@ comptes rédacteurs** et rattachement au syndicat (/cms/users/).
 11. **Prod** : déploiement + exécution `setup_cms_permissions` mis à jour +
     création des vrais comptes par syndicat (avec Arnaud).
 
+12. **Provisionnement automatique** — FAIT 2026-07-17 : créer une SectionPage
+    dans l'admin suffit, le signal post_save (cms/apps.py) provisionne le
+    groupe redacteur_<slug>, les permissions d'arbre et modèle, la collection
+    de médias + lecture de « Commun » (logique partagée dans
+    cms/provisioning.py, utilisée aussi par setup_cms_permissions). Plus
+    besoin de relancer la commande pour un nouveau syndicat.
+
 ## Hors périmètre / inchangé
 - `is_chef()` garde son sens confédéral (une confédérale, sélecteur multi-sites,
   vues cross-site type SyndicatManageView).

@@ -1211,8 +1211,10 @@ class UserAccountManagementTest(TestCase):
         _setup_editorial_groups()
         self.site_a = _ensure_section_page(slug='synd-a', name='Synd A', site_type='sectoral')
         self.site_b = _ensure_section_page(slug='synd-b', name='Synd B', site_type='sectoral')
-        self.group_a = Group.objects.create(name='redacteur_synd-a')
-        self.group_b = Group.objects.create(name='redacteur_synd-b')
+        # get_or_create : le signal de provisionnement (cms/apps.py) crée
+        # déjà ces groupes à la création des SectionPage ci-dessus
+        self.group_a, _ = Group.objects.get_or_create(name='redacteur_synd-a')
+        self.group_b, _ = Group.objects.get_or_create(name='redacteur_synd-b')
         self.chef = self._make_chef('chef-comptes')
         self.superuser = make_superuser(username='su-comptes')
         self.client = Client()

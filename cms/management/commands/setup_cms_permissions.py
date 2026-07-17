@@ -52,16 +52,16 @@ class Command(BaseCommand):
             )
         self.stdout.write('  redacteur_en_chef → accès HomePage')
 
-        # Un groupe par section : add + change + publish sur son sous-arbre
+        # Un groupe par section : add + change + publish sur son sous-arbre,
+        # permissions modèle et collection de médias (cms/provisioning.py —
+        # la même logique tourne au signal de création d'une SectionPage)
+        from cms.provisioning import provision_section
         for section in SectionPage.objects.all():
             slug = section.legacy_site_slug or section.slug
 
-            redac_group, _ = Group.objects.get_or_create(name=f'redacteur_{slug}')
-            redac_group.permissions.add(access_admin)
-            for perm in [add_perm, change_perm, publish_perm]:
-                GroupPagePermission.objects.get_or_create(
-                    group=redac_group, page=section, permission=perm
-                )
+            redac_group = provision_section(section)
+            if redac_group is None:
+                continue
 
             # Fusion de l'ancien groupe chef_<slug> (deux niveaux abandonnés)
             chef_group = Group.objects.filter(name=f'chef_{slug}').first()
@@ -93,20 +93,9 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS('Permissions CMS configurées.'))
 
-    # Permissions accordées à chaque groupe de syndicat sur SA collection ;
-    # sur « Commun », seulement les deux choose_* (lecture pour le chooser).
-    _COLLECTION_PERMS = [
-        ('wagtailimages', 'add_image'), ('wagtailimages', 'change_image'),
-        ('wagtailimages', 'choose_image'),
-        ('wagtaildocs', 'add_document'), ('wagtaildocs', 'change_document'),
-        ('wagtaildocs', 'choose_document'),
-    ]
-    _CHOOSE_PERMS = [
-        ('wagtailimages', 'choose_image'), ('wagtaildocs', 'choose_document'),
-    ]
-
     def _setup_collections(self):
-        """Médias cloisonnés par syndicat (lot 7).
+        """Volet global des médias cloisonnés (lot 7) — le volet par-syndicat
+        est fait par provision_section.
 
         Wagtail contrôle les images/documents par GroupCollectionPermission
         uniquement (les permissions Django modèle sont ignorées) : sans elles,
@@ -114,62 +103,25 @@ class Command(BaseCommand):
         média. Le chooser natif filtre sur la permission choose, et à l'upload
         la seule collection avec add est imposée : pas de hook nécessaire.
         """
-        from django.contrib.auth.models import Group, Permission
-        from wagtail.models import Collection, GroupCollectionPermission
-        from cms.models import SectionPage
+        from django.contrib.auth.models import Group
+        from wagtail.models import Collection
+        from cms.provisioning import (
+            CHOOSE_PERMS, COLLECTION_PERMS, commun_collection,
+            grant_collection_perms,
+        )
 
-        def get_perms(pairs):
-            perms = []
-            for app_label, codename in pairs:
-                try:
-                    perms.append(Permission.objects.get(
-                        codename=codename, content_type__app_label=app_label))
-                except Permission.DoesNotExist:
-                    pass
-            return perms
-
-        full_perms = get_perms(self._COLLECTION_PERMS)
-        choose_perms = get_perms(self._CHOOSE_PERMS)
-
-        def grant(group, collection, perms):
-            for perm in perms:
-                GroupCollectionPermission.objects.get_or_create(
-                    group=group, collection=collection, permission=perm)
-
-        def child_collection(name):
-            # add_child invalide les champs d'arbre : recharger Root à chaque fois
-            root = Collection.get_first_root_node()
-            existing = root.get_children().filter(name=name).first()
-            return existing or root.add_child(name=name)
-
-        commun = child_collection('Commun')
-        root = Collection.get_first_root_node()
+        commun = commun_collection()
 
         # redacteur_en_chef : tous les médias, partout (Root et descendants)
         chef_global = Group.objects.get(name='redacteur_en_chef')
-        grant(chef_global, root, full_perms)
+        grant_collection_perms(
+            chef_global, Collection.get_first_root_node(), COLLECTION_PERMS)
 
         # Groupe générique redacteur (comptes sans groupe de syndicat) :
         # visuels partagés en lecture seulement
         generic = Group.objects.filter(name='redacteur').first()
         if generic:
-            grant(generic, commun, choose_perms)
-
-        for section in SectionPage.objects.all():
-            slug = section.legacy_site_slug or section.slug
-            group = Group.objects.filter(name=f'redacteur_{slug}').first()
-            if not group:
-                continue
-            # Réutilise la collection déjà liée au groupe (robuste à un
-            # renommage du syndicat), sinon la crée du nom de la section
-            linked = Collection.objects.filter(
-                group_permissions__group=group,
-            ).exclude(pk__in=[root.pk, commun.pk]).first()
-            collection = linked or child_collection(section.title)
-            grant(group, collection, full_perms)
-            grant(group, commun, choose_perms)
-            self.stdout.write(
-                f'  collection « {collection.name} » → redacteur_{slug}')
+            grant_collection_perms(generic, commun, CHOOSE_PERMS)
 
     def _prune_obsolete_groups(self):
         """Garde l'onglet Rôles de /cms/users/ lisible : supprime les groupes

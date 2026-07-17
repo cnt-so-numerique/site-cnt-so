@@ -33,3 +33,18 @@ class CmsConfig(AppConfig):
         # Import différé pour éviter les problèmes d'imports circulaires au démarrage
         from content.models import Subscriber
         post_save.connect(_sync_subscriber_to_ovh, sender=Subscriber, weak=False)
+
+        def _provision_new_section(sender, instance, created, **kwargs):
+            """Un syndicat créé dans l'admin est gérable immédiatement :
+            groupe redacteur_<slug>, permissions et collection de médias,
+            sans repasser par setup_cms_permissions."""
+            if created:
+                from cms.provisioning import provision_section
+                provision_section(instance)
+
+        from cms.models import (
+            RegionalSectionPage, SectionPage, SectoralSectionPage,
+        )
+        # post_save filtre sur la classe exacte : brancher aussi les proxies
+        for model in (SectionPage, RegionalSectionPage, SectoralSectionPage):
+            post_save.connect(_provision_new_section, sender=model, weak=False)
