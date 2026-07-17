@@ -104,8 +104,12 @@ comptes rédacteurs** et rattachement au syndicat (/cms/users/).
    formulaire, pas juste caché) et édition d'un compte superuser refusée à un
    non-superuser (sinon changement de mot de passe = escalade). 10 tests
    (UserAccountManagementTest).
-9. **Dashboard** : tuiles abonnés/messages visibles pour les rédacteurs de
-   syndicat (aujourd'hui gated `{% if is_chef %}`), entrées de menu adaptées.
+9. **Dashboard** — FAIT 2026-07-17 (l'essentiel avait été ouvert aux lots
+   5-6 : tuiles stats, contact, newsletter, navigation). Finitions : menus
+   « Images » et « Documents » rétablis (masqués pour tous depuis l'époque
+   pré-Wagtail — indispensables depuis les médias cloisonnés du lot 7,
+   Wagtail les borne aux permissions de collection) + liens rapides
+   Images/Documents dans le bloc Rédaction du panneau.
 10. **Tests** : chaque lot avec ses tests ; scénario complet par palier.
 11. **Prod** : déploiement + exécution `setup_cms_permissions` mis à jour +
     création des vrais comptes par syndicat (avec Arnaud).

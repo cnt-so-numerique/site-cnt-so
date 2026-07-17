@@ -1075,6 +1075,28 @@ class AdminMenuVisibilityTest(TestCase):
         sans_syndicat = User.objects.create_user(username='sans-synd-menu', password='pass')
         self.assertFalse(item.is_shown(self._request_for(sans_syndicat)))
 
+    def test_menus_images_documents_retablis(self):
+        """Lot 9 : depuis les médias cloisonnés (lot 7), Images et Documents
+        ne sont plus masqués — Wagtail les montre aux utilisateurs ayant des
+        permissions de collection. 'explorer' reste caché (snippets)."""
+        from content.wagtail_hooks import hide_unused_wagtail_menus
+
+        class _Item:
+            def __init__(self, name):
+                self.name = name
+
+        items = [_Item(n) for n in
+                 ('explorer', 'images', 'documents', 'reports')]
+        hide_unused_wagtail_menus(self._request_for(self.redacteur), items)
+        names = {i.name for i in items}
+        self.assertEqual(names, {'images', 'documents'})
+        items = [_Item(n) for n in
+                 ('explorer', 'images', 'documents', 'reports')]
+        hide_unused_wagtail_menus(
+            self._request_for(make_superuser(username='su-menu-img')), items)
+        self.assertEqual({i.name for i in items},
+                         {'images', 'documents', 'reports'})
+
 
 class DashboardPanelRoleTest(TestCase):
     """Le panneau dashboard n'affiche que les outils accessibles au rôle."""

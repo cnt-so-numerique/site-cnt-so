@@ -586,14 +586,15 @@ register_snippet(NavigationGroup)  # URLs add/edit nécessaires pour /cms/menus/
 register_snippet(AdministrationGroup)
 
 
-# ── Masque les menus Wagtail non utilisés (pages, docs, images Wagtail) ───────
+# ── Masque les menus Wagtail non utilisés ─────────────────────────────────────
 
 @hooks.register('construct_main_menu')
 def hide_unused_wagtail_menus(request, menu_items):
-    # On garde 'explorer' (arbre de pages) — c'est là que sont les articles/pages Wagtail
-    # On masque seulement les menus Wagtail natifs non utilisés dans ce projet
-    # articles-pages-legacy = ContenuGroup (content.Article/Page — remplacé par cms.ArticlePage)
-    hidden = {'documents', 'images', 'explorer'}
+    # 'explorer' (arbre de pages) masqué : les articles/pages se gèrent via
+    # les snippets. Images et Documents sont visibles depuis les médias
+    # cloisonnés par syndicat (lot 7) : Wagtail ne les montre de toute façon
+    # qu'aux utilisateurs ayant des permissions de collection.
+    hidden = {'explorer'}
     from content.admin_utils import is_chef
     if not is_chef(request.user):
         # Rédacteurs débutants : on épure — les rapports Wagtail ne leur servent pas
