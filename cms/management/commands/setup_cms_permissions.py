@@ -8,6 +8,12 @@ groupes chef_<slug> sont fusionnés dedans (membres déplacés, groupe supprimé
 Les permissions modèle (articles, newsletter…) sont synchronisées par
 content.apps.create_editorial_groups à chaque migrate.
 
+Médias cloisonnés par syndicat (lot 7) : une Collection Wagtail par
+SectionPage + une collection « Commun » (visuels partagés, lecture seule),
+avec les GroupCollectionPermission correspondantes — Wagtail ignore les
+permissions Django modèle pour les images/documents, seules ces permissions
+de collection comptent.
+
 Usage:
     python manage.py setup_cms_permissions
 """
@@ -70,6 +76,9 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(f'  {slug} → redacteur_{slug}')
 
+        # Médias cloisonnés : une Collection par syndicat + « Commun »
+        self._setup_collections()
+
         # Synchronise aussi les permissions modèle (articles, newsletter…)
         from content.apps import create_editorial_groups
         from django.apps import apps as django_apps
@@ -80,6 +89,84 @@ class Command(BaseCommand):
         self._migrate_existing_users(access_admin)
 
         self.stdout.write(self.style.SUCCESS('Permissions CMS configurées.'))
+
+    # Permissions accordées à chaque groupe de syndicat sur SA collection ;
+    # sur « Commun », seulement les deux choose_* (lecture pour le chooser).
+    _COLLECTION_PERMS = [
+        ('wagtailimages', 'add_image'), ('wagtailimages', 'change_image'),
+        ('wagtailimages', 'choose_image'),
+        ('wagtaildocs', 'add_document'), ('wagtaildocs', 'change_document'),
+        ('wagtaildocs', 'choose_document'),
+    ]
+    _CHOOSE_PERMS = [
+        ('wagtailimages', 'choose_image'), ('wagtaildocs', 'choose_document'),
+    ]
+
+    def _setup_collections(self):
+        """Médias cloisonnés par syndicat (lot 7).
+
+        Wagtail contrôle les images/documents par GroupCollectionPermission
+        uniquement (les permissions Django modèle sont ignorées) : sans elles,
+        aucun rédacteur — même en chef — ne peut téléverser ni choisir un
+        média. Le chooser natif filtre sur la permission choose, et à l'upload
+        la seule collection avec add est imposée : pas de hook nécessaire.
+        """
+        from django.contrib.auth.models import Group, Permission
+        from wagtail.models import Collection, GroupCollectionPermission
+        from cms.models import SectionPage
+
+        def get_perms(pairs):
+            perms = []
+            for app_label, codename in pairs:
+                try:
+                    perms.append(Permission.objects.get(
+                        codename=codename, content_type__app_label=app_label))
+                except Permission.DoesNotExist:
+                    pass
+            return perms
+
+        full_perms = get_perms(self._COLLECTION_PERMS)
+        choose_perms = get_perms(self._CHOOSE_PERMS)
+
+        def grant(group, collection, perms):
+            for perm in perms:
+                GroupCollectionPermission.objects.get_or_create(
+                    group=group, collection=collection, permission=perm)
+
+        def child_collection(name):
+            # add_child invalide les champs d'arbre : recharger Root à chaque fois
+            root = Collection.get_first_root_node()
+            existing = root.get_children().filter(name=name).first()
+            return existing or root.add_child(name=name)
+
+        commun = child_collection('Commun')
+        root = Collection.get_first_root_node()
+
+        # redacteur_en_chef : tous les médias, partout (Root et descendants)
+        chef_global = Group.objects.get(name='redacteur_en_chef')
+        grant(chef_global, root, full_perms)
+
+        # Groupe générique redacteur (comptes sans groupe de syndicat) :
+        # visuels partagés en lecture seulement
+        generic = Group.objects.filter(name='redacteur').first()
+        if generic:
+            grant(generic, commun, choose_perms)
+
+        for section in SectionPage.objects.all():
+            slug = section.legacy_site_slug or section.slug
+            group = Group.objects.filter(name=f'redacteur_{slug}').first()
+            if not group:
+                continue
+            # Réutilise la collection déjà liée au groupe (robuste à un
+            # renommage du syndicat), sinon la crée du nom de la section
+            linked = Collection.objects.filter(
+                group_permissions__group=group,
+            ).exclude(pk__in=[root.pk, commun.pk]).first()
+            collection = linked or child_collection(section.title)
+            grant(group, collection, full_perms)
+            grant(group, commun, choose_perms)
+            self.stdout.write(
+                f'  collection « {collection.name} » → redacteur_{slug}')
 
     def _migrate_existing_users(self, access_admin):
         """Assigne les utilisateurs existants au groupe de leur section."""

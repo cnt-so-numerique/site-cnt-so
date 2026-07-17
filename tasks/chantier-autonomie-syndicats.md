@@ -83,10 +83,16 @@ comptes rédacteurs** et rattachement au syndicat (/cms/users/).
    pour eux (aujourd'hui ChefOnlyMenuItem).
 6. **Menus** : sécuriser Move/Reorder (filtrer par `item.site == get_current_site`)
    puis ouvrir l'accès aux rédacteurs (menu admin + perms).
-7. **Médias cloisonnés** : une Collection Wagtail par syndicat, permissions de
-   groupe dessus, hook pour restreindre le chooser à la collection du syndicat
-   courant ; collection « Commun » lisible par tous pour les visuels partagés
-   (logos confédéraux). Migration des images existantes = lot séparé (gros
+7. **Médias cloisonnés** — FAIT 2026-07-17 : une Collection Wagtail par
+   syndicat + « Commun » (choose seul), créées par `setup_cms_permissions`
+   (idempotent, robuste au renommage via la collection déjà liée au groupe).
+   Aucun hook nécessaire : Wagtail n'écoute que les GroupCollectionPermission
+   (les perms Django modèle sont ignorées — avant ce lot, PERSONNE hors
+   superuser ne pouvait téléverser ni choisir un média, même redacteur_en_chef).
+   Le chooser filtre nativement sur choose et l'upload impose la seule
+   collection avec add. redacteur_en_chef → Root (tout) ; groupe générique
+   redacteur → choose sur Commun seulement. 9 tests (MediaCollectionsTest).
+   Migration des images existantes (toutes dans Root) = lot séparé (gros
    volume, faisable progressivement).
 8. **Comptes** : perms wagtailusers pour redacteur_en_chef (add/change user),
    vérifier le formulaire « Syndicat » de /cms/users/ (Author.site + ajout au

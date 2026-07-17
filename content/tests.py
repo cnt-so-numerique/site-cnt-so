@@ -1990,6 +1990,109 @@ class SectionAutonomyPermissionsTest(TestCase):
         self.assertEqual([s.slug for s in qs], ['other'])
 
 
+class MediaCollectionsTest(TestCase):
+    """Lot 7 du chantier autonomie : médias cloisonnés par syndicat.
+
+    Wagtail contrôle les images/documents par GroupCollectionPermission (les
+    permissions Django modèle sont ignorées) : setup_cms_permissions crée une
+    Collection par syndicat + « Commun » et y borne chaque redacteur_<slug>."""
+
+    def setUp(self):
+        from io import StringIO
+        from django.core.management import call_command
+        _setup_editorial_groups()
+        self.site_a = make_site(slug='principal', wp_blog_id=1)
+        self.site_b = make_site(slug='other', wp_blog_id=2, site_type='sectoral', name='Other')
+        call_command('setup_cms_permissions', stdout=StringIO())
+
+    def _member(self, username, group_name):
+        user = User.objects.create_user(username, password='pass')
+        user.groups.add(Group.objects.get(name=group_name))
+        return User.objects.get(pk=user.pk)
+
+    def test_collections_created(self):
+        from wagtail.models import Collection
+        names = set(Collection.objects.values_list('name', flat=True))
+        self.assertTrue({'Commun', 'CNT-SO', 'Other'} <= names, names)
+
+    def test_redacteur_adds_only_in_own_collection(self):
+        from wagtail.images.permissions import permission_policy
+        user = self._member('redac-a', 'redacteur_principal')
+        self.assertTrue(permission_policy.user_has_permission(user, 'add'))
+        names = {c.name for c in
+                 permission_policy.collections_user_has_permission_for(user, 'add')}
+        self.assertEqual(names, {'CNT-SO'})
+
+    def test_redacteur_chooses_own_collection_and_commun_only(self):
+        from wagtail.images.permissions import permission_policy
+        user = self._member('redac-a2', 'redacteur_principal')
+        names = {c.name for c in
+                 permission_policy.collections_user_has_permission_for(user, 'choose')}
+        self.assertEqual(names, {'CNT-SO', 'Commun'})
+
+    def test_documents_same_scoping(self):
+        from wagtail.documents.permissions import permission_policy
+        user = self._member('redac-a3', 'redacteur_principal')
+        self.assertTrue(permission_policy.user_has_permission(user, 'add'))
+        names = {c.name for c in
+                 permission_policy.collections_user_has_permission_for(user, 'add')}
+        self.assertEqual(names, {'CNT-SO'})
+
+    def test_cross_site_image_not_choosable(self):
+        from wagtail.images.models import Image
+        from wagtail.images.permissions import permission_policy
+        from wagtail.images.tests.utils import get_test_image_file
+        from wagtail.models import Collection
+        img = Image.objects.create(
+            title='Img Other', file=get_test_image_file(),
+            collection=Collection.objects.get(name='Other'))
+        user = self._member('redac-a4', 'redacteur_principal')
+        choosable = permission_policy.instances_user_has_any_permission_for(
+            user, ['choose'])
+        self.assertNotIn(img.pk, [i.pk for i in choosable])
+
+    def test_chef_global_has_access_everywhere(self):
+        from wagtail.images.permissions import permission_policy
+        chef = self._member('chef-glob', 'redacteur_en_chef')
+        names = {c.name for c in
+                 permission_policy.collections_user_has_permission_for(chef, 'add')}
+        self.assertTrue({'Root', 'Commun', 'CNT-SO', 'Other'} <= names, names)
+
+    def test_generic_redacteur_reads_commun_only(self):
+        from wagtail.images.permissions import permission_policy
+        user = self._member('redac-nu', 'redacteur')
+        self.assertFalse(permission_policy.user_has_permission(user, 'add'))
+        names = {c.name for c in
+                 permission_policy.collections_user_has_permission_for(user, 'choose')}
+        self.assertEqual(names, {'Commun'})
+
+    def test_command_idempotent(self):
+        from io import StringIO
+        from django.core.management import call_command
+        from wagtail.models import Collection, GroupCollectionPermission
+        collections = Collection.objects.count()
+        gcp = GroupCollectionPermission.objects.count()
+        call_command('setup_cms_permissions', stdout=StringIO())
+        self.assertEqual(Collection.objects.count(), collections)
+        self.assertEqual(GroupCollectionPermission.objects.count(), gcp)
+
+    def test_image_index_scoped_to_own_collection(self):
+        """/cms/images/ : un rédacteur ne voit que les images de son syndicat."""
+        from wagtail.images.models import Image
+        from wagtail.images.tests.utils import get_test_image_file
+        from wagtail.models import Collection
+        Image.objects.create(title='Visuel Principal-A', file=get_test_image_file(),
+                             collection=Collection.objects.get(name='CNT-SO'))
+        Image.objects.create(title='Visuel Other-B', file=get_test_image_file(),
+                             collection=Collection.objects.get(name='Other'))
+        self._member('redac-idx', 'redacteur_principal')
+        self.client.login(username='redac-idx', password='pass')
+        resp = self.client.get('/cms/images/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Visuel Principal-A')
+        self.assertNotContains(resp, 'Visuel Other-B')
+
+
 class SectionGroupScopingTest(TestCase):
     """Résolution du site via les groupes par section (redacteur_<slug> /
     chef_<slug>, créés par setup_cms_permissions) — sans fiche Author.
