@@ -70,6 +70,11 @@ def create_editorial_groups(sender, **kwargs):
     # Permissions CMS Wagtail (cms.ArticlePage, ContentPage, CmsCategory, images, docs)
     _CHEF_CMS = [
         'wagtailadmin.access_admin',
+        # L'équipe confédérale crée et gère les comptes rédacteurs
+        # (/cms/users/) — pas de delete : désactivation via « actif ».
+        # La vue d'édition refuse les comptes superuser aux non-superusers
+        # et la case « Administrateur » leur est masquée (content/viewsets.py).
+        'auth.add_user', 'auth.change_user', 'auth.view_user',
         'cms.add_articlepage', 'cms.change_articlepage', 'cms.delete_articlepage', 'cms.view_articlepage',
         'cms.publish_articlepage', 'cms.publish_contentpage', 'cms.publish_sectionpage',
         'cms.add_contentpage', 'cms.change_contentpage', 'cms.delete_contentpage', 'cms.view_contentpage',

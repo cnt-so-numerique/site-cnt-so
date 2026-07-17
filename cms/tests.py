@@ -1177,6 +1177,119 @@ class UserSyndicatFormTest(TestCase):
         self.assertEqual(Author.objects.filter(username='fusion-user').count(), 1)
 
 
+class UserAccountManagementTest(TestCase):
+    """Lot 8 du chantier autonomie : l'équipe confédérale (redacteur_en_chef,
+    non-superuser) crée et gère les comptes rédacteurs dans /cms/users/, sans
+    pouvoir toucher aux superusers ni s'octroyer le statut administrateur.
+    Le champ Syndicat synchronise aussi le groupe redacteur_<slug>."""
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        from content.tests import _setup_editorial_groups
+        _setup_editorial_groups()
+        self.site_a = _ensure_section_page(slug='synd-a', name='Synd A', site_type='sectoral')
+        self.site_b = _ensure_section_page(slug='synd-b', name='Synd B', site_type='sectoral')
+        self.group_a = Group.objects.create(name='redacteur_synd-a')
+        self.group_b = Group.objects.create(name='redacteur_synd-b')
+        self.chef = self._make_chef('chef-comptes')
+        self.superuser = make_superuser(username='su-comptes')
+        self.client = Client()
+        self.client.force_login(self.chef)
+
+    def _make_chef(self, username):
+        from django.contrib.auth.models import Group, User
+        chef = User.objects.create_user(username, password='pass')
+        chef.groups.add(Group.objects.get(name='redacteur_en_chef'))
+        return User.objects.get(pk=chef.pk)
+
+    def _user_data(self, **extra):
+        data = {
+            'username': 'nouveau-redac', 'email': 'r@example.org',
+            'first_name': 'Re', 'last_name': 'Dac',
+            'password1': 'mdp-Tres-solide-42', 'password2': 'mdp-Tres-solide-42',
+        }
+        data.update(extra)
+        return data
+
+    def test_chef_group_has_user_management_perms(self):
+        self.assertTrue(self.chef.has_perm('auth.add_user'))
+        self.assertTrue(self.chef.has_perm('auth.change_user'))
+        self.assertFalse(self.chef.has_perm('auth.delete_user'))
+
+    def test_chef_accesses_user_index_and_add_form(self):
+        self.assertEqual(
+            self.client.get(reverse('wagtailusers_users:index')).status_code, 200)
+        r = self.client.get(reverse('wagtailusers_users:add'))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'name="syndicat"')
+
+    def test_admin_checkbox_hidden_from_non_superuser(self):
+        r = self.client.get(reverse('wagtailusers_users:add'))
+        self.assertNotContains(r, 'name="is_superuser"')
+
+    def test_admin_checkbox_visible_for_superuser(self):
+        self.client.force_login(self.superuser)
+        r = self.client.get(reverse('wagtailusers_users:add'))
+        self.assertContains(r, 'name="is_superuser"')
+
+    def test_chef_cannot_grant_superuser(self):
+        from django.contrib.auth.models import User
+        self.client.post(reverse('wagtailusers_users:add'),
+                         self._user_data(is_superuser='on'))
+        user = User.objects.get(username='nouveau-redac')
+        self.assertFalse(user.is_superuser)
+
+    def test_creation_with_syndicat_joins_section_group(self):
+        from django.contrib.auth.models import User
+        from content.models import Author
+        self.client.post(reverse('wagtailusers_users:add'),
+                         self._user_data(syndicat=self.site_a.pk))
+        user = User.objects.get(username='nouveau-redac')
+        self.assertIn(self.group_a, user.groups.all())
+        self.assertEqual(Author.objects.get(user=user).site, self.site_a)
+
+    def test_syndicat_change_moves_section_group(self):
+        from django.contrib.auth.models import User
+        self.client.post(reverse('wagtailusers_users:add'),
+                         self._user_data(syndicat=self.site_a.pk))
+        user = User.objects.get(username='nouveau-redac')
+        self.client.post(reverse('wagtailusers_users:edit', args=[user.pk]),
+                         self._user_data(is_active='on', syndicat=self.site_b.pk))
+        groups = set(user.groups.values_list('name', flat=True))
+        self.assertIn('redacteur_synd-b', groups)
+        self.assertNotIn('redacteur_synd-a', groups)
+
+    def test_syndicat_initial_reflects_group_membership(self):
+        """Un compte rattaché par groupe seul (sans fiche Author) garde son
+        syndicat pré-sélectionné à l'édition — sinon un simple save le
+        décrocherait de son groupe."""
+        from django.contrib.auth.models import User
+        from content.admin_forms import SyndicatUserEditForm
+        u = User.objects.create_user('groupe-seul', password='pass')
+        u.groups.add(self.group_a)
+        form = SyndicatUserEditForm(instance=User.objects.get(pk=u.pk),
+                                    request_user=self.superuser)
+        self.assertEqual(form.fields['syndicat'].initial, self.site_a.pk)
+
+    def test_chef_cannot_edit_superuser(self):
+        r = self.client.get(
+            reverse('wagtailusers_users:edit', args=[self.superuser.pk]))
+        self.assertNotEqual(r.status_code, 200)
+        r = self.client.post(
+            reverse('wagtailusers_users:edit', args=[self.superuser.pk]),
+            self._user_data(username='su-comptes', is_active='on',
+                            password1='Pirate-42x!', password2='Pirate-42x!'))
+        self.assertNotEqual(r.status_code, 200)
+        self.superuser.refresh_from_db()
+        self.assertFalse(self.superuser.check_password('Pirate-42x!'))
+
+    def test_superuser_can_still_edit_superuser(self):
+        self.client.force_login(self.superuser)
+        r = self.client.get(
+            reverse('wagtailusers_users:edit', args=[self.superuser.pk]))
+        self.assertEqual(r.status_code, 200)
+
+
 class SyndicatSansBrouillonTest(TestCase):
     """« Mon syndicat » : le bouton principal publie directement, pas de brouillon
     qui dort en attente de « Publier » (piège pour les rédacteurs)."""

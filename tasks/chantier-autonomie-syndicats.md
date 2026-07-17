@@ -94,9 +94,16 @@ comptes rédacteurs** et rattachement au syndicat (/cms/users/).
    redacteur → choose sur Commun seulement. 9 tests (MediaCollectionsTest).
    Migration des images existantes (toutes dans Root) = lot séparé (gros
    volume, faisable progressivement).
-8. **Comptes** : perms wagtailusers pour redacteur_en_chef (add/change user),
-   vérifier le formulaire « Syndicat » de /cms/users/ (Author.site + ajout au
-   groupe redacteur_<slug> automatique — à synchroniser).
+8. **Comptes** — FAIT 2026-07-17 : redacteur_en_chef gère les comptes dans
+   /cms/users/ (auth.add/change/view_user — pas de delete, désactivation via
+   « actif »). Le champ « Syndicat » synchronise désormais AUSSI le groupe
+   redacteur_<slug> (un seul par compte, retrait de l'ancien au changement)
+   en plus d'Author.site, et son initial lit d'abord le groupe (sinon un save
+   anodin décrochait un compte rattaché par groupe seul). Garde-fous : case
+   « Administrateur » masquée aux non-superusers (champ supprimé du
+   formulaire, pas juste caché) et édition d'un compte superuser refusée à un
+   non-superuser (sinon changement de mot de passe = escalade). 10 tests
+   (UserAccountManagementTest).
 9. **Dashboard** : tuiles abonnés/messages visibles pour les rédacteurs de
    syndicat (aujourd'hui gated `{% if is_chef %}`), entrées de menu adaptées.
 10. **Tests** : chaque lot avec ses tests ; scénario complet par palier.
