@@ -1,3 +1,17 @@
+# Mise en service 34.cnt-so.org — restes (2026-07-17)
+
+Le domaine est en service (DNS + nginx + cert + section prod pk=1903 +
+`custom_domain` posés le 2026-07-17 ; provisionnement auto OK : groupe
+`redacteur_34` + collection « CNT-SO 34 (Hérault) »). La section est vierge :
+
+- [ ] Remplir la fiche du syndicat dans /cms/ (email de contact, réseaux
+      sociaux, framaform d'adhésion, linkstack, agenda, carousel, logo…)
+- [ ] Créer le(s) compte(s) rédacteur(s) du 34 (groupe `redacteur_34`)
+- [ ] Tester un envoi réel du formulaire de contact une fois l'email renseigné
+- [ ] (Optionnel) liste OVH `ovh_mailing_list` si le 34 veut une newsletter
+
+---
+
 # Migration content.Site → cms.SectionPage
 
 **Objectif** : Supprimer le doublon `content.Site` / `cms.SectionPage`. Tout ce qui pointe vers

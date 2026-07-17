@@ -169,7 +169,12 @@ Le code (middleware `SectionDomainMiddleware`, SEO par hôte) est déployé et
 1. **DNS** (zone cnt-so.org chez OVH) : enregistrement `A` → `51.91.242.64`
    (ou CNAME vers le nom du serveur). Attendre la propagation (`dig +short stucs.cnt-so.org`).
 2. **nginx** : ajouter le nom au `server_name` du vhost cntso (bloc 80 ET 443).
-3. **certbot** : `sudo certbot --nginx -d stucs.cnt-so.org` (étend ou crée le certificat).
+3. **certbot** : étendre le certificat existant en repassant **tous** les noms :
+   `sudo certbot --nginx --cert-name newsite.cnt-so.org --expand -n -d newsite.cnt-so.org -d <tous les domaines déjà couverts> -d nouveau.cnt-so.org`
+   (lister l'existant avec `sudo certbot certificates`).
+   ⚠️ Ne jamais faire `certbot --nginx -d nouveau.cnt-so.org` seul : ça crée un
+   certificat isolé qui **remplace** le cert multi-noms dans le vhost et casse
+   le HTTPS de tous les autres domaines (incident du 2026-07-17).
 4. **Django** : ajouter le domaine à `FEDERATION_DOMAINS` (env supervisor ou
    local_settings : `FEDERATION_DOMAINS = "stucs.cnt-so.org"` — liste séparée
    par des virgules), puis `sudo supervisorctl restart cntso`.
