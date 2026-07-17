@@ -835,6 +835,58 @@ class SubscriberOvhSyncTest(TestCase):
         mock_add.assert_called_with('actu-stucs-cntso', 'test@example.com')
 
 
+class OvhListRoutingTest(TestCase):
+    """Répartition sur plusieurs listes OVH plafonnées (news, news2, …)."""
+
+    def setUp(self):
+        self.stucs = make_stucs_section()
+        self.stucs.ovh_mailing_list = 'news,news2'
+        self.stucs.save(update_fields=['ovh_mailing_list'])
+
+    def _make_active_subscriber(self, email='routing@example.com'):
+        from content.models import Subscriber
+        return Subscriber.objects.create(site=self.stucs, email=email, is_active=True)
+
+    @patch('cms.ovh_client.add_subscriber')
+    @patch('content.ovh_sync.list_count', return_value=0)
+    def test_liste_non_pleine_prend_la_premiere(self, mock_count, mock_add):
+        sub = self._make_active_subscriber()
+        mock_add.assert_called_once_with('news', 'routing@example.com')
+        from content.models import Subscriber
+        self.assertEqual(Subscriber.objects.get(pk=sub.pk).ovh_list, 'news')
+
+    @patch('cms.ovh_client.add_subscriber')
+    def test_premiere_pleine_bascule_sur_la_deuxieme(self, mock_add):
+        with patch('content.ovh_sync.list_count',
+                   side_effect=lambda name: 5000 if name == 'news' else 12):
+            sub = self._make_active_subscriber(email='overflow@example.com')
+        mock_add.assert_called_once_with('news2', 'overflow@example.com')
+        from content.models import Subscriber
+        self.assertEqual(Subscriber.objects.get(pk=sub.pk).ovh_list, 'news2')
+
+    @patch('cms.ovh_client.add_subscriber')
+    @patch('content.ovh_sync.list_count', return_value=5000)
+    def test_toutes_pleines_utilise_la_derniere_et_alerte(self, mock_count, mock_add):
+        with self.assertLogs('content.ovh_sync', level='CRITICAL'):
+            self._make_active_subscriber(email='full@example.com')
+        mock_add.assert_called_once_with('news2', 'full@example.com')
+
+    @patch('cms.ovh_client.remove_subscriber')
+    @patch('cms.ovh_client.add_subscriber')
+    @patch('content.ovh_sync.list_count', return_value=0)
+    def test_desinscription_efface_ovh_list(self, mock_count, mock_add, mock_remove):
+        sub = self._make_active_subscriber(email='bye@example.com')
+        sub.refresh_from_db()
+        self.assertEqual(sub.ovh_list, 'news')
+        sub.is_active = False
+        sub.save()
+        sub.refresh_from_db()
+        self.assertEqual(sub.ovh_list, '')
+        # le retrait balaie toutes les listes
+        mock_remove.assert_any_call('news', 'bye@example.com')
+        mock_remove.assert_any_call('news2', 'bye@example.com')
+
+
 # ── champ ovh_mailing_list sur SectionPage ────────────────────────────────────
 
 class SectionPageOvhMailingListFieldTest(TestCase):

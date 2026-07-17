@@ -26,9 +26,16 @@ class CmsConfig(AppConfig):
                 site = SectionPage.objects.filter(slug='principal').first()
 
             if instance.is_active:
-                ovh_subscribe(site, instance.email)
+                chosen = ovh_subscribe(site, instance.email)
+                if chosen and chosen != instance.ovh_list:
+                    # .update() pour ne pas re-déclencher post_save
+                    from content.models import Subscriber as Sub
+                    Sub.objects.filter(pk=instance.pk).update(ovh_list=chosen)
             elif not created:
                 ovh_unsubscribe(site, instance.email)
+                if instance.ovh_list:
+                    from content.models import Subscriber as Sub
+                    Sub.objects.filter(pk=instance.pk).update(ovh_list='')
 
         # Import différé pour éviter les problèmes d'imports circulaires au démarrage
         from content.models import Subscriber

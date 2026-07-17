@@ -202,6 +202,10 @@ OVH_APPLICATION_KEY    = _os.environ.get('OVH_APPLICATION_KEY', '')
 OVH_APPLICATION_SECRET = _os.environ.get('OVH_APPLICATION_SECRET', '')
 OVH_CONSUMER_KEY       = _os.environ.get('OVH_CONSUMER_KEY', '')
 OVH_DOMAIN             = _os.environ.get('OVH_DOMAIN', 'cnt-so.info')
+# Plafond d'abonnés par liste : limite dure OVH = 5000, marge de sécurité.
+# Quand la 1re liste atteint ce seuil, les nouveaux abonnés vont sur la suivante
+# du champ ovh_mailing_list (ex. « news,news2 » — ajouter news3 suffit à étendre).
+OVH_LIST_CAP           = int(_os.environ.get('OVH_LIST_CAP', 4900))
 
 # ── Intégration cnt-adhesion ──────────────────────────────────────────────────
 # Secret partagé pour vérifier les webhooks venant de cnt-adhesion

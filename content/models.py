@@ -526,6 +526,11 @@ class Subscriber(models.Model):
     name = models.CharField(max_length=200, blank=True, verbose_name='Nom')
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     is_active = models.BooleanField(default=False, verbose_name='Confirmé')
+    ovh_list = models.CharField(
+        max_length=100, blank=True, verbose_name='Liste OVH',
+        help_text="Liste OVH sur laquelle cet abonné a été inscrit "
+                  "(répartition automatique quand un site a plusieurs listes)",
+    )
     subscribed_at = models.DateTimeField(auto_now_add=True)
     confirmed_at = models.DateTimeField(null=True, blank=True)
 
