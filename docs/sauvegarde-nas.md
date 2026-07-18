@@ -1,62 +1,42 @@
 # Sauvegarde externalisée sur le NAS Synology
 
+*Révision 2026-07-18 — remplace le montage du 2026-07-12 (voir Historique en bas).*
+
 ## Architecture
 
 Le **NAS tire** (pull) les sauvegardes depuis le serveur, jamais l'inverse :
 - pas besoin d'exposer le NAS sur internet (connexion SSH sortante uniquement) ;
 - un serveur compromis ne peut pas détruire l'historique de sauvegardes.
 
-Ce qui est sauvegardé, chaque nuit :
+### Côté serveur — `/var/backups/cnt/` (staging)
 
-| Source (serveur) | Contenu | Stratégie NAS |
+Un timer systemd (`pg-backup.timer`, **3h30**) exécute `/usr/local/bin/pg_backup.sh` :
+
+| Sous-dossier | Contenu | Méthode |
 |---|---|---|
-| `/var/backups/postgres/` | dumps PostgreSQL quotidiens (cntso + adhesion, 3h30, rétention 14 j sur serveur) | accumulation, purge à 60 j |
-| `/var/www/cntso/media/` | uploads (≈ 7,5 Go) | miroir rsync |
+| `postgres/` | dumps quotidiens des 2 bases (cntso + adhesion), rétention 14 j | `pg_dump -Fc` |
+| `media-cntso/` | miroir des uploads du site (≈ 7,5 Go) | liens durs (`rsync --link-dest`, coût disque ≈ 0) |
+| `media-cnt-adhesion/` | miroir des uploads adhésion (logos, relevés fiscaux) | idem |
+| `secrets/` | `.env` adhésion + `local_settings.py` site, **chiffrés GPG AES-256** | passphrase : `/root/.backup_env_pass` (root only) + gestionnaire de mots de passe d'Arnaud |
 
-L'accès se fait via l'utilisateur **`nasbackup`** (créé le 2026-07-12) : mot de passe
-verrouillé, connexion par clé uniquement, chaque clé étant **forcée en lecture seule
-sur un seul dossier** via `rrsync -ro` (impossible d'écrire, de lire autre chose,
-ou d'obtenir un shell).
+⚠️ Le serveur n'a **pas de service cron** : toute planification passe par systemd
+(le cron du 12/07 n'a jamais tourné — découvert le 18/07).
 
-## État de la mise en place (2026-07-12)
+### Côté NAS (« nononas », DS224+, `192.168.1.27`)
 
-Côté **serveur** (fait) :
-- [x] Cron `pg_backup` : dump quotidien des deux bases à 3h30 (`/etc/cron.d/pg_backup`)
-- [x] Utilisateur `nasbackup` créé, mot de passe verrouillé
-- [x] Clés publiques du NAS installées dans `/home/nasbackup/.ssh/authorized_keys`
-  avec restrictions :
-
-```
-restrict,command="/usr/bin/rrsync -ro /var/backups/postgres" ssh-ed25519 … nas-dumps
-restrict,command="/usr/bin/rrsync -ro /var/www/cntso/media" ssh-ed25519 … nas-media
-```
-
-Côté **NAS** (« nononas », DS224+, `192.168.1.27`) — fait :
-- [x] Clés privées : `/var/services/homes/nononas/.ssh/id_dumps` et `id_media`
-  (⚠️ pas dans le partage : le chemin avec espaces casse l'option `-e` de rsync)
-- [x] Destination : `/volume2/sauvegarde a froid/backup-cnt/{postgres,media}`
-  (volume2 chiffré, ~900 Go libres)
-- [x] Script : `/volume2/sauvegarde a froid/backup-cnt/backup-cnt.sh`
-- [x] Testé : pull des dumps OK ; écriture vers le serveur bien refusée par rrsync
-- [x] Premier passage complet effectué (media 7,5 Go) ; `--exclude=matomo/tmp`
-  ajouté au rsync media (caches Matomo hérités de WordPress, illisibles et sans
-  valeur) ; second passage incrémental sans erreur
-
-Reste à faire **une fois, dans l'interface DSM** (seule étape impossible en SSH sans root) :
-- [ ] **Créer la tâche planifiée** : Panneau de configuration → Planificateur de tâches
-  → Créer → Tâche planifiée → Script défini par l'utilisateur :
-  - Utilisateur : **nononas** (pas besoin de root)
-  - Planification : tous les jours à **4h30** (après le dump serveur de 3h30)
-  - Script : `sh "/volume2/sauvegarde a froid/backup-cnt/backup-cnt.sh"`
-  - Onglet Paramètres du planificateur : activer l'e-mail en cas d'échec (optionnel)
-
-### Vérification (à tout moment)
-```bash
-ssh nononas@192.168.1.27
-tail "/volume2/sauvegarde a froid/backup-cnt/backup.log"
-ls -lh "/volume2/sauvegarde a froid/backup-cnt/postgres/"   # les .dump
-du -sh "/volume2/sauvegarde a froid/backup-cnt/media/"      # ≈ taille du media serveur
-```
+- **Une seule clé** : `/var/services/homes/nononas/.ssh/nas-cnt`, installée sur le
+  serveur pour l'utilisateur `nasbackup` (mot de passe verrouillé) avec
+  `restrict,command="/usr/bin/rrsync -ro /var/backups/cnt"` — lecture seule sur le
+  staging uniquement, pas de shell, pas de forwarding.
+- **Destination** : `/volume2/sauvegarde a froid/backup-cnt/` (volume2 **chiffré**) :
+  - `postgres/` : accumulation des dumps, purge à 60 j (le serveur ne garde que 14 j) ;
+  - `media/` : miroir du media du site (`--exclude=matomo/tmp`) ;
+  - `media-adhesion/` : miroir du media adhésion ;
+  - `secrets/` : copies chiffrées ;
+  - `backup.log` : journal de chaque passage.
+- **Script** : `/volume2/sauvegarde a froid/backup-cnt/backup-cnt.sh`
+- **Tâche planifiée DSM** : utilisateur `nononas`, tous les jours à **4h30**,
+  script `sh "/volume2/sauvegarde a froid/backup-cnt/backup-cnt.sh"`.
 
 ### (Recommandé) Snapshots
 Si le volume 2 est en **btrfs** : installer « Snapshot Replication » et planifier un
@@ -65,11 +45,13 @@ media contre une suppression accidentelle côté serveur qui serait propagée pa
 
 ## Restauration (résumé)
 
-```bash
-# Base : copier le dump sur le serveur puis
-sudo -u postgres pg_restore -d cntso --clean --if-exists cntso-YYYYMMDD-HHMMSS.dump
-# Media : rsync du NAS vers /var/www/cntso/media/ (inverser le sens, clé admin)
-```
+1. Code : cloner les dépôts GitHub (site + adhésion).
+2. Base : copier le dump sur le serveur puis
+   `sudo -u postgres pg_restore -d cntso --clean --if-exists cntso-YYYYMMDD-HHMMSS.dump`
+   (idem `adhesion`).
+3. Médias : rsync du NAS vers `/var/www/cntso/media/` (inverser le sens, clé admin).
+4. Secrets : `gpg -d cnt-adhesion.env.gpg > .env` (passphrase dans le gestionnaire
+   de mots de passe d'Arnaud), idem `local_settings.py`.
 
 Tester la restauration une fois par an (ou après changement de config serveur) —
 une sauvegarde jamais restaurée n'est pas une sauvegarde.
@@ -80,5 +62,17 @@ Wagtail, requêtes de cohérence OK.
 
 ## Surveillance
 
-Le log est dans `/volume1/backup-cnt/backup.log`. Optionnel : DSM → Planificateur
-de tâches → Paramètres → envoyer les résultats par e-mail en cas d'échec.
+Le log est dans `/volume2/sauvegarde a froid/backup-cnt/backup.log`. Optionnel :
+DSM → Planificateur de tâches → Paramètres → envoyer les résultats par e-mail en
+cas d'échec.
+
+## Historique
+
+- **2026-07-12** : premier montage — deux clés (`id_dumps`, `id_media`), dumps via
+  cron (qui ne tournait pas, faute de service cron), pulls séparés dumps + media.
+- **2026-07-18** : refonte — timer systemd fonctionnel, staging unique
+  `/var/backups/cnt` (bases + médias × 2 + secrets chiffrés), **clé unique `nas-cnt`**
+  (les clés `id_dumps`/`id_media` sont révoquées côté serveur et peuvent être
+  supprimées du NAS). Un doublon temporaire créé le même jour sur volume1
+  (« sauvegarde base adhesion cnt-so » + tâche « Sauvegarde CNT ») est à retirer
+  au profit du volume2 chiffré.
