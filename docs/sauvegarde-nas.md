@@ -14,10 +14,10 @@ Un timer systemd (`pg-backup.timer`, **3h30**) exécute `/usr/local/bin/pg_backu
 
 | Sous-dossier | Contenu | Méthode |
 |---|---|---|
-| `postgres/` | dumps quotidiens des 2 bases (cntso + adhesion), rétention 14 j | `pg_dump -Fc` |
+| `postgres/` | dumps quotidiens des 3 bases (cntso + adhesion + timetrack, cluster dédié :5433), rétention 14 j | `pg_dump -Fc` |
 | `media-cntso/` | miroir des uploads du site (≈ 7,5 Go) | liens durs (`rsync --link-dest`, coût disque ≈ 0) |
 | `media-cnt-adhesion/` | miroir des uploads adhésion (logos, relevés fiscaux) | idem |
-| `secrets/` | `.env` adhésion + `local_settings.py` site + `.env` site (clés API OVH) + `letsencrypt.tar.gz` (certificats TLS), **chiffrés GPG AES-256** ; plus `config-serveur.tar.gz` en clair (vhosts nginx, supervisor, timers systemd, site statique quiz-syntec — aucun secret) | passphrase : `/root/.backup_env_pass` (root only) + gestionnaire de mots de passe d'Arnaud |
+| `secrets/` | `.env` adhésion + `local_settings.py` site + `.env` site (clés API OVH) + `timetrack.env` + `letsencrypt.tar.gz` (certificats TLS), **chiffrés GPG AES-256** ; plus `config-serveur.tar.gz` en clair (vhosts nginx, supervisor, timers systemd, site statique quiz-syntec — aucun secret) | passphrase : `/root/.backup_env_pass` (root only) + gestionnaire de mots de passe d'Arnaud |
 
 ⚠️ Le serveur n'a **pas de service cron** : toute planification passe par systemd
 (le cron du 12/07 n'a jamais tourné — découvert le 18/07).
