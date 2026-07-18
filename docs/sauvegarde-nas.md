@@ -28,19 +28,19 @@ Un timer systemd (`pg-backup.timer`, **3h30**) exécute `/usr/local/bin/pg_backu
   serveur pour l'utilisateur `nasbackup` (mot de passe verrouillé) avec
   `restrict,command="/usr/bin/rrsync -ro /var/backups/cnt"` — lecture seule sur le
   staging uniquement, pas de shell, pas de forwarding.
-- **Destination** : `/volume2/sauvegarde a froid/backup-cnt/` (volume2 **chiffré**) :
+- **Destination** : `/volume2/sauvegardes-cnt/` (volume2 **chiffré**) :
   - `postgres/` : accumulation des dumps, purge à 60 j (le serveur ne garde que 14 j) ;
   - `media/` : miroir du media du site (`--exclude=matomo/tmp`) ;
   - `media-adhesion/` : miroir du media adhésion ;
   - `secrets/` : copies chiffrées ;
   - `backup.log` : journal de chaque passage.
-- **Script** : `/volume2/sauvegarde a froid/backup-cnt/backup-cnt.sh`
+- **Script** : `/volume2/sauvegardes-cnt/backup-cnt.sh`
 - **Tâche planifiée DSM** : utilisateur `nononas`, tous les jours à **4h30**,
-  script `sh "/volume2/sauvegarde a froid/backup-cnt/backup-cnt.sh"`.
+  script `sh "/volume2/sauvegardes-cnt/backup-cnt.sh"`.
 
 ### (Recommandé) Snapshots
 Si le volume 2 est en **btrfs** : installer « Snapshot Replication » et planifier un
-snapshot quotidien de « sauvegarde a froid » (rétention ~4 semaines). Protège le miroir
+snapshot quotidien de « sauvegardes-cnt » (rétention ~4 semaines). Protège le miroir
 media contre une suppression accidentelle côté serveur qui serait propagée par `--delete`.
 
 ## Restauration (résumé)
@@ -62,7 +62,7 @@ Wagtail, requêtes de cohérence OK.
 
 ## Surveillance
 
-Le log est dans `/volume2/sauvegarde a froid/backup-cnt/backup.log`. Optionnel :
+Le log est dans `/volume2/sauvegardes-cnt/backup.log`. Optionnel :
 DSM → Planificateur de tâches → Paramètres → envoyer les résultats par e-mail en
 cas d'échec.
 
