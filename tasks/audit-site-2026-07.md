@@ -352,7 +352,7 @@ balises sans leurs attributs, comptant tous les champs, boutons et liens comme
 non étiquetés. Les liens sociaux et boutons à icône avaient déjà leur
 `aria-label`. Version corrigée du script en pièce jointe de session.
 
-### Contraste — un point à arbitrer
+### Contraste — corrigé
 
 | paire | ratio | texte courant (≥4,5) | texte large (≥3) |
 |---|---|---|---|
@@ -363,11 +363,19 @@ non étiquetés. Les liens sociaux et boutons à icône avaient déjà leur
 | blanc sur fond sombre | 17,40 | ✔ | ✔ |
 | gris clair sur pied de page sombre | 9,98 | ✔ | ✔ |
 
-Le rouge de la charte manque **0,09 point** pour le texte de taille normale ; il
-passe pour les gros titres et les boutons. Assombrir à peine suffirait —
-`#E81C24` donne 4,54 pour un écart invisible à l'œil. **C'est une décision de
-charte graphique, laissée à Arnaud** (le rouge « vraiment rouge » est une
-contrainte posée pour la refonte).
+**✅ Arbitré et corrigé le 01/08** — passage à **`#E81C24`** (4,54:1), écart
+invisible à l'œil. Deux autres rouges sous le seuil ont été alignés au passage :
+
+| teinte | ratio | où | devenu |
+|---|---|---|---|
+| `#EC1C24` | 4,41 | `--primary-color`, tout le site | `#E81C24` |
+| `#EC1A2E` | 4,42 | liens du gabarit de home héritée | `#E81C24` |
+| `#E63946` | 4,17 | liens des écrans `/cms/` (contact, listes mails, menus) | `#E81C24` |
+
+Le back-office bénéficie donc de la même conformité que le site public, et la
+teinte est unifiée partout. Verrouillé par `ContrasteCouleursTest` : le calcul
+est validé sur des repères connus (noir = 21:1, blanc = 1:1), `--primary-color`
+doit tenir 4,5:1, et aucune ancienne teinte ne peut réapparaître dans les gabarits.
 
 ### Reste non couvert
 
