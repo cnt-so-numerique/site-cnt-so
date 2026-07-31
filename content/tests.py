@@ -5262,3 +5262,54 @@ class AccessibiliteTest(TestCase):
         for champ in re.findall(r'<input[^>]*type="email"[^>]*>', html):
             self.assertIn('aria-label', champ,
                           "le champ e-mail de la newsletter doit être étiqueté")
+
+
+class ContrasteCouleursTest(TestCase):
+    """Les couleurs de texte de la charte doivent tenir le seuil WCAG AA (4,5:1
+    sur blanc). Le rouge historique #EC1C24 était à 4,41 — juste en dessous —
+    et servait aux liens dans le texte (audit du 01/08/2026)."""
+
+    SEUIL_TEXTE = 4.5
+
+    @staticmethod
+    def _ratio_sur_blanc(hexa):
+        def lin(c):
+            c = c / 255
+            return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+        h = hexa.lstrip('#')
+        r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+        luminance = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+        return 1.05 / (luminance + 0.05)
+
+    def test_le_rouge_de_charte_tient_le_seuil_aa(self):
+        import re
+        from pathlib import Path
+        from django.conf import settings
+
+        base = Path(settings.BASE_DIR) / 'templates' / 'base.html'
+        m = re.search(r'--primary-color:\s*(#[0-9A-Fa-f]{6})', base.read_text(encoding='utf-8'))
+        self.assertIsNotNone(m, "--primary-color introuvable dans base.html")
+        ratio = self._ratio_sur_blanc(m.group(1))
+        self.assertGreaterEqual(
+            ratio, self.SEUIL_TEXTE,
+            f"{m.group(1)} donne {ratio:.2f}:1 sur blanc — sous le seuil AA "
+            f"pour le texte courant")
+
+    def test_aucune_ancienne_teinte_rouge_ne_subsiste(self):
+        from pathlib import Path
+        from django.conf import settings
+
+        anciennes = ('EC1C24', 'EC1A2E', 'E63946')
+        fautifs = []
+        for f in (Path(settings.BASE_DIR) / 'templates').rglob('*.html'):
+            texte = f.read_text(encoding='utf-8', errors='ignore').upper()
+            for teinte in anciennes:
+                if f'#{teinte}' in texte:
+                    fautifs.append(f"{f.name} → #{teinte}")
+        self.assertEqual(fautifs, [],
+                         "teintes rouges sous le seuil de contraste encore présentes")
+
+    def test_la_reference_de_calcul_est_juste(self):
+        # Repères connus : noir sur blanc = 21, blanc sur blanc = 1
+        self.assertAlmostEqual(self._ratio_sur_blanc('#000000'), 21.0, places=1)
+        self.assertAlmostEqual(self._ratio_sur_blanc('#FFFFFF'), 1.0, places=1)

@@ -1,7 +1,7 @@
 {% if available_sites %}
 <div id="cnt-site-bar" style="
     display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;
-    background:var(--w-color-surface-field);border-bottom:2px solid #e63946;
+    background:var(--w-color-surface-field);border-bottom:2px solid #E81C24;
     padding:.4rem .8rem;font-size:.875rem;
     position:sticky;top:0;z-index:130;
 ">
@@ -12,13 +12,13 @@
   <a href="/cms/select-site/?site_id={{ site.pk }}" style="
       padding:.2rem .6rem;border-radius:4px;text-decoration:none;white-space:nowrap;
       {% if current_site and site.pk == current_site.pk %}
-        background:#e63946;color:#fff;font-weight:600;
+        background:#E81C24;color:#fff;font-weight:600;
       {% else %}
         background:var(--w-color-surface-field);color:var(--w-color-text-meta);border:1px solid var(--w-color-border-furniture);
       {% endif %}
   ">{{ site.name }}</a>
   {% else %}
-  <span style="padding:.2rem .6rem;border-radius:4px;white-space:nowrap;background:#e63946;color:#fff;font-weight:600;">{{ site.name }}</span>
+  <span style="padding:.2rem .6rem;border-radius:4px;white-space:nowrap;background:#E81C24;color:#fff;font-weight:600;">{{ site.name }}</span>
   {% endif %}
   {% endfor %}
 

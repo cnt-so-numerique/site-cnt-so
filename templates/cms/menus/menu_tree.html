@@ -15,7 +15,7 @@ body.cnt-dragging .menu-li > .sortable-list:empty {
   margin: 3px 12px;
   box-sizing: border-box;
 }
-.sortable-ghost > .menu-item-row { opacity: 0.35; background: var(--w-color-surface-field) !important; outline: 2px dashed #e63946; }
+.sortable-ghost > .menu-item-row { opacity: 0.35; background: var(--w-color-surface-field) !important; outline: 2px dashed #E81C24; }
 .sortable-chosen > .menu-item-row { background: var(--w-color-surface-field) !important; }
 </style>
 
@@ -162,7 +162,7 @@ body.cnt-dragging .menu-li > .sortable-list:empty {
       const marker = row.querySelector('.depth-marker');
       if (marker) {
         marker.textContent = depth === 0 ? '●' : '└─';
-        marker.style.color    = depth === 0 ? '#e63946' : 'var(--w-color-text-meta)';
+        marker.style.color    = depth === 0 ? '#E81C24' : 'var(--w-color-text-meta)';
         marker.style.fontSize = depth === 0 ? '.7rem'   : '.65rem';
       }
       const title = row.querySelector('.item-title');

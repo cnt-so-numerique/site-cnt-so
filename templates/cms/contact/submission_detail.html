@@ -7,7 +7,7 @@
   <a href="/cms/contact/" style="color:var(--w-color-text-meta);text-decoration:none;font-size:.9rem;">← Retour</a>
   <h1 style="font-size:1.3rem;font-weight:700;margin:0;">{{ submission.name }}</h1>
   <span style="padding:.2rem .6rem;border-radius:3px;font-size:.875rem;
-    {% if submission.is_read %}border:1px solid var(--w-color-border-furniture);color:var(--w-color-text-meta);{% else %}background:rgba(230,57,70,.12);color:#e63946;{% endif %}">
+    {% if submission.is_read %}border:1px solid var(--w-color-border-furniture);color:var(--w-color-text-meta);{% else %}background:rgba(230,57,70,.12);color:#E81C24;{% endif %}">
     {% if submission.is_read %}Lu{% else %}Non lu{% endif %}
   </span>
 </div>
@@ -19,7 +19,7 @@
     <dl style="display:grid;grid-template-columns:auto 1fr;gap:.4rem .75rem;font-size:.9rem;">
       <dt style="color:var(--w-color-text-meta);">Nom</dt><dd>{{ submission.name }}</dd>
       <dt style="color:var(--w-color-text-meta);">Email</dt>
-      <dd><a href="mailto:{{ submission.email }}" style="color:#e63946;">{{ submission.email }}</a></dd>
+      <dd><a href="mailto:{{ submission.email }}" style="color:#E81C24;">{{ submission.email }}</a></dd>
       {% if submission.phone %}<dt style="color:var(--w-color-text-meta);">Tél.</dt><dd>{{ submission.phone }}</dd>{% endif %}
       {% if submission.city %}<dt style="color:var(--w-color-text-meta);">Ville</dt><dd>{{ submission.city }}</dd>{% endif %}
       {% if submission.sector %}<dt style="color:var(--w-color-text-meta);">Secteur</dt><dd>{{ submission.sector }}</dd>{% endif %}
@@ -57,7 +57,7 @@
     </button>
   </form>
   <a href="mailto:{{ submission.email }}?subject=Re: {{ submission.subject|urlencode }}"
-     style="padding:.4rem .9rem;background:#e63946;color:white;border-radius:4px;text-decoration:none;font-size:.875rem;">
+     style="padding:.4rem .9rem;background:#E81C24;color:white;border-radius:4px;text-decoration:none;font-size:.875rem;">
     Répondre par email ↗
   </a>
   <form method="post" onsubmit="return confirm('Supprimer ce message définitivement ?')">

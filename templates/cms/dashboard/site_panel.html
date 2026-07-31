@@ -31,7 +31,7 @@
         </option>
         {% endfor %}
       </select>
-      <button type="submit" style="background:#e63946;border:none;border-radius:4px;color:#fff;font-size:.875rem;padding:.35rem .6rem;cursor:pointer;">OK</button>
+      <button type="submit" style="background:#E81C24;border:none;border-radius:4px;color:#fff;font-size:.875rem;padding:.35rem .6rem;cursor:pointer;">OK</button>
     </form>
     {% endif %}
   </div>
@@ -40,28 +40,28 @@
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.75rem;margin-bottom:1.25rem;">
 
     <a href="/cms/snippets/cms/articlepage/" style="text-decoration:none;">
-      <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:.75rem;text-align:center;transition:border-color .2s;" onmouseover="this.style.borderColor='#e63946'" onmouseout="this.style.borderColor='var(--w-color-border-furniture)'">
-        <div style="font-size:1.5rem;font-weight:700;color:#e63946;">{{ stats.articles }}</div>
+      <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:.75rem;text-align:center;transition:border-color .2s;" onmouseover="this.style.borderColor='#E81C24'" onmouseout="this.style.borderColor='var(--w-color-border-furniture)'">
+        <div style="font-size:1.5rem;font-weight:700;color:#E81C24;">{{ stats.articles }}</div>
         <div style="font-size:.875rem;color:var(--w-color-text-meta);margin-top:.1rem;">Articles</div>
       </div>
     </a>
 
     <a href="/cms/snippets/cms/contentpage/" style="text-decoration:none;">
-      <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:.75rem;text-align:center;" onmouseover="this.style.borderColor='#e63946'" onmouseout="this.style.borderColor='var(--w-color-border-furniture)'">
+      <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:.75rem;text-align:center;" onmouseover="this.style.borderColor='#E81C24'" onmouseout="this.style.borderColor='var(--w-color-border-furniture)'">
         <div style="font-size:1.5rem;font-weight:700;color:var(--w-color-text-context);">{{ stats.pages }}</div>
         <div style="font-size:.875rem;color:var(--w-color-text-meta);margin-top:.1rem;">Pages</div>
       </div>
     </a>
 
     <a href="/cms/snippets/content/subscriber/" style="text-decoration:none;">
-      <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:.75rem;text-align:center;" onmouseover="this.style.borderColor='#e63946'" onmouseout="this.style.borderColor='var(--w-color-border-furniture)'">
+      <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:.75rem;text-align:center;" onmouseover="this.style.borderColor='#E81C24'" onmouseout="this.style.borderColor='var(--w-color-border-furniture)'">
         <div style="font-size:1.5rem;font-weight:700;color:var(--w-color-text-context);">{{ stats.subscribers }}</div>
         <div style="font-size:.875rem;color:var(--w-color-text-meta);margin-top:.1rem;">Abonnés</div>
       </div>
     </a>
 
     <a href="/cms/snippets/content/contactmessage/" style="text-decoration:none;">
-      <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:.75rem;text-align:center;" onmouseover="this.style.borderColor='#e63946'" onmouseout="this.style.borderColor='var(--w-color-border-furniture)'">
+      <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:.75rem;text-align:center;" onmouseover="this.style.borderColor='#E81C24'" onmouseout="this.style.borderColor='var(--w-color-border-furniture)'">
         <div style="font-size:1.5rem;font-weight:700;color:var(--w-color-text-context);">{{ stats.contacts_unread }}</div>
         <div style="font-size:.875rem;color:var(--w-color-text-meta);margin-top:.1rem;">Messages</div>
       </div>
@@ -76,7 +76,7 @@
     <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:1rem;">
       <div style="font-size:.875rem;color:var(--w-color-text-meta);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">✏️ Rédaction</div>
       <div style="display:flex;flex-direction:column;gap:.4rem;">
-        <a href="/cms/snippets/cms/articlepage/add/" style="color:#e63946;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);font-weight:600;">+ Nouvel article</a>
+        <a href="/cms/snippets/cms/articlepage/add/" style="color:#E81C24;text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);font-weight:600;">+ Nouvel article</a>
         <a href="/cms/snippets/cms/articlepage/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">📄 Tous les articles</a>
         <a href="/cms/snippets/cms/contentpage/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">📃 Pages du site</a>
         <a href="/cms/snippets/cms/cmscategory/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">🏷️ Catégories</a>
@@ -92,7 +92,7 @@
     <div style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:6px;padding:1rem;">
       <div style="font-size:.875rem;color:var(--w-color-text-meta);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">💡 Comment publier ?</div>
       <ol style="margin:0;padding-left:1.1rem;color:var(--w-color-text-context);font-size:.875rem;line-height:1.7;">
-        <li>Cliquez sur <strong style="color:#e63946;">+ Nouvel article</strong></li>
+        <li>Cliquez sur <strong style="color:#E81C24;">+ Nouvel article</strong></li>
         <li>Donnez un titre, écrivez dans l'onglet <strong>Contenu</strong></li>
         <li>Ajoutez une image et une catégorie (onglet <strong>Métadonnées</strong>)</li>
         <li>Cliquez sur <strong>Enregistrer</strong> puis <strong>Publier</strong></li>
@@ -114,7 +114,7 @@
       <div style="font-size:.875rem;color:var(--w-color-text-meta);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.6rem;">📬 Contact</div>
       <div style="display:flex;flex-direction:column;gap:.4rem;">
         <a href="/cms/contact/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">
-          📨 Messages reçus{% if stats.contacts_unread > 0 %} <span style="background:#e63946;color:white;padding:.1rem .4rem;border-radius:10px;font-size:.875rem;">{{ stats.contacts_unread }}</span>{% endif %}
+          📨 Messages reçus{% if stats.contacts_unread > 0 %} <span style="background:#E81C24;color:white;padding:.1rem .4rem;border-radius:10px;font-size:.875rem;">{{ stats.contacts_unread }}</span>{% endif %}
         </a>
         <a href="/cms/contact-config/" style="color:var(--w-color-text-context);text-decoration:none;font-size:.875rem;padding:.3rem .5rem;border-radius:4px;background:var(--w-color-surface-field);">⚙️ Config formulaire</a>
       </div>
