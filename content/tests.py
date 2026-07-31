@@ -5176,3 +5176,59 @@ class LegacySiteSlugRoutingTest(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'CNT-SO Numérique')
         self.assertNotContains(r, 'STUCS')
+
+
+class MenuRequetesTest(TestCase):
+    """Le menu est reconstruit à chaque page : il ne doit pas repartir en N+1.
+
+    base.html descend à trois niveaux (item → enfant → petit-enfant). Le tag
+    ne préchargeait qu'un niveau : chaque enfant déclenchait une requête, plus
+    une par catégorie liée pour bâtir son URL — 62 requêtes sur la home d'un
+    sous-site, ramenées à 18 (audit du 31/07/2026).
+    """
+
+    PLAFOND = 30
+
+    def setUp(self):
+        self.site = make_site(slug='13', name='CNT-SO 13', site_type='regional')
+        cat = make_cms_category(name='Luttes', slug='luttes', section_slug='13')
+        # un menu à trois niveaux, comme en production
+        for i in range(3):
+            parent = MenuItem.objects.create(
+                site=self.site, menu='main', title=f'Rubrique {i}',
+                link_type='url', url='#', order=i, is_active=True)
+            for j in range(3):
+                enfant = MenuItem.objects.create(
+                    site=self.site, menu='main', title=f'Sous {i}.{j}',
+                    link_type='category', category=cat, parent=parent,
+                    order=j, is_active=True)
+                MenuItem.objects.create(
+                    site=self.site, menu='main', title=f'Petit {i}.{j}',
+                    link_type='category', category=cat, parent=enfant,
+                    order=0, is_active=True)
+
+    def test_la_home_de_sous_site_ne_part_pas_en_n_plus_un(self):
+        from django.test.utils import CaptureQueriesContext
+        from django.db import connection
+
+        with CaptureQueriesContext(connection) as ctx:
+            r = self.client.get('/13/')
+        self.assertEqual(r.status_code, 200)
+        self.assertLess(
+            len(ctx.captured_queries), self.PLAFOND,
+            f"{len(ctx.captured_queries)} requêtes : le préchargement du menu "
+            f"a probablement régressé")
+
+    def test_les_trois_niveaux_de_menu_sont_precharges(self):
+        from django.test.utils import CaptureQueriesContext
+        from django.db import connection
+        from content.templatetags.menu_tags import get_menu
+
+        items = get_menu(self.site, 'main')       # requêtes de préchargement ici
+        with CaptureQueriesContext(connection) as ctx:
+            for item in items:
+                for enfant in item.children.all():
+                    list(enfant.children.all())   # ne doit rien requêter de plus
+        self.assertEqual(
+            len(ctx.captured_queries), 0,
+            "parcourir les trois niveaux ne doit déclencher aucune requête")

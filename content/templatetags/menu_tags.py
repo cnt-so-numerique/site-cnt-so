@@ -11,9 +11,13 @@ def get_menu(site, menu_type):
     if not site:
         return []
     sr = ('target_site', 'article', 'page', 'site', 'category')
-    children_qs = (MenuItem.objects.filter(site=site, is_active=True)
-                   .select_related(*sr)
-                   .order_by('order'))
+    base = (MenuItem.objects.filter(site=site, is_active=True)
+            .select_related(*sr)
+            .order_by('order'))
+    # base.html descend à trois niveaux (item → child → grandchild) : sans ce
+    # second Prefetch, chaque enfant déclenchait une requête, plus une par
+    # catégorie liée pour construire son URL.
+    children_qs = base.prefetch_related(Prefetch('children', queryset=base))
     return list(
         MenuItem.objects.filter(
             site=site, menu=menu_type, is_active=True, parent__isnull=True,
