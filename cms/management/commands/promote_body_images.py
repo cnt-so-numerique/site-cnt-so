@@ -51,6 +51,7 @@ class Command(BaseCommand):
         self.stats = {
             'promues': 0, 'deja_ok': 0, 'sans_image': 0,
             'fichier_absent': 0, 'image_creee': 0, 'image_reutilisee': 0,
+            'brouillon_en_attente': 0,
         }
         traites = 0
 
@@ -74,6 +75,10 @@ class Command(BaseCommand):
             f"Déjà pourvues         : {self.stats['deja_ok']}\n"
             f"Aucune image au corps : {self.stats['sans_image']}\n"
             f"Fichier introuvable   : {self.stats['fichier_absent']}")
+        if self.stats['brouillon_en_attente']:
+            self.stdout.write(self.style.WARNING(
+                f"Ignorées (brouillon en attente, republier les aurait mises "
+                f"en ligne) : {self.stats['brouillon_en_attente']}"))
         if self.dry:
             self.stdout.write(self.style.WARNING('\n(DRY-RUN : rien n\'a été écrit.)'))
 
@@ -85,6 +90,12 @@ class Command(BaseCommand):
         # les ContentPage n'ont que la vignette.
         if page.featured_image_id or getattr(page, 'any_image_url', None):
             self.stats['deja_ok'] += 1
+            return False
+
+        # Une page qui a un brouillon en attente ne doit pas être republiée :
+        # cela mettrait en ligne des modifications que personne n'a validées.
+        if page.has_unpublished_changes:
+            self.stats['brouillon_en_attente'] += 1
             return False
 
         image = self._image_du_corps(page)

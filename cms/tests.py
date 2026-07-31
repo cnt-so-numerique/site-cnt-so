@@ -1866,3 +1866,19 @@ class PromoteBodyImagesTest(TestCase):
         self.assertTrue(poitiers.featured_image_id)
         self.assertFalse(autre.featured_image_id,
                          "les autres syndicats ne doivent pas être touchés")
+
+    def test_page_avec_brouillon_en_attente_ignoree(self):
+        """Republier une page qui a un brouillon en attente mettrait en ligne
+        des modifications non validées : on la laisse tranquille."""
+        art = self._article_avec_img(titre='Avec brouillon')
+        art.title = 'Titre modifie non publie'
+        art.save_revision()            # brouillon, non publié
+        art.refresh_from_db()
+        self.assertTrue(art.has_unpublished_changes)
+
+        sortie = self._appel()
+
+        art.refresh_from_db()
+        self.assertFalse(art.featured_image_id)
+        self.assertEqual(art.title, 'Avec brouillon', "la page ne doit pas être republiée")
+        self.assertIn('brouillon en attente', sortie)
