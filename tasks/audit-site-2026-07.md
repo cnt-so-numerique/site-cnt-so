@@ -86,8 +86,16 @@ défauts jusque-là invisibles (les pages étaient en 404) :
    Corrigé : `{{ site.name }}`. Le commentaire CSS « STUCS sub-pages » de
    `site_subpage_base.html`, servi au navigateur, a été neutralisé aussi.
 
-Couverts par les tests `test_le_contenu_du_syndicat_est_bien_affiche_via_le_slug_legacy`
-et `test_le_nom_du_syndicat_remplace_stucs_dans_les_ressources`. Suite : **701 tests OK**.
+3. **Flux RSS vides.** `SiteArticlesFeed.items()` filtrait sur
+   `legacy_site_slug or slug` — donc sur `stnum` / `fter` — alors que les articles
+   portent le slug Wagtail. **Le flux de Numérique et celui d'Éducation étaient
+   vides en production** (0 item, alors que leurs homes listent respectivement 4 et
+   15 articles). Ce bug-là ne dépendait pas du domaine : il était actif depuis le
+   départ. Corrigé en acceptant les deux slugs, comme le font déjà les sitemaps
+   (`content/sitemaps.py`).
+
+Couverts par trois tests de non-régression dans `LegacySiteSlugRoutingTest`,
+chacun vérifié par retrait du correctif. Suite : **702 tests OK**.
 
 ### B. 🟠 Formulaires de contact sans destinataire propre
 

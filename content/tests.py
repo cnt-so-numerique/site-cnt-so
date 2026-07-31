@@ -5157,6 +5157,18 @@ class LegacySiteSlugRoutingTest(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertIn(cat, r.context['categories'])
 
+    def test_le_flux_rss_du_syndicat_n_est_pas_vide(self):
+        """Le flux filtrait sur `legacy_site_slug or slug`, donc sur « stnum » :
+        il ressortait vide alors que les articles portent « numerique ».
+        Constaté en prod sur Numérique et Éducation (flux vides, homes pleines)."""
+        make_article_page(section_slug='numerique', title='Depeche du syndicat',
+                          slug='depeche-du-syndicat')
+        for url in ('/stnum/feed/', '/numerique/feed/'):
+            with self.subTest(url=url):
+                r = self.client.get(url)
+                self.assertEqual(r.status_code, 200)
+                self.assertContains(r, 'Depeche du syndicat')
+
     def test_le_nom_du_syndicat_remplace_stucs_dans_les_ressources(self):
         """Le template « générique » des ressources affichait STUCS en dur
         sur tous les sous-sites (constaté en prod sur les 7 domaines)."""
