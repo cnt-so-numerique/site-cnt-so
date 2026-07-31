@@ -9,7 +9,7 @@ les 7 domaines de fédérations).
 | Domaine | Méthode | Résultat |
 |---|---|---|
 | Routes publiques (dev) | 232 URLs réelles issues de la base, client de test Django | **0 erreur 5xx** |
-| Routes publiques (prod) | 69 URLs sur les 8 hôtes | 60×200, 4×3xx, **5×404** (analysés ci-dessous) |
+| Routes publiques (prod) | 69 URLs sur les 8 hôtes | avant : 60×200 et **5×404** ; après correctifs : **63×200, 2×404** |
 | Suite de tests | `manage.py test` | **695 tests OK** |
 | Médias | vérification disque des images référencées | **930/930 présentes**, 0 lien externe restant |
 | Sécurité prod | en-têtes HTTP réels | HSTS 30 j, cookies `Secure`, `nosniff`, `X-Frame-Options` ✔ |
@@ -163,6 +163,15 @@ base locale — vérifier par HTTP ou en base de prod.
 
 `templates/content/home.html` pointe deux fois vers `/page/syndicats/`, qui répond
 301 vers `/syndicats/`. Introduit lors de la refonte du 19/07. Redirection inutile.
+
+---
+
+### Les deux 404 restants sont légitimes
+
+- `newsite.cnt-so.org/agenda/` : il n'existe pas d'agenda confédéral (l'agenda est
+  une page de sous-site). Aucun lien du site n'y mène — URL inventée par le balayage.
+- `newsite.cnt-so.org/staa/` : la section STAA n'existe pas en production
+  (elle n'est présente qu'en base de dev — voir constat G).
 
 ---
 
