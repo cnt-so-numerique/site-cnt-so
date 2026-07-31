@@ -127,11 +127,32 @@ En production, 8 sections sur 12 n'ont pas d'email de contact : `13`, `34`,
 C'est la cause directe du constat B. (La fiche de `34`, tout juste créée, est
 entièrement vide — déjà noté dans `tasks/todo.md`.)
 
-### D. 🟠 45 % des articles n'ont pas d'image
+### D. 🟢 Images : 91,5 % de couverture en production (et non 45 % de manques)
 
-763 articles publiés sur 1693 sont sans visuel. Impact direct sur la refonte en
-cours (une, manchette à vignettes) : les cadres tombent sur un fond vide.
-À arbitrer : visuel de repli, ou mise en page dégradée sans image.
+⚠️ **Constat initial erroné, corrigé le 31/07.** La base de dev donnait « 763
+articles sur 1693 sans image », soit 45 %. **C'est un artefact de la base locale** :
+la prod a reçu un import de médias (16/07) que dev n'a jamais eu.
+
+Chiffres réels en production :
+
+| | articles |
+|---|---|
+| Publiés | 1782 |
+| **Avec vignette** | **1631 (91,5 %)** |
+| Sans vignette | 151 (8,5 %) |
+| … dont une image existe dans le corps | 43 |
+| … dont aucune image du tout | 108 |
+
+Et le manque est **concentré sur Poitiers** : 130 des 151 articles. Les autres
+syndicats ont entre 1 et 5 articles sans visuel.
+
+**Conséquence pour la refonte** : le risque de « cadres vides » dans la une et la
+manchette est marginal, pas structurel. Une image de repli suffirait ; il n'y a pas
+de chantier éditorial à mener.
+
+**Piste facultative** : étendre `any_image_url` (`cms/models.py:707`) pour retomber
+sur la première image du corps quand aucune vignette n'est définie. Gain réel :
+43 articles seulement — utile mais mineur, à faire seulement si l'occasion se présente.
 
 ### E. 🟡 Métadonnées éditoriales
 
@@ -149,6 +170,8 @@ ne sont pas réellement protégés du spam. *(Déjà connu, non traité.)*
 
 Écarts constatés :
 - 16 sections en dev contre 12 en prod (dev a `staa`, `test`, `debug-a`, `debug-b`) ;
+- **images** : 91,5 % des articles ont une vignette en prod, contre 55 % en dev —
+  la prod a reçu l'import de médias du 16/07, pas la base locale (voir constat D) ;
 - `legacy_site_slug` égal au slug partout en dev, alors que Numérique et Éducation
   divergent en prod — **c'est ce qui a rendu le bug A invisible en local** ;
 - destinataires de contact : 4 renseignés en prod, 1 seul en dev ;
