@@ -1,6 +1,6 @@
 {% extends "content/site_subpage_base.html" %}
 {% block nav_ressources %}class="active"{% endblock %}
-{% block title %}Ressources{% if active_cat %} · {{ active_cat.name }}{% endif %} — STUCS CNT-SO{% endblock %}
+{% block title %}Ressources{% if active_cat %} · {{ active_cat.name }}{% endif %} — {{ site.name }}{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -58,7 +58,7 @@
             </a>
           {% else %}
             <div style="height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg-lighter);">
-              <span style="font-family:var(--font-heading);font-size:1.8rem;color:var(--text-muted);font-weight:700;">STUCS</span>
+              <span style="font-family:var(--font-heading);font-size:1.8rem;color:var(--text-muted);font-weight:700;">CNT-SO</span>
             </div>
           {% endif %}
           {% endwith %}
@@ -85,7 +85,7 @@
         <small>Reviens bientôt ou <a href="{% url 'content:site_ressources' site.slug %}">consulte toutes les ressources</a>.</small>
       {% else %}
         <p>Aucune ressource publiée pour l'instant.</p>
-        <small>Ajoute du contenu depuis <a href="/cms/">le CMS</a> en choisissant la section STUCS.</small>
+        <small>Ajoute du contenu depuis <a href="/cms/">le CMS</a> en choisissant la section {{ site.name }}.</small>
       {% endif %}
     </div>
   {% endif %}

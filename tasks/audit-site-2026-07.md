@@ -66,6 +66,29 @@ reproduit le cas Numérique (slug `numerique` / legacy `stnum`). Vérifié : san
 correctif, les **5 mêmes chemins** qu'en production échouent (le contact passe,
 comme en prod) ; avec le correctif, tout répond 200. Suite complète : **699 tests OK**.
 
+### A-bis. ✅ Deux bugs révélés par la recette du correctif A
+
+Une fois les 5 pages de Numérique redevenues accessibles, elles ont exposé deux
+défauts jusque-là invisibles (les pages étaient en 404) :
+
+1. **Contenus filtrés sur le slug brut de l'URL.** `SitePageDetailView`,
+   `PlanDuSiteView`, `SiteRejoindreView` et `SiteRessourcesView` filtraient
+   articles et catégories avec `section_slug=site_slug` (le slug de l'URL, donc
+   `stnum`) au lieu du slug résolu (`numerique`) — `SiteHomeView`, elle, utilisait
+   déjà le bon. Résultat : les pages répondaient 200 mais restaient **vides**.
+   Corrigé : filtrage sur la section résolue.
+
+2. **« STUCS » codé en dur dans le template générique des Ressources.**
+   `templates/content/site_ressources.html` affichait « Ressources — STUCS CNT-SO »
+   en titre, « STUCS » en vignette de repli et « choisissez la section STUCS » dans
+   le message de page vide — **sur les 7 sous-sites** (vérifié en prod : Marseille,
+   Poitiers, Auvergne, Rhône-Alpes, 34, Numérique affichaient tous « STUCS »).
+   Corrigé : `{{ site.name }}`. Le commentaire CSS « STUCS sub-pages » de
+   `site_subpage_base.html`, servi au navigateur, a été neutralisé aussi.
+
+Couverts par les tests `test_le_contenu_du_syndicat_est_bien_affiche_via_le_slug_legacy`
+et `test_le_nom_du_syndicat_remplace_stucs_dans_les_ressources`. Suite : **701 tests OK**.
+
 ### B. 🟠 Formulaires de contact sans destinataire propre
 
 **Vérifié en production** : sur les 8 formulaires actifs, **4 n'ont aucun

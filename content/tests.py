@@ -5137,3 +5137,30 @@ class LegacySiteSlugRoutingTest(TestCase):
         self.assertEqual(get_section_or_404('numerique').pk, self.site.pk)
         with self.assertRaises(Http404):
             get_section_or_404('nawak-xyz')
+
+    def test_le_contenu_du_syndicat_est_bien_affiche_via_le_slug_legacy(self):
+        """Second volet du bug : les vues filtraient les contenus sur le slug
+        brut de l'URL (« stnum »), alors que les contenus portent le slug
+        Wagtail (« numerique ») — les pages répondaient mais restaient vides."""
+        cat = make_cms_category(name='Outils', section_slug='numerique')
+        make_article_page(section_slug='numerique', title='Guide autodefense',
+                          slug='guide-autodefense', categories=[cat])
+
+        r = self.client.get('/stnum/ressources/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Guide autodefense')
+        self.assertContains(r, 'Outils')
+
+        # « Nous rejoindre » n'affiche pas les catégories, mais les charge en
+        # contexte (sidebar) : on vérifie la donnée, pas le rendu.
+        r = self.client.get('/stnum/rejoindre/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(cat, r.context['categories'])
+
+    def test_le_nom_du_syndicat_remplace_stucs_dans_les_ressources(self):
+        """Le template « générique » des ressources affichait STUCS en dur
+        sur tous les sous-sites (constaté en prod sur les 7 domaines)."""
+        r = self.client.get('/numerique/ressources/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'CNT-SO Numérique')
+        self.assertNotContains(r, 'STUCS')

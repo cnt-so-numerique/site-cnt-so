@@ -304,10 +304,11 @@ class SitePageDetailView(View):
     def get(self, request, site_slug, slug, **kwargs):
         from cms.models import ContentPage
         from django.http import HttpResponsePermanentRedirect
-        cp = ContentPage.objects.live().filter(slug=slug, section_slug=site_slug).first()
+        current_site = get_section_or_404(site_slug)
+        cp = ContentPage.objects.live().filter(
+            slug=slug, section_slug=current_site.slug).first()
         if cp:
             return HttpResponsePermanentRedirect(cp.get_absolute_url())
-        current_site = get_section_or_404(site_slug)
         page = get_object_or_404(Page, slug=slug, site=current_site, status='publish')
         return render(request, 'content/page_detail.html', {
             'page': page,
@@ -696,7 +697,7 @@ class PlanDuSiteView(TemplateView):
         from django.db.models import Prefetch
         children_qs = CmsCategory.objects.all()
         raw_cats = list(
-            CmsCategory.objects.filter(section_slug=site_slug, parent=None)
+            CmsCategory.objects.filter(section_slug=current.slug, parent=None)
             .prefetch_related(Prefetch('children', queryset=children_qs))
             .order_by('name')
         )
@@ -866,7 +867,7 @@ class SiteRejoindreView(ContactFormMixin, View):
         site = get_section_or_404(site_slug)
         ctx = {
             'site': site,
-            'categories': CmsCategory.objects.filter(section_slug=site_slug),
+            'categories': CmsCategory.objects.filter(section_slug=site.slug),
             'on_rejoindre_page': True,
         }
         ctx.update(_sectoral_sidebar_context(site))
@@ -899,13 +900,13 @@ class SiteRessourcesView(View):
         # Uniquement les catégories contenant au moins un article publié
         # (l'import WordPress a laissé beaucoup de catégories vides ou en doublon)
         categories = CmsCategory.objects.filter(
-            section_slug=site_slug,
+            section_slug=site.slug,
             articles__live=True,
-            articles__section_slug=site_slug,
+            articles__section_slug=site.slug,
         ).distinct().order_by('name')
         slug = request.GET.get('cat', '')
-        active_cat = CmsCategory.objects.filter(section_slug=site_slug, slug=slug).first() if slug else None
-        qs = ArticlePage.objects.live().filter(section_slug=site_slug)
+        active_cat = CmsCategory.objects.filter(section_slug=site.slug, slug=slug).first() if slug else None
+        qs = ArticlePage.objects.live().filter(section_slug=site.slug)
         if active_cat:
             qs = qs.filter(cms_categories=active_cat)
         articles = qs.select_related('featured_image').order_by('-publication_date', '-first_published_at')
