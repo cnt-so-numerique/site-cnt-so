@@ -1750,3 +1750,119 @@ class DomainFormsTest(TestCase):
         # (pas de redirection qui perdrait les données)
         r = self.client.post('/contact/', {}, HTTP_HOST=self.HOST)
         self.assertNotIn(r.status_code, (301, 302, 404, 500))
+
+
+class PromoteBodyImagesTest(TestCase):
+    """Récupération des visuels : l'image du corps devient l'image « à la une ».
+
+    Audit du 31/07/2026 : l'import WordPress n'a repris la vignette que pour
+    les articles qui en déclaraient une côté WP. Les autres gardent leur visuel
+    dans le corps (<img src="/media/…">), et les listes affichent un cadre vide.
+    """
+
+    def setUp(self):
+        from wagtail.images.tests.utils import get_test_image_file
+        from wagtail.images.models import Image
+
+        self.site = _ensure_section_page(slug='poitiers', name='CNT-SO Poitiers')
+        # Une image déjà connue de Wagtail, dont on réutilisera le fichier.
+        self.image = Image.objects.create(title='Affiche', file=get_test_image_file())
+        self.chemin = self.image.file.name          # ex. original_images/test.png
+
+    def _appel(self, **opts):
+        from django.core.management import call_command
+        from io import StringIO
+        out = StringIO()
+        call_command('promote_body_images', stdout=out, **opts)
+        return out.getvalue()
+
+    def _article_avec_img(self, titre='Avec image', **kw):
+        return make_article_page(
+            section_slug='poitiers', title=titre,
+            body=[('html', f'<p>Texte</p><img src="/media/{self.chemin}">')],
+            **kw)
+
+    def test_image_du_corps_promue_en_vignette(self):
+        art = self._article_avec_img()
+        self.assertIsNone(art.any_image_url)
+
+        self._appel()
+
+        art.refresh_from_db()
+        self.assertTrue(art.featured_image_id)
+        self.assertTrue(art.any_image_url)
+
+    def test_l_article_reste_publie_et_sans_brouillon_en_attente(self):
+        """La republication doit aligner la version en ligne et le brouillon,
+        sinon la prochaine édition dans /cms/ effacerait la vignette."""
+        art = self._article_avec_img()
+
+        self._appel()
+
+        art.refresh_from_db()
+        self.assertTrue(art.live)
+        self.assertFalse(art.has_unpublished_changes)
+
+    def test_le_fichier_existant_est_reutilise_sans_doublon(self):
+        from wagtail.images.models import Image
+        self._article_avec_img()
+        avant = Image.objects.count()
+
+        self._appel()
+
+        self.assertEqual(Image.objects.count(), avant,
+                         "l'image existante doit être réutilisée, pas dupliquée")
+
+    def test_dry_run_n_ecrit_rien(self):
+        art = self._article_avec_img()
+
+        sortie = self._appel(dry_run=True)
+
+        art.refresh_from_db()
+        self.assertFalse(art.featured_image_id)
+        self.assertIn('DRY-RUN', sortie)
+
+    def test_article_deja_pourvu_non_touche(self):
+        art = self._article_avec_img()
+        art.featured_image = self.image
+        art.save()
+        rev_avant = art.latest_revision_id
+
+        self._appel()
+
+        art.refresh_from_db()
+        self.assertEqual(art.latest_revision_id, rev_avant,
+                         "aucune révision ne doit être créée pour rien")
+
+    def test_article_sans_image_ignore(self):
+        art = make_article_page(section_slug='poitiers', title='Texte seul',
+                                body=[('html', '<p>Aucun visuel ici</p>')])
+
+        self._appel()
+
+        art.refresh_from_db()
+        self.assertFalse(art.featured_image_id)
+
+    def test_fichier_absent_du_disque_ignore(self):
+        art = make_article_page(
+            section_slug='poitiers', title='Image fantome',
+            body=[('html', '<img src="/media/original_images/inexistant-xyz.jpg">')])
+
+        self._appel()
+
+        art.refresh_from_db()
+        self.assertFalse(art.featured_image_id)
+
+    def test_filtre_par_syndicat(self):
+        poitiers = self._article_avec_img(titre='Article Poitiers')
+        autre = make_article_page(
+            section_slug='auvergne', title='Article Auvergne',
+            body=[('html', f'<img src="/media/{self.chemin}">')])
+
+        self._appel(section='poitiers')
+
+        poitiers.refresh_from_db()
+        autre.refresh_from_db()
+        self.assertTrue(poitiers.featured_image_id)
+        self.assertFalse(autre.featured_image_id,
+                         "les autres syndicats ne doivent pas être touchés")
