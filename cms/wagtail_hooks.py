@@ -1,5 +1,5 @@
 from django import forms
-from django.http import HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect
 from django.template.loader import render_to_string
 from django.urls import path, reverse
 from django.utils.html import format_html
@@ -57,10 +57,14 @@ def _make_scoped_article_page_view(base_class):
                 form.fields['featured_on_conf'].required = False
 
             if current:
-                slug = current.legacy_site_slug or current.slug
+                # Les contenus portent le slug Wagtail ; quelques syndicats ont
+                # un slug WordPress hérité différent (Numérique « stnum »).
+                # Lire sur les deux, écrire sur le slug Wagtail.
+                slug = current.slug
+                slugs = {current.slug, current.legacy_site_slug or current.slug}
                 if 'cms_categories' in form.fields:
                     form.fields['cms_categories'].queryset = CmsCategory.objects.filter(
-                        section_slug=slug
+                        section_slug__in=slugs
                     )
                 if 'section_slug' in form.fields:
                     if chef:
@@ -92,12 +96,30 @@ def _make_scoped_article_page_view(base_class):
                     )
             return form
 
+        def get_object(self, queryset=None):
+            """Un rédacteur ne doit pas pouvoir ouvrir l'article d'un autre
+            syndicat, même en tapant son URL : la liste le masquait déjà, mais
+            le formulaire d'édition restait accessible en lecture."""
+            objet = super().get_object(queryset)
+            # Création : pas d'objet existant à cloisonner.
+            if objet is None or not getattr(objet, 'pk', None):
+                return objet
+            if _is_chef(self.request.user):
+                return objet
+            current = get_current_site(self.request)
+            if current is None:
+                return objet
+            slugs = {current.slug, current.legacy_site_slug or current.slug}
+            if getattr(objet, 'section_slug', None) not in slugs:
+                raise Http404("Article hors du périmètre de votre syndicat.")
+            return objet
+
         def form_valid(self, form):
             """Enforce section_slug côté serveur pour les non-chefs."""
             if not _is_chef(self.request.user):
                 current = get_current_site(self.request)
                 if current:
-                    form.instance.section_slug = current.legacy_site_slug or current.slug
+                    form.instance.section_slug = current.slug
             return super().form_valid(form)
 
     return ScopedView

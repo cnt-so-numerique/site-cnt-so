@@ -1931,3 +1931,43 @@ class SlugHeriteAdminTest(TestCase):
         provision_section(self.site)
         self.assertTrue(Group.objects.filter(name='redacteur_numerique').exists())
         self.assertFalse(Group.objects.filter(name='redacteur_stnum').exists())
+
+
+class CloisonnementEditionTest(TestCase):
+    """Un rédacteur ne doit pas pouvoir ouvrir l'article d'un autre syndicat en
+    tapant son URL. La liste le masquait déjà, mais le formulaire d'édition
+    restait accessible en lecture (audit du 31/07/2026)."""
+
+    MDP = 'test-cloisonnement'
+
+    def setUp(self):
+        from django.contrib.auth.models import User, Group
+
+        self.mien = _ensure_section_page(slug='numerique', name='CNT-SO Numérique')
+        self.mien.legacy_site_slug = 'stnum'
+        self.mien.save()
+        self.voisin = _ensure_section_page(slug='13', name='CNT-SO 13')
+
+        self.a_moi = make_article_page(section_slug='numerique', title='Mon article')
+        self.a_voisin = make_article_page(section_slug='13', title='Article du voisin')
+
+        grp, _ = Group.objects.get_or_create(name='redacteur_numerique')
+        self.user = User.objects.create_user('redac_num', 'r@n.fr', self.MDP)
+        self.user.groups.set([grp])
+        self.client.login(username='redac_num', password=self.MDP)
+
+    def _edit(self, article):
+        return self.client.get(
+            f'/cms/snippets/cms/articlepage/edit/{article.pk}/', follow=False)
+
+    def test_edition_de_son_propre_article_autorisee(self):
+        self.assertEqual(self._edit(self.a_moi).status_code, 200)
+
+    def test_edition_d_un_article_d_un_autre_syndicat_refusee(self):
+        self.assertEqual(self._edit(self.a_voisin).status_code, 404)
+
+    def test_le_chef_garde_l_acces_a_tout(self):
+        from django.contrib.auth.models import Group
+        chef, _ = Group.objects.get_or_create(name='redacteur_en_chef')
+        self.user.groups.add(chef)
+        self.assertEqual(self._edit(self.a_voisin).status_code, 200)
