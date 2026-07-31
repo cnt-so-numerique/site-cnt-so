@@ -5232,3 +5232,33 @@ class MenuRequetesTest(TestCase):
         self.assertEqual(
             len(ctx.captured_queries), 0,
             "parcourir les trois niveaux ne doit déclencher aucune requête")
+
+
+class AccessibiliteTest(TestCase):
+    """Bases d'accessibilité vérifiées sur le HTML réellement servi
+    (audit du 31/07/2026 : ni lien d'évitement, ni étiquette sur la recherche
+    et la newsletter, et pas de repère <main> sur l'accueil)."""
+
+    def setUp(self):
+        self.site = make_site(slug='principal', name='CNT-SO')
+
+    def test_lien_d_evitement_present_et_cible_existante(self):
+        r = self.client.get('/')
+        self.assertContains(r, 'class="skip-link"')
+        self.assertContains(r, 'href="#contenu"')
+        self.assertContains(r, 'id="contenu"')
+
+    def test_repere_main_sur_l_accueil(self):
+        r = self.client.get('/')
+        self.assertContains(r, '<main')
+
+    def test_champ_de_recherche_etiquete(self):
+        r = self.client.get('/')
+        self.assertContains(r, 'aria-label="Rechercher sur le site"')
+
+    def test_champ_newsletter_etiquete(self):
+        html = self.client.get('/').content.decode()
+        import re
+        for champ in re.findall(r'<input[^>]*type="email"[^>]*>', html):
+            self.assertIn('aria-label', champ,
+                          "le champ e-mail de la newsletter doit être étiqueté")
