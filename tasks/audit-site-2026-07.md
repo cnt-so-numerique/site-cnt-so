@@ -320,3 +320,57 @@ Temps de réponse en production après correction : 0,4 s à 1,0 s.
 - **Parcours d'écriture réels** : créer puis publier un article, téléverser un
   média, envoyer une vraie newsletter — testés en droits, pas en usage.
 - **Montée en charge** : aucun test de charge.
+
+---
+
+## Accessibilité — premier audit (01/08/2026)
+
+Jamais auditée jusqu'ici. Analyse du HTML réellement servi en production sur
+6 pages (accueil, contact, plan du site, home et ressources d'un sous-site, agenda).
+
+### Corrigé et déployé (commits 05935a9, 6e36894)
+
+1. **Aucun lien d'évitement** — un utilisateur au clavier devait traverser toute
+   la navigation avant d'atteindre le contenu. Ajout d'un lien « Aller au contenu
+   principal », invisible à la souris, révélé au focus.
+2. **Champs sans étiquette** — la recherche et les trois champs e-mail de
+   newsletter n'avaient qu'un `placeholder`, inaudible pour un lecteur d'écran.
+   `aria-label` ajouté.
+3. **Repère `<main>` absent** des gabarits qui redéfinissent `full_content`
+   (accueil, qui-sommes-nous, s'organiser). Ajouté, et sert d'ancre au lien
+   d'évitement.
+4. **Sauts de niveau de titre** — h1→h3 (blocs de sidebar passés en h2) puis
+   h2→h4 (titres du pied de page passés en h3). Styles pilotés par classes :
+   apparence inchangée.
+
+Après déploiement, **tous les contrôles automatisables passent** sur les 6 pages :
+`lang`, `<h1>` unique, hiérarchie continue, images avec `alt`, champs étiquetés,
+boutons et liens avec nom accessible, repères `<main>`/`<nav>`/`<footer>`.
+
+⚠️ **Ma première passe sur-signalait** : le détecteur capturait le contenu des
+balises sans leurs attributs, comptant tous les champs, boutons et liens comme
+non étiquetés. Les liens sociaux et boutons à icône avaient déjà leur
+`aria-label`. Version corrigée du script en pièce jointe de session.
+
+### Contraste — un point à arbitrer
+
+| paire | ratio | texte courant (≥4,5) | texte large (≥3) |
+|---|---|---|---|
+| **rouge `#EC1C24` sur blanc** | **4,41** | ⚠️ sous le seuil | ✔ |
+| blanc sur rouge | 4,41 | ⚠️ sous le seuil | ✔ |
+| gris `#5C5C5C` sur blanc | 6,69 | ✔ | ✔ |
+| texte `#333` sur blanc | 12,63 | ✔ | ✔ |
+| blanc sur fond sombre | 17,40 | ✔ | ✔ |
+| gris clair sur pied de page sombre | 9,98 | ✔ | ✔ |
+
+Le rouge de la charte manque **0,09 point** pour le texte de taille normale ; il
+passe pour les gros titres et les boutons. Assombrir à peine suffirait —
+`#E81C24` donne 4,54 pour un écart invisible à l'œil. **C'est une décision de
+charte graphique, laissée à Arnaud** (le rouge « vraiment rouge » est une
+contrainte posée pour la refonte).
+
+### Reste non couvert
+
+Les contrôles automatisables ne remplacent pas un test réel : navigation clavier
+complète (ordre de tabulation, pièges de focus dans le menu déroulant), lecteur
+d'écran (NVDA/VoiceOver), zoom 200 %, et `prefers-reduced-motion`.
