@@ -2,6 +2,7 @@ import uuid
 from unittest.mock import patch, MagicMock
 
 from django.test import TestCase, RequestFactory
+from django.http import Http404
 from django.contrib.auth.models import User, Group, Permission
 from django.urls import reverse
 from django.utils import timezone
@@ -5091,3 +5092,48 @@ class ScopedArticleViewGetFormTest(TestCase):
                 result = view.get_form()
 
         self.assertIs(result, mock_form)
+
+
+class LegacySiteSlugRoutingTest(TestCase):
+    """Régression : un sous-site dont le legacy_site_slug diffère du slug.
+
+    Sur un domaine autonome, SectionDomainMiddleware préfixe le chemin avec
+    `legacy_site_slug`. Les vues qui résolvaient la section par `slug=` seul
+    renvoyaient un 404 sur tout le sous-site sauf la home et le contact
+    (cas constaté en prod le 31/07/2026 : Numérique, slug « numerique »,
+    legacy « stnum » — 5 pages en 404 ; Éducation a le même écart).
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='numerique', name='CNT-SO Numérique',
+                              site_type='sectoral')
+        self.site.legacy_site_slug = 'stnum'
+        self.site.save()
+
+    def test_pages_du_sous_site_accessibles_par_le_slug_legacy(self):
+        for chemin in ['agenda', 'rejoindre', 'ressources', 'plan-du-site',
+                       'espace-presse', 'contact']:
+            with self.subTest(chemin=chemin):
+                r = self.client.get(f'/stnum/{chemin}/')
+                self.assertEqual(
+                    r.status_code, 200,
+                    f"/stnum/{chemin}/ doit répondre malgré le slug hérité",
+                )
+
+    def test_pages_du_sous_site_accessibles_par_le_slug_wagtail(self):
+        for chemin in ['agenda', 'rejoindre', 'ressources', 'plan-du-site',
+                       'espace-presse', 'contact']:
+            with self.subTest(chemin=chemin):
+                r = self.client.get(f'/numerique/{chemin}/')
+                self.assertEqual(r.status_code, 200)
+
+    def test_slug_inconnu_reste_en_404(self):
+        r = self.client.get('/syndicat-inexistant-xyz/agenda/')
+        self.assertEqual(r.status_code, 404)
+
+    def test_helper_resout_les_deux_slugs(self):
+        from content.views import get_section_or_404
+        self.assertEqual(get_section_or_404('stnum').pk, self.site.pk)
+        self.assertEqual(get_section_or_404('numerique').pk, self.site.pk)
+        with self.assertRaises(Http404):
+            get_section_or_404('nawak-xyz')

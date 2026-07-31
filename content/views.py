@@ -13,6 +13,22 @@ from cms.models import ArticlePage, CmsCategory, SectionPage
 from taggit.models import Tag as TaggitTag
 
 
+def get_section_or_404(slug, **extra):
+    """Résout une SectionPage par son slug Wagtail *ou* son slug WordPress hérité.
+
+    Sur un domaine autonome, `SectionDomainMiddleware` préfixe le chemin avec
+    `legacy_site_slug` quand celui-ci diffère du slug (cas Numérique : slug
+    « numerique », legacy « stnum »). Chercher sur le seul `slug` renvoyait
+    alors un 404 sur toutes les pages du sous-site sauf le contact et la home.
+    """
+    section = SectionPage.objects.filter(
+        Q(slug=slug) | Q(legacy_site_slug=slug), **extra
+    ).first()
+    if section is None:
+        raise Http404(f"Syndicat introuvable : {slug}")
+    return section
+
+
 def _sidebar_context(section_slug):
     """Contexte campagnes/incontournables pour la sidebar, filtré par section."""
     base_qs = (
@@ -111,7 +127,7 @@ class SiteAgendaView(TemplateView):
         return ['content/site_agenda_events.html']
 
     def get(self, request, *args, **kwargs):
-        self.site_obj = get_object_or_404(SectionPage, slug=kwargs['site_slug'])
+        self.site_obj = get_section_or_404(kwargs['site_slug'])
         return TemplateView.get(self, request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -147,7 +163,7 @@ class SiteHomeView(ListView):
         return ['content/site_home.html']
 
     def get(self, request, *args, **kwargs):
-        self.current_site = get_object_or_404(SectionPage, slug=self.kwargs['site_slug'])
+        self.current_site = get_section_or_404(self.kwargs['site_slug'])
         if self.current_site.external_url:
             return redirect(self.current_site.external_url)
         self.home_page = Page.objects.filter(
@@ -162,7 +178,7 @@ class SiteHomeView(ListView):
 
     def get_queryset(self):
         if not hasattr(self, 'current_site'):
-            self.current_site = get_object_or_404(SectionPage, slug=self.kwargs['site_slug'])
+            self.current_site = get_section_or_404(self.kwargs['site_slug'])
         return (ArticlePage.objects.live()
                 .filter(section_slug=self.current_site.slug)
                 .select_related('featured_image')
@@ -244,13 +260,13 @@ class SiteArticleDetailView(ArticleDetailView):
     """Détail d'un article d'un sous-site"""
 
     def get_queryset(self):
-        self.current_site = get_object_or_404(SectionPage, slug=self.kwargs['site_slug'])
+        self.current_site = get_section_or_404(self.kwargs['site_slug'])
         return (ArticlePage.objects.live()
                 .filter(section_slug=self.current_site.slug)
                 .select_related('featured_image'))
 
     def get_object(self, queryset=None):
-        self.current_site = get_object_or_404(SectionPage, slug=self.kwargs['site_slug'])
+        self.current_site = get_section_or_404(self.kwargs['site_slug'])
         return get_object_or_404(
             ArticlePage.objects.live().select_related('featured_image'),
             slug=self.kwargs['slug'],
@@ -291,7 +307,7 @@ class SitePageDetailView(View):
         cp = ContentPage.objects.live().filter(slug=slug, section_slug=site_slug).first()
         if cp:
             return HttpResponsePermanentRedirect(cp.get_absolute_url())
-        current_site = get_object_or_404(SectionPage, slug=site_slug)
+        current_site = get_section_or_404(site_slug)
         page = get_object_or_404(Page, slug=slug, site=current_site, status='publish')
         return render(request, 'content/page_detail.html', {
             'page': page,
@@ -341,7 +357,7 @@ class SiteCategoryDetailView(ListView):
     paginate_by = 10
 
     def get(self, request, *args, **kwargs):
-        self.current_site = get_object_or_404(SectionPage, slug=kwargs['site_slug'])
+        self.current_site = get_section_or_404(kwargs['site_slug'])
         self.category = get_object_or_404(CmsCategory, slug=kwargs['slug'], section_slug=self.current_site.slug)
         return super().get(request, *args, **kwargs)
 
@@ -401,7 +417,7 @@ class SiteEspacePresse(ListView):
     paginate_by = 10
 
     def get_queryset(self):
-        self.current_site = get_object_or_404(SectionPage, slug=self.kwargs['site_slug'])
+        self.current_site = get_section_or_404(self.kwargs['site_slug'])
         self.category = CmsCategory.objects.filter(
             slug='communique-de-presse', section_slug=self.current_site.slug
         ).first()
@@ -669,7 +685,7 @@ class PlanDuSiteView(TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         site_slug = self.kwargs.get('site_slug', 'principal')
-        current = get_object_or_404(SectionPage, slug=site_slug)
+        current = get_section_or_404(site_slug)
         ctx['plan_site'] = current
         ctx['site'] = current
 
@@ -727,7 +743,7 @@ class NewsletterSubscribeView(View):
 
     def _get_site(self, site_slug=None):
         if site_slug:
-            return get_object_or_404(SectionPage, slug=site_slug, live=True)
+            return get_section_or_404(site_slug, live=True)
         return get_object_or_404(SectionPage, slug='principal')
 
     def post(self, request, site_slug=None):
@@ -847,7 +863,7 @@ class SiteRejoindreView(ContactFormMixin, View):
     """Page 'Nous rejoindre' générique pour tout sous-site."""
 
     def _ctx(self, site_slug):
-        site = get_object_or_404(SectionPage, slug=site_slug)
+        site = get_section_or_404(site_slug)
         ctx = {
             'site': site,
             'categories': CmsCategory.objects.filter(section_slug=site_slug),
@@ -879,7 +895,7 @@ class SiteRessourcesView(View):
     """Page 'Ressources' générique pour tout sous-site."""
 
     def get(self, request, site_slug):
-        site = get_object_or_404(SectionPage, slug=site_slug)
+        site = get_section_or_404(site_slug)
         # Uniquement les catégories contenant au moins un article publié
         # (l'import WordPress a laissé beaucoup de catégories vides ou en doublon)
         categories = CmsCategory.objects.filter(
