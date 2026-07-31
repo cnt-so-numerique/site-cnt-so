@@ -602,7 +602,10 @@ class ArticlePage(SeoMixin, Page):
             if parent:
                 specific = parent.specific
                 if isinstance(specific, SectionPage):
-                    self.section_slug = specific.legacy_site_slug or specific.slug
+                    # Slug Wagtail : c'est celui que portent tous les contenus.
+                    # Utiliser le slug WordPress hérité (Numérique « stnum »,
+                    # Éducation « fter ») rendrait la page invisible côté public.
+                    self.section_slug = specific.slug
                 else:
                     self.section_slug = 'principal'
         super().save(*args, **kwargs)
@@ -762,7 +765,10 @@ class ContentPage(Page):
             if parent:
                 specific = parent.specific
                 if isinstance(specific, SectionPage):
-                    self.section_slug = specific.legacy_site_slug or specific.slug
+                    # Slug Wagtail : c'est celui que portent tous les contenus.
+                    # Utiliser le slug WordPress hérité (Numérique « stnum »,
+                    # Éducation « fter ») rendrait la page invisible côté public.
+                    self.section_slug = specific.slug
                 else:
                     self.section_slug = 'principal'
         super().save(*args, **kwargs)

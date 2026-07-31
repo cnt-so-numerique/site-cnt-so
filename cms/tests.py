@@ -1882,3 +1882,52 @@ class PromoteBodyImagesTest(TestCase):
         self.assertFalse(art.featured_image_id)
         self.assertEqual(art.title, 'Avec brouillon', "la page ne doit pas être republiée")
         self.assertIn('brouillon en attente', sortie)
+
+
+class SlugHeriteAdminTest(TestCase):
+    """Côté rédaction : un syndicat dont le slug WordPress hérité diffère du
+    slug Wagtail (Numérique « stnum », Éducation « fter ») ne doit pas se
+    retrouver avec un espace de rédaction vide, ni produire des contenus
+    invisibles côté public. Constaté à l'audit du 31/07/2026."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='numerique', name='CNT-SO Numérique')
+        self.site.legacy_site_slug = 'stnum'
+        self.site.save()
+
+    def test_le_scoping_admin_voit_les_contenus_du_syndicat(self):
+        from cms.site_context import scope_qs_slug
+        from unittest.mock import MagicMock
+
+        art = make_article_page(section_slug='numerique', title='Article numerique')
+        requete = MagicMock()
+        with patch('cms.site_context.get_current_site', return_value=self.site):
+            visibles = scope_qs_slug(ArticlePage.objects.all(), requete)
+        self.assertIn(art, visibles,
+                      "le rédacteur doit voir les articles de son syndicat")
+
+    def test_nouveau_contenu_recoit_le_slug_wagtail(self):
+        """Un article créé sous la SectionPage doit porter « numerique » et non
+        « stnum », sinon il est invisible sur le site public."""
+        art = self.site.add_child(instance=ArticlePage(
+            title='Nouvel article', slug='nouvel-article'))
+        art.save()
+        art.refresh_from_db()
+        self.assertEqual(art.section_slug, 'numerique')
+
+    def test_nouvelle_page_recoit_le_slug_wagtail(self):
+        page = self.site.add_child(instance=ContentPage(
+            title='Nouvelle page', slug='nouvelle-page'))
+        page.save()
+        page.refresh_from_db()
+        self.assertEqual(page.section_slug, 'numerique')
+
+    def test_le_groupe_provisionne_suit_le_slug_wagtail(self):
+        """La prod a des groupes redacteur_numerique / redacteur_education :
+        provisionner sur le slug hérité créerait des doublons."""
+        from django.contrib.auth.models import Group
+        from cms.provisioning import provision_section
+
+        provision_section(self.site)
+        self.assertTrue(Group.objects.filter(name='redacteur_numerique').exists())
+        self.assertFalse(Group.objects.filter(name='redacteur_stnum').exists())

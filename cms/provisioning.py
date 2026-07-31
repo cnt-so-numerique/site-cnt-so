@@ -73,7 +73,9 @@ def provision_section(section):
     from django.contrib.auth.models import Group
     from wagtail.models import GroupPagePermission
 
-    slug = section.legacy_site_slug or section.slug
+    # Groupes nommés d'après le slug Wagtail : c'est la convention des groupes
+    # déjà en place en production (redacteur_numerique, pas redacteur_stnum).
+    slug = section.slug
     if not slug:
         return None
 

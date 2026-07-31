@@ -92,11 +92,17 @@ def scope_qs(qs, request, site_field='site'):
 
 
 def scope_qs_slug(qs, request, slug_field='section_slug'):
-    """Filtre par slug de syndicat (pour CmsCategory, ArticlePage, ContentPage)."""
+    """Filtre par slug de syndicat (pour CmsCategory, ArticlePage, ContentPage).
+
+    Les contenus portent le slug Wagtail, mais quelques syndicats ont un slug
+    WordPress hérité différent (Numérique « stnum », Éducation « fter ») :
+    filtrer sur le seul slug hérité vidait leur espace de rédaction. On accepte
+    les deux, comme les sitemaps et les flux.
+    """
     current = get_current_site(request)
     if current:
-        slug = current.legacy_site_slug or current.slug
-        return qs.filter(**{slug_field: slug})
+        slugs = {current.slug, current.legacy_site_slug or current.slug}
+        return qs.filter(**{f'{slug_field}__in': slugs})
     if _is_global_chef(request.user):
         return qs
     return qs.none()
