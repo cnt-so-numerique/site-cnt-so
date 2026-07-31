@@ -150,9 +150,21 @@ syndicats ont entre 1 et 5 articles sans visuel.
 manchette est marginal, pas structurel. Une image de repli suffirait ; il n'y a pas
 de chantier éditorial à mener.
 
+**Vérifié en ligne, contre le vieux WordPress** (`cnt-so.org/poitiers/`, encore
+debout) : rien n'a été perdu à l'import. Les articles concernés affichent bien
+leurs visuels sur le nouveau site, servis depuis `/media/` — il leur manque
+seulement le statut d'image « à la une », d'où des cartes vides dans les listes.
+Contrôle par sondage : « Ukraine, presque 3 ans de guerre » a ses 4 visuels des
+deux côtés ; « Un LRA à Rouillé » n'en a aucun, ni sur l'ancien site ni sur le
+nouveau — ces articles n'ont tout simplement jamais eu d'image.
+
+⚠️ *Attention au comptage :* une page d'article contient 4 images de barre latérale
+(campagnes, « ce que vous avez loupé »). Il faut les retrancher avant de conclure.
+
 **Piste facultative** : étendre `any_image_url` (`cms/models.py:707`) pour retomber
-sur la première image du corps quand aucune vignette n'est définie. Gain réel :
-43 articles seulement — utile mais mineur, à faire seulement si l'occasion se présente.
+sur la première image du corps quand aucune vignette n'est définie. Gain mesuré :
+**43 articles** — le contenu WordPress hérité n'en apporte aucun de plus (vérifié).
+Utile mais mineur, à faire si l'occasion se présente.
 
 ### E. 🟡 Métadonnées éditoriales
 
