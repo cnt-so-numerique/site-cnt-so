@@ -237,3 +237,86 @@ base locale — vérifier par HTTP ou en base de prod.
 - Intégrité des médias parfaite : plus aucune dépendance au vieux WordPress.
 - Les 7 domaines de fédérations répondent correctement (hors bug A).
 - Suite de 695 tests au vert.
+
+---
+
+# Seconde passe (31/07/2026) — au-delà du site public
+
+La première passe ne couvrait que le site public en lecture. Cette seconde passe
+a porté sur les logs, les sauvegardes, les mails, l'espace de rédaction et la
+performance. **Cinq bugs de plus**, tous déployés.
+
+## Logs de production — un incident, pas de dérive
+
+48 Mo de journaux depuis le 08/06. L'essentiel est du bruit de scanners
+(`/.env`, `/*.php`, `/.git/config` — ~1500 tentatives) et 12 échecs de
+négociation TLS côté nginx, sans conséquence.
+
+**Un seul incident réel** : le 26/07 de 11:50:46 à 11:52:14 (1 min 28), les
+workers gunicorn refusaient de démarrer — `SyntaxError` dans
+`cntso/local_settings.py` ligne 53, corrigée à la main. Le site était en 502.
+⚠️ Ce fichier est édité directement sur le serveur et n'est pas versionné : une
+faute de frappe coupe le site. Il est en revanche sauvegardé (chiffré) sur le NAS.
+
+## Sauvegardes — le circuit fonctionne
+
+Vérifié de bout en bout : `pg-backup.timer` tourne quotidiennement à 01h30
+(dernier dump `cntso` : 10,5 Mo), le miroir média local fait 7,5 Go — identique à
+la production — et le NAS vient tout récupérer à 02h30.
+
+## Mails — configuration saine
+
+SMTP OVH (`ssl0.ovh.net:587`, TLS, identifiants présents), **connexion et
+authentification testées avec succès**, zéro erreur d'envoi dans les logs. Aucun
+message n'a été envoyé depuis la prod pour ne pas polluer les boîtes des syndicats.
+
+## Webhook d'adhésion — protégé
+
+`POST /api/newsletter/sync/` renvoie **403** sans signature comme avec une
+signature invalide.
+
+## Espace de rédaction — 3 bugs (commits e6c5b1b, 8bed149)
+
+Parcours complet d'un rédacteur rattaché à un syndicat au slug hérité :
+**18 contrôles sur 19** passaient déjà (navigation, cloisonnement des listes,
+accès refusé aux comptes/groupes/admin Django).
+
+1. **Édition hors périmètre** : le formulaire d'édition d'un article d'un *autre*
+   syndicat s'ouvrait par URL directe. L'enregistrement était bien bloqué (pas de
+   fuite en écriture, vérifié), mais le contenu — brouillons compris — était
+   lisible. Désormais 404 ; le chef garde l'accès à tout.
+2. **Espace de rédaction vide** : `scope_qs_slug` filtrait sur le seul slug
+   hérité → les rédacteurs de Numérique et Éducation n'auraient vu **aucun** de
+   leurs contenus. Idem pour la liste des catégories du formulaire d'article.
+3. **Contenus nés invisibles** : `ArticlePage.save()`, `ContentPage.save()` et
+   `form_valid()` estampillaient `section_slug` avec le slug hérité → tout
+   contenu créé sous ces syndicats aurait été invisible côté public. Vérifié en
+   prod : 0 contenu portait `stnum`/`fter`, le piège n'avait pas encore servi.
+
+*(Le provisionnement nommait aussi les groupes d'après le slug hérité, ce qui
+aurait créé des doublons de `redacteur_numerique`.)*
+
+## Performance — un N+1 sur toutes les pages (commit 910a845)
+
+`base.html` descend à trois niveaux de menu (item → enfant → petit-enfant) alors
+que `get_menu` n'en préchargeait qu'un : chaque enfant déclenchait une requête,
+plus une par catégorie liée pour bâtir son URL. Le menu étant reconstruit sur
+**chaque page**, le surcoût était général.
+
+| page | avant | après |
+|---|---|---|
+| Home d'un sous-site | 62 requêtes | **18** |
+| Page Ressources | 60 | **15** |
+| Agenda | 55 | **10** |
+| Accueil confédéral | 52 | **27** |
+
+Temps de réponse en production après correction : 0,4 s à 1,0 s.
+
+## Reste non couvert
+
+- **Accessibilité** : rien n'a été vérifié (contrastes, navigation clavier,
+  lecteurs d'écran, attributs ARIA).
+- **Rendu visuel et responsive** : non revu dans cette passe.
+- **Parcours d'écriture réels** : créer puis publier un article, téléverser un
+  média, envoyer une vraie newsletter — testés en droits, pas en usage.
+- **Montée en charge** : aucun test de charge.
