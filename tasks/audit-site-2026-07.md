@@ -127,7 +127,7 @@ En production, 8 sections sur 12 n'ont pas d'email de contact : `13`, `34`,
 C'est la cause directe du constat B. (La fiche de `34`, tout juste créée, est
 entièrement vide — déjà noté dans `tasks/todo.md`.)
 
-### D. 🟢 Images : 91,5 % de couverture en production (et non 45 % de manques)
+### D. ✅ Images : 93,8 % de couverture après récupération (et non 45 % de manques)
 
 ⚠️ **Constat initial erroné, corrigé le 31/07.** La base de dev donnait « 763
 articles sur 1693 sans image », soit 45 %. **C'est un artefact de la base locale** :
@@ -161,10 +161,29 @@ nouveau — ces articles n'ont tout simplement jamais eu d'image.
 ⚠️ *Attention au comptage :* une page d'article contient 4 images de barre latérale
 (campagnes, « ce que vous avez loupé »). Il faut les retrancher avant de conclure.
 
-**Piste facultative** : étendre `any_image_url` (`cms/models.py:707`) pour retomber
-sur la première image du corps quand aucune vignette n'est définie. Gain mesuré :
-**43 articles** — le contenu WordPress hérité n'en apporte aucun de plus (vérifié).
-Utile mais mineur, à faire si l'occasion se présente.
+**✅ Récupération faite le 31/07** — commande `promote_body_images`
+(`cms/management/commands/`) : quand une page n'a pas de vignette mais porte une
+image dans son corps, cette image est promue en image « à la une » (rattachée à
+l'Image Wagtail existante, ou créée depuis le fichier déjà sur disque, dans la
+collection du syndicat).
+
+Résultat en production :
+
+| | avant | après |
+|---|---|---|
+| Articles avec vignette | 1631 (91,5 %) | **1671 (93,8 %)** |
+| Sans vignette | 151 | 111 |
+| Cartes illustrées sur `86.cnt-so.org/ressources/` | 67/197 | **104/197** |
+
+53 vignettes posées au total (40 articles + 13 pages de contenu). Les 111 restants
+n'ont aucune image nulle part — vérifié contre le vieux WordPress, ils n'en ont
+jamais eu.
+
+⚠️ **Garde-fous de la commande** : les pages ayant un brouillon en attente sont
+ignorées (les republier mettrait en ligne des modifications non validées) ; aucune
+image n'est dupliquée si le fichier est déjà connu de Wagtail ; `--dry-run`,
+`--section` et `--limit` disponibles. Contrôle après passage : 18 brouillons non
+publiés avant **et** après — rien n'a été publié par inadvertance.
 
 ### E. 🟡 Métadonnées éditoriales
 
