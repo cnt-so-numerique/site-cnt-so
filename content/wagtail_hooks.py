@@ -27,6 +27,9 @@ from .models import (
 )
 
 
+from cms.cloisonnement import ViewSetCloisonne
+
+
 def _scope_by_site(qs, request):
     from cms.site_context import scope_qs
     return scope_qs(qs, request, site_field='site')
@@ -191,7 +194,8 @@ class MediaViewSet(SnippetViewSet):
 
 # ── Commentaires ──────────────────────────────────────────────────────────────
 
-class CommentViewSet(SnippetViewSet):
+class CommentViewSet(ViewSetCloisonne, SnippetViewSet):
+    cloisonnement = ('fk', 'article__site')
     model = Comment
     icon = 'comment'
     menu_label = 'Commentaires'
@@ -210,9 +214,6 @@ class CommentViewSet(SnippetViewSet):
         FieldPanel('parent'),
     ]
 
-    def get_queryset(self, request):
-        from cms.site_context import scope_qs
-        return scope_qs(Comment.objects.all(), request, site_field='article__site')
 
 
 # ── Messages de contact ───────────────────────────────────────────────────────
@@ -245,7 +246,8 @@ class ContactMessageViewSet(SnippetViewSet):
 
 # ── Abonnés newsletter ────────────────────────────────────────────────────────
 
-class SubscriberViewSet(SnippetViewSet):
+class SubscriberViewSet(ViewSetCloisonne, SnippetViewSet):
+    cloisonnement = ('fk', 'site')
     model = Subscriber
     icon = 'user'
     menu_label = 'Abonnés'
@@ -263,13 +265,12 @@ class SubscriberViewSet(SnippetViewSet):
         FieldPanel('confirmed_at'),
     ]
 
-    def get_queryset(self, request):
-        return _scope_by_site(self.model.objects.all(), request)
 
 
 # ── Newsletter ────────────────────────────────────────────────────────────────
 
-class NewsletterViewSet(SnippetViewSet):
+class NewsletterViewSet(ViewSetCloisonne, SnippetViewSet):
+    cloisonnement = ('fk', 'site')
     model = Newsletter
     icon = 'mail'
     menu_label = 'Newsletters'
@@ -297,8 +298,6 @@ class NewsletterViewSet(SnippetViewSet):
         ),
     ]
 
-    def get_queryset(self, request):
-        return _scope_by_site(self.model.objects.all(), request)
 
 
 # ── Menus ─────────────────────────────────────────────────────────────────────
@@ -436,7 +435,8 @@ class _MenuItemCreateView(SnippetCreateView):
         return super().form_valid(form)
 
 
-class MenuItemViewSet(SnippetViewSet):
+class MenuItemViewSet(ViewSetCloisonne, SnippetViewSet):
+    cloisonnement = ('fk', 'site')
     model = MenuItem
     icon = 'list-ul'
     menu_label = 'Menus'
@@ -468,13 +468,12 @@ class MenuItemViewSet(SnippetViewSet):
         ]),
     ]
 
-    def get_queryset(self, request):
-        return _scope_by_site(self.model.objects.all(), request)
 
 
 # ── Auteurs ───────────────────────────────────────────────────────────────────
 
-class AuthorViewSet(SnippetViewSet):
+class AuthorViewSet(ViewSetCloisonne, SnippetViewSet):
+    cloisonnement = ('fk', 'site')
     model = Author
     icon = 'user'
     menu_label = 'Auteurs'
@@ -493,9 +492,6 @@ class AuthorViewSet(SnippetViewSet):
         FieldPanel('email'),
     ]
 
-    def get_queryset(self, request):
-        from cms.site_context import scope_qs
-        return scope_qs(Author.objects.all(), request, site_field='site')
 
 
 # ── Groupes de menus ─────────────────────────────────────────────────────────
@@ -522,26 +518,24 @@ class _ContactConfigRedirect(SnippetIndexView):
         return HttpResponseRedirect('/cms/contact-config/')
 
 
-class ContactMessagesViewSet(SnippetViewSet):
+class ContactMessagesViewSet(ViewSetCloisonne, SnippetViewSet):
+    cloisonnement = ('fk', 'site')
     model = ContactMessage
     icon = 'mail'
     menu_label = 'Messages reçus'
     menu_order = 100
     index_view_class = _ContactListRedirect
 
-    def get_queryset(self, request):
-        return _scope_by_site(self.model.objects.all(), request)
 
 
-class ContactConfigViewSet(SnippetViewSet):
+class ContactConfigViewSet(ViewSetCloisonne, SnippetViewSet):
+    cloisonnement = ('fk', 'site')
     model = FormulaireContact
     icon = 'cog'
     menu_label = 'Config formulaire'
     menu_order = 110
     index_view_class = _ContactConfigRedirect
 
-    def get_queryset(self, request):
-        return _scope_by_site(self.model.objects.all(), request)
 
 
 class ContactGroup(SnippetViewSetGroup):

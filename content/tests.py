@@ -1996,7 +1996,7 @@ class SectionAutonomyPermissionsTest(TestCase):
         y compris pour un rédacteur de syndicat (plus seulement les chefs)."""
         from django.core.management import call_command
         from django.test import RequestFactory
-        from cms.wagtail_hooks import SectionPageViewSet
+        from cms.models import SectionPage
         call_command('setup_cms_permissions')
         u = User.objects.create_user('sec-redac2', password='pass')
         u.groups.add(Group.objects.get(name='redacteur_other'))
@@ -2004,7 +2004,9 @@ class SectionAutonomyPermissionsTest(TestCase):
         request = RequestFactory().get('/')
         request.user = u
         request.session = {}
-        qs = SectionPageViewSet.get_queryset(None, request)
+        # Passer par le viewset enregistré : get_queryset lit désormais la
+        # déclaration `cloisonnement` sur l'instance.
+        qs = SectionPage.snippet_viewset.get_queryset(request)
         self.assertEqual([s.slug for s in qs], ['other'])
 
 

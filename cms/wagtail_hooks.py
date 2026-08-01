@@ -1,5 +1,6 @@
 from django import forms
-from django.http import Http404, HttpResponseRedirect
+from django.http import HttpResponseRedirect
+from django.shortcuts import get_list_or_404
 from django.template.loader import render_to_string
 from django.urls import path, reverse
 from django.utils.html import format_html
@@ -8,6 +9,7 @@ from urllib.parse import urlparse
 
 from wagtail import hooks
 from wagtail.admin.ui.components import Component
+from wagtail.snippets.bulk_actions.delete import DeleteBulkAction
 from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import (
     SnippetViewSet, SnippetViewSetGroup,
@@ -20,12 +22,8 @@ from content.admin_utils import (
 )
 
 from .models import ArticlePage, ContentPage, CmsCategory, Event, SectionPage
+from .cloisonnement import ViewSetCloisonne
 from .site_context import SESSION_KEY, get_current_site, get_available_sites, set_current_site
-
-
-def _scope_articles(qs, request):
-    from .site_context import scope_qs_slug
-    return scope_qs_slug(qs, request, slug_field='section_slug')
 
 
 def _safe_redirect(url, fallback='/cms/'):
@@ -154,24 +152,6 @@ def _make_scoped_article_page_view(base_class):
                     )
             return form
 
-        def get_object(self, queryset=None):
-            """Un rédacteur ne doit pas pouvoir ouvrir l'article d'un autre
-            syndicat, même en tapant son URL : la liste le masquait déjà, mais
-            le formulaire d'édition restait accessible en lecture."""
-            objet = super().get_object(queryset)
-            # Création : pas d'objet existant à cloisonner.
-            if objet is None or not getattr(objet, 'pk', None):
-                return objet
-            if _is_chef(self.request.user):
-                return objet
-            current = get_current_site(self.request)
-            if current is None:
-                return objet
-            slugs = {current.slug, current.legacy_site_slug or current.slug}
-            if getattr(objet, 'section_slug', None) not in slugs:
-                raise Http404("Article hors du périmètre de votre syndicat.")
-            return objet
-
         def form_valid(self, form):
             """Enforce section_slug côté serveur pour les non-chefs."""
             if not _is_chef(self.request.user):
@@ -185,7 +165,8 @@ def _make_scoped_article_page_view(base_class):
 
 # ── Articles ──────────────────────────────────────────────────────────────────
 
-class ArticlePageViewSet(SnippetViewSet):
+class ArticlePageViewSet(ViewSetCloisonne, SnippetViewSet):
+    cloisonnement = ('slug', 'section_slug')
     model = ArticlePage
     icon = 'doc-full'
     menu_label = 'Articles'
@@ -220,8 +201,6 @@ class ArticlePageViewSet(SnippetViewSet):
     add_view_class = _make_scoped_article_page_view(SnippetCreateView)
     edit_view_class = _make_scoped_article_page_view(SnippetEditView)
 
-    def get_queryset(self, request):
-        return _scope_articles(ArticlePage.objects.all(), request)
 
 
 # ── Pages de contenu ──────────────────────────────────────────────────────────
@@ -245,7 +224,8 @@ class _ContentPageCreateView(PageTreeCreateMixin, SnippetCreateView):
     """Même correctif d'arbre que pour les articles."""
 
 
-class ContentPageViewSet(SnippetViewSet):
+class ContentPageViewSet(ViewSetCloisonne, SnippetViewSet):
+    cloisonnement = ('slug', 'section_slug')
     model = ContentPage
     add_view_class = _ContentPageCreateView
     icon = 'doc-empty'
@@ -256,14 +236,12 @@ class ContentPageViewSet(SnippetViewSet):
     list_filter = ['live', 'section_slug']
     search_fields = ['title']
 
-    def get_queryset(self, request):
-        from .site_context import scope_qs_slug
-        return scope_qs_slug(ContentPage.objects.all(), request, slug_field='section_slug')
 
 
 # ── Catégories CMS ────────────────────────────────────────────────────────────
 
-class CmsCategoryViewSet(SnippetViewSet):
+class CmsCategoryViewSet(ViewSetCloisonne, SnippetViewSet):
+    cloisonnement = ('slug', 'section_slug')
     model = CmsCategory
     icon = 'folder-open-inverse'
     menu_label = 'Catégories'
@@ -272,14 +250,14 @@ class CmsCategoryViewSet(SnippetViewSet):
     list_filter = ['section_slug']
     search_fields = ['name', 'slug']
 
-    def get_queryset(self, request):
-        from .site_context import scope_qs_slug
-        return scope_qs_slug(CmsCategory.objects.all(), request, slug_field='section_slug')
 
 
 # ── Sections ──────────────────────────────────────────────────────────────────
 
-class SectionPageViewSet(SnippetViewSet):
+class SectionPageViewSet(ViewSetCloisonne, SnippetViewSet):
+    # La fiche est gérée en autonomie par chaque syndicat : l'objet EST le
+    # périmètre. Un chef sans syndicat sélectionné les voit toutes.
+    cloisonnement = ('pk', None)
     model = SectionPage
     icon = 'site'
     menu_label = 'Mon syndicat'
@@ -288,17 +266,6 @@ class SectionPageViewSet(SnippetViewSet):
     search_fields = ['title', 'slug']
     panels = SectionPage.content_panels
 
-    def get_queryset(self, request):
-        qs = SectionPage.objects.all()
-        if request.user.is_superuser:
-            return qs
-        # Chef comme rédacteur de syndicat : uniquement le syndicat courant
-        # (session pour le chef, groupe par section ou Author.site sinon) —
-        # la fiche est gérée en autonomie par chaque syndicat.
-        current = get_current_site(request)
-        if current:
-            return qs.filter(pk=current.pk)
-        return qs.none()
 
 
 @hooks.register('construct_snippet_action_menu')
@@ -318,7 +285,8 @@ def syndicat_enregistrer_publie_directement(menu_items, request, context):
 
 # ── Événements ────────────────────────────────────────────────────────────────
 
-class EventViewSet(SnippetViewSet):
+class EventViewSet(ViewSetCloisonne, SnippetViewSet):
+    cloisonnement = ('fk', 'section')
     model = Event
     icon = 'date'
     menu_label = 'Agenda'
@@ -341,14 +309,6 @@ class EventViewSet(SnippetViewSet):
         FieldPanel('url'),
     ]
 
-    def get_queryset(self, request):
-        qs = Event.objects.all()
-        current = get_current_site(request)
-        if current:
-            return qs.filter(section=current)
-        if request.user.is_superuser:
-            return qs
-        return qs.none()
 
 
 # ── Groupe principal CMS ──────────────────────────────────────────────────────
@@ -369,6 +329,40 @@ class CmsAdminGroup(SnippetViewSetGroup):
 
 register_snippet(CmsContenuGroup)
 register_snippet(CmsAdminGroup)
+
+
+# ── Suppression en masse ──────────────────────────────────────────────────────
+
+@hooks.register('register_bulk_action')
+class SuppressionEnMasseCloisonnee(DeleteBulkAction):
+    """Les actions en masse court-circuitent complètement les viewsets.
+
+    `BulkAction` lit les objets par clé primaire sans aucun filtre et résout
+    « tout sélectionner » en `model.objects.all()`, tandis que `check_perm` ne
+    teste que la permission de modèle — Wagtail l'assume dans son propre code :
+    « snippets permissions are not enforced per object ». Le rôle syndicat ayant
+    `delete_subscriber`, un seul POST sur
+    `/cms/bulk/content/subscriber/delete/?id=all` effaçait les abonnés de tous
+    les syndicats.
+
+    Enregistrée après celle de Wagtail (cms est plus bas dans INSTALLED_APPS) :
+    le registre garde la dernière classe vue pour un `action_type` donné.
+    """
+
+    def _perimetre(self, model):
+        viewset = getattr(model, 'snippet_viewset', None)
+        if isinstance(viewset, ViewSetCloisonne):
+            return viewset.get_queryset(self.request)
+        return model._default_manager.all()
+
+    def get_queryset(self, model, object_ids):
+        # Redéfini en méthode d'instance (classmethod chez Wagtail) : il faut
+        # la requête pour connaître le syndicat courant. Le site d'appel,
+        # `self.get_queryset(self.model, object_ids)`, fonctionne pour les deux.
+        return get_list_or_404(self._perimetre(model).filter(pk__in=object_ids))
+
+    def get_all_objects_in_listing_query(self, parent_id):
+        return self._perimetre(self.model).values_list('pk', flat=True)
 
 
 # ── Boutons "Voir / Prévisualiser" sur les articles ───────────────────────────
