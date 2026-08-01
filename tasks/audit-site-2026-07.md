@@ -434,14 +434,36 @@ la décision inverse, cohérente avec l'ensemble (ni articles, ni pages, ni
 catégories, ni images ne sont supprimables par un rédacteur). C'est un choix de
 produit, à trancher par Arnaud, pas à retourner en passant.
 
+### Verrouillage en écriture et sélecteurs (même jour)
+
+Le cloisonnement ci-dessus empêche d'**ouvrir** le contenu du voisin. Il
+n'empêchait ni d'en **créer** chez lui — le champ de rattachement restait libre
+dans le formulaire, et forgeable dans le POST —, ni d'y **piocher** par les
+sélecteurs, qui sont des viewsets distincts que le cloisonnement des écrans
+n'atteint pas : un rédacteur mettait l'article d'un autre syndicat dans sa
+newsletter.
+
+Le champ à verrouiller est déduit de la déclaration `cloisonnement` déjà
+présente : rien à redéclarer. Pour un rédacteur il est borné, masqué, et
+réécrit côté serveur. Les deux gardes se complètent, et c'est nécessaire : sur
+une clé étrangère, la borne du queryset **rejette** la valeur forgée à la
+validation ; sur un rattachement par slug — une simple chaîne qu'aucun queryset
+ne protège — seule la réécriture serveur tient.
+
+Les sélecteurs sont bornés au même périmètre. **Une exception, explicite et
+testée** : celui des syndicats reste ouvert, `MenuItem.target_site` s'en servant
+pour pointer vers les autres — c'est sa raison d'être.
+
+Contre-épreuve à nouveau concluante : les 6 tests de ce lot échouent sur le code
+d'avant, les 8 précédents restent verts.
+
 ### Reste de ce chantier
 
-Verrouillage en écriture du champ syndicat dans les formulaires (créer un
-événement dans l'agenda d'un voisin reste possible), cloisonnement des
-sélecteurs de snippets — en veillant à **ne pas** cloisonner celui de
-`SectionPage`, dont `MenuItem.target_site` a légitimement besoin —, retrait du
-motif `chef_` devenu inutile, et migration désactivant la ligne
-`wagtailcore_workflow` « Moderators approval » restée active.
+Retrait du motif `chef_` de `_SECTION_GROUP_RE`, devenu inutile (plus aucun
+groupe `chef_*` n'existe), et migration désactivant la ligne
+`wagtailcore_workflow` « Moderators approval », restée active en base alors que
+le circuit d'approbation est coupé. Deux points cosmétiques, sans effet sur la
+sécurité.
 
 ---
 
