@@ -41,6 +41,10 @@ def create_editorial_groups(sender, **kwargs):
         'content.change_comment', 'content.view_comment', 'content.delete_comment',
         'content.view_contactmessage', 'content.change_contactmessage',
         'content.view_formulairecontact', 'content.change_formulairecontact',
+        # Champs personnalisés du formulaire : le rédacteur les gère, le chef
+        # ne pouvait pas y toucher — asymétrie relevée le 01/08/2026.
+        'content.add_champcontactcustom', 'content.change_champcontactcustom',
+        'content.delete_champcontactcustom', 'content.view_champcontactcustom',
         # Outils par syndicat : newsletter, abonnés, menus — le dashboard et
         # /cms/menus/ pointent vers ces snippets, le chef doit pouvoir y accéder
         'content.add_newsletter', 'content.change_newsletter', 'content.delete_newsletter', 'content.view_newsletter',
@@ -56,6 +60,10 @@ def create_editorial_groups(sender, **kwargs):
         'content.add_article', 'content.change_article', 'content.view_article',
         'content.add_page', 'content.change_page', 'content.view_page',
         'content.view_category', 'content.view_tag',
+        # Modération des commentaires de SES articles (le queryset les borne à
+        # son syndicat) : « Spam » et « Corbeille » étant des statuts, modifier
+        # suffit à modérer — la suppression reste au chef, comme pour le reste.
+        'content.view_comment', 'content.change_comment',
         # Menus : vues Move/Reorder sécurisées (scoping par syndicat) et champ
         # site verrouillé côté formulaire ET serveur — ouvert depuis le lot 6.
         # Pas de delete : décision d'ensemble (articles, pages, catégories,
@@ -79,6 +87,10 @@ def create_editorial_groups(sender, **kwargs):
         'auth.add_user', 'auth.change_user', 'auth.view_user',
         'cms.add_articlepage', 'cms.change_articlepage', 'cms.delete_articlepage', 'cms.view_articlepage',
         'cms.publish_articlepage', 'cms.publish_contentpage', 'cms.publish_sectionpage',
+        # Le chef pouvait publier une fiche de syndicat sans pouvoir l'ouvrir :
+        # l'interface snippets s'appuie sur les permissions de modèle, pas sur
+        # les droits d'arbre. Asymétrie relevée le 01/08/2026.
+        'cms.change_sectionpage', 'cms.view_sectionpage',
         'cms.add_contentpage', 'cms.change_contentpage', 'cms.delete_contentpage', 'cms.view_contentpage',
         'cms.add_cmscategory', 'cms.change_cmscategory', 'cms.delete_cmscategory', 'cms.view_cmscategory',
         'cms.add_event', 'cms.change_event', 'cms.delete_event', 'cms.view_event',

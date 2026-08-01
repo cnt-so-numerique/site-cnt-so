@@ -1839,8 +1839,32 @@ class SectionAutonomyPermissionsTest(TestCase):
         for perm in ['content.delete_menuitem', 'content.delete_newsletter',
                      'cms.delete_articlepage', 'cms.delete_contentpage',
                      'cms.delete_cmscategory', 'cms.delete_sectionpage',
+                     'content.delete_comment',
                      'wagtailimages.delete_image']:
             self.assertFalse(redacteur.has_perm(perm), f'ne devrait pas avoir : {perm}')
+
+    def test_redacteur_modere_les_commentaires_de_ses_articles(self):
+        """« Spam » et « Corbeille » sont des statuts : modifier suffit à
+        modérer, sans accorder la suppression."""
+        redacteur = make_redacteur(site=self.site_a)
+        self.assertTrue(redacteur.has_perm('content.view_comment'))
+        self.assertTrue(redacteur.has_perm('content.change_comment'))
+
+    def test_le_chef_peut_ouvrir_une_fiche_de_syndicat(self):
+        """Il pouvait la publier sans pouvoir l'ouvrir : l'interface snippets
+        s'appuie sur les permissions de modèle, pas sur les droits d'arbre."""
+        chef = make_chef(site=self.site_a)
+        for perm in ['cms.view_sectionpage', 'cms.change_sectionpage',
+                     'cms.publish_sectionpage']:
+            self.assertTrue(chef.has_perm(perm), f'manquante au chef : {perm}')
+
+    def test_le_chef_gere_les_champs_du_formulaire_de_contact(self):
+        chef = make_chef(site=self.site_a)
+        for perm in ['content.add_champcontactcustom',
+                     'content.change_champcontactcustom',
+                     'content.delete_champcontactcustom',
+                     'content.view_champcontactcustom']:
+            self.assertTrue(chef.has_perm(perm), f'manquante au chef : {perm}')
 
     def test_redacteur_has_menu_perms(self):
         """Lot 6 : menus ouverts après sécurisation des vues Move/Reorder."""
