@@ -24,6 +24,13 @@ comptes rédacteurs** et rattachement au syndicat (/cms/users/).
 
 **Superuser** : technique (domaines, Django admin).
 
+> ⚠️ **Fiche partiellement périmée (01/08/2026).** Les lots 2 à 6 décrits plus
+> bas comme « à faire » ont été livrés (publication directe, permissions modèle,
+> fusion des groupes `chef_*`, newsletter et listes OVH ouvertes, menus
+> sécurisés). Le chantier du 01/08 a porté sur ce qui manquait à l'inverse : le
+> **cloisonnement par objet**, les droits ayant été ouverts sans que les
+> barrières suivent. Voir la « Passe 6 » de `tasks/audit-site-2026-07.md`.
+
 ## État des lieux (constats 2026-07-16)
 
 - ✅ **Fait (non commité)** : résolution du site courant via les groupes par

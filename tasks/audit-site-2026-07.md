@@ -377,6 +377,74 @@ teinte est unifiée partout. Verrouillé par `ContrasteCouleursTest` : le calcul
 est validé sur des repères connus (noir = 21:1, blanc = 1:1), `--primary-color`
 doit tenir 4,5:1, et aucune ancienne teinte ne peut réapparaître dans les gabarits.
 
+## Passe 6 — cloisonnement du back-office (01/08)
+
+La fiche `tasks/chantier-autonomie-syndicats.md` annonçait les lots 2 à 6 comme
+restant à faire : **elle était périmée**. Publication directe, permissions
+modèle, ouverture de la newsletter et sécurisation des menus étaient livrées.
+Ce qui manquait, c'était l'inverse : les droits avaient été ouverts aux
+rédacteurs sans que les barrières par objet suivent.
+
+### La faille principale : la suppression en masse
+
+Le rôle syndicat possède `content.delete_subscriber` au niveau modèle. Or
+`BulkAction` résout `?id=all` en `model.objects.all()` et `check_perm` ne teste
+que la permission de modèle — Wagtail l'assume dans son propre code : *« snippets
+permissions are not enforced per object »*. **Un seul POST sur
+`/cms/bulk/content/subscriber/delete/?id=all` effaçait les abonnés newsletter de
+tous les syndicats.** Exploitable en l'état par n'importe quel rédacteur.
+
+### La faille de fond : un seul écran protégé sur une centaine
+
+Wagtail ne passe le queryset d'un `SnippetViewSet` qu'à la vue index. Édition,
+suppression, copie, historique, dépublication, révisions, prévisualisation :
+tous relisent par clé primaire sans filtre, et plusieurs appellent
+`get_object_or_404(self.model, pk=…)` en dur. Sur douze snippets enregistrés,
+seul `ArticlePage` était couvert, par un garde ad hoc posé lors de la passe 2 —
+et uniquement sur son écran d'édition.
+
+### Le correctif
+
+`cms/cloisonnement.py`. Chaque viewset déclare son périmètre une fois, et cette
+déclaration sert la liste comme les écrans par pk. Le point d'accroche est
+`construct_view`, traversé par les 24 URLs d'un viewset sans exception :
+énumérer les attributs `*_view_class` aurait été un inventaire à maintenir,
+donc à oublier, alors que Wagtail en ajoute à chaque version. Un viewset sans
+déclaration lève `ImproperlyConfigured` à l'enregistrement plutôt que de
+s'ouvrir en silence.
+
+**Contre-épreuve, la vérification qui compte** : `cms/tests_cloisonnement.py`
+rejoué sur le code d'avant donne **114 échecs et 1 erreur**, contre 7 tests
+verts après. Un test de sécurité qu'on n'a jamais vu échouer ne prouve rien.
+Détail parlant : `edit` d'ArticlePage ne figure pas parmi ces 114 — l'ancien
+garde couvrait exactement un écran.
+
+### Aussi corrigé
+
+Trois gardes filtraient « si un syndicat est résolu » et laissaient donc passer
+quand il ne l'était pas. `_enforce_menuitem_site` s'appliquait à l'édition et
+réattribuait au rédacteur l'entrée de menu d'un autre syndicat. Les raccourcis
+« Menus » et « Newsletter » restaient réservés aux chefs alors que les vues leur
+étaient ouvertes. Enfin, le reliquat d'Editor.js a été retiré : deux endpoints
+d'upload publics sans contrôle de rôle, leurs routes, le widget, le JS/CSS et
+cinq viewsets non enregistrés — 35 tests disparaissent avec.
+
+**Non retenu** : accorder `delete_menuitem` aux rédacteurs. Deux tests encodent
+la décision inverse, cohérente avec l'ensemble (ni articles, ni pages, ni
+catégories, ni images ne sont supprimables par un rédacteur). C'est un choix de
+produit, à trancher par Arnaud, pas à retourner en passant.
+
+### Reste de ce chantier
+
+Verrouillage en écriture du champ syndicat dans les formulaires (créer un
+événement dans l'agenda d'un voisin reste possible), cloisonnement des
+sélecteurs de snippets — en veillant à **ne pas** cloisonner celui de
+`SectionPage`, dont `MenuItem.target_site` a légitimement besoin —, retrait du
+motif `chef_` devenu inutile, et migration désactivant la ligne
+`wagtailcore_workflow` « Moderators approval » restée active.
+
+---
+
 ### Reste non couvert
 
 Les contrôles automatisables ne remplacent pas un test réel : lecteur d'écran
