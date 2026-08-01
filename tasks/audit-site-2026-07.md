@@ -477,6 +477,14 @@ passent par `get_absolute_url()`, déjà conscient du domaine.
 Le lien `/rejoindre/` avait échappé à mon inventaire — il vient d'une méthode de
 modèle, pas d'un `{% url %}` : c'est le test de balayage qui l'a trouvé.
 
+**Puis la recette de production en a révélé une troisième source** : sur STUCS,
+10 liens de menu restaient préfixés. Ce n'était pas du code mais des **données** —
+des entrées de menu `link_type='url'` où un rédacteur avait tapé
+`/stucs/ressources/?cat=communiques` à la main. `MenuItem.get_url()` normalise
+désormais ces saisies quand la section a un domaine, en gardant la chaîne de
+requête ; les URL externes et celles visant une autre section sont laissées
+intactes.
+
 ### Parcours newsletter
 
 **Aucune newsletter réelle n'a été envoyée** — c'est une action externe
@@ -492,4 +500,4 @@ chaîne tient.
 
 `NavigationClavierTest` (6), `HierarchieDesTitresTest` (2),
 `AccueilHeriteDeWordPressTest` (5), `ParcoursNewsletterCompletTest` (2),
-`SectionUrlTagTest` (8). **730 → 753 tests.**
+`SectionUrlTagTest` (11). **730 → 756 tests.**

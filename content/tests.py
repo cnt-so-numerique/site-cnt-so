@@ -5474,6 +5474,33 @@ class SectionUrlTagTest(TestCase):
         self.assertEqual(prefixes, [],
                          f"liens encore préfixés, donc redirigés : {prefixes[:5]}")
 
+    def test_une_url_de_menu_saisie_a_la_main_est_normalisee(self):
+        """Un rédacteur tape `/tag-url/ressources/` : sur un domaine autonome
+        c'est exactement la forme que le middleware redirige."""
+        from content.models import MenuItem
+        self._avec_domaine()
+        item = MenuItem.objects.create(
+            site=self.site, title='Ressources', link_type='url',
+            url='/tag-url/ressources/?cat=greve', is_active=True)
+        self.assertEqual(item.get_url(),
+                         'https://tag.cnt-so.org/ressources/?cat=greve')
+
+    def test_une_url_de_menu_externe_n_est_pas_touchee(self):
+        from content.models import MenuItem
+        self._avec_domaine()
+        for saisie in ('https://cnt-so.org/international/', '/13/ressources/'):
+            item = MenuItem.objects.create(
+                site=self.site, title='Ailleurs', link_type='url',
+                url=saisie, is_active=True)
+            self.assertEqual(item.get_url(), saisie)
+
+    def test_une_url_de_menu_reste_intacte_sans_domaine_autonome(self):
+        from content.models import MenuItem
+        item = MenuItem.objects.create(
+            site=self.site, title='Ressources', link_type='url',
+            url='/tag-url/ressources/', is_active=True)
+        self.assertEqual(item.get_url(), '/tag-url/ressources/')
+
     @override_settings(ALLOWED_HOSTS=['tag.cnt-so.org', 'testserver'])
     def test_aucune_page_du_sous_site_ne_produit_de_lien_a_rediriger(self):
         """Balayage complet : le menu et les barres latérales sont sur toutes
@@ -5485,6 +5512,10 @@ class SectionUrlTagTest(TestCase):
                                 link_type='contact', is_active=True, order=1)
         MenuItem.objects.create(site=self.site, title='Agenda',
                                 link_type='agenda', is_active=True, order=2)
+        # URL tapée à la main par un rédacteur, comme sur STUCS en production
+        MenuItem.objects.create(site=self.site, title='Ressources',
+                                link_type='url', url='/tag-url/ressources/',
+                                is_active=True, order=3)
         self._avec_domaine()
 
         fautifs, examinees = {}, []

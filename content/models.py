@@ -451,11 +451,32 @@ class MenuItem(models.Model):
     def __str__(self):
         return f"{self.get_menu_display()} - {self.title}"
 
+    def _canonique(self, url):
+        """Normalise une URL saisie à la main dans le menu.
+
+        Un rédacteur tape naturellement `/stucs/ressources/` ; sur un domaine
+        autonome c'est justement la forme que le middleware redirige en 301.
+        On la ramène à l'URL finale, en gardant la chaîne de requête. Les URL
+        externes et celles d'une autre section sont laissées telles quelles.
+        """
+        if not url or not url.startswith('/') or not self.site:
+            return url
+        from cms.models import section_base_url
+        base = section_base_url(self.site.slug)
+        if not base:
+            return url
+        for slug in {self.site.slug, self.site.legacy_site_slug or self.site.slug}:
+            if url == f'/{slug}':
+                return f'{base}/'
+            if url.startswith(f'/{slug}/'):
+                return f'{base}{url[len(slug) + 1:]}'
+        return url
+
     def get_url(self):
         """Retourne l'URL du lien selon link_type."""
 
         if self.link_type == 'url' or not self.link_type:
-            return self.url or '#'
+            return self._canonique(self.url) or '#'
         if self.link_type == 'category' and self.category:
             return self.category.get_absolute_url()
         if self.link_type == 'site' and self.target_site:
@@ -484,7 +505,7 @@ class MenuItem(models.Model):
             return reverse('content:site_agenda', kwargs={'site_slug': self.site.slug})
         # Fallback legacy
         if self.url:
-            return self.url
+            return self._canonique(self.url)
         if self.article:
             return self.article.get_absolute_url()
         if self.page:
