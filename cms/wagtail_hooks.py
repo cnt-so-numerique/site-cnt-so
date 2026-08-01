@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 from wagtail import hooks
 from wagtail.admin.ui.components import Component
 from wagtail.snippets.bulk_actions.delete import DeleteBulkAction
+from wagtail.snippets.views.chooser import SnippetChooserViewSet
 from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import (
     SnippetViewSet, SnippetViewSetGroup,
@@ -258,6 +259,9 @@ class SectionPageViewSet(ViewSetCloisonne, SnippetViewSet):
     # La fiche est gérée en autonomie par chaque syndicat : l'objet EST le
     # périmètre. Un chef sans syndicat sélectionné les voit toutes.
     cloisonnement = ('pk', None)
+    # Seul sélecteur non cloisonné, et il doit le rester : MenuItem.target_site
+    # s'en sert pour pointer vers les AUTRES syndicats — c'est sa raison d'être.
+    chooser_viewset_class = SnippetChooserViewSet
     model = SectionPage
     icon = 'site'
     menu_label = 'Mon syndicat'

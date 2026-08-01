@@ -182,6 +182,128 @@ class CloisonnementBackOfficeTest(TestCase):
                         f"{url} refuse un objet de SON propre syndicat")
         self.assertGreater(vus, 50, f"balayage trop maigre pour conclure : {vus} URLs")
 
+    # ── Écriture : impossible de créer chez le voisin ────────────────────────
+
+    def test_le_champ_syndicat_est_borne_dans_le_formulaire(self):
+        """Le cloisonnement en lecture n'empêche pas de CRÉER chez le voisin :
+        le champ de rattachement doit être borné à son propre syndicat."""
+        vus = 0
+        for modele in get_snippet_models():
+            viewset = modele.snippet_viewset
+            champ = viewset.champ_syndicat()
+            if champ is None:
+                continue
+            url = reverse(viewset.get_url_name('add'))
+            reponse = self.client.get(url)
+            if reponse.status_code != 200:
+                continue
+            form = reponse.context['form']
+            if champ not in form.fields:
+                continue
+            vus += 1
+            with self.subTest(modele=modele._meta.label, champ=champ):
+                f = form.fields[champ]
+                choix = getattr(f, 'queryset', None)
+                if choix is not None:
+                    interdits = [o for o in choix
+                                 if self._appartient_au_voisin(o)]
+                    self.assertEqual(
+                        interdits, [],
+                        f"le champ « {champ} » propose du contenu du voisin")
+                else:
+                    from django import forms as dforms
+                    self.assertIsInstance(
+                        f.widget, dforms.HiddenInput,
+                        f"le champ « {champ} » reste libre à la saisie")
+        self.assertGreater(vus, 5, f"trop peu de formulaires examinés : {vus}")
+
+    def _appartient_au_voisin(self, objet):
+        if isinstance(objet, SectionPage):
+            return objet.pk == self.voisin.pk
+        return getattr(objet, 'site_id', None) == self.voisin.pk
+
+    def _newsletter_postee(self, site_pk, titre):
+        return self.client.post(
+            reverse(Newsletter.snippet_viewset.get_url_name('add')), {
+                'site': site_pk, 'title': titre, 'intro': '.', 'status': 'draft',
+                'newsletter_articles-TOTAL_FORMS': '0',
+                'newsletter_articles-INITIAL_FORMS': '0',
+                'newsletter_articles-MIN_NUM_FORMS': '0',
+                'newsletter_articles-MAX_NUM_FORMS': '1000',
+            })
+
+    def test_creer_pour_son_propre_syndicat_fonctionne(self):
+        """Contrôle positif : le verrou ne doit pas bloquer le travail normal."""
+        self._newsletter_postee(self.mien.pk, 'Ma newsletter')
+        creee = Newsletter.objects.filter(title='Ma newsletter').first()
+        self.assertIsNotNone(creee, "un rédacteur doit pouvoir créer chez lui")
+        self.assertEqual(creee.site_id, self.mien.pk)
+
+    def test_creer_en_forgeant_le_syndicat_du_voisin_est_refuse(self):
+        """Le champ est masqué, donc forgeable dans le POST : la borne du
+        queryset le rejette à la validation plutôt que de le réattribuer."""
+        r = self._newsletter_postee(self.voisin.pk, 'Newsletter forgée')
+        self.assertFalse(
+            Newsletter.objects.filter(title='Newsletter forgée').exists(),
+            "une newsletter a été créée avec le syndicat forgé")
+        self.assertIn('site', r.context['form'].errors)
+
+    def test_un_evenement_ne_peut_pas_etre_pose_dans_l_agenda_du_voisin(self):
+        self.client.post(reverse(Event.snippet_viewset.get_url_name('add')), {
+            'section': self.voisin.pk, 'title': 'AG forgée', 'date': '2026-09-15',
+        })
+        self.assertFalse(
+            Event.objects.filter(title='AG forgée').exists(),
+            "un événement a été posé dans l'agenda du voisin")
+
+    def test_un_slug_de_syndicat_forge_est_reecrit_par_le_serveur(self):
+        """Les rattachements par slug sont de simples chaînes : aucune borne de
+        queryset ne les protège, seule la réécriture serveur le fait."""
+        from cms.models import CmsCategory
+        self.client.post(
+            reverse(CmsCategory.snippet_viewset.get_url_name('add')),
+            {'name': 'Catégorie forgée', 'slug': 'categorie-forgee',
+             'section_slug': self.voisin.slug})
+        creee = CmsCategory.objects.filter(slug='categorie-forgee').first()
+        self.assertIsNotNone(creee, "la catégorie aurait dû être créée")
+        self.assertEqual(creee.section_slug, self.mien.slug,
+                         "le slug de syndicat forgé dans le POST a été accepté")
+
+    # ── Sélecteurs de contenu ────────────────────────────────────────────────
+
+    def test_les_selecteurs_ne_montrent_pas_le_contenu_du_voisin(self):
+        """Le sélecteur est un viewset distinct : le cloisonnement des écrans
+        d'édition ne l'atteint pas. Sans lui, un rédacteur met l'article d'un
+        autre syndicat dans sa newsletter."""
+        from cms.cloisonnement import SelecteurCloisonne
+        vus = 0
+        for modele in get_snippet_models():
+            if not isinstance(modele.snippet_viewset.chooser_viewset,
+                              SelecteurCloisonne):
+                continue
+            voisin = self.objets[modele._meta.label]['voisin']
+            mien = self.objets[modele._meta.label]['mien']
+            base = modele.snippet_viewset.chooser_viewset.get_url_name('choose')
+            r = self.client.get(reverse(base))
+            if r.status_code != 200:
+                continue
+            vus += 1
+            with self.subTest(modele=modele._meta.label):
+                proposes = {o.pk for o in r.context['results']}
+                self.assertNotIn(voisin.pk, proposes,
+                                 "le sélecteur propose le contenu du voisin")
+                self.assertIn(mien.pk, proposes,
+                              "le sélecteur cache son propre contenu")
+        self.assertGreater(vus, 3, f"trop peu de sélecteurs examinés : {vus}")
+
+    def test_le_selecteur_de_syndicats_reste_ouvert(self):
+        """Exception assumée : MenuItem.target_site sert justement à pointer
+        vers les autres syndicats."""
+        from cms.cloisonnement import SelecteurCloisonne
+        self.assertNotIsInstance(
+            SectionPage.snippet_viewset.chooser_viewset, SelecteurCloisonne,
+            "cloisonner ce sélecteur casserait les liens inter-syndicats")
+
     # ── Actions en masse ─────────────────────────────────────────────────────
 
     def _url_suppression_en_masse(self, modele):
