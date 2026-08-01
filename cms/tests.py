@@ -1971,3 +1971,61 @@ class CloisonnementEditionTest(TestCase):
         chef, _ = Group.objects.get_or_create(name='redacteur_en_chef')
         self.user.groups.add(chef)
         self.assertEqual(self._edit(self.a_voisin).status_code, 200)
+
+
+class CreationArticleDepuisCmsTest(TestCase):
+    """Créer un article depuis /cms/ échouait en erreur 500.
+
+    ArticlePage et ContentPage sont des pages Wagtail éditées via des
+    SnippetViewSet : à la création, form.save() faisait un INSERT direct sans
+    renseigner les champs d'arbre, et la base refusait l'enregistrement
+    (« NOT NULL constraint failed: wagtailcore_page.depth »). Aucun rédacteur
+    ne pouvait publier un article. Découvert à l'audit du 01/08/2026 en
+    déroulant le parcours réel — les tests existants n'ouvraient que le
+    formulaire, sans jamais le soumettre.
+    """
+
+    MDP = 'creation-test'
+
+    def setUp(self):
+        from django.contrib.auth.models import User, Group
+
+        self.section = _ensure_section_page(slug='numerique', name='CNT-SO Numérique')
+        grp, _ = Group.objects.get_or_create(name='redacteur_numerique')
+        self.redacteur = User.objects.create_user('redac_creation', 'r@c.fr', self.MDP)
+        self.redacteur.groups.set([grp])
+
+    def _creer(self, titre):
+        self.client.login(username='redac_creation', password=self.MDP)
+        return self.client.post('/cms/snippets/cms/articlepage/add/', {
+            'title': titre,
+            'body-count': '0',
+            'section_slug': 'numerique',
+            'action-publish': 'action-publish',
+        })
+
+    def test_un_redacteur_peut_creer_et_publier_un_article(self):
+        r = self._creer('Article créé depuis le CMS')
+
+        self.assertEqual(r.status_code, 302, "la création doit aboutir, pas rejouer le formulaire")
+        art = ArticlePage.objects.filter(title='Article créé depuis le CMS').first()
+        self.assertIsNotNone(art, "l'article doit exister en base")
+        self.assertTrue(art.live, "l'article doit être publié")
+
+    def test_l_article_est_place_dans_l_arbre_sous_son_syndicat(self):
+        self._creer('Article bien placé')
+        art = ArticlePage.objects.filter(title='Article bien placé').first()
+
+        self.assertIsNotNone(art)
+        self.assertTrue(art.depth, "les champs d'arbre doivent être renseignés")
+        self.assertEqual(art.get_parent().pk, self.section.pk)
+        self.assertEqual(art.section_slug, 'numerique')
+
+    def test_l_article_cree_est_visible_sur_le_site_public(self):
+        self._creer('Article visible en ligne')
+        art = ArticlePage.objects.filter(title='Article visible en ligne').first()
+        self.assertIsNotNone(art)
+
+        self.client.logout()
+        r = self.client.get(f'/numerique/article/{art.slug}/')
+        self.assertEqual(r.status_code, 200)

@@ -38,6 +38,64 @@ def _safe_redirect(url, fallback='/cms/'):
     return url or fallback
 
 
+
+class PageTreeCreateMixin:
+    """Insère une page Wagtail dans l'arbre à la création.
+
+    ArticlePage et ContentPage sont des pages Wagtail, mais elles sont éditées
+    via des SnippetViewSet. À la création, `form.save()` fait un INSERT direct
+    sans renseigner les champs d'arbre (`depth`, `path`) : la base refuse
+    l'enregistrement (« NOT NULL constraint failed: wagtailcore_page.depth »)
+    et le rédacteur reçoit une erreur 500. La page doit être ajoutée comme
+    enfant de la SectionPage de son syndicat, là où vivent tous les articles.
+    """
+
+    def _page_parente(self, instance):
+        from .models import SectionPage
+        slug = getattr(instance, 'section_slug', '') or ''
+        parent = SectionPage.objects.filter(slug=slug).first()
+        if parent is None and slug:
+            parent = SectionPage.objects.filter(legacy_site_slug=slug).first()
+        if parent is None:
+            parent = get_current_site(self.request)
+        if parent is None:
+            parent = SectionPage.objects.filter(slug='principal').first()
+        return parent
+
+    def save_instance(self):
+        from wagtail.log_actions import log
+
+        if self.form.instance.pk:
+            return super().save_instance()
+
+        parent = self._page_parente(self.form.instance)
+        if parent is None:
+            return super().save_instance()
+
+        # save(commit=False) prépare aussi save_m2m (catégories, tags)
+        instance = self.form.save(commit=False)
+        # Passer par une instance générique Page : sur la classe spécifique,
+        # le gestionnaire ne voit que les pages du même type et treebeard
+        # calcule un chemin déjà pris.
+        from wagtail.models import Page
+        Page.objects.get(pk=parent.pk).add_child(instance=instance)
+        if hasattr(self.form, 'save_m2m'):
+            self.form.save_m2m()
+
+        # Reproduit le contrat de Wagtail : la suite de la vue (publication,
+        # messages, réponse JSON) lit has_content_changes et new_revision.
+        self.has_content_changes = True
+        self.new_revision = None
+        if getattr(self, 'revision_enabled', False):
+            self.new_revision = instance.save_revision(
+                user=self.request.user,
+                clean=not getattr(self, 'saving_as_draft', False),
+            )
+        log(instance=instance, action='wagtail.create',
+            revision=self.new_revision, content_changed=True)
+        return instance
+
+
 def _make_scoped_article_page_view(base_class):
     """
     - Filtre cms_categories par section courante.
@@ -46,7 +104,7 @@ def _make_scoped_article_page_view(base_class):
     - Pré-coche in_carousel selon l'état réel du carrousel.
     - Enforce section_slug au save pour les rédacteurs.
     """
-    class ScopedView(base_class):
+    class ScopedView(PageTreeCreateMixin, base_class):
         def get_form(self, form_class=None):
             form = super().get_form(form_class)
             current = get_current_site(self.request)
@@ -183,8 +241,13 @@ _CONTENT_PAGE_PANELS = [
 ]
 
 
+class _ContentPageCreateView(PageTreeCreateMixin, SnippetCreateView):
+    """Même correctif d'arbre que pour les articles."""
+
+
 class ContentPageViewSet(SnippetViewSet):
     model = ContentPage
+    add_view_class = _ContentPageCreateView
     icon = 'doc-empty'
     menu_label = 'Pages statiques'
     menu_order = 110
