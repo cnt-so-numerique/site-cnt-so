@@ -27,8 +27,6 @@ app_name = 'content'
 
 urlpatterns = [
     # Uploads Editor.js (accessible depuis /cms/ et /redac/)
-    path('upload/image/', api_views.ImageUploadView.as_view(), name='image_upload'),
-    path('upload/file/', api_views.FileUploadView.as_view(), name='file_upload'),
 
     # API interne — intégration cnt-adhesion
     path('api/newsletter/sync/', api_views.NewsletterSyncView.as_view(), name='newsletter_sync'),

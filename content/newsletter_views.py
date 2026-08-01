@@ -15,7 +15,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
-from content.admin_utils import WagtailSyndicatRequiredMixin, get_current_site_for_view
+from content.admin_utils import WagtailSyndicatRequiredMixin, get_current_site_for_view, is_chef
 from content.models import Newsletter, Subscriber
 
 
@@ -43,7 +43,14 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
     def _get_newsletter(self, request, pk):
         newsletter = get_object_or_404(Newsletter, pk=pk)
         current_site = get_current_site_for_view(request)
-        if current_site and newsletter.site != current_site:
+        if current_site is None:
+            # Un chef confédéral sans syndicat sélectionné garde la main ; pour
+            # tout autre compte, l'absence de syndicat doit refuser et non
+            # laisser passer — le mixin le garantit déjà, mais la garde doit
+            # tenir seule.
+            if not is_chef(request.user):
+                raise PermissionDenied
+        elif newsletter.site != current_site:
             raise PermissionDenied
         return newsletter
 

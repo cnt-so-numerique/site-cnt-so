@@ -58,6 +58,8 @@ def create_editorial_groups(sender, **kwargs):
         'content.view_category', 'content.view_tag',
         # Menus : vues Move/Reorder sécurisées (scoping par syndicat) et champ
         # site verrouillé côté formulaire ET serveur — ouvert depuis le lot 6.
+        # Pas de delete : décision d'ensemble (articles, pages, catégories,
+        # images non plus). La suppression reste au rédacteur-en-chef.
         'content.add_menuitem', 'content.change_menuitem', 'content.view_menuitem',
         'content.add_newsletter', 'content.change_newsletter', 'content.view_newsletter',
         'content.add_subscriber', 'content.change_subscriber', 'content.delete_subscriber', 'content.view_subscriber',

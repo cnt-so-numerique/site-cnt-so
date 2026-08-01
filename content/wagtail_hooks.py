@@ -9,14 +9,9 @@ from wagtail.snippets.views.snippets import (
     IndexView as SnippetIndexView,
 )
 from django import forms as django_forms
-from wagtail.admin.panels import FieldPanel, MultiFieldPanel, FieldRowPanel, ObjectList, TabbedInterface, InlinePanel
+from wagtail.admin.panels import FieldPanel, MultiFieldPanel, FieldRowPanel, InlinePanel
 
-from .widgets import EditorJsWidget
 from .models import (
-    Article,
-    Page as ContentPage,
-    Tag,
-    Media,
     Author,
     MenuItem,
     Comment,
@@ -34,165 +29,6 @@ def _scope_by_site(qs, request):
     from cms.site_context import scope_qs
     return scope_qs(qs, request, site_field='site')
 
-
-def _make_scoped_article_view(base_class):
-    """Filtre catégories/tags par syndicat courant dans le formulaire article."""
-    class ScopedView(base_class):
-        def get_form(self, form_class=None):
-            form = super().get_form(form_class)
-            from cms.site_context import get_current_site
-            current = get_current_site(self.request)
-
-            # Pré-sélectionner le syndicat courant (sans toucher au widget)
-            if current and 'site' in form.fields:
-                if not form.initial.get('site'):
-                    form.initial['site'] = current.pk
-
-            # Catégories et tags filtrés par site courant
-            if current:
-                if 'tags' in form.fields:
-                    form.fields['tags'].queryset = Tag.objects.filter(site=current).order_by('name')
-            return form
-    return ScopedView
-
-
-# ── Articles ──────────────────────────────────────────────────────────────────
-
-class ArticleViewSet(SnippetViewSet):
-    model = Article
-    icon = 'doc-full'
-    menu_label = 'Articles'
-    menu_order = 100
-    list_display = ['title', 'site', 'author', 'status', 'published_at']
-    list_filter = ['status', 'site']
-    search_fields = ['title', 'excerpt']
-    ordering = ['-published_at', '-created_at']
-
-    panels = [
-        TabbedInterface([
-            ObjectList([
-                FieldPanel('title'),
-                FieldPanel('slug'),
-                FieldRowPanel([
-                    FieldPanel('site'),
-                    FieldPanel('author'),
-                ]),
-                FieldRowPanel([
-                    FieldPanel('status'),
-                    FieldPanel('published_at'),
-                ]),
-                FieldPanel('is_sticky', heading='À la une / carrousel'),
-            ], heading='Publication'),
-            ObjectList([
-                FieldPanel('content', widget=EditorJsWidget),
-                FieldPanel('excerpt'),
-            ], heading='Contenu'),
-            ObjectList([
-                FieldPanel('featured_image'),
-                FieldPanel('categories', widget=django_forms.CheckboxSelectMultiple),
-                FieldPanel('tags', widget=django_forms.CheckboxSelectMultiple),
-            ], heading='Médias & Taxonomies'),
-        ])
-    ]
-
-    add_view_class = _make_scoped_article_view(SnippetCreateView)
-    edit_view_class = _make_scoped_article_view(SnippetEditView)
-
-    def get_queryset(self, request):
-        return _scope_by_site(self.model.objects.all(), request)
-
-
-# ── Pages statiques ───────────────────────────────────────────────────────────
-
-class ContentPageViewSet(SnippetViewSet):
-    model = ContentPage
-    icon = 'doc-empty'
-    menu_label = 'Pages'
-    menu_order = 110
-    list_display = ['title', 'site', 'author', 'status']
-    list_filter = ['status', 'site']
-    search_fields = ['title']
-    ordering = ['menu_order', 'title']
-
-    panels = [
-        TabbedInterface([
-            ObjectList([
-                FieldPanel('title'),
-                FieldPanel('slug'),
-                FieldRowPanel([
-                    FieldPanel('site'),
-                    FieldPanel('author'),
-                ]),
-                FieldRowPanel([
-                    FieldPanel('status'),
-                    FieldPanel('published_at'),
-                ]),
-                FieldPanel('parent'),
-                FieldPanel('menu_order'),
-                FieldPanel('template'),
-            ], heading='Publication'),
-            ObjectList([
-                FieldPanel('content', widget=EditorJsWidget),
-                FieldPanel('excerpt'),
-            ], heading='Contenu'),
-            ObjectList([
-                FieldPanel('featured_image'),
-            ], heading='Image'),
-        ])
-    ]
-
-    def get_queryset(self, request):
-        return _scope_by_site(self.model.objects.all(), request)
-
-
-# ── Tags ──────────────────────────────────────────────────────────────────────
-
-class TagViewSet(SnippetViewSet):
-    model = Tag
-    icon = 'tag'
-    menu_label = 'Tags'
-    menu_order = 130
-    list_display = ['name', 'site']
-    list_filter = ['site']
-    search_fields = ['name']
-
-    panels = [
-        FieldPanel('site'),
-        FieldPanel('name'),
-        FieldPanel('slug'),
-    ]
-
-    def get_queryset(self, request):
-        return _scope_by_site(self.model.objects.all(), request)
-
-
-# ── Médias ────────────────────────────────────────────────────────────────────
-
-class MediaViewSet(SnippetViewSet):
-    model = Media
-    icon = 'image'
-    menu_label = 'Médias'
-    menu_order = 140
-    list_display = ['title', 'site', 'mime_type', 'uploaded_at']
-    list_filter = ['site', 'mime_type']
-    search_fields = ['title', 'alt_text']
-    ordering = ['-uploaded_at']
-
-    panels = [
-        FieldPanel('site'),
-        FieldPanel('title'),
-        FieldPanel('file'),
-        FieldPanel('original_url'),
-        FieldPanel('mime_type'),
-        FieldPanel('alt_text'),
-        FieldPanel('caption'),
-    ]
-
-    def get_queryset(self, request):
-        return _scope_by_site(self.model.objects.all(), request)
-
-
-# ── Commentaires ──────────────────────────────────────────────────────────────
 
 class CommentViewSet(ViewSetCloisonne, SnippetViewSet):
     cloisonnement = ('fk', 'article__site')
@@ -217,34 +53,6 @@ class CommentViewSet(ViewSetCloisonne, SnippetViewSet):
 
 
 # ── Messages de contact ───────────────────────────────────────────────────────
-
-class ContactMessageViewSet(SnippetViewSet):
-    model = ContactMessage
-    icon = 'mail'
-    menu_label = 'Messages de contact'
-    menu_order = 210
-    list_display = ['name', 'email', 'subject', 'site', 'created_at', 'is_read']
-    list_filter = ['site', 'is_read']
-    search_fields = ['name', 'email', 'subject']
-    ordering = ['-created_at']
-
-    panels = [
-        FieldPanel('site'),
-        FieldPanel('name'),
-        FieldPanel('email'),
-        FieldPanel('phone'),
-        FieldPanel('city'),
-        FieldPanel('sector'),
-        FieldPanel('subject'),
-        FieldPanel('message'),
-        FieldPanel('is_read'),
-    ]
-
-    def get_queryset(self, request):
-        return _scope_by_site(self.model.objects.all(), request)
-
-
-# ── Abonnés newsletter ────────────────────────────────────────────────────────
 
 class SubscriberViewSet(ViewSetCloisonne, SnippetViewSet):
     cloisonnement = ('fk', 'site')
@@ -414,10 +222,17 @@ class _MenuItemEditView(SnippetEditView):
 
 
 def _enforce_menuitem_site(request, form):
-    """Enforcement serveur : un rédacteur de syndicat ne peut créer/modifier
-    des MenuItem que pour SON syndicat (le champ site du POST est écrasé)."""
+    """Estampille le syndicat du rédacteur à la création.
+
+    Uniquement à la création : appliqué aussi à l'édition, il réaffectait au
+    rédacteur l'entrée de menu d'un autre syndicat qu'il aurait ouverte par son
+    URL — un vol pur et simple. Le cloisonnement des écrans rend désormais cette
+    ouverture impossible, mais la règle reste fausse et doit l'être moins.
+    """
     from cms.site_context import get_current_site
     from content.admin_utils import is_chef
+    if form.instance.pk:
+        return
     if not is_chef(request.user):
         current = get_current_site(request)
         if current:
@@ -495,16 +310,6 @@ class AuthorViewSet(ViewSetCloisonne, SnippetViewSet):
 
 
 # ── Groupes de menus ─────────────────────────────────────────────────────────
-
-class ContenuGroup(SnippetViewSetGroup):
-    menu_label = 'Articles & Pages (legacy)'
-    menu_name = 'legacy-contenu'
-    menu_icon = 'doc-full'
-    menu_order = 950  # tout en bas
-    items = (ArticleViewSet, ContentPageViewSet, TagViewSet, MediaViewSet)
-
-
-# ── Formulaires de contact ────────────────────────────────────────────────────
 
 class _ContactListRedirect(SnippetIndexView):
     def get(self, request, *args, **kwargs):

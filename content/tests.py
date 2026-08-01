@@ -2536,84 +2536,6 @@ class OpenRedirectTest(TestCase):
         self.assertNotIn('evil.com', response['Location'])
 
 
-class UploadSecurityTest(TestCase):
-    """Vérifie les contrôles de sécurité sur les uploads."""
-
-    def setUp(self):
-        _setup_editorial_groups()
-        make_site()
-        self.chef = make_chef()
-        self.client.force_login(self.chef)
-
-    def _make_image_file(self, content=None, name='test.jpg', content_type='image/jpeg'):
-        from django.core.files.uploadedfile import SimpleUploadedFile
-        if content is None:
-            # JPEG magic bytes minimaux
-            content = b'\xff\xd8\xff\xe0' + b'\x00' * 100
-        return SimpleUploadedFile(name, content, content_type=content_type)
-
-    def test_svg_upload_rejected(self):
-        """SVG doit être refusé (risque XSS)."""
-        from django.core.files.uploadedfile import SimpleUploadedFile
-        svg = SimpleUploadedFile(
-            'evil.svg',
-            b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
-            content_type='image/svg+xml',
-        )
-        response = self.client.post('/upload/image/', {'image': svg})
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertEqual(data['success'], 0)
-
-    def test_oversized_image_rejected(self):
-        """Fichier image trop grand (>10 Mo) doit être refusé."""
-        from django.core.files.uploadedfile import SimpleUploadedFile
-        big = SimpleUploadedFile('big.jpg', b'x' * (11 * 1024 * 1024), content_type='image/jpeg')
-        response = self.client.post('/upload/image/', {'image': big})
-        data = response.json()
-        self.assertEqual(data['success'], 0)
-        self.assertIn('volumineux', data['message'])
-
-    def test_fake_image_magic_bytes_rejected(self):
-        """Fichier avec Content-Type image/jpeg mais sans magic bytes JPEG → refusé."""
-        from django.core.files.uploadedfile import SimpleUploadedFile
-        fake = SimpleUploadedFile('fake.jpg', b'<html>evil</html>', content_type='image/jpeg')
-        response = self.client.post('/upload/image/', {'image': fake})
-        data = response.json()
-        self.assertEqual(data['success'], 0)
-
-    def test_valid_jpeg_accepted(self):
-        """JPEG valide avec magic bytes corrects → accepté."""
-        img = self._make_image_file()
-        response = self.client.post('/upload/image/', {'image': img})
-        data = response.json()
-        self.assertEqual(data['success'], 1)
-
-    def test_oversized_file_rejected(self):
-        """Fichier document trop grand (>20 Mo) → refusé."""
-        from django.core.files.uploadedfile import SimpleUploadedFile
-        big = SimpleUploadedFile('big.pdf', b'%PDF' + b'x' * (21 * 1024 * 1024), content_type='application/pdf')
-        response = self.client.post('/upload/file/', {'file': big})
-        data = response.json()
-        self.assertEqual(data['success'], 0)
-        self.assertIn('volumineux', data['message'])
-
-    def test_disallowed_file_type_rejected(self):
-        """Fichier exécutable → refusé."""
-        from django.core.files.uploadedfile import SimpleUploadedFile
-        exe = SimpleUploadedFile('malware.exe', b'MZ\x90\x00', content_type='application/x-msdownload')
-        response = self.client.post('/upload/file/', {'file': exe})
-        data = response.json()
-        self.assertEqual(data['success'], 0)
-
-    def test_upload_requires_auth(self):
-        """Upload sans authentification → redirigé vers login."""
-        self.client.logout()
-        img = self._make_image_file()
-        response = self.client.post('/upload/image/', {'image': img})
-        self.assertIn(response.status_code, [302, 403])
-
-
 class BasicAuthSecurityTest(TestCase):
     """Vérifie le middleware BasicAuth."""
 
@@ -3541,144 +3463,18 @@ class OvhSyncSubscriptionTest(TestCase):
 
 import hashlib
 import hmac as hmac_module
-import io
 import json as json_module
 
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
-from content.api_views import _verify_image_magic
 
-
-# ---------------------------------------------------------------------------
-# _verify_image_magic : détection par magic bytes
-# ---------------------------------------------------------------------------
-
-class VerifyImageMagicTest(TestCase):
-
-    def _buf(self, data):
-        return io.BytesIO(data + b'\x00' * max(0, 12 - len(data)))
-
-    def test_jpeg_detecte(self):
-        self.assertEqual(_verify_image_magic(self._buf(b'\xff\xd8\xff')), 'image/jpeg')
-
-    def test_png_detecte(self):
-        self.assertEqual(_verify_image_magic(self._buf(b'\x89PNG\r\n')), 'image/png')
-
-    def test_gif87a_detecte(self):
-        self.assertEqual(_verify_image_magic(self._buf(b'GIF87a')), 'image/gif')
-
-    def test_gif89a_detecte(self):
-        self.assertEqual(_verify_image_magic(self._buf(b'GIF89a')), 'image/gif')
-
-    def test_riff_webp_detecte(self):
-        self.assertEqual(_verify_image_magic(self._buf(b'RIFF')), 'image/webp')
-
-    def test_inconnu_retourne_none(self):
-        self.assertIsNone(_verify_image_magic(self._buf(b'UNKNOWN_DATA')))
-
-    def test_seek_remis_a_zero_apres_lecture(self):
-        buf = self._buf(b'\xff\xd8\xff')
-        _verify_image_magic(buf)
-        self.assertEqual(buf.tell(), 0)
-
-
-# ---------------------------------------------------------------------------
-# ImageUploadView
-# ---------------------------------------------------------------------------
-
-class ImageUploadViewTest(TestCase):
-
-    def setUp(self):
-        _setup_editorial_groups()
-        self.user = make_superuser('img-upload-admin')
-        self.url = reverse('content:image_upload')
-
-    def _jpeg(self, name='test.jpg'):
-        return SimpleUploadedFile(name, b'\xff\xd8\xff' + b'\x00' * 20,
-                                  content_type='image/jpeg')
-
-    def test_sans_fichier_retourne_failure(self):
-        self.client.force_login(self.user)
-        r = self.client.post(self.url)
-        data = json_module.loads(r.content)
-        self.assertEqual(data['success'], 0)
-        self.assertIn('Aucun fichier', data['message'])
-
-    def test_type_mime_non_autorise(self):
-        self.client.force_login(self.user)
-        f = SimpleUploadedFile('test.svg', b'<svg/>', content_type='image/svg+xml')
-        r = self.client.post(self.url, {'image': f})
-        data = json_module.loads(r.content)
-        self.assertEqual(data['success'], 0)
-
-    def test_magic_bytes_incompatibles(self):
-        """JPEG déclaré mais magic bytes incorrects."""
-        self.client.force_login(self.user)
-        f = SimpleUploadedFile('fake.jpg', b'not-an-image-at-all', content_type='image/jpeg')
-        r = self.client.post(self.url, {'image': f})
-        data = json_module.loads(r.content)
-        self.assertEqual(data['success'], 0)
-
-    def test_jpeg_valide_succes(self):
-        self.client.force_login(self.user)
-        r = self.client.post(self.url, {'image': self._jpeg()})
-        data = json_module.loads(r.content)
-        self.assertEqual(data['success'], 1)
-        self.assertIn('url', data['file'])
-        self.assertIn('id', data['file'])
-
-    def test_non_authentifie_redirige(self):
-        r = self.client.post(self.url, {'image': self._jpeg()})
-        self.assertIn(r.status_code, [302, 403])
-
-
-# ---------------------------------------------------------------------------
-# FileUploadView
-# ---------------------------------------------------------------------------
-
-class FileUploadViewTest(TestCase):
-
-    def setUp(self):
-        _setup_editorial_groups()
-        self.user = make_superuser('file-upload-admin')
-        self.url = reverse('content:file_upload')
-
-    def test_sans_fichier_retourne_failure(self):
-        self.client.force_login(self.user)
-        r = self.client.post(self.url)
-        data = json_module.loads(r.content)
-        self.assertEqual(data['success'], 0)
-        self.assertIn('Aucun fichier', data['message'])
-
-    def test_type_non_autorise(self):
-        self.client.force_login(self.user)
-        f = SimpleUploadedFile('script.sh', b'#!/bin/bash', content_type='text/x-shellscript')
-        r = self.client.post(self.url, {'file': f})
-        data = json_module.loads(r.content)
-        self.assertEqual(data['success'], 0)
-
-    def test_pdf_valide_succes(self):
-        self.client.force_login(self.user)
-        f = SimpleUploadedFile('doc.pdf', b'%PDF-1.4 test content', content_type='application/pdf')
-        r = self.client.post(self.url, {'file': f})
-        data = json_module.loads(r.content)
-        self.assertEqual(data['success'], 1)
-        self.assertIn('url', data['file'])
-        self.assertIn('name', data['file'])
-
-    def test_non_authentifie_redirige(self):
-        f = SimpleUploadedFile('doc.pdf', b'%PDF-1.4', content_type='application/pdf')
-        r = self.client.post(self.url, {'file': f})
-        self.assertIn(r.status_code, [302, 403])
-
-
-# ---------------------------------------------------------------------------
-# NewsletterSyncView — signature HMAC + sync abonnés
-# ---------------------------------------------------------------------------
 
 def _hmac_sig(secret, body_bytes):
     return hmac_module.new(secret.encode(), body_bytes, hashlib.sha256).hexdigest()
 
+
+# ---------------------------------------------------------------------------
+# Webhook cnt-adhesion : synchronisation des abonnés newsletter
+# ---------------------------------------------------------------------------
 
 @override_settings(ADHESION_WEBHOOK_SECRET='test-secret-abc')
 class NewsletterSyncViewTest(TestCase):
@@ -4838,35 +4634,6 @@ class NewsletterSubscribeEmailExceptionTest(TestCase):
 from django.test import SimpleTestCase
 
 
-class EditorJsWidgetTest(SimpleTestCase):
-    """widgets.py lines 29-33, 44."""
-
-    def setUp(self):
-        from content.widgets import EditorJsWidget
-        self.widget = EditorJsWidget()
-
-    def test_render_avec_valeur(self):
-        html = self.widget.render('content', '{"blocks":[]}', attrs={'id': 'id_content'})
-        self.assertIn('editorjs-wrapper', html)
-        self.assertIn('id_content', html)
-
-    def test_render_sans_valeur(self):
-        html = self.widget.render('content', None)
-        self.assertIn('editorjs-wrapper', html)
-
-    def test_render_auto_id(self):
-        html = self.widget.render('content', 'val')
-        self.assertIn('id_content', html)
-
-    def test_value_from_datadict_present(self):
-        val = self.widget.value_from_datadict({'content': 'test-val'}, {}, 'content')
-        self.assertEqual(val, 'test-val')
-
-    def test_value_from_datadict_absent(self):
-        val = self.widget.value_from_datadict({}, {}, 'content')
-        self.assertIsNone(val)
-
-
 class MediaUrlWithFileTest(TestCase):
     """models.py line 142 — Media.url retourne file.url quand file existe."""
 
@@ -4911,34 +4678,9 @@ class WagtailHookViewSetsTest(TestCase):
         vs = vs_class.__new__(vs_class)
         return vs.get_queryset(self._req())
 
-    def test_article_viewset_get_queryset(self):
-        from content.wagtail_hooks import ArticleViewSet
-        qs = self._vs_qs(ArticleViewSet)
-        self.assertIsNotNone(qs)
-
-    def test_contentpage_viewset_get_queryset(self):
-        from content.wagtail_hooks import ContentPageViewSet
-        qs = self._vs_qs(ContentPageViewSet)
-        self.assertIsNotNone(qs)
-
-    def test_tag_viewset_get_queryset(self):
-        from content.wagtail_hooks import TagViewSet
-        qs = self._vs_qs(TagViewSet)
-        self.assertIsNotNone(qs)
-
-    def test_media_viewset_get_queryset(self):
-        from content.wagtail_hooks import MediaViewSet
-        qs = self._vs_qs(MediaViewSet)
-        self.assertIsNotNone(qs)
-
     def test_comment_viewset_get_queryset(self):
         from content.wagtail_hooks import CommentViewSet
         qs = self._vs_qs(CommentViewSet)
-        self.assertIsNotNone(qs)
-
-    def test_contact_message_viewset_get_queryset(self):
-        from content.wagtail_hooks import ContactMessageViewSet
-        qs = self._vs_qs(ContactMessageViewSet)
         self.assertIsNotNone(qs)
 
     def test_subscriber_viewset_get_queryset(self):
@@ -5048,52 +4790,6 @@ class CategoryFeedNonPrincipalTest(TestCase):
         r = self.client.get('/categorie/cat-non-principal/feed/')
         # 200 si trouvée, 404 si pas de section_slug=principal mais trouvée par slug
         self.assertIn(r.status_code, [200, 400])
-
-
-class ScopedArticleViewGetFormTest(TestCase):
-    """wagtail_hooks.py lines 40-55 — _make_scoped_article_view.ScopedView.get_form()."""
-
-    def test_get_form_filtre_categories_et_tags(self):
-        from content.wagtail_hooks import _make_scoped_article_view
-        from wagtail.snippets.views.snippets import CreateView as SnippetCreateView
-
-        ScopedView = _make_scoped_article_view(SnippetCreateView)
-        view = ScopedView.__new__(ScopedView)
-        view.request = MagicMock()
-
-        site_sp = _ensure_section_page(slug='scoped-form-sp', name='Scoped SP', site_type='sectoral')
-
-        mock_form = MagicMock()
-        mock_form.fields = {
-            'site': MagicMock(),
-            'tags': MagicMock(),
-        }
-        mock_form.initial = {}
-
-        with patch.object(SnippetCreateView, 'get_form', return_value=mock_form):
-            with patch('cms.site_context.get_current_site', return_value=site_sp):
-                result = view.get_form()
-
-        self.assertIs(result, mock_form)
-        self.assertEqual(mock_form.initial.get('site'), site_sp.pk)
-
-    def test_get_form_sans_site_courant(self):
-        from content.wagtail_hooks import _make_scoped_article_view
-        from wagtail.snippets.views.snippets import CreateView as SnippetCreateView
-
-        ScopedView = _make_scoped_article_view(SnippetCreateView)
-        view = ScopedView.__new__(ScopedView)
-        view.request = MagicMock()
-
-        mock_form = MagicMock()
-        mock_form.fields = {}
-        mock_form.initial = {}
-
-        with patch.object(SnippetCreateView, 'get_form', return_value=mock_form):
-            with patch('cms.site_context.get_current_site', return_value=None):
-                result = view.get_form()
-
-        self.assertIs(result, mock_form)
 
 
 class LegacySiteSlugRoutingTest(TestCase):

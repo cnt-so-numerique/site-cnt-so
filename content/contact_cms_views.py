@@ -7,7 +7,17 @@ from django.utils.text import slugify
 # accessibles aux rédacteurs de syndicat, scoppés par get_current_site_for_view.
 from content.admin_utils import WagtailSyndicatRequiredMixin as ChefRequiredMixin
 from content.admin_utils import get_current_site_for_view as _get_current_site
+from content.admin_utils import is_chef
 from content.models import ContactMessage, FormulaireContact, ChampContactCustom
+
+
+def _borner_au_syndicat(qs, request, current_site):
+    """Un chef confédéral sans syndicat sélectionné garde la vue d'ensemble ;
+    pour tout autre compte, l'absence de syndicat doit refuser et non laisser
+    passer — le mixin le garantit déjà, mais la garde doit tenir seule."""
+    if current_site:
+        return qs.filter(site=current_site)
+    return qs if is_chef(request.user) else qs.none()
 
 
 class ContactSubmissionListView(ChefRequiredMixin, View):
@@ -16,9 +26,8 @@ class ContactSubmissionListView(ChefRequiredMixin, View):
         q = request.GET.get('q', '')
         status_filter = request.GET.get('status', '')
 
-        qs = ContactMessage.objects.select_related('site')
-        if current_site:
-            qs = qs.filter(site=current_site)
+        qs = _borner_au_syndicat(
+            ContactMessage.objects.select_related('site'), request, current_site)
 
         if q:
             from django.db.models import Q
@@ -39,9 +48,9 @@ class ContactSubmissionListView(ChefRequiredMixin, View):
 class ContactSubmissionDetailView(ChefRequiredMixin, View):
     def _get_submission(self, request, pk):
         current_site = _get_current_site(request)
-        qs = ContactMessage.objects.select_related('site', 'formulaire')
-        if current_site:
-            qs = qs.filter(site=current_site)
+        qs = _borner_au_syndicat(
+            ContactMessage.objects.select_related('site', 'formulaire'),
+            request, current_site)
         return get_object_or_404(qs, pk=pk)
 
     def get(self, request, pk):
