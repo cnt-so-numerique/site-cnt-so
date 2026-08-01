@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load content_tags %}
 
 {% block title %}Plan du site — {{ plan_site.name }}{% endblock %}
 
@@ -67,9 +68,9 @@
       <li><a href="{% url 'content:newsletter_subscribe' %}">Newsletter</a></li>
       {% else %}
       <li><a href="{{ plan_site.get_absolute_url }}">Accueil — {{ plan_site.name }}</a></li>
-      <li><a href="{% url 'content:site_contact' site_slug=plan_site.slug %}">Contact / Adhérer</a></li>
+      <li><a href="{% section_url 'content:site_contact' plan_site %}">Contact / Adhérer</a></li>
       <li><a href="{% url 'content:souscription' %}">Nous soutenir</a></li>
-      <li><a href="{% url 'content:site_newsletter_subscribe' site_slug=plan_site.slug %}">Newsletter</a></li>
+      <li><a href="{% section_url 'content:site_newsletter_subscribe' plan_site %}">Newsletter</a></li>
       <li><a href="{% url 'content:home' %}">Retour site principal</a></li>
       {% endif %}
       {% for page in pages %}
@@ -107,7 +108,7 @@
     <ul>
       {% for s in unions_regionales %}
       <li><a href="{{ s.get_absolute_url }}">{{ s.name }}</a>
-          <span style="color:var(--text-muted);font-size:14px;"> — <a href="{% url 'content:site_plan_du_site' site_slug=s.slug %}">plan</a></span>
+          <span style="color:var(--text-muted);font-size:14px;"> — <a href="{% section_url 'content:site_plan_du_site' s %}">plan</a></span>
       </li>
       {% endfor %}
     </ul>
@@ -121,7 +122,7 @@
     <ul>
       {% for s in syndicats_sectoriels %}
       <li><a href="{{ s.get_absolute_url }}">{{ s.name }}</a>
-          <span style="color:var(--text-muted);font-size:14px;"> — <a href="{% url 'content:site_plan_du_site' site_slug=s.slug %}">plan</a></span>
+          <span style="color:var(--text-muted);font-size:14px;"> — <a href="{% section_url 'content:site_plan_du_site' s %}">plan</a></span>
       </li>
       {% endfor %}
     </ul>
@@ -135,7 +136,7 @@
       {% if plan_site.slug == 'principal' %}
       <li><a href="{% url 'content:rss_feed' %}">Flux RSS — site principal</a></li>
       {% else %}
-      <li><a href="{% url 'content:site_rss_feed' site_slug=plan_site.slug %}">Flux RSS — {{ plan_site.name }}</a></li>
+      <li><a href="{% section_url 'content:site_rss_feed' plan_site %}">Flux RSS — {{ plan_site.name }}</a></li>
       {% endif %}
       <li><a href="/sitemap.xml">Sitemap XML</a></li>
     </ul>

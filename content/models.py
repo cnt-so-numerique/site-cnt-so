@@ -464,13 +464,23 @@ class MenuItem(models.Model):
             return self.article.get_absolute_url()
         if self.link_type == 'page' and self.page:
             return self.page.get_absolute_url()
+        # Ces deux liens sont dans le menu de toutes les pages : sur un domaine
+        # autonome, la forme préfixée coûterait une redirection 301 par clic.
         if self.link_type == 'contact':
             from django.urls import reverse
+            from cms.models import section_base_url
             if self.site and self.site.slug != 'principal':
+                base = section_base_url(self.site.slug)
+                if base:
+                    return f'{base}/contact/'
                 return reverse('content:site_contact', kwargs={'site_slug': self.site.slug})
             return reverse('content:contact')
         if self.link_type == 'agenda' and self.site and self.site.slug != 'principal':
             from django.urls import reverse
+            from cms.models import section_base_url
+            base = section_base_url(self.site.slug)
+            if base:
+                return f'{base}/agenda/'
             return reverse('content:site_agenda', kwargs={'site_slug': self.site.slug})
         # Fallback legacy
         if self.url:

@@ -455,6 +455,28 @@ WordPress. En dev seul Numérique est concerné — **à confirmer en production
   sur toute la hauteur des cartes, faute de quoi les premières lignes se posaient
   sur l'image nue.
 
+### Liens internes sur les domaines autonomes
+
+Relevé pendant la recette : sur `86.cnt-so.org`, la page Ressources contenait
+**301 liens en `/poitiers/article/…`** plus une vingtaine d'autres liens
+préfixés, chacun provoquant une redirection 301 vers l'URL canonique. Même
+comportement sur `13.cnt-so.org`. Ça fonctionnait, mais au prix d'un
+aller-retour réseau par clic.
+
+Cause : `{% url 'content:site_…' site.slug %}` produit toujours la forme
+préfixée, que `SectionDomainMiddleware` redirige ensuite. Deux méthodes de
+modèle faisaient de même — dont `MenuItem.get_url()` pour Contact et Agenda,
+donc **sur toutes les pages du site**.
+
+Corrigé par un tag `{% section_url %}` (content_tags.py) qui rend directement
+l'URL finale : chemin relatif inchangé sans domaine autonome, URL absolue sans
+préfixe sinon. 14 occurrences remplacées dans 8 gabarits, plus
+`SectionPage.get_rejoindre_url()` et `MenuItem.get_url()`. Les liens d'articles
+passent par `get_absolute_url()`, déjà conscient du domaine.
+
+Le lien `/rejoindre/` avait échappé à mon inventaire — il vient d'une méthode de
+modèle, pas d'un `{% url %}` : c'est le test de balayage qui l'a trouvé.
+
 ### Parcours newsletter
 
 **Aucune newsletter réelle n'a été envoyée** — c'est une action externe
@@ -469,5 +491,5 @@ chaîne tient.
 ### Tests ajoutés
 
 `NavigationClavierTest` (6), `HierarchieDesTitresTest` (2),
-`AccueilHeriteDeWordPressTest` (5), `ParcoursNewsletterCompletTest` (2).
-**730 → 745 tests.**
+`AccueilHeriteDeWordPressTest` (5), `ParcoursNewsletterCompletTest` (2),
+`SectionUrlTagTest` (8). **730 → 753 tests.**

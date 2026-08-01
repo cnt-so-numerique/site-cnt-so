@@ -1,4 +1,5 @@
 {% extends "content/site_subpage_base.html" %}
+{% load content_tags %}
 {% block nav_ressources %}class="active"{% endblock %}
 {% block title %}Ressources{% if active_cat %} · {{ active_cat.name }}{% endif %} — {{ site.name }}{% endblock %}
 
@@ -39,9 +40,9 @@
 
   <!-- Filtres catégories -->
   <div class="s-cat-bar">
-    <a href="{% url 'content:site_ressources' site.slug %}" class="s-pill {% if not active_cat %}on{% endif %}">Tout</a>
+    <a href="{% section_url 'content:site_ressources' site %}" class="s-pill {% if not active_cat %}on{% endif %}">Tout</a>
     {% for cat in categories %}
-      <a href="{% url 'content:site_ressources' site.slug %}?cat={{ cat.slug }}"
+      <a href="{% section_url 'content:site_ressources' site %}?cat={{ cat.slug }}"
          class="s-pill {% if active_cat.slug == cat.slug %}on{% endif %}">{{ cat.name }}</a>
     {% endfor %}
   </div>
@@ -53,7 +54,7 @@
         <div class="s-card-img">
           {% with img_url=article.any_image_url %}
           {% if img_url %}
-            <a href="{% url 'content:site_article_detail' site.slug article.slug %}">
+            <a href="{{ article.get_absolute_url }}">
               <img src="{{ img_url }}" alt="{{ article.title }}" loading="lazy">
             </a>
           {% else %}
@@ -68,7 +69,7 @@
             <div class="s-card-cat">{{ active_cat.name }}</div>
           {% endif %}
           <div class="s-card-title">
-            <a href="{% url 'content:site_article_detail' site.slug article.slug %}">{{ article.title }}</a>
+            <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
           </div>
           <div class="s-card-date">{{ article.publication_date|date:"d/m/Y" }}</div>
         </div>
@@ -82,7 +83,7 @@
       </svg>
       {% if active_cat %}
         <p>Aucune publication dans <strong>{{ active_cat.name }}</strong> pour l'instant.</p>
-        <small>Reviens bientôt ou <a href="{% url 'content:site_ressources' site.slug %}">consulte toutes les ressources</a>.</small>
+        <small>Reviens bientôt ou <a href="{% section_url 'content:site_ressources' site %}">consulte toutes les ressources</a>.</small>
       {% else %}
         <p>Aucune ressource publiée pour l'instant.</p>
         <small>Ajoute du contenu depuis <a href="/cms/">le CMS</a> en choisissant la section {{ site.name }}.</small>

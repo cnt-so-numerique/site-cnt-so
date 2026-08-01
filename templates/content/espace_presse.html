@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load content_tags %}
 
 {% block title %}Espace Presse - CNT-SO{% endblock %}
 
@@ -6,7 +7,7 @@
 <div class="breadcrumb">
     {% if site and site.slug != 'principal' %}
     <a href="{% url 'content:home' %}">Accueil</a> /
-    <a href="{% url 'content:site_home' site_slug=site.slug %}">{{ site.name }}</a> /
+    <a href="{% section_url 'content:site_home' site %}">{{ site.name }}</a> /
     {% else %}
     <a href="{% url 'content:home' %}">Accueil</a> /
     {% endif %}

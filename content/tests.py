@@ -5405,6 +5405,107 @@ class AccueilHeriteDeWordPressTest(TestCase):
         self.assertNotContains(r, 'cdn.tailwindcss.com')
 
 
+class SectionUrlTagTest(TestCase):
+    """`section_url` doit rendre l'URL déjà canonique.
+
+    `{% url %}` produisait toujours `/<slug>/…`, que le middleware redirige en
+    301 quand la section a son propre domaine : 301 redirections rien que sur la
+    page Ressources de Poitiers (audit du 01/08)."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.site = _ensure_section_page(slug='tag-url', name='CNT-SO Tag',
+                                         site_type='regional')
+
+    def tearDown(self):
+        from django.core.cache import cache
+        cache.clear()
+
+    def _url(self, route, **kwargs):
+        from content.templatetags.content_tags import section_url
+        return section_url(route, self.site, **kwargs)
+
+    def _avec_domaine(self, domaine='tag.cnt-so.org'):
+        from django.core.cache import cache
+        self.site.custom_domain = domaine
+        self.site.save(update_fields=['custom_domain'])
+        cache.clear()
+
+    def test_sans_domaine_l_url_reste_relative_et_prefixee(self):
+        self.assertEqual(self._url('content:site_ressources'),
+                         '/tag-url/ressources/')
+
+    def test_avec_domaine_le_prefixe_de_section_disparait(self):
+        self._avec_domaine()
+        self.assertEqual(self._url('content:site_ressources'),
+                         'https://tag.cnt-so.org/ressources/')
+
+    def test_la_racine_du_sous_site_devient_la_racine_du_domaine(self):
+        self._avec_domaine()
+        self.assertEqual(self._url('content:site_home'), 'https://tag.cnt-so.org/')
+
+    def test_les_arguments_nommes_sont_transmis(self):
+        self._avec_domaine()
+        self.assertEqual(self._url('content:site_category_detail', slug='banque-dimage'),
+                         'https://tag.cnt-so.org/categorie/banque-dimage/')
+
+    def test_une_route_inconnue_ne_casse_pas_la_page(self):
+        self.assertEqual(self._url('content:route-qui-nexiste-pas'), '')
+
+    def test_un_site_absent_ne_casse_pas_la_page(self):
+        from content.templatetags.content_tags import section_url
+        self.assertEqual(section_url('content:site_ressources', None), '')
+
+    @override_settings(ALLOWED_HOSTS=['tag.cnt-so.org', 'testserver'])
+    def test_la_page_ressources_ne_produit_plus_de_lien_a_rediriger(self):
+        """Le vrai symptôme : plus aucun lien préfixé sur un domaine autonome.
+
+        La page est demandée sur le domaine lui-même — sur l'hôte principal, le
+        chemin préfixé est légitimement redirigé vers ce domaine."""
+        import re
+        make_article_page(section_slug='tag-url', title='Tract', slug='tract')
+        self._avec_domaine()
+        r = self.client.get('/ressources/', HTTP_HOST='tag.cnt-so.org')
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        prefixes = [h for h in re.findall(r'href="([^"]+)"', html)
+                    if h.startswith('/tag-url/')]
+        self.assertEqual(prefixes, [],
+                         f"liens encore préfixés, donc redirigés : {prefixes[:5]}")
+
+    @override_settings(ALLOWED_HOSTS=['tag.cnt-so.org', 'testserver'])
+    def test_aucune_page_du_sous_site_ne_produit_de_lien_a_rediriger(self):
+        """Balayage complet : le menu et les barres latérales sont sur toutes
+        les pages, un seul lien préfixé y coûterait une redirection partout."""
+        import re
+        from content.models import MenuItem
+        make_article_page(section_slug='tag-url', title='Tract', slug='tract')
+        MenuItem.objects.create(site=self.site, title='Contact',
+                                link_type='contact', is_active=True, order=1)
+        MenuItem.objects.create(site=self.site, title='Agenda',
+                                link_type='agenda', is_active=True, order=2)
+        self._avec_domaine()
+
+        fautifs, examinees = {}, []
+        for chemin in ('/', '/ressources/', '/contact/', '/agenda/',
+                       '/rejoindre/', '/plan-du-site/', '/espace-presse/',
+                       '/article/tract/'):
+            r = self.client.get(chemin, HTTP_HOST='tag.cnt-so.org')
+            if r.status_code != 200:
+                continue
+            examinees.append(chemin)
+            liens = [h for h in re.findall(r'href="([^"]+)"', r.content.decode())
+                     if h.startswith('/tag-url/')]
+            if liens:
+                fautifs[chemin] = sorted(set(liens))[:4]
+        # sans cette garde, un balayage qui ne verrait que des 404 passerait
+        self.assertGreaterEqual(len(examinees), 6,
+                                f"balayage trop maigre pour conclure : {examinees}")
+        self.assertEqual(fautifs, {},
+                         f"liens préfixés restants (une 301 par clic) : {fautifs}")
+
+
 @override_settings(NEWSLETTER_SEND_DELAY=0)  # 18 s en production : bridage OVH
 class ParcoursNewsletterCompletTest(TestCase):
     """Le parcours d'un abonné de bout en bout, jamais exercé jusqu'ici.

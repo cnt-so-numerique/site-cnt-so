@@ -1,6 +1,7 @@
+{% load content_tags %}
 {% if site.slug and site.slug != 'principal' %}
-{% url 'content:site_newsletter_subscribe' site_slug=site.slug as newsletter_url %}
-{% url 'content:site_contact' site_slug=site.slug as contact_url %}
+{% section_url 'content:site_newsletter_subscribe' site as newsletter_url %}
+{% section_url 'content:site_contact' site as contact_url %}
 {% else %}
 {% url 'content:newsletter_subscribe' as newsletter_url %}
 {% url 'content:contact' as contact_url %}

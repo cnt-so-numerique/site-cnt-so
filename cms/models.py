@@ -473,6 +473,8 @@ class SectionPage(SeoMixin, Page):
 
     def get_rejoindre_url(self):
         from django.urls import reverse
+        if self.custom_domain:
+            return f'{self.base_url}/rejoindre/'
         slug = self.legacy_site_slug or self.slug
         return reverse('content:site_rejoindre', kwargs={'site_slug': slug})
 

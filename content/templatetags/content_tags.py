@@ -27,6 +27,41 @@ def absolute_url(url, base):
     return f'{base}{url}'
 
 
+@register.simple_tag
+def section_url(nom_route, site, *args, **kwargs):
+    """URL d'une route de section, déjà canonique sur un domaine autonome.
+
+    `{% url %}` produit toujours `/<slug>/…`. Quand la section a son propre
+    domaine, `SectionDomainMiddleware` redirige cette forme en 301 vers l'URL
+    sans préfixe : un aller-retour réseau à chaque lien (301 sur la page
+    Ressources de Poitiers, audit du 01/08). On rend directement la forme
+    finale. Sans domaine autonome, le chemin relatif est inchangé.
+    """
+    from django.urls import reverse, NoReverseMatch
+    from cms.models import section_base_url
+
+    slug = getattr(site, 'slug', '') or ''
+    if not slug:
+        return ''
+    try:
+        if kwargs:
+            chemin = reverse(nom_route, kwargs={'site_slug': slug, **kwargs})
+        else:
+            chemin = reverse(nom_route, args=[slug, *args])
+    except NoReverseMatch:
+        return ''
+
+    base = section_base_url(slug)
+    if not base:
+        return chemin
+    prefixe = f'/{slug}'
+    if chemin.startswith(f'{prefixe}/'):
+        chemin = chemin[len(prefixe):]
+    elif chemin == prefixe:
+        chemin = '/'
+    return f'{base}{chemin}'
+
+
 @register.filter
 def json_ld(data):
     """Sérialise un dict en JSON sûr à insérer tel quel dans un <script type="application/ld+json">."""

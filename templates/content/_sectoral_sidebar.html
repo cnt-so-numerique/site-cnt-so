@@ -1,3 +1,4 @@
+{% load content_tags %}
 {% if not on_rejoindre_page %}
 <!-- Nous rejoindre -->
 <div style="background:var(--primary-color);padding:1.25rem;text-align:center;">
@@ -15,7 +16,7 @@
 
 <!-- Inscription newsletter -->
 {% if site.slug and site.slug != 'principal' %}
-{% url 'content:site_newsletter_subscribe' site_slug=site.slug as newsletter_url %}
+{% section_url 'content:site_newsletter_subscribe' site as newsletter_url %}
 {% else %}
 {% url 'content:newsletter_subscribe' as newsletter_url %}
 {% endif %}
@@ -71,7 +72,7 @@
 <div style="background:var(--dark-bg);padding:1.25rem;text-align:center;margin-top:1rem;">
     <h2 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Notre banque d'images</h2>
     <p style="color:rgba(255,255,255,.7);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Découvrez nos archives photographiques des luttes ouvrières.</p>
-    <a href="{% if site and site.slug != 'principal' %}{% url 'content:site_category_detail' site_slug=site.slug slug='banque-dimage' %}{% else %}{% url 'content:category_detail' slug='banque-dimage' %}{% endif %}"
+    <a href="{% if site and site.slug != 'principal' %}{% section_url 'content:site_category_detail' site slug='banque-dimage' %}{% else %}{% url 'content:category_detail' slug='banque-dimage' %}{% endif %}"
        style="display:block;padding:.6rem;background:var(--primary-color);color:#fff;font-weight:700;font-size:14px;font-family:var(--font-body);text-align:center;text-decoration:none;">
         Voir la galerie
     </a>

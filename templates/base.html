@@ -1603,7 +1603,7 @@
     <!-- Top Bar -->
     <div class="top-bar">
         <div class="top-bar-content">
-            <a href="{% if site and site.slug != 'principal' %}{% url 'content:site_espace_presse' site_slug=site.slug %}{% else %}{% url 'content:espace_presse' %}{% endif %}" class="top-bar-presse">
+            <a href="{% if site and site.slug != 'principal' %}{% section_url 'content:site_espace_presse' site %}{% else %}{% url 'content:espace_presse' %}{% endif %}" class="top-bar-presse">
                 <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10l6 6v8a2 2 0 0 1-2 2z"/>
                     <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
@@ -1753,7 +1753,7 @@
                 {% if site.description %}<p class="footer-brand-desc">{{ site.description }}</p>{% endif %}
                 <div class="footer-brand-links">
                     {% if site.contact_email %}<a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>{% endif %}
-                    <a href="{% url 'content:site_contact' site_slug=site.slug %}">Formulaire de contact</a>
+                    <a href="{% section_url 'content:site_contact' site %}">Formulaire de contact</a>
                     <a href="{{ main_site_url }}" class="footer-confed-link">← Retour au site confédéral</a>
                 </div>
             {% else %}
