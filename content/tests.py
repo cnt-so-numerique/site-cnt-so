@@ -1,7 +1,7 @@
 import uuid
 from unittest.mock import patch, MagicMock
 
-from django.test import TestCase, RequestFactory
+from django.test import TestCase, RequestFactory, override_settings
 from django.http import Http404
 from django.contrib.auth.models import User, Group, Permission
 from django.urls import reverse
@@ -5262,6 +5262,241 @@ class AccessibiliteTest(TestCase):
         for champ in re.findall(r'<input[^>]*type="email"[^>]*>', html):
             self.assertIn('aria-label', champ,
                           "le champ e-mail de la newsletter doit être étiqueté")
+
+
+class NavigationClavierTest(TestCase):
+    """Audit du 01/08/2026, passe « navigation clavier et rendu ».
+
+    Trois défauts constatés au navigateur : des liens focusables mais
+    invisibles (cartouches de la manchette en opacité 0, diapositives inactives
+    du carrousel), et des champs qui supprimaient le contour de focus sans rien
+    mettre à la place."""
+
+    def setUp(self):
+        self.site = make_site(slug='principal', name='CNT-SO')
+
+    def test_un_filet_de_securite_garantit_un_focus_visible(self):
+        html = self.client.get('/').content.decode()
+        self.assertIn(':focus-visible', html,
+                      "base.html doit poser un contour de focus par défaut")
+
+    def test_aucun_champ_ne_supprime_le_contour_sans_remplacement(self):
+        """`outline: none` n'est acceptable qu'accompagné d'un autre repère visuel."""
+        import re
+        html = self.client.get('/').content.decode()
+        for bloc in re.finditer(r'([^{}]*):focus[^{}]*\{([^}]*)\}', html):
+            selecteur, corps = bloc.group(1).strip()[-70:], bloc.group(2)
+            if not re.search(r'outline:\s*(none|0)\b', corps):
+                continue
+            remplacement = re.search(r'border-color|box-shadow|background|outline:\s*\d', corps)
+            self.assertTrue(
+                remplacement,
+                f"« {selecteur} » retire le contour de focus sans le remplacer")
+
+    def test_les_cartes_de_la_manchette_se_revelent_au_clavier(self):
+        """Le cartouche porte le lien du titre : sans :focus-within, on tabule
+        sur un lien invisible."""
+        html = self.client.get('/').content.decode()
+        self.assertIn('.hp-mcard:focus-within .hp-mcard-body', html)
+
+    def _accueil_avec_carrousel(self):
+        """Deux articles à la une : le carrousel ne s'anime qu'au-delà d'un."""
+        from cms.models import CarouselArticle
+        for titre, slug in (('Une A', 'une-a'), ('Une B', 'une-b')):
+            CarouselArticle.objects.create(
+                page=self.site,
+                article=make_article_page(section_slug='principal',
+                                          title=titre, slug=slug))
+        html = self.client.get('/').content.decode()
+        self.assertIn('id="hp-carousel-track"', html,
+                      "le carrousel devrait être rendu")
+        return html
+
+    def test_le_carrousel_peut_etre_mis_en_pause(self):
+        """WCAG 2.2.2 (niveau A) : tout contenu qui défile seul au-delà de
+        5 secondes doit pouvoir être arrêté."""
+        html = self._accueil_avec_carrousel()
+        self.assertIn('id="hp-pause"', html,
+                      "le carrousel doit offrir un bouton de pause")
+        self.assertIn('Mettre le défilement en pause', html)
+
+    def test_le_carrousel_respecte_le_reglage_animations_reduites(self):
+        html = self._accueil_avec_carrousel()
+        self.assertIn('prefers-reduced-motion', html,
+                      "le défilement automatique ne doit pas démarrer si "
+                      "l'utilisateur a réduit les animations")
+
+    def test_les_diapositives_inactives_sont_hors_de_l_ordre_de_tabulation(self):
+        """pointer-events ne bloque que la souris ; il faut visibility pour
+        retirer les liens du parcours clavier."""
+        import re
+        html = self.client.get('/').content.decode()
+        bloc = re.search(r'\.hp-carousel-slide\s*\{([^}]*)\}', html)
+        self.assertIsNotNone(bloc, "règle .hp-carousel-slide introuvable")
+        self.assertIn('visibility: hidden', bloc.group(1))
+
+
+class HierarchieDesTitresTest(TestCase):
+    """Aucun saut de niveau de titre dans les gabarits (WCAG 1.3.1).
+
+    L'audit avait relevé h1 → h3 sur toutes les pages d'article
+    (« Partager cet article » et « Articles similaires » en h3)."""
+
+    def setUp(self):
+        self.site = make_site(slug='principal', name='CNT-SO')
+
+    def _niveaux(self, html):
+        import re
+        return [int(m.group(1)) for m in re.finditer(r'<h([1-6])\b', html)]
+
+    def _assert_sans_saut(self, html, ou):
+        niveaux = self._niveaux(html)
+        sauts = [(a, b) for a, b in zip(niveaux, niveaux[1:]) if b > a + 1]
+        self.assertEqual(sauts, [], f"saut(s) de niveau de titre sur {ou} : {sauts}")
+
+    def test_page_d_article_sans_saut_de_niveau(self):
+        make_article_page(section_slug='principal', title='Grève au dépôt',
+                          slug='greve-au-depot')
+        r = self.client.get(reverse('content:article_detail',
+                                    kwargs={'slug': 'greve-au-depot'}))
+        self.assertEqual(r.status_code, 200)
+        self._assert_sans_saut(r.content.decode(), "une page d'article")
+
+    def test_accueil_sans_saut_de_niveau(self):
+        r = self.client.get('/')
+        self._assert_sans_saut(r.content.decode(), "l'accueil")
+
+
+class AccueilHeriteDeWordPressTest(TestCase):
+    """Un syndicat ayant gardé sa page « home » WordPress était servi par un
+    gabarit HTML autonome : ni menu, ni pied de page CNT-SO, ni lien
+    d'évitement, aucun h1, Tailwind chargé depuis un CDN externe — et un titre
+    codé en dur au nom du syndicat du numérique, donc faux pour tout autre."""
+
+    def setUp(self):
+        self.site = make_site(slug='metallurgie', name='CNT-SO Métallurgie',
+                              site_type='sectoral')
+        Page.objects.create(
+            site=self.site, title='Accueil', slug='home', status='publish',
+            content='<h3>Le syndicat de la métallurgie</h3><p>Rejoignez-nous.</p>',
+        )
+
+    def test_la_page_garde_la_navigation_du_site(self):
+        r = self.client.get('/metallurgie/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'class="skip-link"')
+        self.assertContains(r, '<main')
+
+    def test_la_page_a_un_titre_de_niveau_1(self):
+        r = self.client.get('/metallurgie/')
+        self.assertContains(r, '<h1')
+        self.assertContains(r, 'CNT-SO Métallurgie')
+
+    def test_le_contenu_herite_est_conserve(self):
+        r = self.client.get('/metallurgie/')
+        self.assertContains(r, 'Rejoignez-nous.')
+
+    def test_aucun_nom_de_syndicat_code_en_dur(self):
+        r = self.client.get('/metallurgie/')
+        self.assertNotContains(r, 'métiers du numérique')
+
+    def test_aucune_dependance_a_un_cdn_externe(self):
+        r = self.client.get('/metallurgie/')
+        self.assertNotContains(r, 'cdn.tailwindcss.com')
+
+
+@override_settings(NEWSLETTER_SEND_DELAY=0)  # 18 s en production : bridage OVH
+class ParcoursNewsletterCompletTest(TestCase):
+    """Le parcours d'un abonné de bout en bout, jamais exercé jusqu'ici.
+
+    Chaque étape était testée isolément, mais rien ne vérifiait que la chaîne
+    tient : que le lien de confirmation reçu par e-mail fonctionne vraiment, et
+    que le lien de désabonnement glissé dans la newsletter envoyée aussi."""
+
+    def setUp(self):
+        from django.core import mail
+        self.site = _ensure_section_page(slug='parcours-nl', name='CNT-SO Parcours',
+                                         site_type='sectoral')
+        self.article = make_article_page(section_slug='parcours-nl',
+                                         title='Grève reconductible',
+                                         slug='greve-reconductible')
+        mail.outbox = []
+
+    def _lien(self, corps, motif):
+        import re
+        m = re.search(r'https?://[^\s"\'<>]*(?:' + motif + r')[^\s"\'<>]*', corps)
+        self.assertIsNotNone(m, f"lien « {motif} » absent de l'e-mail")
+        return m.group(0)
+
+    def test_de_l_inscription_au_desabonnement(self):
+        from django.core import mail
+        from content.models import Newsletter, NewsletterArticle
+
+        # 1. inscription depuis le site public
+        r = self.client.post(
+            reverse('content:site_newsletter_subscribe', args=['parcours-nl']),
+            {'email': 'militante@example.org', 'name': 'Militante'})
+        self.assertEqual(r.status_code, 200)
+        abonnee = Subscriber.objects.get(email='militante@example.org')
+        self.assertFalse(abonnee.is_active, "l'inscription doit rester à confirmer")
+
+        # 2. l'e-mail de confirmation part, et son lien active bien le compte
+        self.assertEqual(len(mail.outbox), 1)
+        url_confirmation = self._lien(mail.outbox[0].body, 'confirm')
+        self.client.get(url_confirmation.replace('http://testserver', ''))
+        abonnee.refresh_from_db()
+        self.assertTrue(abonnee.is_active)
+        self.assertIsNotNone(abonnee.confirmed_at)
+
+        # 3. la rédaction compose et envoie la newsletter
+        mail.outbox = []
+        newsletter = Newsletter.objects.create(
+            site=self.site, title='Nouvelles du mois', intro='Au sommaire.',
+            status='draft')
+        NewsletterArticle.objects.create(newsletter=newsletter,
+                                         article=self.article, order=0)
+        chef = _chef_client(self.site)
+        chef.post(f'/cms/newsletter/{newsletter.pk}/envoyer/', {'mode': 'send'})
+
+        # 4. l'abonnée reçoit un courrier complet
+        self.assertEqual(len(mail.outbox), 1)
+        envoi = mail.outbox[0]
+        self.assertEqual(envoi.to, ['militante@example.org'])
+        self.assertEqual(envoi.subject, 'Nouvelles du mois')
+        self.assertIn('Grève reconductible', envoi.body)
+        html = envoi.alternatives[0][0]
+        self.assertIn('Grève reconductible', html)
+
+        # 5. le lien de désabonnement du courrier reçu fonctionne
+        url_desabo = self._lien(envoi.body, 'desabonnement|unsubscribe|desinscription')
+        chemin = url_desabo.replace('http://testserver', '')
+        self.assertEqual(self.client.get(chemin).status_code, 200)
+        self.client.post(chemin)
+        abonnee.refresh_from_db()
+        self.assertFalse(abonnee.is_active, "le lien de l'e-mail doit désabonner")
+
+        # 6. la newsletter est marquée envoyée et ne peut pas repartir
+        newsletter.refresh_from_db()
+        self.assertEqual(newsletter.status, 'sent')
+        self.assertEqual(newsletter.sent_count, 1)
+        mail.outbox = []
+        chef.post(f'/cms/newsletter/{newsletter.pk}/envoyer/', {'mode': 'send'})
+        self.assertEqual(len(mail.outbox), 0,
+                         "une newsletter déjà envoyée ne doit pas repartir")
+
+    def test_un_desabonne_ne_recoit_plus_rien(self):
+        from django.core import mail
+        from content.models import Newsletter
+        Subscriber.objects.create(site=self.site, email='parti@example.org',
+                                  is_active=False)
+        Subscriber.objects.create(site=self.site, email='reste@example.org',
+                                  is_active=True)
+        newsletter = Newsletter.objects.create(site=self.site, title='Suite',
+                                               intro='.', status='draft')
+        mail.outbox = []
+        _chef_client(self.site).post(f'/cms/newsletter/{newsletter.pk}/envoyer/',
+                                     {'mode': 'send'})
+        self.assertEqual([m.to[0] for m in mail.outbox], ['reste@example.org'])
 
 
 class ContrasteCouleursTest(TestCase):

@@ -55,12 +55,16 @@
     position: absolute;
     inset: 0;
     opacity: 0;
-    transition: opacity .6s ease;
+    /* visibility retire aussi les liens de l'ordre de tabulation et de l'arbre
+       d'accessibilité — pointer-events ne bloque que la souris. */
+    visibility: hidden;
+    transition: opacity .6s ease, visibility .6s ease;
     pointer-events: none;
 }
 
 .hp-carousel-slide--active {
     opacity: 1;
+    visibility: visible;
     pointer-events: auto;
     position: relative;
 }
@@ -125,6 +129,17 @@
 .hp-carousel-btn:hover { background: rgba(196,30,58,.8); }
 .hp-carousel-btn--prev { left: .75rem; }
 .hp-carousel-btn--next { right: .75rem; }
+
+/* Pause : exigée par WCAG 2.2.2 (niveau A) dès qu'un contenu défile seul
+   plus de 5 secondes. Placée en haut à droite pour ne pas gêner les flèches. */
+.hp-carousel-btn--pause {
+    top: .75rem;
+    right: .75rem;
+    transform: none;
+    width: 34px;
+    height: 34px;
+    font-size: 1rem;
+}
 
 /* Points de pagination */
 .hp-carousel-dots {
@@ -566,10 +581,27 @@
     z-index: 1;
 }
 
-.hp-mcard:hover .hp-mcard-body { opacity: 1; }
+/* :focus-within est indispensable — le cartouche porte le lien du titre.
+   Sans lui, la navigation au clavier passe sur des liens invisibles. */
+.hp-mcard:hover .hp-mcard-body,
+.hp-mcard:focus-within .hp-mcard-body { opacity: 1; }
 
 @media (max-width: 640px) {
-    .hp-mcard-body { opacity: 1; }
+    /* Pas de survol au doigt : le cartouche reste affiché. Le voile doit alors
+       couvrir toute la hauteur, sinon les premières lignes d'un titre long se
+       posent sur l'image nue. */
+    .hp-mcard-body {
+        opacity: 1;
+        background: linear-gradient(to top, rgba(0,0,0,.92) 0%, rgba(0,0,0,.78) 50%, rgba(0,0,0,.5) 100%);
+    }
+    /* La carte a une hauteur fixe et masque ce qui dépasse : borner le titre
+       vaut mieux que le laisser se faire couper en plein mot. */
+    .hp-mcard-title {
+        display: -webkit-box;
+        -webkit-line-clamp: 5;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
 }
 
 .hp-mcard-cat {
@@ -843,7 +875,9 @@
     background: #fff;
 }
 
-.hp-newsletter-form input:focus { outline: none; }
+/* Anneau interne : le champ est collé au bouton, un contour extérieur
+   déborderait dessus. Noir sur blanc pour rester lisible sur fond sombre. */
+.hp-newsletter-form input:focus { outline: 3px solid #000; outline-offset: -3px; }
 
 .hp-newsletter-form button {
     padding: 0.7rem 1.25rem;
@@ -925,6 +959,8 @@
     {% if carousel_articles|length > 1 %}
     <button class="hp-carousel-btn hp-carousel-btn--prev" id="hp-prev" aria-label="Précédent">&#8249;</button>
     <button class="hp-carousel-btn hp-carousel-btn--next" id="hp-next" aria-label="Suivant">&#8250;</button>
+    <button class="hp-carousel-btn hp-carousel-btn--pause" id="hp-pause"
+            aria-label="Mettre le défilement en pause">&#9646;&#9646;</button>
     <div class="hp-carousel-dots" id="hp-carousel-dots">
         {% for article in carousel_articles %}
         <button class="hp-carousel-dot{% if forloop.first %} hp-carousel-dot--active{% endif %}" data-index="{{ forloop.counter0 }}" aria-label="Article {{ forloop.counter }}"></button>
@@ -1088,9 +1124,16 @@
     var dots   = document.querySelectorAll('.hp-carousel-dot');
     var prev   = document.getElementById('hp-prev');
     var next   = document.getElementById('hp-next');
+    var pause  = document.getElementById('hp-pause');
     var total  = slides.length;
     var current = 0;
     var timer;
+    // Défilement suspendu tant que l'utilisateur survole, tabule dedans, ou
+    // l'a explicitement mis en pause. Quiconque a réduit les animations dans
+    // son système ne le voit jamais démarrer.
+    var arretParUtilisateur = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var survol = false;
+    var focusDedans = false;
 
     function goTo(idx) {
         slides[current].classList.remove('hp-carousel-slide--active');
@@ -1103,11 +1146,12 @@
     }
 
     function startAuto() {
+        clearInterval(timer);
+        if (arretParUtilisateur || survol || focusDedans) return;
         timer = setInterval(function() { goTo(current + 1); }, 5000);
     }
 
     function resetAuto() {
-        clearInterval(timer);
         startAuto();
     }
 
@@ -1120,6 +1164,27 @@
             resetAuto();
         });
     });
+
+    if (pause) {
+        function majPause() {
+            pause.innerHTML = arretParUtilisateur ? '&#9654;' : '&#9646;&#9646;';
+            pause.setAttribute('aria-label', arretParUtilisateur
+                ? 'Reprendre le défilement' : 'Mettre le défilement en pause');
+        }
+        pause.addEventListener('click', function() {
+            arretParUtilisateur = !arretParUtilisateur;
+            majPause();
+            startAuto();
+        });
+        majPause();
+    }
+
+    // Ne pas faire changer la diapositive sous les doigts ni sous le curseur
+    // clavier de quelqu'un qui est en train de la lire.
+    track.addEventListener('mouseenter', function() { survol = true; startAuto(); });
+    track.addEventListener('mouseleave', function() { survol = false; startAuto(); });
+    track.addEventListener('focusin',  function() { focusDedans = true; startAuto(); });
+    track.addEventListener('focusout', function() { focusDedans = false; startAuto(); });
 
     startAuto();
 })();

@@ -379,6 +379,95 @@ doit tenir 4,5:1, et aucune ancienne teinte ne peut réapparaître dans les gaba
 
 ### Reste non couvert
 
-Les contrôles automatisables ne remplacent pas un test réel : navigation clavier
-complète (ordre de tabulation, pièges de focus dans le menu déroulant), lecteur
-d'écran (NVDA/VoiceOver), zoom 200 %, et `prefers-reduced-motion`.
+Les contrôles automatisables ne remplacent pas un test réel : lecteur d'écran
+(NVDA/VoiceOver).
+
+---
+
+## Passe 4 — navigation clavier, rendu responsive, parcours newsletter (01/08)
+
+Menée au navigateur (Chrome piloté) sur le rendu réel, plus un balayage de
+structure sur 55 pages. **7 défauts trouvés, tous corrigés.**
+
+### Trois pièges de mesure, à retenir
+
+1. **`:focus-visible` ne se déclenche pas sur un focus programmatique.** Mon
+   premier script appelait `el.focus()` puis lisait les styles : le navigateur
+   n'était pas en « modalité clavier » et ne dessinait aucun anneau. Résultat
+   absurde : *69 éléments sur 69 sans indicateur*. Il faut d'abord provoquer une
+   vraie frappe au clavier dans la page.
+2. **Une transition CSS fausse la lecture immédiate.** `getComputedStyle` juste
+   après `.focus()` renvoie l'opacité de *départ* de l'animation, soit 0. Sans
+   attendre la fin de la transition, tout paraît invisible.
+
+3. **Un navigateur dont la fenêtre n'est pas active ne dispatche aucun événement
+   de focus** (`document.hasFocus()` faux). `el.focus()` déplace bien
+   `document.activeElement`, mais ni `focusin` ni `focusout` ne partent — j'ai
+   d'abord conclu à tort que la suspension du carrousel au clavier ne marchait
+   pas. Émettre l'événement à la main lève le doute.
+
+Ces trois pièges s'ajoutent à celui de la passe 3 (`re.findall` avec groupe de
+capture qui ne voyait que le contenu des balises, jamais les attributs).
+
+### Défauts corrigés
+
+| # | défaut | portée |
+|---|---|---|
+| 1 | `.hp-mcard-body` en `opacity: 0`, révélé au seul survol — **le cartouche porte le lien du titre**, donc on tabulait sur 5 liens invisibles | accueil |
+| 2 | Diapositives inactives du carrousel : `pointer-events: none` ne bloque que la souris, **pas le clavier** — 8 liens fantômes de plus | accueil |
+| 3 | Deux formulaires newsletter faisaient `outline: none` **sans rien mettre à la place** | accueil + tous les sous-sites |
+| 4 | Champs de contact : focus signalé par une bordure 1 px et une ombre à 10 % d'opacité, dans une teinte bordeaux périmée | contact + sous-pages |
+| 5 | `site_home_page.html` : page HTML autonome, **titre et colophon codés en dur au nom du syndicat du numérique**, sans menu ni pied de page ni `h1`, Tailwind chargé depuis un CDN externe | tout syndicat gardant une page « home » WordPress |
+| 6 | `h1 → h3` sur **toutes** les pages d'article (« Partager cet article », « Articles similaires ») | toutes les pages d'article |
+| 7 | **Le carrousel défile seul toutes les 5 s sans aucun moyen de le mettre en pause** — WCAG 2.2.2, **niveau A**. Il ignorait aussi `prefers-reduced-motion` et ne s'arrêtait ni au survol ni au focus clavier | accueil |
+
+Le défaut 7 est le plus grave sur l'échelle WCAG : c'est le seul de **niveau A**,
+le socle. Le défaut 1 est le plus insidieux : mon propre contrôle l'avait manqué
+parce qu'il lisait les styles calculés de l'élément sans remonter l'opacité des
+ancêtres.
+
+Corrigés par `:focus-within` (1), `visibility: hidden` (2), un anneau interne noir
+(3), un anneau rouge de 2 px (4), un gabarit qui étend `base.html` (5), un décalage
+des niveaux de titres (6), et un bouton pause + suspension au survol et au focus +
+respect de `prefers-reduced-motion` (7). Un filet de sécurité `:focus-visible`
+global a été ajouté à `base.html` pour tout élément futur.
+
+Comportement du carrousel vérifié au navigateur : il défile seul, s'arrête au clic
+sur pause (l'étiquette devient « Reprendre le défilement »), repart au clic
+suivant, et se suspend dès qu'un `focusin` atteint la piste.
+
+Le défaut 5 est le jumeau du « STUCS » codé en dur corrigé en passe 1, mais plus
+grave : c'était la dernière page publique encore rendue par du HTML hérité de
+WordPress. En dev seul Numérique est concerné — **à confirmer en production.**
+
+### Vérifié sain
+
+- **Aucun défilement horizontal** à 320 px de large (équivalent zoom 400 %,
+  WCAG 1.4.10) : le seul élément hors cadre est le lien d'évitement, volontaire.
+- **Aucun `tabindex` positif** — l'ordre de tabulation suit le DOM.
+- Le lien d'évitement est bien le premier élément focusable.
+- Après correction : **0 lien focusable invisible, 0 élément sans anneau de focus.**
+- Balayage de structure sur 55 pages : **51 sans aucun manquement** (`main`
+  unique, `h1` unique, `lang`, `title`, `alt`, étiquettes de champs, intitulés de
+  liens explicites). Les 2 restants sont des sauts de niveau **dans le contenu
+  rédigé** (un `h3` puis un `h5` en tête de corps d'article), pas dans le code.
+- Rendu mobile 390 px vérifié : titres longs bornés à 5 lignes et voile assombri
+  sur toute la hauteur des cartes, faute de quoi les premières lignes se posaient
+  sur l'image nue.
+
+### Parcours newsletter
+
+**Aucune newsletter réelle n'a été envoyée** — c'est une action externe
+irréversible. Le parcours complet a été exercé en base de test :
+inscription publique → e-mail de confirmation → **le lien reçu active bien le
+compte** → composition et envoi depuis `/cms/` → **l'abonnée reçoit un courrier
+complet (texte + HTML)** → **le lien de désabonnement du courrier fonctionne** →
+la newsletter est marquée envoyée et ne peut pas repartir. Un désabonné ne reçoit
+plus rien. Chaque étape était déjà testée isolément ; rien ne vérifiait que la
+chaîne tient.
+
+### Tests ajoutés
+
+`NavigationClavierTest` (6), `HierarchieDesTitresTest` (2),
+`AccueilHeriteDeWordPressTest` (5), `ParcoursNewsletterCompletTest` (2).
+**730 → 745 tests.**

@@ -53,7 +53,7 @@
 
 {% if related_articles %}
 <section style="margin-top: 3rem; padding-top: 2rem; border-top: 2px solid var(--bg-lighter);">
-    <h3 class="section-title">Articles similaires</h3>
+    <h2 class="section-title">Articles similaires</h2>
     <div class="article-grid">
         {% for related in related_articles %}
         <article class="article-card">
@@ -64,7 +64,7 @@
                 {% endif %}
             </div>
             <div class="article-card-content">
-                <h4><a href="{{ related.url }}">{{ related.title }}</a></h4>
+                <h3><a href="{{ related.url }}">{{ related.title }}</a></h3>
                 <p class="article-card-excerpt">{{ related.excerpt|truncatewords:15 }}</p>
             </div>
         </article>
@@ -75,9 +75,9 @@
 
 {% if category_latest %}
 <section style="margin-top: 2rem;">
-    <h3 class="section-title">
+    <h2 class="section-title">
         {% if first_category %}Dans {{ first_category.name }}{% endif %}
-    </h3>
+    </h2>
     {% for a in category_latest %}
     <div style="padding:.5rem 0;border-bottom:1px solid var(--bg-lighter);">
         <a href="{{ a.url }}">{{ a.title }}</a>

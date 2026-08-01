@@ -137,7 +137,6 @@
             font-family: var(--font-body);
             padding: .28rem .6rem;
             width: 180px;
-            outline: none;
         }
         .top-bar-search input::placeholder { color: rgba(196,196,196,.6); }
         .top-bar-search input:focus { color: var(--white); }
@@ -1348,7 +1347,9 @@
             font-size: 14px;
             background: #fff;
         }
-        .site-newsletter-form input:focus { outline: none; }
+        /* Anneau interne : le champ est collé au bouton, un contour extérieur
+           déborderait dessus. Noir sur blanc pour rester lisible sur fond sombre. */
+        .site-newsletter-form input:focus { outline: 3px solid #000; outline-offset: -3px; }
         .site-newsletter-form button {
             padding: .7rem 1.25rem;
             background: var(--primary-color);
@@ -1573,6 +1574,26 @@
         .skip-link:focus {
             left: 0;
             outline: 3px solid #000;
+        }
+
+        /* Filet de sécurité : tout ce qui prend le focus au clavier reste visible.
+           Les composants qui dessinent leur propre indicateur (champs de contact,
+           recherche) l'emportent par spécificité et gardent leur apparence. */
+        :focus-visible {
+            outline: 3px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
+        /* Réglage système « réduire les animations » : on neutralise les
+           transitions et animations sans rien casser (une durée nulle ferait
+           sauter les rappels de fin d'animation). */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: .01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: .01ms !important;
+                scroll-behavior: auto !important;
+            }
         }
     </style>
     {% block extra_css %}{% endblock %}

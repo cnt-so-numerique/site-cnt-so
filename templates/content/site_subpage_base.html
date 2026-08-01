@@ -74,11 +74,14 @@
   font-family: var(--font-body);
   font-size: .9rem;
   border-radius: 3px;
-  outline: none;
   transition: border-color .15s;
   box-sizing: border-box;
 }
-.s-input:focus, .s-textarea:focus, .form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--primary-color); }
+.s-input:focus, .s-textarea:focus, .form-input:focus, .form-textarea:focus, .form-select:focus {
+  border-color: var(--primary-color);
+  outline: 2px solid var(--primary-color);
+  outline-offset: 1px;
+}
 .form-checkbox { margin-right: .4rem; }
 .s-textarea { min-height: 110px; resize: vertical; }
 
