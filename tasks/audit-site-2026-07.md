@@ -312,14 +312,13 @@ plus une par catégorie liée pour bâtir son URL. Le menu étant reconstruit su
 
 Temps de réponse en production après correction : 0,4 s à 1,0 s.
 
-## Reste non couvert
+## Reste non couvert *(à la fin de la passe 1 — voir plus bas ce qui a suivi)*
 
-- **Accessibilité** : rien n'a été vérifié (contrastes, navigation clavier,
-  lecteurs d'écran, attributs ARIA).
-- **Rendu visuel et responsive** : non revu dans cette passe.
-- **Parcours d'écriture réels** : créer puis publier un article, téléverser un
-  média, envoyer une vraie newsletter — testés en droits, pas en usage.
-- **Montée en charge** : aucun test de charge.
+- ~~**Accessibilité**~~ → couverte aux passes 3 et 4.
+- ~~**Rendu visuel et responsive**~~ → couvert à la passe 4.
+- ~~**Parcours d'écriture réels**~~ → couverts aux passes 3 et 4, sauf l'envoi
+  d'une vraie newsletter en production.
+- **Montée en charge** : toujours aucun test de charge.
 
 ---
 
