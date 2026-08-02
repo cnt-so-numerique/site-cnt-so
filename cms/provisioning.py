@@ -10,12 +10,15 @@ et par setup_cms_permissions pour la passe globale. Idempotent.
 """
 
 # Permissions accordées au groupe du syndicat sur SA collection ; sur
-# « Commun », seulement les deux choose_* (lecture pour le chooser).
+# « Commun », seulement les deux choose_* (lecture pour le chooser). Wagtail
+# pilote les médias par ces permissions de collection et ignore celles de
+# modèle : la suppression doit donc être accordée ici aussi — et elle reste
+# ainsi bornée à la collection du syndicat, jamais au fonds commun.
 COLLECTION_PERMS = [
     ('wagtailimages', 'add_image'), ('wagtailimages', 'change_image'),
-    ('wagtailimages', 'choose_image'),
+    ('wagtailimages', 'choose_image'), ('wagtailimages', 'delete_image'),
     ('wagtaildocs', 'add_document'), ('wagtaildocs', 'change_document'),
-    ('wagtaildocs', 'choose_document'),
+    ('wagtaildocs', 'choose_document'), ('wagtaildocs', 'delete_document'),
 ]
 CHOOSE_PERMS = [
     ('wagtailimages', 'choose_image'), ('wagtaildocs', 'choose_document'),

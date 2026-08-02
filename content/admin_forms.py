@@ -33,6 +33,13 @@ class SyndicatFormMixin(forms.Form):
             del self.fields['is_superuser']
         from cms.models import SectionPage
         self.fields['syndicat'].queryset = SectionPage.objects.order_by('title')
+        # « redacteur » (sans suffixe) est le gabarit dont chaque syndicat copie
+        # ses permissions au provisionnement, pas un rôle : il n'a aucun droit
+        # d'arbre. Un compte qui n'aurait que lui semblerait configuré et ne
+        # pourrait rien publier — on ne le propose donc pas.
+        if 'groups' in self.fields:
+            self.fields['groups'].queryset = (
+                self.fields['groups'].queryset.exclude(name='redacteur'))
         if getattr(self.instance, 'pk', None):
             self.fields['syndicat'].initial = self._current_site_of(self.instance)
 
@@ -67,7 +74,8 @@ class SyndicatFormMixin(forms.Form):
             # Groupe absent = setup_cms_permissions pas encore lancé pour ce
             # syndicat ; Author.site reste posé, rien à faire de plus ici.
             wanted = Group.objects.filter(name=f'redacteur_{slug}').first()
-        stale = user.groups.filter(name__startswith='redacteur_').exclude(
+        # `redacteur` (gabarit) inclus : il ne doit rester sur aucun compte.
+        stale = user.groups.filter(name__startswith='redacteur').exclude(
             name='redacteur_en_chef')
         if wanted is not None:
             stale = stale.exclude(pk=wanted.pk)

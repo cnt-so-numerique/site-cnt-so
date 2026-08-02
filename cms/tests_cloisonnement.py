@@ -16,7 +16,7 @@ from django.urls import reverse
 from wagtail.snippets.models import get_snippet_models
 
 from cms.cloisonnement import ViewSetCloisonne
-from cms.models import Event, SectionPage
+from cms.models import ArticlePage, Event, SectionPage
 from content.models import (
     Author, Comment, ContactMessage, FormulaireContact, MenuItem,
     Newsletter, Subscriber,
@@ -268,6 +268,42 @@ class CloisonnementBackOfficeTest(TestCase):
         self.assertIsNotNone(creee, "la catégorie aurait dû être créée")
         self.assertEqual(creee.section_slug, self.mien.slug,
                          "le slug de syndicat forgé dans le POST a été accepté")
+
+    # ── Autonomie réelle : suppression bornée au syndicat ────────────────────
+
+    def _redacteur_aux_droits_reels(self):
+        """Un compte n'ayant que les permissions de son groupe de syndicat —
+        les tests ci-dessus donnent TOUT pour isoler le cloisonnement, celui-ci
+        vérifie que les droits réellement accordés suffisent."""
+        from django.contrib.auth.models import Group
+        from django.core.management import call_command
+        call_command('setup_cms_permissions', verbosity=0)
+        u = User.objects.create_user('redac-droits-reels', password='pass')
+        u.groups.add(Group.objects.get(name=f'redacteur_{self.mien.slug}'))
+        client = self.client_class()
+        client.force_login(User.objects.get(pk=u.pk))
+        return client
+
+    def test_un_redacteur_supprime_le_contenu_de_son_syndicat(self):
+        client = self._redacteur_aux_droits_reels()
+        mien = self.objets['cms.ArticlePage']['mien']
+        url = reverse(
+            ArticlePage.snippet_viewset.get_url_name('delete'), kwargs={'pk': mien.pk})
+        self.assertEqual(client.get(url).status_code, 200,
+                         "un rédacteur doit pouvoir supprimer chez lui")
+        client.post(url)
+        self.assertFalse(ArticlePage.objects.filter(pk=mien.pk).exists(),
+                         "la suppression n'a pas abouti")
+
+    def test_mais_pas_celui_du_voisin(self):
+        client = self._redacteur_aux_droits_reels()
+        voisin = self.objets['cms.ArticlePage']['voisin']
+        url = reverse(
+            ArticlePage.snippet_viewset.get_url_name('delete'), kwargs={'pk': voisin.pk})
+        self.assertEqual(client.get(url).status_code, 404)
+        client.post(url)
+        self.assertTrue(ArticlePage.objects.filter(pk=voisin.pk).exists(),
+                        "l'article du voisin a été supprimé")
 
     # ── Sélecteurs de contenu ────────────────────────────────────────────────
 

@@ -62,7 +62,10 @@ class MixinFormulaireCloisonne:
         return form
 
     def form_valid(self, form):
-        self._viewset_cloisonne.imposer_syndicat(form.instance, self.request)
+        # L'écran de suppression passe un simple formulaire de confirmation,
+        # sans instance : il n'y a alors rien à estampiller.
+        if hasattr(form, 'instance'):
+            self._viewset_cloisonne.imposer_syndicat(form.instance, self.request)
         return super().form_valid(form)
 
 

@@ -1470,14 +1470,16 @@ class SetupWagtailPermissionsCommandTest(TestCase):
             1,
         )
 
-    def test_redacteur_has_cms_articlepage_perms_not_delete(self):
+    def test_redacteur_has_cms_articlepage_perms(self):
+        # NB : cette commande est un reliquat, elle pose un jeu de droits plus
+        # étroit que create_editorial_groups (post_migrate) et n'ôte jamais
+        # rien. On ne vérifie donc que ce qu'elle ajoute.
         from django.core.management import call_command
         from io import StringIO
         call_command('setup_wagtail_permissions', stdout=StringIO())
         group = Group.objects.get(name='redacteur')
         self.assertTrue(group.permissions.filter(codename='add_articlepage').exists())
         self.assertTrue(group.permissions.filter(codename='change_articlepage').exists())
-        self.assertFalse(group.permissions.filter(codename='delete_articlepage').exists())
 
     def test_chef_has_delete_and_category_perms(self):
         from django.core.management import call_command
@@ -1512,15 +1514,14 @@ class Phase6RedacteurPermissionsTest(TestCase):
         self.assertTrue(self.redacteur.has_perm('cms.add_articlepage'))
         self.assertTrue(self.redacteur.has_perm('cms.change_articlepage'))
 
-    def test_redacteur_cannot_delete_articlepage(self):
-        self.assertFalse(self.redacteur.has_perm('cms.delete_articlepage'))
+    def test_redacteur_can_delete_articlepage(self):
+        self.assertTrue(self.redacteur.has_perm('cms.delete_articlepage'))
 
-    def test_redacteur_manages_categories_but_cannot_delete(self):
-        # Autonomie 2026-07-16 : les catégories du syndicat sont gérées par
-        # ses rédacteurs (create/rename) ; la suppression reste confédérale.
+    def test_redacteur_manages_categories_deletion_included(self):
+        # Autonomie complète sur son syndicat (décision du 02/08/2026).
         self.assertTrue(self.redacteur.has_perm('cms.add_cmscategory'))
         self.assertTrue(self.redacteur.has_perm('cms.change_cmscategory'))
-        self.assertFalse(self.redacteur.has_perm('cms.delete_cmscategory'))
+        self.assertTrue(self.redacteur.has_perm('cms.delete_cmscategory'))
 
     def test_redacteur_can_view_categories(self):
         self.assertTrue(self.redacteur.has_perm('cms.view_cmscategory'))
@@ -1535,7 +1536,8 @@ class Phase6RedacteurPermissionsTest(TestCase):
     def test_redacteur_has_image_perms(self):
         self.assertTrue(self.redacteur.has_perm('wagtailimages.add_image'))
         self.assertTrue(self.redacteur.has_perm('wagtailimages.choose_image'))
-        self.assertFalse(self.redacteur.has_perm('wagtailimages.delete_image'))
+        # La suppression est bornée par la collection du syndicat, pas ici.
+        self.assertTrue(self.redacteur.has_perm('wagtailimages.delete_image'))
 
     def test_chef_can_delete_images(self):
         self.assertTrue(self.chef.has_perm('wagtailimages.delete_image'))
@@ -1715,9 +1717,10 @@ class Phase6CmsUrlAccessTest(TestCase):
         """Chef a la permission Django delete_articlepage (testée via has_perm)."""
         self.assertTrue(self.chef.has_perm('cms.delete_articlepage'))
 
-    def test_redacteur_lacks_delete_permission_on_articlepage(self):
-        """Rédacteur n'a pas delete_articlepage."""
-        self.assertFalse(self.redacteur.has_perm('cms.delete_articlepage'))
+    def test_redacteur_peut_supprimer_un_article_de_son_syndicat(self):
+        """Autonomie complète depuis le 02/08/2026 ; le périmètre est borné
+        par le cloisonnement, pas par la permission."""
+        self.assertTrue(self.redacteur.has_perm('cms.delete_articlepage'))
 
 
 class Phase6SiteSwitchTest(TestCase):
@@ -1834,18 +1837,25 @@ class SectionAutonomyPermissionsTest(TestCase):
                      'cms.add_event', 'cms.add_cmscategory']:
             self.assertTrue(redacteur.has_perm(perm), f'manquante : {perm}')
 
-    def test_redacteur_still_cannot_delete_content(self):
+    def test_redacteur_gere_son_syndicat_suppression_comprise(self):
+        """Décision du 02/08/2026 : autonomie complète sur son syndicat.
+        Ouvrable seulement parce que la suppression en masse est bornée et que
+        tous les écrans par clé primaire refusent le contenu du voisin."""
         redacteur = make_redacteur(site=self.site_a)
-        for perm in ['content.delete_menuitem', 'content.delete_newsletter',
-                     'cms.delete_articlepage', 'cms.delete_contentpage',
-                     'cms.delete_cmscategory', 'cms.delete_sectionpage',
-                     'content.delete_comment',
-                     'wagtailimages.delete_image']:
-            self.assertFalse(redacteur.has_perm(perm), f'ne devrait pas avoir : {perm}')
+        for perm in ['cms.delete_articlepage', 'cms.delete_contentpage',
+                     'cms.delete_cmscategory', 'cms.delete_event',
+                     'content.delete_menuitem', 'content.delete_newsletter',
+                     'content.delete_subscriber', 'content.delete_comment',
+                     'wagtailimages.delete_image', 'wagtaildocs.delete_document']:
+            self.assertTrue(redacteur.has_perm(perm), f'manquante : {perm}')
+
+    def test_redacteur_ne_peut_pas_supprimer_la_fiche_de_son_syndicat(self):
+        """Seule exception à l'autonomie : supprimer la fiche détruirait le
+        site entier du syndicat, toutes ses pages avec."""
+        redacteur = make_redacteur(site=self.site_a)
+        self.assertFalse(redacteur.has_perm('cms.delete_sectionpage'))
 
     def test_redacteur_modere_les_commentaires_de_ses_articles(self):
-        """« Spam » et « Corbeille » sont des statuts : modifier suffit à
-        modérer, sans accorder la suppression."""
         redacteur = make_redacteur(site=self.site_a)
         self.assertTrue(redacteur.has_perm('content.view_comment'))
         self.assertTrue(redacteur.has_perm('content.change_comment'))
@@ -1867,11 +1877,11 @@ class SectionAutonomyPermissionsTest(TestCase):
             self.assertTrue(chef.has_perm(perm), f'manquante au chef : {perm}')
 
     def test_redacteur_has_menu_perms(self):
-        """Lot 6 : menus ouverts après sécurisation des vues Move/Reorder."""
+        """Menus ouverts après sécurisation des vues Move/Reorder, suppression
+        comprise depuis que la suppression en masse est bornée au syndicat."""
         redacteur = make_redacteur(site=self.site_a)
-        self.assertTrue(redacteur.has_perm('content.add_menuitem'))
-        self.assertTrue(redacteur.has_perm('content.change_menuitem'))
-        self.assertFalse(redacteur.has_perm('content.delete_menuitem'))
+        for perm in ('add_menuitem', 'change_menuitem', 'delete_menuitem'):
+            self.assertTrue(redacteur.has_perm(f'content.{perm}'))
 
     def test_redacteur_cannot_move_other_site_menuitem(self):
         """Lot 6 : MoveMenuItemView refuse de déplacer un item d'un autre site

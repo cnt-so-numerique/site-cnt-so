@@ -1189,9 +1189,7 @@ class UserSyndicatFormTest(TestCase):
     qui synchronise la fiche Author (cloisonnement par site)."""
 
     def setUp(self):
-        from django.contrib.auth.models import Group
         self.site = _ensure_section_page(slug='fusion-synd', name='Fusion Synd', site_type='sectoral')
-        self.group, _ = Group.objects.get_or_create(name='redacteur')
         self.admin = make_superuser(username='su-fusion')
         self.client = Client()
         self.client.force_login(self.admin)
@@ -1201,7 +1199,8 @@ class UserSyndicatFormTest(TestCase):
             'username': 'fusion-user', 'email': 'fusion@example.org',
             'first_name': 'Fu', 'last_name': 'Sion',
             'password1': 'mdp-Tres-solide-42', 'password2': 'mdp-Tres-solide-42',
-            'groups': [self.group.pk],
+            # Aucun groupe coché : c'est le champ « Syndicat » qui rattache.
+            'groups': [],
         }
         data.update(extra)
         return data
@@ -1209,6 +1208,16 @@ class UserSyndicatFormTest(TestCase):
     def test_champ_syndicat_affiche_dans_les_formulaires(self):
         r = self.client.get(reverse('wagtailusers_users:add'))
         self.assertContains(r, 'name="syndicat"')
+
+    def test_le_gabarit_redacteur_n_est_pas_proposable(self):
+        """« redacteur » sans suffixe est le gabarit dont chaque syndicat copie
+        ses permissions, pas un rôle : il n'a aucun droit d'arbre. Un compte
+        n'ayant que lui semblerait configuré sans rien pouvoir publier."""
+        from django.contrib.auth.models import Group
+        Group.objects.get_or_create(name='redacteur')
+        r = self.client.get(reverse('wagtailusers_users:add'))
+        proposes = {g.name for g in r.context['form'].fields['groups'].queryset}
+        self.assertNotIn('redacteur', proposes)
 
     def test_creation_utilisateur_cree_la_fiche_auteur(self):
         from content.models import Author

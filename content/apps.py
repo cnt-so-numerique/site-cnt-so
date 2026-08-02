@@ -55,21 +55,18 @@ def create_editorial_groups(sender, **kwargs):
     # syndicats.md) : un rédacteur gère TOUT le contenu de son syndicat —
     # menus, newsletter, abonnés, formulaire de contact inclus. Le périmètre
     # est borné par le scoping par syndicat des querysets, pas par les perms.
-    # Pas de delete sur articles/pages (dépublication seulement).
     _REDACTEUR_CONTENT = [
         'content.add_article', 'content.change_article', 'content.view_article',
         'content.add_page', 'content.change_page', 'content.view_page',
         'content.view_category', 'content.view_tag',
-        # Modération des commentaires de SES articles (le queryset les borne à
-        # son syndicat) : « Spam » et « Corbeille » étant des statuts, modifier
-        # suffit à modérer — la suppression reste au chef, comme pour le reste.
-        'content.view_comment', 'content.change_comment',
+        # Modération des commentaires de SES articles.
+        'content.view_comment', 'content.change_comment', 'content.delete_comment',
         # Menus : vues Move/Reorder sécurisées (scoping par syndicat) et champ
         # site verrouillé côté formulaire ET serveur — ouvert depuis le lot 6.
-        # Pas de delete : décision d'ensemble (articles, pages, catégories,
-        # images non plus). La suppression reste au rédacteur-en-chef.
-        'content.add_menuitem', 'content.change_menuitem', 'content.view_menuitem',
-        'content.add_newsletter', 'content.change_newsletter', 'content.view_newsletter',
+        'content.add_menuitem', 'content.change_menuitem',
+        'content.delete_menuitem', 'content.view_menuitem',
+        'content.add_newsletter', 'content.change_newsletter',
+        'content.delete_newsletter', 'content.view_newsletter',
         'content.add_subscriber', 'content.change_subscriber', 'content.delete_subscriber', 'content.view_subscriber',
         'content.view_contactmessage', 'content.change_contactmessage',
         'content.view_formulairecontact', 'content.change_formulairecontact',
@@ -99,9 +96,18 @@ def create_editorial_groups(sender, **kwargs):
         'wagtaildocs.add_document', 'wagtaildocs.change_document', 'wagtaildocs.view_document',
         'wagtaildocs.choose_document', 'wagtaildocs.delete_document',
     ]
+    # Autonomie complète sur SON syndicat, suppression comprise (décision
+    # d'Arnaud du 02/08/2026). Deux préalables tenus avant d'ouvrir le delete :
+    # la suppression en masse est bornée au syndicat et tous les écrans par clé
+    # primaire refusent le contenu du voisin (cf. cms/cloisonnement.py) — sans
+    # eux, un rédacteur effaçait le contenu de tous les syndicats d'un POST.
+    # Seule exception : cms.delete_sectionpage reste hors de portée, supprimer
+    # la fiche revient à détruire le site entier du syndicat.
     _REDACTEUR_CMS = [
         'wagtailadmin.access_admin',
         'cms.add_articlepage', 'cms.change_articlepage', 'cms.view_articlepage',
+        'cms.delete_articlepage', 'cms.delete_contentpage',
+        'cms.delete_cmscategory', 'cms.delete_event',
         # Publication directe : pas de circuit d'approbation (décision 2026-07-16,
         # cf. tasks/chantier-autonomie-syndicats.md) — le brouillon reste un état
         # de travail, le queryset scoppé par syndicat borne ce qui est publiable.
@@ -110,13 +116,13 @@ def create_editorial_groups(sender, **kwargs):
         # Fiche du syndicat (logo, réseaux sociaux, textes) : éditable et
         # publiable par ses rédacteurs — le queryset la limite à leur section.
         'cms.change_sectionpage', 'cms.view_sectionpage', 'cms.publish_sectionpage',
-        # Catégories et agenda gérés en autonomie (pas de delete catégorie).
+        # Catégories et agenda gérés en autonomie.
         'cms.add_cmscategory', 'cms.change_cmscategory', 'cms.view_cmscategory',
         'cms.add_event', 'cms.change_event', 'cms.view_event',
         'wagtailimages.add_image', 'wagtailimages.change_image', 'wagtailimages.view_image',
-        'wagtailimages.choose_image',
+        'wagtailimages.choose_image', 'wagtailimages.delete_image',
         'wagtaildocs.add_document', 'wagtaildocs.change_document', 'wagtaildocs.view_document',
-        'wagtaildocs.choose_document',
+        'wagtaildocs.choose_document', 'wagtaildocs.delete_document',
     ]
 
     def get_permissions(perm_list):
