@@ -649,11 +649,25 @@ enfants. D'où 3 contre 2. Convention de Wagtail, laissée telle quelle.
 
 ### Trouvé au passage — 7 catégories orphelines
 
-7 `CmsCategory` portent `section_slug='staa'`, qui ne correspond à **aucun**
-syndicat existant (CAF, Nouvelles technologies, administratif, annonces, fiche,
-publications, toolbox). **Aucune n'est rattachée à un article** : elles sont
-inertes et invisibles partout. Résidu de l'import WordPress d'un syndicat
-agro-alimentaire absent de la nouvelle arborescence. Suppression à décider.
+7 `CmsCategory` portent `section_slug='staa'` (CAF, Nouvelles technologies,
+administratif, annonces, fiche, publications, toolbox). **Aucune n'est rattachée
+à un article** : elles sont inertes et invisibles partout.
+
+⚠️ **Correction du 05/08** — j'avais écrit « syndicat agro-alimentaire disparu »,
+en devinant à partir des lettres. **STAA = Syndicat des Travailleur·euses
+Artistes-Auteurs**, syndicat vivant de la CNT-SO qui a son **propre site**,
+`staa-cnt-so.org`. L'information était dans le dépôt
+([content/context_processors.py:74](content/context_processors.py#L74)) et en base
+de dev, où existe une `SectionPage` `'STAA (Artistes-Auteurs)'` avec son
+`external_url`. Voir `tasks/lessons.md`.
+
+Les catégories sont donc orphelines parce que **la `SectionPage` STAA n'existe
+qu'en dev, pas en production** — écart déjà relevé au constat G de la passe 1.
+La question n'est pas « faut-il les supprimer » mais **comment le site confédéral
+doit renvoyer vers le site du STAA** : par une `SectionPage` à `external_url` (le
+modèle prévoit ce cas, cf. `get_absolute_url`) ou par une simple entrée de menu.
+En dev coexistent les deux, plus une **entrée de menu confédérale à URL vide qui
+résout vers `#`** — lien mort à vérifier en production.
 
 ### Tests ajoutés
 

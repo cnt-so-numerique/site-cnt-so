@@ -24,3 +24,28 @@
 5. **Sessions trop longues = mémoire, pas de scroll infini.** Le système de mémoire (`~/.claude/projects/.../memory/`) existe pour porter la continuité entre sessions — pas besoin de garder tout un historique de plusieurs jours dans un seul fil. Pour un nouveau chantier sans lien direct avec la conversation en cours, privilégier une nouvelle conversation (mémoire + `tasks/lessons.md` suffisent à reprendre le contexte).
 
 **Compromis assumé :** filtrer/déléguer plus agressivement prive parfois de contexte utile en cas de bug inattendu (par exemple si l'info dont on a besoin n'était pas dans les 3 lignes qu'on a gardées). À doser selon la criticité — sur un correctif de prod ou un diagnostic de bug, mieux vaut garder plus de contexte que d'économiser des tokens.
+
+## 2026-08-05 — Ne pas deviner ce que désigne un sigle
+
+**Erreur :** ayant trouvé 7 catégories orphelines portant `section_slug='staa'`, j'ai
+écrit dans le journal d'audit et dans un rapport à Arnaud qu'il s'agissait d'un
+« syndicat agro-alimentaire absent de l'arborescence ». Pure invention à partir des
+lettres. **STAA = Syndicat des Travailleur·euses Artistes-Auteurs**, syndicat bien
+vivant de la CNT-SO qui a simplement son propre site (`staa-cnt-so.org`).
+
+Le plus gênant : **l'information était dans le dépôt**, à deux endroits que je n'avais
+pas interrogés — `content/context_processors.py:74` contient le libellé complet
+« syndicat-des-travailleur-euse-s-artistes-auteurs-staa », et la base de dev a une
+`SectionPage` `'STAA (Artistes-Auteurs)'` avec son `external_url`. J'avais requêté
+`SectionPage` en prod (où la section n'existe pas) et conclu de cette seule absence.
+
+**Règle :** un sigle inconnu se résout, il ne se devine pas. Avant d'écrire ce que
+désigne un identifiant opaque trouvé en base — surtout dans un document qui fait
+référence — chercher le libellé en clair : `grep -ri "<sigle>"` sur le dépôt entier
+(gabarits, processeurs de contexte, fixtures, docs), et interroger la base de **dev**
+autant que celle de prod, car dev garde des sections que la prod n'a pas. À défaut,
+écrire « slug non identifié » et demander — jamais une étymologie plausible.
+
+**Corollaire, plus large :** l'absence d'une ligne en production ne prouve pas
+l'inexistence de la chose. Ici l'absence de la section STAA en prod était l'anomalie
+à expliquer, pas la preuve que le syndicat avait disparu.
