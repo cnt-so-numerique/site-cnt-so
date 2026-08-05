@@ -590,3 +590,73 @@ chaîne tient.
 `NavigationClavierTest` (6), `HierarchieDesTitresTest` (2),
 `AccueilHeriteDeWordPressTest` (5), `ParcoursNewsletterCompletTest` (2),
 `SectionUrlTagTest` (11). **730 → 756 tests.**
+
+---
+
+## Passe 7 — le slug hérité, neuvième et dernière occurrence (05/08)
+
+### Le bug
+
+Sur le compte d'essai créé pour Numérique, le panneau « Vous éditez le syndicat »
+affichait **0 article et 0 page** alors que le syndicat en a. La cause :
+
+```python
+slug = current.legacy_site_slug or current.slug        # → 'stnum'
+ArticlePage.objects.filter(section_slug=slug)          # → 0
+```
+
+Les contenus portent le slug **Wagtail** (`numerique`), pas le slug hérité de
+WordPress. Même bug dans la vue « Syndicats » du chef. En production, Éducation
+affichait 0 au lieu de **100 articles**.
+
+### Pourquoi neuf fois
+
+L'expression « accepter les deux slugs » était **recopiée à la main dans sept
+fichiers**, chacun avec son propre commentaire d'explication. Corriger un endroit
+ne corrigeait pas les six autres, et tout nouveau code repartait du mauvais
+modèle en le copiant chez le voisin. C'est la recopie, pas le champ, qui
+fabriquait la série.
+
+Elle vit désormais dans `SectionPage.slugs_contenu`, et un test **lit le code
+source** pour refuser toute nouvelle recopie (motif : ensemble littéral à deux
+membres contenant `legacy_site_slug or`, la définition étant marquée
+`# source-unique`).
+
+### La clé étrangère : dette reconnue, pas chantier
+
+La question s'est posée de remplacer `section_slug` (texte) par une FK vers
+`SectionPage`. Vérification faite sur les **données de production** :
+
+```
+ArticlePage  total=1800  sur slug hérité=0
+ContentPage  total=  68  sur slug hérité=0
+CmsCategory  total= 226  sur slug hérité=0
+```
+
+**Aucun contenu ne porte de slug hérité.** Les 13 filtres des vues publiques, qui
+lisent `section.slug` seul, sont donc corrects ; `legacy_site_slug` ne sert qu'à
+reconnaître une **URL entrante**, jamais à retrouver du contenu — et devrait être
+gardé même après une migration FK, pour cette raison. La FK reste souhaitable le
+jour où on voudra une contrainte d'intégrité réelle (supprimer un syndicat sans
+laisser d'orphelins), mais elle ne referme pas cette famille de bugs : la
+propriété unique + le test de recopie le font, à un coût sans commune mesure.
+
+### Ce que « 3 Pages » veut dire
+
+Le compteur Wagtail du haut compte `descendant_of(racine, inclusive=True)` : la
+fiche du syndicat **plus** ses enfants. `/cms/pages/<pk>/` n'affiche que les
+enfants. D'où 3 contre 2. Convention de Wagtail, laissée telle quelle.
+
+### Trouvé au passage — 7 catégories orphelines
+
+7 `CmsCategory` portent `section_slug='staa'`, qui ne correspond à **aucun**
+syndicat existant (CAF, Nouvelles technologies, administratif, annonces, fiche,
+publications, toolbox). **Aucune n'est rattachée à un article** : elles sont
+inertes et invisibles partout. Résidu de l'import WordPress d'un syndicat
+agro-alimentaire absent de la nouvelle arborescence. Suppression à décider.
+
+### Tests ajoutés
+
+`SlugHeriteAdminTest` : le panneau du tableau de bord, le tableau des syndicats,
+et le scan anti-recopie. Contre-épreuve tenue — sur le code d'avant, le panneau
+donne `0 != 1` et le scan pointe `cms/wagtail_hooks.py:121`. **745 tests verts.**
