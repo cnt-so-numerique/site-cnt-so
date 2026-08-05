@@ -465,7 +465,7 @@ class MenuItem(models.Model):
         base = section_base_url(self.site.slug)
         if not base:
             return url
-        for slug in {self.site.slug, self.site.legacy_site_slug or self.site.slug}:
+        for slug in self.site.slugs_contenu:
             if url == f'/{slug}':
                 return f'{base}/'
             if url.startswith(f'/{slug}/'):

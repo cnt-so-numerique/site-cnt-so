@@ -54,13 +54,8 @@ class SiteArticlesFeed(Feed):
         return f"Les dernières actualités de {obj.name}"
 
     def items(self, obj):
-        # Les articles portent tantôt le slug Wagtail, tantôt le slug hérité de
-        # WordPress : accepter les deux (comme les sitemaps). Se limiter au seul
-        # legacy vidait le flux des syndicats dont les deux slugs diffèrent
-        # (Numérique « stnum », Éducation « fter »).
-        slugs = {obj.slug, obj.legacy_site_slug or obj.slug}
         return (ArticlePage.objects.live()
-                .filter(section_slug__in=slugs)
+                .filter(section_slug__in=obj.slugs_contenu)
                 .order_by('-publication_date', '-first_published_at')[:20])
 
     def item_title(self, item):

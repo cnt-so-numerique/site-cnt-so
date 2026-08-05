@@ -1941,6 +1941,58 @@ class SlugHeriteAdminTest(TestCase):
         self.assertTrue(Group.objects.filter(name='redacteur_numerique').exists())
         self.assertFalse(Group.objects.filter(name='redacteur_stnum').exists())
 
+    def test_le_panneau_du_tableau_de_bord_compte_les_contenus(self):
+        """Le panneau « Vous éditez le syndicat » affichait 0 article et
+        0 page à un rédacteur qui en avait (constaté le 05/08/2026 sur le
+        compte d'essai Numérique) : il filtrait sur le seul slug hérité."""
+        from cms.wagtail_hooks import SiteDashboardPanel
+        from unittest.mock import MagicMock
+
+        make_article_page(section_slug='numerique', title='Article numerique')
+        self.site.add_child(instance=ContentPage(
+            title='Page numerique', slug='page-numerique')).save()
+
+        requete = MagicMock()
+        with patch('cms.wagtail_hooks.get_current_site', return_value=self.site):
+            panneau = SiteDashboardPanel(requete)
+            with patch('cms.wagtail_hooks.render_to_string') as rendu:
+                panneau.render_html()
+        stats = rendu.call_args[0][1]['stats']
+        self.assertEqual(stats['articles'], 1)
+        self.assertEqual(stats['pages'], 1)
+
+    def test_le_tableau_des_syndicats_compte_les_articles(self):
+        """Même bug côté chef, dans la vue « Syndicats »."""
+        from cms.wagtail_hooks import ArticlePage as AP
+        make_article_page(section_slug='numerique', title='Article numerique')
+        self.assertEqual(
+            AP.objects.filter(section_slug__in=self.site.slugs_contenu).count(), 1)
+
+    def test_aucune_recopie_manuelle_des_deux_slugs(self):
+        """Neuf fois le même bug depuis juillet, une fois par endroit où
+        l'expression était recopiée. Elle vit maintenant dans
+        SectionPage.slugs_contenu ; toute nouvelle recopie échoue ici."""
+        import re
+        from pathlib import Path
+
+        racine = Path(__file__).resolve().parent.parent
+        # Ensemble littéral à deux membres : `{x.slug, x.legacy_site_slug or …}`.
+        # La virgule exclut les f-strings légitimes `{self.legacy_site_slug or …}`.
+        motif = re.compile(r'\{[^{}]*,[^{}]*legacy_site_slug or[^{}]*\}')
+        fautifs = []
+        for chemin in list((racine / 'cms').rglob('*.py')) + \
+                list((racine / 'content').rglob('*.py')):
+            if 'migrations' in chemin.parts or chemin.name.startswith('tests'):
+                continue
+            for num, ligne in enumerate(
+                    chemin.read_text().splitlines(), start=1):
+                if motif.search(ligne) and '# source-unique' not in ligne:
+                    fautifs.append(f'{chemin.relative_to(racine)}:{num}')
+        self.assertEqual(
+            fautifs, [],
+            'Utiliser SectionPage.slugs_contenu plutôt que recopier '
+            f'l\'expression : {fautifs}')
+
 
 class CloisonnementEditionTest(TestCase):
     """Un rédacteur ne doit pas pouvoir ouvrir l'article d'un autre syndicat en

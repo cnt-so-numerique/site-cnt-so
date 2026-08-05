@@ -457,6 +457,20 @@ class SectionPage(SeoMixin, Page):
         from django.shortcuts import redirect
         return redirect(self.get_absolute_url())
 
+    @property
+    def slugs_contenu(self):
+        """Les deux slugs sous lesquels un contenu peut être rattaché à ce
+        syndicat.
+
+        Les contenus portent le slug Wagtail, mais quelques syndicats ont un
+        slug WordPress hérité différent (Numérique « stnum », Éducation
+        « fter ») et leurs contenus anciens portent celui-là. Filtrer sur un
+        seul des deux vide leur espace : c'est le bug qu'on a corrigé neuf fois
+        depuis juillet, une fois par endroit où l'expression était recopiée.
+        Tout filtre `section_slug` passe désormais par ici.
+        """
+        return {self.slug, self.legacy_site_slug or self.slug}  # source-unique
+
     def get_absolute_url(self):
         from django.urls import reverse, NoReverseMatch
         if self.external_url:

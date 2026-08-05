@@ -97,7 +97,7 @@ class SectionArticleSitemap(Sitemap):
     priority = 0.8
 
     def __init__(self, section):
-        self.slugs = {section.slug, section.legacy_site_slug or section.slug}
+        self.slugs = section.slugs_contenu
 
     def items(self):
         return ArticlePage.objects.live().filter(section_slug__in=self.slugs)
@@ -115,7 +115,7 @@ class SectionPageSitemap(Sitemap):
     priority = 0.6
 
     def __init__(self, section):
-        self.slugs = {section.slug, section.legacy_site_slug or section.slug}
+        self.slugs = section.slugs_contenu
 
     def items(self):
         return ContentPage.objects.live().filter(section_slug__in=self.slugs)
@@ -138,7 +138,7 @@ class SectionCategorySitemap(Sitemap):
     priority = 0.5
 
     def __init__(self, section):
-        self.slugs = {section.slug, section.legacy_site_slug or section.slug}
+        self.slugs = section.slugs_contenu
 
     def items(self):
         return CmsCategory.objects.filter(section_slug__in=self.slugs)

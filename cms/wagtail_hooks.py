@@ -114,11 +114,10 @@ def _make_scoped_article_page_view(base_class):
                 form.fields['featured_on_conf'].required = False
 
             if current:
-                # Les contenus portent le slug Wagtail ; quelques syndicats ont
-                # un slug WordPress hérité différent (Numérique « stnum »).
-                # Lire sur les deux, écrire sur le slug Wagtail.
+                # Lire sur les deux slugs (cf. SectionPage.slugs_contenu),
+                # écrire sur le slug Wagtail.
                 slug = current.slug
-                slugs = {current.slug, current.legacy_site_slug or current.slug}
+                slugs = current.slugs_contenu
                 if 'cms_categories' in form.fields:
                     form.fields['cms_categories'].queryset = CmsCategory.objects.filter(
                         section_slug__in=slugs
@@ -481,9 +480,9 @@ class SiteDashboardPanel(Component):
         section_page_id = None
         if current:
             from content.models import Subscriber, ContactMessage
-            slug = current.legacy_site_slug or current.slug
-            stats['articles'] = ArticlePage.objects.filter(section_slug=slug).count()
-            stats['pages'] = ContentPage.objects.filter(section_slug=slug).count()
+            slugs = current.slugs_contenu
+            stats['articles'] = ArticlePage.objects.filter(section_slug__in=slugs).count()
+            stats['pages'] = ContentPage.objects.filter(section_slug__in=slugs).count()
             stats['subscribers'] = Subscriber.objects.filter(site=current, is_active=True).count()
             stats['contacts_unread'] = ContactMessage.objects.filter(site=current, is_read=False).count()
             section_page_id = current.pk
@@ -1053,8 +1052,8 @@ class SyndicatManageView(WagtailChefRequiredMixin, View):
 
         section_data = []
         for section in sections:
-            slug = section.legacy_site_slug or section.slug
-            article_count = ArticlePage.objects.filter(section_slug=slug).count()
+            article_count = ArticlePage.objects.filter(
+                section_slug__in=section.slugs_contenu).count()
             subscriber_count = Subscriber.objects.filter(site=section, is_active=True).count()
             section_data.append({
                 'section': section,
