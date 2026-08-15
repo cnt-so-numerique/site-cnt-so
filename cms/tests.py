@@ -2289,6 +2289,88 @@ class RepointageMenuVersCategoriePleineTest(TestCase):
                          "repointé vers une catégorie vide")
 
 
+class AjoutMenuCategorieTest(TestCase):
+    """Le pendant de `fix_menus_morts` : une catégorie remplie que le menu ne
+    dessert pas. « Travailleur-euses de la terre » portait les deux numéros des
+    *Croquants* sans qu'aucun lien de navigation n'y mène — on n'y arrivait
+    qu'en cliquant l'étiquette sous un des deux articles (constat du
+    15/08/2026, signalé par Arnaud)."""
+
+    def _lancer(self, **kw):
+        from django.core.management import call_command
+        from io import StringIO
+        from unittest.mock import patch
+        table = [{'site': 'principal', 'rubrique': 'Syndicats',
+                  'categorie': 'terre', 'libelle': 'Travailleurs de la Terre',
+                  'ordre': 13}]
+        sortie = StringIO()
+        with patch('cms.management.commands.ajoute_menu_categorie.ENTREES', table):
+            call_command('ajoute_menu_categorie', stdout=sortie, **kw)
+        return sortie.getvalue()
+
+    def setUp(self):
+        from content.models import MenuItem
+        self.site = _ensure_section_page(slug='principal', name='CNT-SO')
+        self.cat = make_cms_category(name='Terre', slug='terre',
+                                     section_slug='principal')
+        art = make_article_page(section_slug='principal', title='Les croquants',
+                                slug='les-croquants')
+        art.cms_categories.add(self.cat)
+        art.save()
+        self.rubrique = MenuItem.objects.create(
+            site=self.site, menu='main', title='Syndicats',
+            link_type='url', url='#')
+
+    def _entrees(self):
+        from content.models import MenuItem
+        return MenuItem.objects.filter(parent=self.rubrique, category=self.cat)
+
+    def test_l_entree_est_creee_sous_la_rubrique(self):
+        self._lancer()
+        item = self._entrees().get()
+        self.assertEqual(item.title, 'Travailleurs de la Terre')
+        self.assertEqual(item.link_type, 'category')
+        self.assertEqual(item.menu, 'main')
+
+    def test_le_lien_mene_bien_a_la_categorie(self):
+        """Un 'category' sans cible retombe sur '#' : c'est le bug d'origine."""
+        self._lancer()
+        item = self._entrees().get()
+        self.assertEqual(item.get_url(), self.cat.get_absolute_url())
+        self.assertFalse(item.est_impasse)
+
+    def test_la_commande_est_idempotente(self):
+        self._lancer()
+        self._lancer()
+        self.assertEqual(self._entrees().count(), 1)
+
+    def test_dry_run_n_ecrit_rien(self):
+        self._lancer(dry_run=True)
+        self.assertFalse(self._entrees().exists())
+
+    def test_la_place_deja_prise_ne_bouscule_personne(self):
+        """L'ordre demandé est un souhait, pas une réquisition."""
+        from content.models import MenuItem
+        voisin = MenuItem.objects.create(site=self.site, menu='main',
+                                         parent=self.rubrique, title='Commerce',
+                                         link_type='url', url='/x/', order=13)
+        self._lancer()
+        voisin.refresh_from_db()
+        self.assertEqual(voisin.order, 13)
+        self.assertGreater(self._entrees().get().order, 13)
+
+    def test_une_rubrique_absente_n_arrete_pas_la_commande(self):
+        self.rubrique.delete()
+        sortie = self._lancer()      # ne doit pas lever
+        self.assertIn('ignoré', sortie)
+
+    def test_une_categorie_vide_est_signalee(self):
+        """Créer un menu vers du vide, c'est ce que l'audit a passé un mois à
+        défaire : la commande le fait quand même, mais le dit."""
+        ArticlePage.objects.filter(section_slug='principal').delete()
+        self.assertIn('vide', self._lancer())
+
+
 class LibelleCategorieAvecParentTest(TestCase):
     """L'import WordPress a gardé la hiérarchie dans `parent` mais pas dans le
     nom : le 13 a 20 catégories pour 4 libellés — sept « Revendiquons ! », six
