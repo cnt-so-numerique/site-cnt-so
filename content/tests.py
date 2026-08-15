@@ -5552,3 +5552,83 @@ class CommentaireDeGabaritTest(TestCase):
         for reste in ('{#', '#}', '{%', '%}', '{{', '}}'):
             self.assertNotIn(reste, html,
                              f'{reste!r} laissé tel quel dans le HTML servi')
+
+
+class PiedDePageRacinesSansEnfantTest(TestCase):
+    """Le gabarit rendait toute racine du menu `footer` en titre de colonne.
+    Quatre sous-sites affichaient donc « CNT-SO national », « Flux RSS »,
+    « Plan du site » et « Contact » en en-têtes surmontant des listes vides —
+    un pied de page entièrement creux (constaté en production le 05/08/2026).
+    Ces entrées ont pourtant chacune une destination : ce sont des liens.
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='auvergne', name='CNT-SO Auvergne',
+                              site_type='regional')
+
+    def test_une_racine_sans_enfant_devient_un_lien(self):
+        MenuItem.objects.create(site=self.site, menu='footer',
+                                title='Plan du site', link_type='url',
+                                url='/auvergne/plan-du-site/')
+        html = self.client.get('/auvergne/').content.decode()
+        self.assertIn('Plan du site', html)
+        self.assertNotIn('<h3 class="footer-nav-title">Plan du site</h3>', html,
+                         "rendu en titre de colonne au lieu d'un lien")
+
+    def test_une_racine_avec_enfants_reste_une_colonne(self):
+        col = MenuItem.objects.create(site=self.site, menu='footer',
+                                      title='Ressources', link_type='url',
+                                      url='#')
+        MenuItem.objects.create(site=self.site, menu='footer', title='Guides',
+                                link_type='url', url='/guides/', parent=col)
+        html = self.client.get('/auvergne/').content.decode()
+        self.assertIn('<h3 class="footer-nav-title">Ressources</h3>', html)
+
+    def test_aucune_colonne_vide_n_est_rendue(self):
+        """Une colonne dont tous les enfants sont désactivés reste creuse."""
+        col = MenuItem.objects.create(site=self.site, menu='footer',
+                                      title='Vide', link_type='url', url='#')
+        MenuItem.objects.create(site=self.site, menu='footer', title='Caché',
+                                link_type='url', url='/x/', parent=col,
+                                is_active=False)
+        html = self.client.get('/auvergne/').content.decode()
+        self.assertNotIn('<h3 class="footer-nav-title">Vide</h3>', html)
+
+
+class LienVersUnSiteDepuisUnDomaineTest(TestCase):
+    """Une URL de section est relative au site principal. Servie depuis un
+    domaine autonome, elle y boucle : « CNT-SO national » valait '/' et
+    renvoyait à l'accueil de la fédération, pas à la confédération."""
+
+    def setUp(self):
+        self.principal = make_site(slug='principal', name='CNT-SO confédération')
+        self.federation = make_site(slug='auvergne', name='CNT-SO Auvergne',
+                                    site_type='regional')
+
+    def test_depuis_un_domaine_autonome_le_lien_est_absolu(self):
+        self.federation.custom_domain = 'auvergne.cnt-so.org'
+        self.federation.save()
+        item = MenuItem.objects.create(
+            site=self.federation, menu='footer', title='CNT-SO national',
+            link_type='site', target_site=self.principal)
+        url = item.get_url()
+        self.assertTrue(url.startswith('http'),
+                        f'{url!r} : relative, elle boucle sur la fédération')
+        self.assertNotIn('auvergne', url)
+
+    def test_sans_domaine_autonome_le_lien_reste_relatif(self):
+        item = MenuItem.objects.create(
+            site=self.federation, menu='footer', title='CNT-SO national',
+            link_type='site', target_site=self.principal)
+        self.assertEqual(item.get_url(), '/')
+
+    def test_une_cible_a_domaine_propre_reste_inchangee(self):
+        self.federation.custom_domain = 'auvergne.cnt-so.org'
+        self.federation.save()
+        autre = make_site(slug='13', name='CNT-SO 13', site_type='regional')
+        autre.custom_domain = '13.cnt-so.org'
+        autre.save()
+        item = MenuItem.objects.create(
+            site=self.federation, menu='footer', title='CNT-SO 13',
+            link_type='site', target_site=autre)
+        self.assertIn('13.cnt-so.org', item.get_url())

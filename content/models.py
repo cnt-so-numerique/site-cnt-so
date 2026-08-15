@@ -480,7 +480,7 @@ class MenuItem(models.Model):
         if self.link_type == 'category' and self.category:
             return self.category.get_absolute_url()
         if self.link_type == 'site' and self.target_site:
-            return self.target_site.get_absolute_url()
+            return self._url_absolue_si_besoin(self.target_site.get_absolute_url())
         if self.link_type == 'article' and self.article:
             return self.article.get_absolute_url()
         if self.link_type == 'page' and self.page:
@@ -513,6 +513,24 @@ class MenuItem(models.Model):
         if self.category:
             return self.category.get_absolute_url()
         return '#'
+
+    def _url_absolue_si_besoin(self, url):
+        """Rend absolue une URL de section quand le menu est servi ailleurs.
+
+        Les URLs de section sont relatives au site principal. Servies depuis un
+        domaine autonome, elles y bouclent : « CNT-SO national » vaut '/' et
+        renvoyait donc à l'accueil de la fédération elle-même, pas à la
+        confédération (vérifié le 05/08/2026 — `auvergne.cnt-so.org/` affiche
+        « CNT-SO Auvergne »). Même correction que le tag `section_url` de la
+        passe 5, appliquée ici parce que `get_url()` n'a pas de requête.
+        """
+        if not url or not url.startswith('/'):
+            return url
+        if not (self.site and self.site.custom_domain):
+            return url
+        from django.conf import settings
+        base = getattr(settings, 'MAIN_SITE_BASE_URL', '')
+        return f'{base}{url}' if base else url
 
     # Champ à renseigner selon le type de lien. `url` n'y figure pas : une URL
     # vide reste un usage légitime pour un parent de sous-menu.

@@ -28,6 +28,7 @@ class Command(BaseCommand):
         with transaction.atomic():
             self._section_staa(sec)
             self._liens_vers_sites(sec)
+            self._flux_rss(sec)
             self._categories_orphelines(sec)
             if sec:
                 transaction.set_rollback(True)
@@ -100,6 +101,33 @@ class Command(BaseCommand):
 
             self._agir(f'{item.title!r} ({item.site}) → {cible.title} '
                        f'[{cible.get_absolute_url()}]', rattacher, sec)
+
+    # ── Les flux RSS pointant vers une route qui n'existe pas ───────────────
+
+    def _flux_rss(self, sec):
+        self.stdout.write(self.style.MIGRATE_HEADING(
+            '\nLiens « Flux RSS » vers /rss/ (route inexistante)'))
+        # Vérifié en production le 05/08/2026 : auvergne.cnt-so.org/rss/ renvoie
+        # 301 vers newsite.cnt-so.org/rss/, qui répond 404. La route servie est
+        # `<site_slug>/feed/` (content/urls.py), d'où la forme préfixée : le
+        # middleware la ramène au chemin nu sur un domaine autonome.
+        morts = MenuItem.objects.filter(link_type='url', url='/rss/')
+        if not morts.exists():
+            self.stdout.write('  aucun, rien à faire')
+            return
+        for item in morts:
+            if item.site is None:
+                self.stdout.write(self.style.WARNING(
+                    f'  ? {item.title!r} sans syndicat : laissé tel quel'))
+                continue
+            cible = f'/{item.site.slug}/feed/'
+
+            def corriger(item=item, cible=cible):
+                item.url = cible
+                item.save(update_fields=['url'])
+
+            self._agir(f'{item.title!r} ({item.site}) : /rss/ → {cible}',
+                       corriger, sec)
 
     # ── Les catégories rattachées à un syndicat hébergé ailleurs ─────────────
 

@@ -1776,7 +1776,7 @@
             <!-- Zone nav : toutes les colonnes côte à côte dans un wrapper flex -->
             {% if footer_columns %}
             <div class="footer-nav-area">
-                {% for col in footer_columns %}
+                {% for col in footer_columns|colonnes %}
                 <div class="footer-nav-col">
                     {% if col.title %}<h3 class="footer-nav-title">{{ col.title }}</h3>{% endif %}
                     <ul class="footer-nav-list">
@@ -1788,6 +1788,17 @@
                     </ul>
                 </div>
                 {% endfor %}
+                {% with liens=footer_columns|liens_simples %}
+                {% if liens %}
+                <div class="footer-nav-col">
+                    <ul class="footer-nav-list">
+                        {% for item in liens %}
+                        <li><a href="{{ item.get_url }}"{% if item.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ item.title }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% endwith %}
             </div>
             {% else %}
             <div></div>
