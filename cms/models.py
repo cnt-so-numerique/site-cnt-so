@@ -22,6 +22,25 @@ from wagtail.snippets.models import register_snippet
 from wagtailseo.models import SeoMixin
 
 
+def url_site_principal(url):
+    """Rend absolue une URL du site confédéral.
+
+    Une URL relative n'est juste que si elle est rendue sur le site principal.
+    Or son contenu s'affiche aussi sur les domaines de fédération : un article
+    confédéral mis au carrousel de STUCS, ou l'étiquette d'une catégorie
+    confédérale portée par un article de sous-site (31 articles en production).
+    Le navigateur résolvait alors `/article/x/` contre `stucs.cnt-so.org` — un
+    404. Sept liens morts relevés au crawl du 05/08/2026.
+
+    Les sections à domaine émettent déjà des URLs absolues (`section_base_url`) :
+    on applique au principal la règle qui vaut pour toutes les autres — l'adresse
+    d'un contenu porte l'hôte de sa section, quel que soit l'endroit du rendu.
+    """
+    from django.conf import settings
+    base = getattr(settings, 'MAIN_SITE_BASE_URL', '')
+    return f'{base}{url}' if base and url.startswith('/') else url
+
+
 def section_base_url(section_slug):
     """Préfixe absolu (https://domaine) de la section si elle a un domaine
     autonome, '' sinon (les URLs restent relatives). Mis en cache 60 s —
@@ -84,7 +103,8 @@ class CmsCategory(models.Model):
                     return f'{base}/categorie/{self.slug}/'
                 return reverse('content:site_category_detail',
                                kwargs={'site_slug': self.section_slug, 'slug': self.slug})
-            return reverse('content:category_detail', kwargs={'slug': self.slug})
+            return url_site_principal(
+                reverse('content:category_detail', kwargs={'slug': self.slug}))
         except NoReverseMatch:
             return '/'
 
@@ -699,7 +719,8 @@ class ArticlePage(SeoMixin, Page):
                     return f'{base}/article/{self.slug}/'
                 return reverse('content:site_article_detail',
                                kwargs={'site_slug': self.section_slug, 'slug': self.slug})
-            return reverse('content:article_detail', kwargs={'slug': self.slug})
+            return url_site_principal(
+                reverse('content:article_detail', kwargs={'slug': self.slug}))
         except NoReverseMatch:
             return self.url or '/'
 

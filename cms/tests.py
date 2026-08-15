@@ -1646,10 +1646,18 @@ class OutgoingUrlsWithDomainTest(TestCase):
         self.site.refresh_from_db()
         self.assertEqual(self.site.get_absolute_url(), 'https://dom-urls.cnt-so.org/')
 
-    def test_articles_principal_restent_relatifs(self):
+    def test_articles_principal_pointent_vers_le_site_principal(self):
+        """Ce test exigeait l'inverse — que les articles confédéraux restent
+        relatifs — décision du chantier des domaines. C'est elle qui cassait
+        l'affichage croisé : un article confédéral au carrousel de STUCS
+        pointait vers stucs.cnt-so.org (404). L'adresse d'un contenu porte
+        désormais l'hôte de SA section, comme pour les sections à domaine."""
+        from django.conf import settings
         self._activate()
         art = make_article_page(title='Article conf', section_slug='principal')
-        self.assertEqual(art.get_absolute_url(), '/article/article-conf/')
+        url = art.get_absolute_url()
+        self.assertEqual(url, f'{settings.MAIN_SITE_BASE_URL}/article/article-conf/')
+        self.assertNotIn('dom-urls.cnt-so.org', url)
 
     def test_menu_item_vers_domaine_reste_interne(self):
         from content.models import MenuItem
@@ -2135,3 +2143,49 @@ class UrlDeSectionResolvableTest(TestCase):
                 self.assertNotEqual(
                     self.client.get(url).status_code, 404,
                     f"{section.title} : {url} est une adresse morte")
+
+
+class ContenuConfederalSurUnDomaineTest(TestCase):
+    """Le contenu du site confédéral s'affiche aussi sur les domaines de
+    fédération : un article conf mis au carrousel d'un sous-site, ou
+    l'étiquette d'une catégorie conf portée par un article de sous-site
+    (31 articles en production). Son adresse était relative — le navigateur
+    la résolvait alors contre l'hôte du sous-site, donc un 404. Sept liens
+    morts relevés au crawl des 286 liens internes, le 05/08/2026."""
+
+    def setUp(self):
+        from django.conf import settings
+        self.base = settings.MAIN_SITE_BASE_URL
+
+    def test_l_article_confederal_porte_l_hote_du_site_principal(self):
+        art = make_article_page(section_slug='principal', title='Conf',
+                                slug='art-conf')
+        self.assertEqual(art.get_absolute_url(),
+                         f'{self.base}/article/art-conf/')
+
+    def test_la_categorie_confederale_porte_l_hote_du_site_principal(self):
+        cat = make_cms_category(name='Luttes', slug='luttes-conf',
+                                section_slug='principal')
+        self.assertEqual(cat.get_absolute_url(),
+                         f'{self.base}/categorie/luttes-conf/')
+
+    def test_le_contenu_de_sous_site_n_est_pas_affecte(self):
+        """Contrôle : la règle ne touche que le principal."""
+        site = _ensure_section_page(slug='sous-site-x', name='Sous-site X')
+        art = make_article_page(section_slug='sous-site-x', title='Local',
+                                slug='art-local')
+        self.assertNotIn(self.base, art.get_absolute_url())
+
+    def test_aucune_adresse_confederale_ne_reste_relative(self):
+        """Balayage : tout contenu du principal doit porter son hôte."""
+        from cms.models import ArticlePage, CmsCategory
+        make_article_page(section_slug='principal', title='A', slug='balayage-a')
+        make_cms_category(name='B', slug='balayage-b', section_slug='principal')
+        for modele in (ArticlePage.objects.filter(section_slug='principal'),
+                       CmsCategory.objects.filter(section_slug='principal')):
+            for obj in modele:
+                with self.subTest(obj=str(obj)[:30]):
+                    self.assertTrue(
+                        obj.get_absolute_url().startswith('http'),
+                        f'{obj} : adresse relative, elle viserait le mauvais '
+                        f'hôte sur un domaine de fédération')

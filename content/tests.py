@@ -266,11 +266,15 @@ class ArticlePageModelTest(TestCase):
         self.assertIsNone(art.published_at)
 
     def test_get_absolute_url_principal(self):
+        """Absolue : le contenu confédéral s'affiche aussi sur les domaines de
+        fédération (carrousel, étiquettes de catégorie), où une adresse
+        relative viserait le mauvais hôte — 7 liens morts au crawl du
+        05/08/2026. Même règle que les sections à domaine."""
+        from django.conf import settings
         art = make_article_page(section_slug='principal', title='Art URL', slug='art-url')
-        self.assertEqual(
-            art.get_absolute_url(),
-            reverse('content:article_detail', kwargs={'slug': 'art-url'})
-        )
+        chemin = reverse('content:article_detail', kwargs={'slug': 'art-url'})
+        self.assertEqual(art.get_absolute_url(),
+                         f'{settings.MAIN_SITE_BASE_URL}{chemin}')
 
     def test_get_absolute_url_subsite(self):
         art = make_article_page(section_slug='sub', title='Sub URL', slug='sub-url')
@@ -323,11 +327,14 @@ class CmsCategoryModelTest(TestCase):
         make_site('sub', wp_blog_id=2, site_type='regional', name='Sub')
 
     def test_get_absolute_url_principal(self):
+        """Absolue, pour la même raison que l'article : 31 articles de
+        sous-site portent une catégorie confédérale, dont l'étiquette
+        renvoyait vers l'hôte du sous-site."""
+        from django.conf import settings
         cat = make_cms_category(name='Luttes', slug='luttes', section_slug='principal')
-        self.assertEqual(
-            cat.get_absolute_url(),
-            reverse('content:category_detail', kwargs={'slug': 'luttes'})
-        )
+        chemin = reverse('content:category_detail', kwargs={'slug': 'luttes'})
+        self.assertEqual(cat.get_absolute_url(),
+                         f'{settings.MAIN_SITE_BASE_URL}{chemin}')
 
     def test_get_absolute_url_subsite(self):
         cat = make_cms_category(name='Actu Sub', slug='actu-sub', section_slug='sub')
@@ -5756,6 +5763,18 @@ class BanqueImagesSidebarTest(TestCase):
         from content.templatetags.content_tags import banque_images_url
         return banque_images_url(site)
 
+    @staticmethod
+    def _conf_url():
+        """Adresse attendue de la banque confédérale : absolue depuis
+        `url_site_principal` — elle doit porter son hôte partout."""
+        from django.conf import settings
+        return f'{settings.MAIN_SITE_BASE_URL}/categorie/banque-dimage/'
+
+    @staticmethod
+    def _chemin(url):
+        from urllib.parse import urlparse
+        return urlparse(url).path or url
+
     def test_case_cochee_avec_categorie_pointe_vers_la_sienne(self):
         make_cms_category(name="Banque d'images", slug='banque-dimage',
                           section_slug='13')
@@ -5772,7 +5791,7 @@ class BanqueImagesSidebarTest(TestCase):
                           section_slug='principal')
         self.sous_site.banque_images_propre = False
         self.sous_site.save()
-        self.assertEqual(self._url(self.sous_site), '/categorie/banque-dimage/')
+        self.assertEqual(self._url(self.sous_site), self._conf_url())
 
     def test_case_cochee_sans_categorie_ne_fabrique_pas_un_404(self):
         """Le filet : une case qui ment ne doit pas recréer le bug d'origine."""
@@ -5781,14 +5800,14 @@ class BanqueImagesSidebarTest(TestCase):
         self.sous_site.banque_images_propre = True
         self.sous_site.save()
         url = self._url(self.sous_site)
-        self.assertEqual(url, '/categorie/banque-dimage/')
-        self.assertNotEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(url, self._conf_url())
+        self.assertNotEqual(self.client.get(self._chemin(url)).status_code, 404)
 
     def test_sans_categorie_propre_on_sert_celle_de_la_confederation(self):
         make_cms_category(name="Banque d'image", slug='banque-dimage',
                           section_slug='principal')
         url = self._url(self.sous_site)
-        self.assertEqual(url, '/categorie/banque-dimage/')
+        self.assertEqual(url, self._conf_url())
 
     def test_sur_un_domaine_autonome_le_repli_est_absolu(self):
         """Une URL relative retomberait sur le domaine du syndicat : 404."""
@@ -5814,8 +5833,8 @@ class BanqueImagesSidebarTest(TestCase):
         for site in SectionPage.objects.filter(live=True):
             with self.subTest(site=site.slug):
                 url = self._url(site)
-                if not url or not url.startswith('/'):
+                if not url:
                     continue
                 self.assertNotEqual(
-                    self.client.get(url).status_code, 404,
+                    self.client.get(self._chemin(url)).status_code, 404,
                     f'{site.title} : {url} est une adresse morte')

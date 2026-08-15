@@ -265,9 +265,13 @@ def banque_images_url(site=None):
     C'est désormais la case `banque_images_propre` de la fiche du syndicat qui
     décide, plutôt qu'une déduction. Elle ne peut pas produire de lien mort :
     cochée sans que la catégorie existe, on retombe sur celle de la
-    confédération — rendue absolue si l'on est sur un domaine autonome, sans
-    quoi l'adresse relative viserait le mauvais hôte et referait un 404.
-    Chaîne vide si elle n'existe nulle part : au gabarit de masquer le bloc.
+    confédération. Chaîne vide si elle n'existe nulle part : au gabarit de
+    masquer le bloc.
+
+    Le repli n'a pas besoin d'être rendu absolu ici : depuis
+    `url_site_principal`, l'adresse d'un contenu confédéral porte son hôte, où
+    qu'elle soit rendue. C'est bien le point de cette règle — ne pas avoir à
+    s'en souvenir à chaque endroit.
     """
     from cms.models import CmsCategory
 
@@ -279,11 +283,4 @@ def banque_images_url(site=None):
 
     confederale = CmsCategory.objects.filter(
         slug='banque-dimage', section_slug='principal').first()
-    if confederale is None:
-        return ''
-    url = confederale.get_absolute_url()
-    if url.startswith('/') and site is not None and site.custom_domain:
-        from django.conf import settings
-        base = getattr(settings, 'MAIN_SITE_BASE_URL', '')
-        return f'{base}{url}' if base else url
-    return url
+    return confederale.get_absolute_url() if confederale is not None else ''
