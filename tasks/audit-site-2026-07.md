@@ -674,3 +674,69 @@ résout vers `#`** — lien mort à vérifier en production.
 `SlugHeriteAdminTest` : le panneau du tableau de bord, le tableau des syndicats,
 et le scan anti-recopie. Contre-épreuve tenue — sur le code d'avant, le panneau
 donne `0 != 1` et le scan pointe `cms/wagtail_hooks.py:121`. **745 tests verts.**
+
+---
+
+## Passe 8 — catégories et menus vides (05/08)
+
+### Ce que le crawl ne pouvait pas voir
+
+Le balayage des 286 liens internes des huit domaines teste le **code HTTP**.
+Quatorze pages répondent 200 tout en étant **vides** — une liste sans article
+n'est pas une erreur pour un serveur. C'est Arnaud qui les a trouvées en
+cliquant. Troisième limite de méthode de la journée, après « grep du source ne
+suffit pas » et « lire le HTML rendu, pas seulement le statut » : **200 ne veut
+pas dire utile**.
+
+### STUCS — le seul syndicat sans aucune étiquette locale
+
+Ses 31 articles portent des catégories **confédérales**, ce qui est voulu :
+c'est ce qui les fait paraître dans les rubriques du site national. Mais ses
+8 catégories propres étaient donc toutes vides, d'où 7 entrées de menu vers du
+vide. Tous les autres syndicats sont sains (13 : 525/525 articles bien rangés,
+auvergne 261/261, poitiers 197/197…).
+
+Correctif : `fix_etiquetage_categories` **ajoute** l'étiquette locale sans
+retirer la confédérale. Seuls 6 articles sur 31 en reçoivent une (grève ×3,
+antifascisme ×2, vidéos ×1) : ranger les 24 autres dans « Communiqués » aurait
+produit un filtre retenant les trois quarts du contenu — la page Ressources
+sous un autre nom.
+
+⚠️ **Piège modelcluster** : `cms_categories` est un `ParentalManyToManyField`.
+`add()` ne touche que le cluster en mémoire — sans `save()` rien n'est écrit, et
+sans révision publiée la publication suivante du brouillon effacerait
+l'étiquette. D'où `add()` + `save()` + `save_revision().publish()`, et le saut
+des pages ayant un brouillon en attente. Trouvé par le test, pas par la
+relecture : la commande aurait annoncé « 6 changements » sans rien faire.
+
+### Le 13 — trois menus visant un doublon vide
+
+L'import a créé des doublons : le menu visait `commerce-et-services` (vide)
+alors que `revendiquons-commerce-et-services` porte 6 articles. Trois entrées
+repointées, avec un filet refusant de viser une catégorie elle aussi vide.
+
+### 20 catégories indiscernables au formulaire
+
+Le 13 a 20 catégories pour 4 libellés — « Revendiquons ! » ×7, « Vos droits »
+×6, « Actualités - luttes » ×5, « Se syndiquer » ×2 — chacune sous un secteur
+différent et portant ses propres articles (« Actualités - luttes » sous
+Éducation-Recherche : 132 articles ; sous Nettoyage : 85). L'import a gardé la
+hiérarchie dans `parent` mais pas dans le nom, et la liste à cocher n'affichait
+que le nom. `CmsCategory.__str__` préfixe désormais par le parent
+(« BTP › Revendiquons ! »), liste triée par parent, `select_related('parent')`
+pour ne pas rouvrir un N+1 sur un formulaire ouvert en permanence.
+
+### Décision d'Arnaud (05/08) — ne rien retirer
+
+Les rubriques encore vides **restent en place** : STUCS (Communiqués, Visuels,
+Fanzine, Revue de presse), les 4 entrées sans catégorie de remplacement
+(« Web – Liens » au 13 ; « CNT-SO Rhône-Alpes » et « TPE – Salariés du
+particulier » en Rhône-Alpes ; « Nos actions » à la confédération) et les 2
+entrées d'Éducation. **Les syndicats les alimenteront.** Aucune suppression de
+menu ni de catégorie.
+
+⚠️ Nuance sur les 2 entrées d'Éducation : elles n'ont pas de destination du tout
+(`url='#'`, sans sous-menu), pas seulement une liste vide. Le garde-fou
+`est_impasse` les masque donc à l'affichage. Elles sont **conservées en base** et
+réapparaîtront dès qu'on leur donnera une cible — c'est la différence entre « une
+rubrique vide » (qui s'affiche) et « un lien vers nulle part » (qui se cache).
