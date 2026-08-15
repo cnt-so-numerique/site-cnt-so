@@ -477,11 +477,14 @@ class SectionPage(SeoMixin, Page):
             return self.external_url
         if self.custom_domain:
             return f'{self.base_url}/'
-        slug = self.legacy_site_slug or self.slug
+        # Le slug Wagtail, et lui seul : `SectionSlugConverter` (content/urls.py)
+        # ne reconnaît que `slug=`, jamais `legacy_site_slug`. Émettre le slug
+        # hérité produisait une adresse en 404 — /fter/ pour Éducation, publiée
+        # jusque dans le sitemap (constaté le 05/08/2026).
         try:
-            if slug == 'principal':
+            if self.slug == 'principal':
                 return reverse('content:home')
-            return reverse('content:site_home', kwargs={'site_slug': slug})
+            return reverse('content:site_home', kwargs={'site_slug': self.slug})
         except NoReverseMatch:
             return self.url or '/'
 
@@ -489,7 +492,9 @@ class SectionPage(SeoMixin, Page):
         from django.urls import reverse
         if self.custom_domain:
             return f'{self.base_url}/rejoindre/'
-        slug = self.legacy_site_slug or self.slug
+        # Slug Wagtail, comme get_absolute_url : cette route accepte les deux,
+        # mais rien ne gagne à servir deux adresses pour la même page.
+        slug = self.slug
         return reverse('content:site_rejoindre', kwargs={'site_slug': slug})
 
     def save(self, *args, **kwargs):

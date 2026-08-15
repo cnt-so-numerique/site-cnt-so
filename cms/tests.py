@@ -2090,3 +2090,48 @@ class CreationArticleDepuisCmsTest(TestCase):
         self.client.logout()
         r = self.client.get(f'/numerique/article/{art.slug}/')
         self.assertEqual(r.status_code, 200)
+
+
+class UrlDeSectionResolvableTest(TestCase):
+    """`SectionSlugConverter` (content/urls.py) n'accepte que `slug=`, jamais
+    `legacy_site_slug`. `get_absolute_url()` émettait pourtant le slug hérité :
+    l'adresse d'Éducation était `/fter/`, qui répond 404 — et elle était
+    publiée jusque dans le sitemap (constaté en production le 05/08/2026).
+
+    Dixième et dernière occurrence de la famille `legacy_site_slug`, celle-ci
+    dans le générateur d'URL lui-même.
+    """
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='education', name='CNT-SO Éducation')
+        self.site.legacy_site_slug = 'fter'
+        self.site.save()
+
+    def test_l_adresse_de_la_section_porte_le_slug_wagtail(self):
+        url = self.site.get_absolute_url()
+        self.assertEqual(url, '/education/')
+        self.assertNotIn('fter', url)
+
+    def test_l_adresse_de_la_section_repond(self):
+        r = self.client.get(self.site.get_absolute_url())
+        self.assertEqual(r.status_code, 200,
+                         f"{self.site.get_absolute_url()} ne répond pas")
+
+    def test_le_slug_herite_ne_repond_pas(self):
+        """Contrôle du diagnostic : c'est bien le convertisseur qui refuse."""
+        self.assertEqual(self.client.get('/fter/').status_code, 404)
+
+    def test_rejoindre_porte_aussi_le_slug_wagtail(self):
+        self.assertNotIn('fter', self.site.get_rejoindre_url())
+
+    def test_toute_section_produit_une_adresse_qui_repond(self):
+        """Balayage : aucune section ne doit générer d'adresse morte."""
+        from cms.models import SectionPage
+        for section in SectionPage.objects.filter(live=True, custom_domain=''):
+            with self.subTest(section=section.slug):
+                url = section.get_absolute_url()
+                if not url.startswith('/'):
+                    continue    # site autonome hébergé ailleurs
+                self.assertNotEqual(
+                    self.client.get(url).status_code, 404,
+                    f"{section.title} : {url} est une adresse morte")
