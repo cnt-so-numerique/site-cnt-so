@@ -79,6 +79,11 @@ class Command(BaseCommand):
             'cnt-so national': 'principal',
             'cnt-so éducation': 'education',
             'staa (artistes-auteurs)': 'staa',
+            # Portait l'URL manuscrite '/education/' : elle fonctionne, mais
+            # resterait figée le jour où educ.cnt-so.org basculera. Rattachée à
+            # la section, elle suivra `custom_domain` toute seule — comme
+            # « Numérique » dans le même menu Secteurs.
+            'éducation & recherche': 'education',
         }
         orphelins = MenuItem.objects.filter(link_type='site', target_site__isnull=True)
         if not orphelins.exists():
@@ -98,7 +103,10 @@ class Command(BaseCommand):
 
             def rattacher(item=item, cible=cible):
                 item.target_site = cible
-                item.save(update_fields=['target_site'])
+                # L'URL manuscrite ne sert plus (`get_url()` passe par la
+                # cible) et repasserait devant si le type changeait un jour.
+                item.url = ''
+                item.save(update_fields=['target_site', 'url'])
 
             self._agir(f'{item.title!r} ({item.site}) → {cible.title} '
                        f'[{cible.get_absolute_url()}]', rattacher, sec)

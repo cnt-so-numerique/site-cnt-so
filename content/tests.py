@@ -5690,3 +5690,53 @@ class LienPageParUrlTest(TestCase):
         self._lancer()
         item.refresh_from_db()
         self.assertEqual(item.page_id, self.page.pk)
+
+
+class LienDeSectionSuitLaBasculeTest(TestCase):
+    """Une entrée rattachée à sa section suit automatiquement l'activation
+    d'un domaine autonome ; une URL manuscrite reste figée.
+
+    C'est l'exigence posée par Arnaud le 05/08/2026 pour « Éducation &
+    Recherche » : le lien devra mener à educ.cnt-so.org le jour où l'ancien
+    WordPress sera retiré, sans qu'on ait à rouvrir le menu.
+    """
+
+    def setUp(self):
+        self.principal = make_site(slug='principal', name='CNT-SO confédération')
+        self.education = make_site(slug='education', name='CNT-SO Éducation',
+                                   site_type='sectoral')
+
+    def test_le_lien_rattache_suit_l_activation_du_domaine(self):
+        item = MenuItem.objects.create(
+            site=self.principal, menu='main', title='Éducation & Recherche',
+            link_type='site', target_site=self.education)
+        self.assertEqual(item.get_url(), '/education/')
+
+        # Le jour de la bascule : on ne touche qu'à la fiche du syndicat.
+        self.education.custom_domain = 'educ.cnt-so.org'
+        self.education.save()
+        item.refresh_from_db()
+        self.assertEqual(item.get_url(), 'https://educ.cnt-so.org/')
+
+    def test_une_url_manuscrite_reste_figee(self):
+        """Contrôle : c'est bien le rattachement qui apporte la propriété."""
+        item = MenuItem.objects.create(
+            site=self.principal, menu='main', title='Éducation & Recherche',
+            link_type='url', url='/education/')
+        self.education.custom_domain = 'educ.cnt-so.org'
+        self.education.save()
+        item.refresh_from_db()
+        self.assertEqual(item.get_url(), '/education/',
+                         "une URL écrite à la main ne peut pas suivre")
+
+    def test_la_commande_rattache_l_entree(self):
+        from django.core.management import call_command
+        from io import StringIO
+        item = MenuItem.objects.create(
+            site=self.principal, menu='main', title='Éducation & Recherche',
+            link_type='site', target_site=None, url='/education/')
+        call_command('fix_menus_morts', stdout=StringIO())
+        item.refresh_from_db()
+        self.assertEqual(item.target_site_id, self.education.pk)
+        self.assertEqual(item.url, '', "l'URL manuscrite doit être effacée")
+        self.assertEqual(item.get_url(), '/education/')
