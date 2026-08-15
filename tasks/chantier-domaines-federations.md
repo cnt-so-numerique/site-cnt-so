@@ -178,3 +178,55 @@ Pour chaque fédération :
    pour eux (custom_domain vide partout par défaut) — c'est le filet de sécurité du chantier
 3. Duplicate content si un domaine est activé avant l'exclusion sitemap/canonicals
 4. Décision politique qui traîne : ne pas commencer la Phase 1 avant la Phase 0 validée
+
+---
+
+## Reste à faire — `educ.cnt-so.org`, dernière bascule (état au 05/08/2026)
+
+Sept domaines ont basculé le 17/07. **Éducation est le seul restant**, et il n'a
+pas commencé : le domaine pointe encore vers l'ancienne machine.
+
+```
+educ.cnt-so.org       → 5.196.74.69     ANCIEN serveur (WordPress, Apache)
+newsite.cnt-so.org    → 51.91.242.64    nouveau
+auvergne, numerique…  → 51.91.242.64
+```
+
+Certificat actuel de `newsite` (8 noms, **educ absent**) :
+
+```
+13 · 34 · 86 · auvergne · newsite · numerique · rhone-alpes · stucs
+```
+
+Conséquence : **deux sites Éducation sont en ligne** — l'ancien WordPress sur
+`educ.cnt-so.org`, les 100 articles migrés sur `newsite.cnt-so.org/education/`.
+
+### Les trois étapes, dans cet ordre strict
+
+1. **DNS** — pointer `educ.cnt-so.org` vers `51.91.242.64` chez le registraire.
+   Attendre la propagation avant l'étape 2, sinon certbot échoue.
+2. **Certificat** — ⚠️ toujours `--cert-name newsite` avec **TOUS** les `-d`,
+   les huit actuels **plus** educ. Omettre un nom le retire du certificat :
+
+   ```bash
+   sudo certbot --nginx --cert-name newsite \
+     -d newsite.cnt-so.org -d 13.cnt-so.org -d 34.cnt-so.org \
+     -d 86.cnt-so.org -d auvergne.cnt-so.org -d numerique.cnt-so.org \
+     -d rhone-alpes.cnt-so.org -d stucs.cnt-so.org -d educ.cnt-so.org
+   ```
+3. **CMS** — renseigner `custom_domain = educ.cnt-so.org` sur la fiche du
+   syndicat. Tous les liens suivent alors automatiquement
+   (`SectionPage.get_absolute_url`), comme pour les sept autres.
+
+**Ne pas faire l'étape 3 avant les deux premières** : les liens partiraient vers
+l'ancien WordPress. Tant que la bascule n'est pas faite, l'adresse correcte est
+`/education/`.
+
+### Piège rencontré le 05/08
+
+`get_absolute_url()` émettait `legacy_site_slug or slug`, soit `/fter/` pour
+Éducation — or `SectionSlugConverter` (content/urls.py) n'accepte que le slug
+Wagtail : l'adresse répondait **404**, et le sitemap la publiait. Corrigé, et
+verrouillé par `UrlDeSectionResolvableTest` (balayage : aucune section ne doit
+produire d'adresse en 404). À garder en tête lors de la bascule : c'est le même
+générateur qui produira l'URL du domaine.
