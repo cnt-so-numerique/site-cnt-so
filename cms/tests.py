@@ -3332,3 +3332,58 @@ class LargeurDeLImageTest(TestCase):
         art.save()
         html = str(ArticlePage.objects.get(pk=art.pk).body)
         self.assertIn('align-right l-50', html)
+
+
+class GestesFrequentsMisEnAvantTest(TestCase):
+    """« Écrire un article » et la rubrique « Rédaction » se perdaient dans une
+    interface où tout a le même poids (demande d'Arnaud, 15/08/2026)."""
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        self.site = _ensure_section_page(slug='13', name='CNT-SO 13')
+        self.user = User.objects.create_superuser('chef-gestes', 'g@x.fr', 'x')
+        self.client.force_login(self.user)
+
+    def _sans_css(self, html):
+        import re
+        return re.sub(r'<style>.*?</style>', '', html, flags=re.S)
+
+    def test_le_bouton_dit_ecrire_un_article(self):
+        """Wagtail fabrique « Ajouter un(e) Article » par gabarit."""
+        html = self._sans_css(
+            self.client.get('/cms/snippets/cms/articlepage/').content.decode())
+        self.assertIn('Écrire un article', html)
+        self.assertNotIn('Ajouter un(e)', html)
+
+    def test_le_bouton_est_bien_grossi_par_la_feuille_de_style(self):
+        html = self.client.get('/cms/snippets/cms/articlepage/').content.decode()
+        self.assertIn('w-header-button[href$="/cms/snippets/cms/articlepage/add/"]',
+                      html)
+
+    def test_le_style_ne_grossit_pas_tous_les_boutons_d_ajout(self):
+        """Grossir `.w-header-button` seul mettrait en avant les catégories et
+        les abonnés autant que les articles — donc rien du tout."""
+        import re
+        html = self.client.get('/cms/snippets/cms/articlepage/').content.decode()
+        style = '\n'.join(re.findall(r'<style>(.*?)</style>', html, flags=re.S))
+        for regle in re.findall(r'([^{}]+)\{', style):
+            if 'w-header-button' in regle:
+                with self.subTest(regle=regle.strip()[:60]):
+                    self.assertIn('articlepage/add/', regle)
+
+    def test_la_rubrique_redaction_est_marquee_dans_le_menu(self):
+        """La barre latérale est rendue par React : ses classes sont calculées
+        côté navigateur. Le seul crochet stable est l'attribut recopié sur le
+        bouton — `classname`, lui, n'est pas repris par ce composant."""
+        html = self._sans_css(self.client.get('/cms/').content.decode())
+        self.assertIn('"data-cnt-menu": "redaction"', html)
+
+    def test_l_attribut_est_porte_par_la_rubruque_redaction_et_pas_une_autre(self):
+        """Contrôle positif : marquer toutes les rubriques ne mettrait rien en
+        avant. On vérifie que c'est bien « Rédaction » qui le porte."""
+        import json, re
+        html = self._sans_css(self.client.get('/cms/').content.decode())
+        i = html.find('"data-cnt-menu"')
+        contexte = html[max(0, i - 200):i]
+        self.assertIn('redaction', contexte)
+        self.assertEqual(html.count('"data-cnt-menu"'), 1)

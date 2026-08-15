@@ -18,6 +18,7 @@ from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import (
     SnippetViewSet, SnippetViewSetGroup,
     CreateView as SnippetCreateView, EditView as SnippetEditView,
+    IndexView as SnippetIndexView,
 )
 from wagtail.admin.panels import FieldPanel, FieldRowPanel, MultiFieldPanel, ObjectList, TabbedInterface, InlinePanel
 
@@ -288,6 +289,20 @@ class FiltreArticles(WagtailFilterSet):
         fields = ['live', 'section_slug', 'is_featured', 'cms_categories']
 
 
+class IndexArticles(SnippetIndexView):
+    """Liste des articles, avec un bouton d'ajout qui se voit et se comprend.
+
+    Wagtail fabrique le libellé par gabarit — « Ajouter un(e) Article » en
+    français, avec la parenthèse d'accord. C'est le geste le plus fréquent d'un
+    rédacteur : il mérite une phrase écrite pour lui (demande d'Arnaud,
+    15/08/2026).
+    """
+
+    @property
+    def add_item_label(self):
+        return "Écrire un article"
+
+
 class ArticlePageViewSet(ViewSetCloisonne, SnippetViewSet):
     cloisonnement = ('slug', 'section_slug')
     model = ArticlePage
@@ -300,6 +315,7 @@ class ArticlePageViewSet(ViewSetCloisonne, SnippetViewSet):
     ordering = ['-publication_date', '-first_published_at']
     panels = [FieldPanel('title'), panneaux_article()]
 
+    index_view_class = IndexArticles
     add_view_class = _make_scoped_article_page_view(SnippetCreateView)
     edit_view_class = _make_scoped_article_page_view(SnippetEditView)
 
@@ -423,6 +439,19 @@ class CmsContenuGroup(SnippetViewSetGroup):
     menu_icon = 'doc-full-inverse'
     menu_order = 100
     items = (ArticlePageViewSet, ContentPageViewSet, CmsCategoryViewSet, EventViewSet)
+
+    def get_menu_item(self, order=None):
+        """Marque l'entrée pour que la feuille de style puisse la grossir.
+
+        La barre latérale de Wagtail est rendue par React : ses classes sont
+        calculées côté navigateur et aucune ne porte le nom de l'entrée. En
+        revanche le composant recopie les `attrs` de l'élément sur son bouton
+        — c'est le seul crochet stable pour viser « Rédaction » et pas les
+        autres rubriques. `classname`, lui, n'est pas repris par ce composant.
+        """
+        item = super().get_menu_item(order=order)
+        item.attrs = {**(item.attrs or {}), 'data-cnt-menu': 'redaction'}
+        return item
 
 
 class CmsAdminGroup(SnippetViewSetGroup):
@@ -1223,3 +1252,63 @@ class SyndicatManageView(WagtailChefRequiredMixin, View):
             'request': request,
         }, request=request)
         return HttpResponse(html)
+
+
+@hooks.register('insert_global_admin_css')
+def insert_gestes_frequents_css():
+    """Grossit les deux gestes les plus fréquents d'un rédacteur.
+
+    Demande d'Arnaud du 15/08/2026 : « Écrire un article » et la rubrique
+    « Rédaction » se perdaient dans une interface où tout a le même poids.
+
+    ⚠️ La barre latérale est rendue par React : ses classes sont calculées
+    côté navigateur et aucune ne porte le nom de l'entrée. On vise donc
+    l'attribut `data-cnt-menu` posé par `CmsContenuGroup.get_menu_item` — le
+    composant recopie les `attrs` sur son bouton, contrairement à `classname`.
+
+    Le bouton d'ajout est visé par son `href` : `.w-header-button` seul
+    grossirait celui de toutes les listes, y compris les catégories et les
+    abonnés, ce qui reviendrait à ne rien mettre en avant du tout.
+    """
+    return format_html('''<style>
+        /* « Écrire un article » — le geste le plus fréquent */
+        a.w-header-button[href$="/cms/snippets/cms/articlepage/add/"] {{
+            font-size: 1.0625rem;
+            font-weight: 700;
+            padding: .7rem 1.4rem;
+            background: {rouge};
+            color: #fff;
+            border-color: {rouge};
+        }}
+        a.w-header-button[href$="/cms/snippets/cms/articlepage/add/"]:hover {{
+            background: {rouge_fonce};
+            border-color: {rouge_fonce};
+            color: #fff;
+        }}
+        a.w-header-button[href$="/cms/snippets/cms/articlepage/add/"] .icon {{
+            width: 1.15em;
+            height: 1.15em;
+        }}
+
+        /* Rubrique « Rédaction » de la barre latérale */
+        .sidebar-menu-item__link[data-cnt-menu="redaction"] {{
+            font-size: 1.0625rem;
+            font-weight: 700;
+        }}
+        .sidebar-menu-item__link[data-cnt-menu="redaction"] .icon {{
+            width: 1.35em;
+            height: 1.35em;
+        }}
+        /* Le repère visuel tient sans la taille, pour une barre repliée ou un
+           réglage de zoom qui écraserait l'écart. */
+        .sidebar-menu-item__link[data-cnt-menu="redaction"]::before {{
+            content: '';
+            position: absolute;
+            left: 0; top: .35rem; bottom: .35rem;
+            width: 4px;
+            background: {rouge};
+        }}
+        .sidebar-menu-item__link[data-cnt-menu="redaction"] {{
+            position: relative;
+        }}
+    </style>''', rouge='#E81C24', rouge_fonce='#c01018')
