@@ -289,6 +289,13 @@ class SectionPage(SeoMixin, Page):
     agenda_url = models.URLField(blank=True)
     linkstack_url = models.URLField(blank=True, verbose_name="URL Linkstack")
     framaform_url = models.URLField(blank=True, verbose_name="URL Framaform adhésion")
+    banque_images_propre = models.BooleanField(
+        default=False,
+        verbose_name="Banque d'images propre à ce syndicat",
+        help_text="Coché : le bloc « Notre banque d'images » de la barre "
+                  "latérale mène à la banque de ce syndicat. Décoché : il "
+                  "renvoie à celle de la confédération.",
+    )
     intro_text = StreamField(
         [('contenu', blocks.RichTextBlock(features=RICHTEXT_FEATURES, label="Contenu")),
          ('liste', blocks.ListBlock(blocks.CharBlock(label="Item"), label="Liste à puces"))],
@@ -362,6 +369,7 @@ class SectionPage(SeoMixin, Page):
         FieldPanel('agenda_url'),
         FieldPanel('linkstack_url'),
         FieldPanel('framaform_url'),
+        FieldPanel('banque_images_propre'),
         FieldPanel('intro_text'),
         FieldPanel('rejoindre_text'),
         FieldPanel('agenda_text'),

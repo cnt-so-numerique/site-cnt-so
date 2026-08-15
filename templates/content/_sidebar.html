@@ -62,15 +62,21 @@
     </div>
 </div>
 
-<!-- Notre banque d'images -->
+{% comment %}
+Banque d'images : masquée si le syndicat n'a pas la catégorie. Six sur neuf
+ne l'ont pas — le bloc menait alors à un 404, sur toutes leurs pages.
+{% endcomment %}
+{% banque_images_url site as banque_url %}
+{% if banque_url %}
 <div style="background:var(--dark-bg);padding:1.25rem;text-align:center;margin-top:1rem;">
     <h2 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Notre banque d'images</h2>
     <p style="color:rgba(255,255,255,.7);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Découvrez nos archives photographiques des luttes ouvrières.</p>
-    <a href="{% url 'content:category_detail' slug='banque-dimage' %}"
+    <a href="{{ banque_url }}"
        style="display:block;padding:.6rem;background:var(--primary-color);color:#fff;font-weight:700;font-size:14px;font-family:var(--font-body);text-align:center;text-decoration:none;">
         Voir la galerie
     </a>
 </div>
+{% endif %}
 
 <!-- Ce que vous avez loupé -->
 <div class="hp-bloc-loupe" style="margin-top:1rem;">

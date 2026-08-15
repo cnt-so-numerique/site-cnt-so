@@ -251,3 +251,39 @@ def render_content(content):
         return mark_safe(html)
     except (json.JSONDecodeError, KeyError, TypeError):
         return mark_safe(escape(content))
+
+
+@register.simple_tag
+def banque_images_url(site=None):
+    """URL de la banque d'images valable depuis `site`, ou chaîne vide.
+
+    Le bloc de la barre latérale fabriquait l'adresse pour le site courant, en
+    supposant que chaque syndicat a sa propre catégorie « banque-dimage ». Six
+    sur neuf ne l'ont pas : le bloc menait donc à un 404 sur TOUTES leurs pages
+    (constaté en production le 05/08/2026).
+
+    C'est désormais la case `banque_images_propre` de la fiche du syndicat qui
+    décide, plutôt qu'une déduction. Elle ne peut pas produire de lien mort :
+    cochée sans que la catégorie existe, on retombe sur celle de la
+    confédération — rendue absolue si l'on est sur un domaine autonome, sans
+    quoi l'adresse relative viserait le mauvais hôte et referait un 404.
+    Chaîne vide si elle n'existe nulle part : au gabarit de masquer le bloc.
+    """
+    from cms.models import CmsCategory
+
+    if site is not None and getattr(site, 'banque_images_propre', False):
+        propre = CmsCategory.objects.filter(
+            slug='banque-dimage', section_slug__in=site.slugs_contenu).first()
+        if propre is not None:
+            return propre.get_absolute_url()
+
+    confederale = CmsCategory.objects.filter(
+        slug='banque-dimage', section_slug='principal').first()
+    if confederale is None:
+        return ''
+    url = confederale.get_absolute_url()
+    if url.startswith('/') and site is not None and site.custom_domain:
+        from django.conf import settings
+        base = getattr(settings, 'MAIN_SITE_BASE_URL', '')
+        return f'{base}{url}' if base else url
+    return url

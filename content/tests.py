@@ -5740,3 +5740,82 @@ class LienDeSectionSuitLaBasculeTest(TestCase):
         self.assertEqual(item.target_site_id, self.education.pk)
         self.assertEqual(item.url, '', "l'URL manuscrite doit être effacée")
         self.assertEqual(item.get_url(), '/education/')
+
+
+class BanqueImagesSidebarTest(TestCase):
+    """Le bloc « Notre banque d'images » fabriquait son lien pour le site
+    courant, en supposant que chaque syndicat a sa catégorie « banque-dimage ».
+    Six sur neuf ne l'ont pas : le bloc menait à un 404 sur TOUTES leurs pages,
+    barre latérale oblige (constaté en production le 05/08/2026)."""
+
+    def setUp(self):
+        self.principal = make_site(slug='principal', name='CNT-SO confédération')
+        self.sous_site = make_site(slug='13', name='CNT-SO 13', site_type='regional')
+
+    def _url(self, site):
+        from content.templatetags.content_tags import banque_images_url
+        return banque_images_url(site)
+
+    def test_case_cochee_avec_categorie_pointe_vers_la_sienne(self):
+        make_cms_category(name="Banque d'images", slug='banque-dimage',
+                          section_slug='13')
+        self.sous_site.banque_images_propre = True
+        self.sous_site.save()
+        self.assertIn('/13/', self._url(self.sous_site))
+
+    def test_case_decochee_renvoie_a_la_confederation(self):
+        """Même si le syndicat a sa propre catégorie : c'est la case qui
+        décide, pas la présence de la donnée."""
+        make_cms_category(name="Banque d'images", slug='banque-dimage',
+                          section_slug='13')
+        make_cms_category(name="Banque d'image", slug='banque-dimage',
+                          section_slug='principal')
+        self.sous_site.banque_images_propre = False
+        self.sous_site.save()
+        self.assertEqual(self._url(self.sous_site), '/categorie/banque-dimage/')
+
+    def test_case_cochee_sans_categorie_ne_fabrique_pas_un_404(self):
+        """Le filet : une case qui ment ne doit pas recréer le bug d'origine."""
+        make_cms_category(name="Banque d'image", slug='banque-dimage',
+                          section_slug='principal')
+        self.sous_site.banque_images_propre = True
+        self.sous_site.save()
+        url = self._url(self.sous_site)
+        self.assertEqual(url, '/categorie/banque-dimage/')
+        self.assertNotEqual(self.client.get(url).status_code, 404)
+
+    def test_sans_categorie_propre_on_sert_celle_de_la_confederation(self):
+        make_cms_category(name="Banque d'image", slug='banque-dimage',
+                          section_slug='principal')
+        url = self._url(self.sous_site)
+        self.assertEqual(url, '/categorie/banque-dimage/')
+
+    def test_sur_un_domaine_autonome_le_repli_est_absolu(self):
+        """Une URL relative retomberait sur le domaine du syndicat : 404."""
+        make_cms_category(name="Banque d'image", slug='banque-dimage',
+                          section_slug='principal')
+        self.sous_site.custom_domain = '13.cnt-so.org'
+        self.sous_site.save()
+        url = self._url(self.sous_site)
+        self.assertTrue(url.startswith('http'), f'{url!r} : relative')
+        self.assertNotIn('13.cnt-so.org', url)
+
+    def test_sans_categorie_nulle_part_le_bloc_disparait(self):
+        self.assertEqual(self._url(self.sous_site), '')
+        html = self.client.get('/13/').content.decode()
+        self.assertNotIn('archives photographiques', html)
+        self.assertNotIn('Voir la galerie', html)
+
+    def test_le_bloc_rendu_ne_pointe_jamais_vers_un_404(self):
+        """Balayage : pour chaque site, l'URL produite doit répondre."""
+        from cms.models import SectionPage
+        make_cms_category(name="Banque d'image", slug='banque-dimage',
+                          section_slug='principal')
+        for site in SectionPage.objects.filter(live=True):
+            with self.subTest(site=site.slug):
+                url = self._url(site)
+                if not url or not url.startswith('/'):
+                    continue
+                self.assertNotEqual(
+                    self.client.get(url).status_code, 404,
+                    f'{site.title} : {url} est une adresse morte')
