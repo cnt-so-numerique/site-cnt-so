@@ -50,7 +50,12 @@ class SiteSitemap(Sitemap):
     priority = 0.7
 
     def items(self):
-        return SectionPage.objects.filter(live=True)
+        # Les sections à `external_url` (syndicats hébergés ailleurs, comme le
+        # STAA sur staa-cnt-so.org) ont un `get_absolute_url()` pointant vers un
+        # AUTRE domaine : les lister publierait l'URL d'autrui dans notre
+        # sitemap, ce que les moteurs ignorent au mieux. Leur propre site
+        # déclare ses pages.
+        return SectionPage.objects.filter(live=True).filter(external_url='')
 
     def location(self, obj):
         return obj.get_absolute_url()

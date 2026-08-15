@@ -5412,3 +5412,109 @@ class ContrasteCouleursTest(TestCase):
         # Repères connus : noir sur blanc = 21, blanc sur blanc = 1
         self.assertAlmostEqual(self._ratio_sur_blanc('#000000'), 21.0, places=1)
         self.assertAlmostEqual(self._ratio_sur_blanc('#FFFFFF'), 1.0, places=1)
+
+
+class LienDeMenuSansCibleTest(TestCase):
+    """Un lien dont la cible manque s'enregistrait sans broncher et menait vers
+    '#'. La production comptait 8 entrées dans cet état, dont « CNT-SO national »
+    au PREMIER NIVEAU du menu de quatre sous-sites — donc sur toutes leurs pages
+    (audit du 05/08/2026).
+
+    Deux causes distinctes, donc deux garde-fous : la création sans cible
+    (`clean`) et le pourrissement ultérieur, les cibles étant en
+    `on_delete=SET_NULL` — un lien valide se vide tout seul quand sa cible est
+    supprimée, sans qu'aucun enregistrement ne repasse par `clean`.
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='13', name='CNT-SO 13', site_type='regional')
+        self.autre = make_site(slug='principal', name='CNT-SO confédération')
+
+    # ── Garde-fou 1 : la création ────────────────────────────────────────────
+
+    def test_lien_vers_un_site_sans_cible_refuse(self):
+        from django.core.exceptions import ValidationError
+        item = MenuItem(site=self.site, menu='main', title='CNT-SO national',
+                        link_type='site')
+        with self.assertRaises(ValidationError) as ctx:
+            item.full_clean()
+        self.assertIn('target_site', ctx.exception.message_dict)
+
+    def test_lien_vers_un_site_avec_cible_accepte(self):
+        item = MenuItem(site=self.site, menu='main', title='CNT-SO national',
+                        link_type='site', target_site=self.autre)
+        item.full_clean()   # ne doit pas lever
+
+    def test_les_quatre_types_a_cible_sont_couverts(self):
+        """Catégorie, site, article et page mènent tous à '#' sans cible."""
+        from django.core.exceptions import ValidationError
+        for type_lien, champ in MenuItem._CIBLE_REQUISE.items():
+            with self.subTest(type_lien=type_lien):
+                item = MenuItem(site=self.site, menu='main', title='X',
+                                link_type=type_lien)
+                with self.assertRaises(ValidationError) as ctx:
+                    item.full_clean()
+                self.assertIn(champ, ctx.exception.message_dict)
+
+    def test_un_parent_de_sous_menu_sans_url_reste_permis(self):
+        """Le '#' d'un parent est une convention, pas un défaut : il ouvre le
+        sous-menu au lieu de naviguer."""
+        item = MenuItem(site=self.site, menu='main', title='Ressources',
+                        link_type='url', url='#')
+        item.full_clean()   # ne doit pas lever
+
+    # ── Garde-fou 2 : l'affichage, après pourrissement ───────────────────────
+
+    def test_une_cible_supprimee_vide_le_lien_sans_validation(self):
+        """Reproduit le pourrissement : SET_NULL agit hors de tout `clean`."""
+        cat = make_cms_category(name='TPE', slug='tpe', section_slug='13')
+        item = MenuItem.objects.create(site=self.site, menu='main', title='TPE',
+                                       link_type='category', category=cat)
+        cat.delete()
+        item.refresh_from_db()
+        self.assertIsNone(item.category)
+        self.assertEqual(item.get_url(), '#')
+        self.assertTrue(item.est_impasse)
+
+    def test_un_parent_a_diese_n_est_pas_une_impasse(self):
+        parent = MenuItem.objects.create(site=self.site, menu='main',
+                                         title='Ressources', link_type='url',
+                                         url='#')
+        MenuItem.objects.create(site=self.site, menu='main', title='Guide',
+                                link_type='url', url='/guide/', parent=parent)
+        self.assertFalse(parent.est_impasse)
+
+    def test_le_menu_n_affiche_pas_une_impasse(self):
+        MenuItem.objects.create(site=self.site, menu='main',
+                                title='Lien mort à ne pas afficher',
+                                link_type='site', target_site=None)
+        MenuItem.objects.create(site=self.site, menu='main',
+                                title='Lien valide', link_type='url',
+                                url='/valide/')
+        html = self.client.get('/13/').content.decode()
+        self.assertNotIn('Lien mort à ne pas afficher', html)
+        self.assertIn('Lien valide', html)
+
+
+class SitemapSectionExterneTest(TestCase):
+    """Une section à `external_url` (syndicat hébergé ailleurs, comme le STAA
+    sur staa-cnt-so.org) a un `get_absolute_url()` pointant vers un AUTRE
+    domaine : la lister publierait l'URL d'autrui dans notre sitemap."""
+
+    def test_le_sitemap_exclut_les_sections_externes(self):
+        interne = make_site(slug='13', name='CNT-SO 13', site_type='regional')
+        externe = make_site(slug='staa', name='STAA', site_type='sectoral')
+        externe.external_url = 'https://staa-cnt-so.org/'
+        externe.save()
+
+        from content.sitemaps import SiteSitemap
+        items = list(SiteSitemap().items())
+        self.assertIn(interne, items)
+        self.assertNotIn(externe, items)
+
+    def test_aucune_url_hors_domaine_dans_le_sitemap_rendu(self):
+        externe = make_site(slug='staa', name='STAA', site_type='sectoral')
+        externe.external_url = 'https://staa-cnt-so.org/'
+        externe.save()
+        corps = self.client.get('/sitemap.xml').content.decode()
+        self.assertNotIn('staa-cnt-so.org', corps)

@@ -514,6 +514,48 @@ class MenuItem(models.Model):
             return self.category.get_absolute_url()
         return '#'
 
+    # Champ à renseigner selon le type de lien. `url` n'y figure pas : une URL
+    # vide reste un usage légitime pour un parent de sous-menu.
+    _CIBLE_REQUISE = {
+        'category': 'category',
+        'site': 'target_site',
+        'article': 'article',
+        'page': 'page',
+    }
+
+    def clean(self):
+        """Refuse un lien dont la cible manque.
+
+        `get_url()` retombe silencieusement sur '#' quand la cible n'est pas
+        renseignée : le lien s'enregistre sans broncher et ne mène nulle part.
+        La production comptait 8 entrées dans cet état, dont « CNT-SO national »
+        au premier niveau du menu de quatre sous-sites (audit du 05/08/2026).
+        """
+        super().clean()
+        champ = self._CIBLE_REQUISE.get(self.link_type)
+        if champ and getattr(self, f'{champ}_id', None) is None:
+            from django.core.exceptions import ValidationError
+            libelle = dict(self.LINK_TYPE_CHOICES).get(self.link_type, self.link_type)
+            raise ValidationError({champ: (
+                f"Choisissez une cible : le type de lien « {libelle} » ne mène "
+                "nulle part sans elle.")})
+
+    @property
+    def est_impasse(self):
+        """Le lien ne mène nulle part ET n'ouvre aucun sous-menu.
+
+        Les cibles sont en `on_delete=SET_NULL` : un lien valide à sa création
+        se vide tout seul quand sa cible est supprimée, sans qu'aucun
+        enregistrement ne repasse par `clean()`. D'où ce second filet, à
+        l'affichage. Un parent de sous-menu à '#' n'est pas une impasse : son
+        rôle est d'ouvrir le menu, pas de naviguer.
+
+        `children.all()` et non `children.exists()` : le menu est rendu sur
+        toutes les pages et `get_menu` précharge les enfants — `exists()`
+        ignorerait ce cache et rouvrirait le N+1 corrigé en juillet.
+        """
+        return self.get_url() in ('#', '', None) and not self.children.all()
+
     @property
     def should_open_new_tab(self):
         """Ouvre dans un nouvel onglet si explicitement demandé ou si l'URL est
