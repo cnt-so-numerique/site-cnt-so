@@ -1,0 +1,9 @@
+{% load content_tags %}
+<div class="bloc-chiffres" style="--chiffre-couleur: {{ value.couleur|couleur_sure }};">
+  {% for c in value.chiffres %}
+    <div class="bloc-chiffre">
+      <span class="bloc-chiffre-n">{{ c.nombre }}</span>
+      <span class="bloc-chiffre-l">{{ c.legende }}</span>
+    </div>
+  {% endfor %}
+</div>

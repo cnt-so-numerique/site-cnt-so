@@ -1,0 +1,9 @@
+{% load content_tags %}
+{% if value.type == 'points' %}
+  <div class="bloc-separateur points" aria-hidden="true"
+       style="--sep-couleur: {{ value.couleur|couleur_sure }};">• • •</div>
+{% elif value.type == 'blanc' %}
+  <div class="bloc-separateur blanc" aria-hidden="true"></div>
+{% else %}
+  <hr class="bloc-separateur filet" style="--sep-couleur: {{ value.couleur|couleur_sure }};">
+{% endif %}

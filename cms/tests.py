@@ -3167,3 +3167,168 @@ class AlignementDesImagesTest(TestCase):
         with open('templates/cms/blocks/image_block.html', encoding='utf-8') as f:
             gabarit = f.read()
         self.assertIn('article-image align-{{ value.alignment }}', gabarit)
+
+
+class BlocsDeMiseEnPageTest(TestCase):
+    """Cinq blocs ajoutés le 15/08/2026 à la demande d'Arnaud : côte à côte,
+    encadré, boutons, chiffres clés, séparateur.
+
+    Ils vivent dans `ARTICLE_BODY_BLOCKS`, partagé par `ArticlePage` et
+    `ContentPage` : « partout » était donc déjà acquis par construction. Le
+    premier test verrouille ce partage — c'est lui qui casserait si quelqu'un
+    dupliquait la liste pour un seul des deux modèles.
+    """
+
+    NOUVEAUX = {'duo', 'encadre', 'boutons', 'chiffres', 'separateur'}
+
+    @staticmethod
+    def _proposes(modele):
+        noms = set()
+        for _, blocs in modele.body.field.stream_block.grouped_child_blocks():
+            noms |= {b.name for b in blocs}
+        return noms
+
+    def test_les_blocs_sont_proposes_dans_les_articles(self):
+        self.assertTrue(self.NOUVEAUX <= self._proposes(ArticlePage))
+
+    def test_les_blocs_sont_proposes_dans_les_pages_statiques(self):
+        """« Nous rejoindre », « Ressources » en profitent autant."""
+        from cms.models import ContentPage
+        self.assertTrue(self.NOUVEAUX <= self._proposes(ContentPage))
+
+    def test_articles_et_pages_offrent_exactement_les_memes_blocs(self):
+        from cms.models import ContentPage
+        self.assertEqual(self._proposes(ArticlePage), self._proposes(ContentPage))
+
+    def _rendre(self, nom, valeur):
+        art = make_article_page(section_slug='principal', title='Rendu',
+                                slug=f'rendu-{nom}')
+        art.body = [(nom, valeur)]
+        art.save()
+        return str(ArticlePage.objects.get(pk=art.pk).body)
+
+    def test_l_encadre_porte_la_couleur_choisie(self):
+        html = self._rendre('encadre', {
+            'titre': 'AG jeudi', 'texte': '<p>Salle Clément.</p>',
+            'couleur': '#1A7F37', 'fond': 'teinte'})
+        self.assertIn('#1A7F37', html)
+        self.assertIn('AG jeudi', html)
+
+    def test_le_bouton_ouvre_bien_un_nouvel_onglet(self):
+        html = self._rendre('boutons', {'boutons': [{
+            'libelle': 'Signer', 'url': 'https://exemple.fr/',
+            'style': 'plein', 'couleur': '#E81C24', 'nouvel_onglet': True}]})
+        self.assertIn('target="_blank"', html)
+        self.assertIn('rel="noopener"', html)
+
+    def test_le_media_a_droite_ne_change_pas_l_ordre_du_html(self):
+        """L'inversion est faite en CSS (`order`) : un lecteur d'écran doit
+        rencontrer le média puis le texte, quel que soit le côté affiché."""
+        from wagtail.images.tests.utils import get_test_image_file
+        from wagtail.images.models import Image
+        img = Image.objects.create(title='Photo', file=get_test_image_file())
+        html = self._rendre('duo', {
+            'media_position': 'right', 'repartition': '50', 'image': img,
+            'caption': '', 'texte': '<p>Le texte.</p>'})
+        self.assertLess(html.index('bloc-duo-media'), html.index('bloc-duo-texte'))
+        self.assertIn('media-right', html)
+
+    def test_le_separateur_points_est_masque_aux_lecteurs_d_ecran(self):
+        """« • • • » lu à voix haute n'apporte rien."""
+        html = self._rendre('separateur', {'type': 'points', 'couleur': '#000000'})
+        self.assertIn('aria-hidden="true"', html)
+
+    def test_un_duo_sans_media_est_refuse(self):
+        """Sans image ni vidéo, le bloc rendrait une colonne vide."""
+        from django.core.exceptions import ValidationError
+        from cms.models import DuoBlock
+        with self.assertRaises(ValidationError):
+            DuoBlock().clean(DuoBlock().to_python({
+                'media_position': 'left', 'repartition': '50',
+                'image': None, 'video': None, 'caption': '',
+                'texte': '<p>Seul.</p>'}))
+
+
+class CouleurLibreEtLisibleTest(TestCase):
+    """Arnaud a tranché contre le verrouillage des couleurs (15/08/2026).
+
+    Deux conséquences à tenir : la couleur part dans un attribut `style`, donc
+    elle doit être assainie au rendu ; et le texte posé dessus doit rester
+    lisible sans qu'on impose de choix au rédacteur — il est déduit de la
+    luminance relative WCAG.
+    """
+
+    def test_le_texte_est_noir_sur_une_couleur_claire(self):
+        from cms.models import texte_lisible_sur
+        self.assertEqual(texte_lisible_sur('#FFD400'), '#000000')
+
+    def test_le_texte_est_blanc_sur_une_couleur_sombre(self):
+        from cms.models import texte_lisible_sur
+        self.assertEqual(texte_lisible_sur('#1A2E5A'), '#ffffff')
+
+    def test_le_rouge_de_charte_reste_en_blanc(self):
+        """Repère connu : c'est le rendu actuel des boutons du site."""
+        from cms.models import texte_lisible_sur
+        self.assertEqual(texte_lisible_sur('#E81C24'), '#ffffff')
+
+    def test_le_contraste_obtenu_atteint_le_seuil_AA(self):
+        """Le vrai critère n'est pas « noir ou blanc » mais le rapport obtenu.
+        Sans cette vérification, un seuil mal placé passerait inaperçu."""
+        from cms.models import texte_lisible_sur
+
+        def luminance(hexa):
+            c = [int(hexa.lstrip('#')[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+            c = [x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+            return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+        for fond in ('#FFD400', '#1A2E5A', '#E81C24', '#FFFFFF', '#000000',
+                     '#7F7F7F', '#00A000'):
+            with self.subTest(fond=fond):
+                l1, l2 = luminance(fond), luminance(texte_lisible_sur(fond))
+                haut, bas = max(l1, l2), min(l1, l2)
+                rapport = (haut + 0.05) / (bas + 0.05)
+                self.assertGreaterEqual(
+                    rapport, 4.5,
+                    f'contraste {rapport:.2f} sur {fond} : sous le seuil AA')
+
+    def test_une_couleur_invalide_ne_sort_pas_dans_le_style(self):
+        """`style="…{{ valeur }}"` avec une valeur libre est une injection CSS.
+        Le bloc valide à la saisie ; ceci couvre les données déjà en base."""
+        from content.templatetags.content_tags import couleur_sure
+        for saisie in ('red; background: url(//x)', 'javascript:x', '',
+                       '#GGGGGG', None, '#E81C2'):
+            with self.subTest(saisie=saisie):
+                self.assertEqual(couleur_sure(saisie), '#E81C24')
+
+    def test_une_couleur_valide_passe_telle_quelle(self):
+        """Contrôle positif : un filtre qui renvoie toujours le rouge de charte
+        passerait le test ci-dessus."""
+        from content.templatetags.content_tags import couleur_sure
+        self.assertEqual(couleur_sure('#1A7F37'), '#1A7F37')
+
+
+class LargeurDeLImageTest(TestCase):
+    """L'alignement gauche/droite ne servait à rien sans réglage de taille :
+    une photo de 2000 px poussée à droite occupait la moitié de l'écran quoi
+    qu'il arrive (demande d'Arnaud, 15/08/2026)."""
+
+    def test_chaque_largeur_proposee_a_une_regle_css(self):
+        from cms.models import CHOIX_LARGEUR
+        with open('templates/base.html', encoding='utf-8') as f:
+            css = f.read()
+        for valeur, libelle in CHOIX_LARGEUR:
+            with self.subTest(largeur=libelle):
+                self.assertIn(f'.article-image.align-right.l-{valeur}', css)
+
+    def test_un_article_ecrit_avant_le_reglage_garde_une_largeur(self):
+        """Les articles existants n'ont pas la clé `largeur` : sans défaut
+        servi par StructBlock, ils rendraient `l-` et perdraient leur taille."""
+        from wagtail.images.tests.utils import get_test_image_file
+        from wagtail.images.models import Image
+        img = Image.objects.create(title='Ancienne', file=get_test_image_file())
+        art = make_article_page(section_slug='principal', title='Ancien',
+                                slug='ancien-sans-largeur')
+        art.body = [('image', {'image': img, 'caption': '', 'alignment': 'right'})]
+        art.save()
+        html = str(ArticlePage.objects.get(pk=art.pk).body)
+        self.assertIn('align-right l-50', html)

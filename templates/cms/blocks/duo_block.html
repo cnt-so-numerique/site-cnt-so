@@ -1,0 +1,14 @@
+{% load wagtailimages_tags %}
+<div class="bloc-duo media-{{ value.media_position }} part-{{ value.repartition }}">
+  <figure class="bloc-duo-media">
+    {% if value.image %}
+      {% image value.image width-900 as img %}
+      <img src="{{ img.url }}" alt="{{ value.image.title }}" loading="lazy">
+    {% elif value.video %}
+      {# `.html` d'un embed est déjà l'iframe du fournisseur. #}
+      <div class="bloc-duo-video">{{ value.video.html|safe }}</div>
+    {% endif %}
+    {% if value.caption %}<figcaption>{{ value.caption }}</figcaption>{% endif %}
+  </figure>
+  <div class="bloc-duo-texte">{{ value.texte }}</div>
+</div>

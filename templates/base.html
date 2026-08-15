@@ -969,6 +969,131 @@
         }
         .article-content .article-image.align-center { text-align: center; }
         .article-content .article-image.align-full img { width: 100%; }
+        /* Largeur réglable : sans elle, une photo de 2000 px poussée à droite
+           occupait la moitié de l'écran quoi qu'il arrive. Sans effet en
+           pleine largeur ni au centre, où la largeur est déjà décidée. */
+        .article-content .article-image.align-left.l-25,
+        .article-content .article-image.align-right.l-25 { max-width: 25%; }
+        .article-content .article-image.align-left.l-33,
+        .article-content .article-image.align-right.l-33 { max-width: 33%; }
+        .article-content .article-image.align-left.l-50,
+        .article-content .article-image.align-right.l-50 { max-width: 50%; }
+        .article-content .article-image.align-left.l-66,
+        .article-content .article-image.align-right.l-66 { max-width: 66%; }
+        .article-content .article-image.align-left.l-75,
+        .article-content .article-image.align-right.l-75 { max-width: 75%; }
+        .article-content .article-image.align-left.l-100,
+        .article-content .article-image.align-right.l-100 { max-width: 100%; float: none; margin: 1.5rem 0; }
+        .article-content .article-image.align-center.l-25 img { width: 25%; }
+        .article-content .article-image.align-center.l-33 img { width: 33%; }
+        .article-content .article-image.align-center.l-50 img { width: 50%; }
+        .article-content .article-image.align-center.l-66 img { width: 66%; }
+        .article-content .article-image.align-center.l-75 img { width: 75%; }
+
+        /* ── Blocs de mise en page (15/08/2026) ───────────────────────────
+           Les couleurs viennent du rédacteur, via des variables posées dans
+           l'attribut style du bloc et assainies par le filtre `couleur_sure`.
+           Le texte des boutons est calculé par luminance : jamais de blanc
+           sur jaune. */
+
+        .article-content .bloc-duo {
+            display: grid;
+            gap: 1.5rem;
+            align-items: start;
+            margin: 1.75rem 0;
+            clear: both;
+        }
+        .article-content .bloc-duo.part-50 { grid-template-columns: 1fr 1fr; }
+        .article-content .bloc-duo.part-33 { grid-template-columns: 1fr 2fr; }
+        .article-content .bloc-duo.part-66 { grid-template-columns: 2fr 1fr; }
+        /* Média à droite : on inverse l'ordre visuel sans toucher au HTML,
+           qui garde le média en premier pour les lecteurs d'écran. */
+        .article-content .bloc-duo.media-right .bloc-duo-media { order: 2; }
+        .article-content .bloc-duo.media-right.part-33 { grid-template-columns: 2fr 1fr; }
+        .article-content .bloc-duo.media-right.part-66 { grid-template-columns: 1fr 2fr; }
+        .article-content .bloc-duo-media { margin: 0; }
+        .article-content .bloc-duo-media img { width: 100%; height: auto; border-radius: 4px; }
+        .article-content .bloc-duo-media figcaption {
+            font-size: 14px; color: var(--text-muted);
+            font-style: italic; margin-top: .4rem;
+        }
+        .article-content .bloc-duo-video iframe { width: 100%; aspect-ratio: 16/9; border: 0; }
+        .article-content .bloc-duo-texte > *:first-child { margin-top: 0; }
+        .article-content .bloc-duo-texte > *:last-child { margin-bottom: 0; }
+
+        .article-content .bloc-encadre {
+            border-left: 5px solid var(--encadre-couleur);
+            padding: 1.1rem 1.3rem;
+            margin: 1.75rem 0;
+            clear: both;
+        }
+        .article-content .bloc-encadre.fond-gris { background: var(--bg-light); }
+        .article-content .bloc-encadre.fond-teinte { background: var(--encadre-teinte); }
+        .article-content .bloc-encadre.fond-aucun { background: transparent; }
+        .article-content .bloc-encadre-titre {
+            font-family: var(--font-heading);
+            font-weight: 700; font-size: 1.1rem;
+            color: var(--text-color); margin: 0 0 .4rem;
+        }
+        .article-content .bloc-encadre-texte > *:last-child { margin-bottom: 0; }
+
+        .article-content .bloc-boutons {
+            display: flex; flex-wrap: wrap; gap: .7rem;
+            margin: 1.75rem 0; clear: both;
+        }
+        .article-content .bloc-bouton {
+            display: inline-block;
+            font-weight: 700; font-size: .9375rem;
+            padding: .7rem 1.35rem;
+            text-decoration: none;
+            border: 2px solid var(--btn-couleur);
+            transition: background .2s, color .2s;
+        }
+        .article-content .bloc-bouton.style-plein {
+            background: var(--btn-couleur); color: var(--btn-texte);
+        }
+        .article-content .bloc-bouton.style-contour {
+            background: transparent; color: var(--btn-couleur);
+        }
+        .article-content .bloc-bouton.style-contour:hover,
+        .article-content .bloc-bouton.style-contour:focus-visible {
+            background: var(--btn-couleur); color: var(--btn-texte);
+        }
+        .article-content .bloc-bouton.style-plein:hover,
+        .article-content .bloc-bouton.style-plein:focus-visible { filter: brightness(.88); }
+
+        .article-content .bloc-chiffres {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+            gap: 1rem;
+            border-top: 3px solid var(--text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1.1rem 0;
+            margin: 1.75rem 0;
+            clear: both;
+        }
+        .article-content .bloc-chiffre { display: flex; flex-direction: column; gap: .15rem; }
+        .article-content .bloc-chiffre-n {
+            font-family: var(--font-heading);
+            font-size: clamp(1.8rem, 5vw, 2.4rem); line-height: 1;
+            font-weight: 700; color: var(--chiffre-couleur);
+            font-variant-numeric: tabular-nums;
+        }
+        .article-content .bloc-chiffre-l {
+            font-size: .8125rem; text-transform: uppercase;
+            letter-spacing: .07em; color: var(--text-muted); font-weight: 600;
+        }
+
+        .article-content hr.bloc-separateur.filet {
+            border: 0; border-top: 1px solid var(--sep-couleur);
+            margin: 1.75rem 0; clear: both;
+        }
+        .article-content .bloc-separateur.points {
+            text-align: center; color: var(--sep-couleur);
+            letter-spacing: .8em; margin: 1.6rem 0;
+            font-size: 1.1rem; line-height: 1; clear: both;
+        }
+        .article-content .bloc-separateur.blanc { height: 2.5rem; clear: both; }
         /* Sans cela, le bloc suivant remonterait le long de l'image flottante. */
         .article-content > *:not(.article-image) { clear: none; }
         .article-content .article-image + * { clear: none; }
@@ -1008,6 +1133,14 @@
                empile. Même règle que pour les images WordPress ci-dessus. */
             .article-content .article-image.align-left,
             .article-content .article-image.align-right { float: none; max-width: 100%; margin: 1rem 0; }
+            .article-content .article-image.align-center img { width: 100%; }
+            /* Deux colonnes sur un téléphone donnent deux colonnes illisibles :
+               on empile, quelle que soit la répartition choisie. */
+            .article-content .bloc-duo.part-50,
+            .article-content .bloc-duo.part-33,
+            .article-content .bloc-duo.part-66 { grid-template-columns: 1fr; }
+            .article-content .bloc-duo.media-right .bloc-duo-media { order: 0; }
+            .article-content .bloc-bouton { width: 100%; text-align: center; }
         }
 
         /* Pagination */

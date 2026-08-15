@@ -1,0 +1,10 @@
+{% load content_tags %}
+<div class="bloc-boutons">
+  {% for b in value.boutons %}
+    <a class="bloc-bouton style-{{ b.style }}"
+       href="{{ b.url }}"
+       style="--btn-couleur: {{ b.couleur|couleur_sure }};
+              --btn-texte: {{ b.couleur|texte_lisible }};"
+       {% if b.nouvel_onglet %}target="_blank" rel="noopener"{% endif %}>{{ b.libelle }}</a>
+  {% endfor %}
+</div>

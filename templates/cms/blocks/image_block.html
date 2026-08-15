@@ -1,5 +1,9 @@
 {% load wagtailimages_tags %}
-<figure class="article-image align-{{ value.alignment }}">
+{% comment %}
+`largeur` est absent des articles écrits avant le 15/08/2026 : StructBlock
+sert alors le défaut du bloc, jamais une chaîne vide.
+{% endcomment %}
+<figure class="article-image align-{{ value.alignment }} l-{{ value.largeur|default:'50' }}">
   {% image value.image original as img %}
   <img src="{{ img.url }}" alt="{{ value.image.title }}" loading="lazy">
   {% if value.caption %}

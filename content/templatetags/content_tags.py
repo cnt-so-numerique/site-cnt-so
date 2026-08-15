@@ -62,6 +62,32 @@ def section_url(nom_route, site, *args, **kwargs):
     return f'{base}{chemin}'
 
 
+_COULEUR_HEX = __import__('re').compile(r'^#[0-9A-Fa-f]{6}$')
+
+
+@register.filter
+def couleur_sure(valeur):
+    """Une couleur `#RRGGBB` sûre à insérer dans un attribut `style`.
+
+    Les rédacteurs choisissent librement leurs couleurs depuis le 15/08/2026.
+    Le bloc valide la saisie, mais la valeur rendue vient de la base : une
+    révision importée ou modifiée hors formulaire pourrait porter autre chose,
+    et `style="color: {{ … }}"` est une injection CSS. On revalide donc au
+    rendu, et on retombe sur le rouge de la charte plutôt que d'émettre une
+    déclaration cassée.
+    """
+    from cms.models import COULEUR_CHARTE
+    valeur = (valeur or '').strip()
+    return valeur if _COULEUR_HEX.match(valeur) else COULEUR_CHARTE
+
+
+@register.filter
+def texte_lisible(couleur):
+    """Noir ou blanc, celui qui se lit sur `couleur` (luminance WCAG)."""
+    from cms.models import texte_lisible_sur
+    return texte_lisible_sur(couleur_sure(couleur))
+
+
 @register.filter
 def json_ld(data):
     """Sérialise un dict en JSON sûr à insérer tel quel dans un <script type="application/ld+json">."""

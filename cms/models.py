@@ -154,6 +154,73 @@ RICHTEXT_FEATURES = [
 ]
 
 
+COULEUR_CHARTE = '#E81C24'
+
+# Largeurs proposées, en pourcentage de la colonne de texte. Des paliers
+# plutôt qu'un curseur libre : une image à 37 % ne veut rien dire de plus
+# qu'une image à 33 %, et les paliers restent alignés d'un article à l'autre.
+CHOIX_LARGEUR = [
+    ('25', 'Un quart'),
+    ('33', 'Un tiers'),
+    ('50', 'Une moitié'),
+    ('66', 'Deux tiers'),
+    ('75', 'Trois quarts'),
+    ('100', 'Toute la largeur'),
+]
+
+
+def _luminance(couleur):
+    """Luminance relative WCAG d'un « #RRGGBB », entre 0 et 1."""
+    couleur = (couleur or COULEUR_CHARTE).lstrip('#')
+    if len(couleur) != 6:
+        return 0.0
+    try:
+        canaux = [int(couleur[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    except ValueError:
+        return 0.0
+    lin = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+           for c in canaux]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+def texte_lisible_sur(couleur):
+    """« #ffffff » ou « #000000 », celui qui se lit sur `couleur`.
+
+    Les rédacteurs choisissent librement leurs couleurs (décision d'Arnaud du
+    15/08/2026, contre mon avis de les verrouiller). Laisser aussi le choix de
+    la couleur du texte produirait tôt ou tard du blanc sur jaune. On la déduit
+    donc du contraste réel — aucun choix n'est retiré au rédacteur.
+
+    **Blanc dès qu'il atteint le seuil AA (4,5), noir sinon.** La règle du
+    contraste maximal — celle qu'on trouve partout — donnerait du NOIR sur le
+    rouge de la charte : `#E81C24` est à 4,62 en noir contre 4,54 en blanc.
+    Les deux passent AA, l'écart est de 1,8 %, mais tous les boutons du site
+    sont blancs sur rouge depuis toujours. Entre deux valeurs conformes, on
+    suit l'identité du site.
+
+    La règle tient sur les cas qui piègent : gris moyen `#7F7F7F` → noir (le
+    blanc n'y est qu'à 3,95), jaune `#FFD400` → noir, marine `#1A2E5A` → blanc.
+    """
+    return '#ffffff' if (1.05 / (_luminance(couleur) + 0.05)) >= 4.5 else '#000000'
+
+
+class CouleurBlock(blocks.FieldBlock):
+    """Sélecteur de couleur natif du navigateur."""
+
+    def __init__(self, default=COULEUR_CHARTE, required=True, help_text=None, **kwargs):
+        from django.core.validators import RegexValidator
+        self.field = forms.CharField(
+            required=required,
+            help_text=help_text,
+            max_length=7,
+            validators=[RegexValidator(
+                r'^#[0-9A-Fa-f]{6}$',
+                "Indiquez une couleur au format #RRGGBB.")],
+            widget=forms.TextInput(attrs={'type': 'color'}),
+        )
+        super().__init__(default=default, **kwargs)
+
+
 class ImageBlock(blocks.StructBlock):
     image = ImageChooserBlock(label="Image")
     caption = blocks.CharBlock(required=False, label="Légende")
@@ -167,11 +234,157 @@ class ImageBlock(blocks.StructBlock):
         default='center',
         label="Alignement",
     )
+    # Ajouté le 15/08/2026 : l'alignement gauche/droite ne servait à rien sans
+    # pouvoir régler la taille — une photo de 2000 px poussée à droite occupait
+    # la moitié de l'écran quoi qu'il arrive. Les articles déjà écrits n'ont
+    # pas la clé : StructBlock retombe alors sur ce défaut.
+    largeur = blocks.ChoiceBlock(
+        choices=CHOIX_LARGEUR,
+        default='50',
+        label="Largeur",
+        help_text="Sans effet en pleine largeur.",
+    )
 
     class Meta:
         icon = 'image'
         label = "Image"
         template = 'cms/blocks/image_block.html'
+
+
+class DuoBlock(blocks.StructBlock):
+    """Média et texte côte à côte, solidaires.
+
+    Différent de l'image flottante, qu'on garde : ici les deux colonnes
+    restent alignées en haut et le texte ne repasse jamais sous le média.
+    """
+
+    media_position = blocks.ChoiceBlock(
+        choices=[('left', 'À gauche'), ('right', 'À droite')],
+        default='right',
+        label="Média",
+    )
+    repartition = blocks.ChoiceBlock(
+        choices=[
+            ('50', 'Moitié / moitié'),
+            ('33', 'Média étroit (un tiers)'),
+            ('66', 'Média large (deux tiers)'),
+        ],
+        default='50',
+        label="Répartition",
+    )
+    image = ImageChooserBlock(required=False, label="Image")
+    video = EmbedBlock(required=False, label="Vidéo (à la place de l'image)")
+    caption = blocks.CharBlock(required=False, label="Légende du média")
+    texte = blocks.RichTextBlock(features=RICHTEXT_FEATURES, label="Texte")
+
+    def clean(self, value):
+        from django.core.exceptions import ValidationError
+        from wagtail.blocks.struct_block import StructBlockValidationError
+        value = super().clean(value)
+        if not value.get('image') and not value.get('video'):
+            raise StructBlockValidationError(block_errors={
+                'image': ValidationError(
+                    "Choisissez une image, ou collez l'adresse d'une vidéo.")})
+        return value
+
+    class Meta:
+        icon = 'form'
+        label = "Texte et média côte à côte"
+        template = 'cms/blocks/duo_block.html'
+
+
+class EncadreBlock(blocks.StructBlock):
+    """Sortir une information du fil du texte : appel, date, consigne."""
+
+    titre = blocks.CharBlock(required=False, label="Titre")
+    texte = blocks.RichTextBlock(features=RICHTEXT_FEATURES, label="Texte")
+    couleur = CouleurBlock(
+        label="Couleur du filet",
+        help_text="Le rouge de la confédération est proposé par défaut.")
+    fond = blocks.ChoiceBlock(
+        choices=[
+            ('gris', 'Fond gris'),
+            ('teinte', 'Fond teinté dans la couleur'),
+            ('aucun', 'Sans fond'),
+        ],
+        default='gris',
+        label="Fond",
+    )
+
+    class Meta:
+        icon = 'warning'
+        label = "Encadré"
+        template = 'cms/blocks/encadre_block.html'
+
+
+class BoutonItem(blocks.StructBlock):
+    libelle = blocks.CharBlock(label="Libellé", max_length=60)
+    url = blocks.URLBlock(label="Adresse")
+    style = blocks.ChoiceBlock(
+        choices=[('plein', 'Plein'), ('contour', 'Contour')],
+        default='plein', label="Style")
+    couleur = CouleurBlock(label="Couleur")
+    nouvel_onglet = blocks.BooleanBlock(
+        required=False, default=False, label="Ouvrir dans un nouvel onglet")
+
+    class Meta:
+        icon = 'link'
+        label = "Bouton"
+
+
+class BoutonsBlock(blocks.StructBlock):
+    """Un appel à agir qui se voit, et se clique au pouce sur un téléphone."""
+
+    boutons = blocks.ListBlock(BoutonItem(), label="Boutons", min_num=1, max_num=4)
+
+    class Meta:
+        icon = 'link'
+        label = "Boutons"
+        template = 'cms/blocks/boutons_block.html'
+
+
+class ChiffreItem(blocks.StructBlock):
+    nombre = blocks.CharBlock(
+        label="Nombre", max_length=12,
+        help_text="Le symbole est libre : 92 %, 4 218 €, 17…")
+    legende = blocks.CharBlock(label="Légende", max_length=60)
+
+    class Meta:
+        icon = 'form'
+        label = "Chiffre"
+
+
+class ChiffresBlock(blocks.StructBlock):
+    """Bilan de mobilisation, résultat d'élections, caisse de grève."""
+
+    chiffres = blocks.ListBlock(ChiffreItem(), label="Chiffres",
+                                min_num=2, max_num=4)
+    couleur = CouleurBlock(label="Couleur des nombres")
+
+    class Meta:
+        icon = 'table'
+        label = "Chiffres clés"
+        template = 'cms/blocks/chiffres_block.html'
+
+
+class SeparateurBlock(blocks.StructBlock):
+    """Marquer une rupture sans avoir à inventer un sous-titre."""
+
+    type = blocks.ChoiceBlock(
+        choices=[
+            ('filet', 'Filet'),
+            ('points', 'Points'),
+            ('blanc', 'Blanc'),
+        ],
+        default='filet',
+        label="Type",
+    )
+    couleur = CouleurBlock(label="Couleur", required=False)
+
+    class Meta:
+        icon = 'horizontalrule'
+        label = "Séparateur"
+        template = 'cms/blocks/separateur_block.html'
 
 
 class GalleryImageItem(blocks.StructBlock):
@@ -250,6 +463,11 @@ ARTICLE_BODY_BLOCKS = [
         template='cms/blocks/rich_text_block.html',
     )),
     ('image', ImageBlock()),
+    ('duo', DuoBlock()),
+    ('encadre', EncadreBlock()),
+    ('boutons', BoutonsBlock()),
+    ('chiffres', ChiffresBlock()),
+    ('separateur', SeparateurBlock()),
     ('gallery', GalleryBlock()),
     ('file', FileBlock()),
     ('quote', QuoteBlock()),

@@ -1,0 +1,7 @@
+{% load content_tags %}
+<aside class="bloc-encadre fond-{{ value.fond }}"
+       style="--encadre-couleur: {{ value.couleur|couleur_sure }};
+              --encadre-teinte: {{ value.couleur|couleur_sure }}1a;">
+  {% if value.titre %}<p class="bloc-encadre-titre">{{ value.titre }}</p>{% endif %}
+  <div class="bloc-encadre-texte">{{ value.texte }}</div>
+</aside>
