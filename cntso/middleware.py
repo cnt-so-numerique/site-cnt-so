@@ -61,6 +61,16 @@ class SectionDomainMiddleware:
 
     def __call__(self, request):
         request.section_page = None
+        # Prévisualisation : Wagtail bâtit une requête factice à l'URL de la
+        # page et la fait traverser toute la chaîne de middlewares
+        # (`make_preview_request`). Sur une section à domaine autonome, nos
+        # redirections la renvoyaient vers ce domaine — le cadre d'aperçu
+        # chargeait alors une page d'une AUTRE origine, que `X-Frame-Options:
+        # SAMEORIGIN` refuse d'afficher. Wagtail pose `is_dummy` précisément
+        # pour qu'un middleware puisse s'abstenir (constaté le 05/08/2026 :
+        # « Firefox ne peut pas ouvrir cette page »).
+        if getattr(request, 'is_dummy', False):
+            return self.get_response(request)
         host = request.get_host().split(':')[0].lower()
         section = self._resolve_section(host)
         if section is None:

@@ -2546,3 +2546,169 @@ class RenduGroupeCategoriesTest(TestCase):
                           section_slug='auvergne')
         html = self.client.get('/cms/snippets/cms/articlepage/add/').content.decode()
         self.assertNotIn('Secret auvergnat', html)
+
+
+class FiltreParCategorieTest(TestCase):
+    """La liste des articles n'offrait aucun filtre par catégorie. Ajouté à la
+    demande d'Arnaud le 05/08/2026 — et borné au syndicat, sinon il
+    proposerait les 219 catégories des douze sections."""
+
+    MDP = 'test-filtre-cat'
+
+    def setUp(self):
+        from django.contrib.auth.models import User, Group
+        from cms.provisioning import provision_section
+
+        self.site = _ensure_section_page(slug='13', name='CNT-SO 13')
+        provision_section(self.site)
+        _ensure_section_page(slug='auvergne', name='CNT-SO Auvergne')
+        self.luttes = make_cms_category(name='Luttes', slug='luttes-13',
+                                        section_slug='13')
+        make_cms_category(name='Secret auvergnat', slug='secret-av',
+                          section_slug='auvergne')
+
+        self.avec = make_article_page(section_slug='13', title='Avec catégorie',
+                                      slug='avec-cat')
+        self.avec.cms_categories.add(self.luttes)
+        self.avec.save()
+        self.sans = make_article_page(section_slug='13', title='Sans catégorie',
+                                      slug='sans-cat')
+
+        grp = Group.objects.get(name='redacteur_13')
+        u = User.objects.create_user('r13f', 'a@b.fr', self.MDP)
+        u.groups.set([grp])
+        self.client.login(username='r13f', password=self.MDP)
+
+    def test_le_filtre_est_propose(self):
+        html = self.client.get('/cms/snippets/cms/articlepage/').content.decode()
+        self.assertIn('cms_categories', html)
+
+    def test_filtrer_ne_retient_que_les_articles_de_la_categorie(self):
+        r = self.client.get('/cms/snippets/cms/articlepage/',
+                            {'cms_categories': self.luttes.pk})
+        html = r.content.decode()
+        self.assertIn('Avec catégorie', html)
+        self.assertNotIn('Sans catégorie', html)
+
+    def test_le_filtre_ne_propose_pas_les_categories_des_autres(self):
+        html = self.client.get('/cms/snippets/cms/articlepage/').content.decode()
+        self.assertNotIn('Secret auvergnat', html)
+
+
+class BoutonVoirLeSiteTest(TestCase):
+    """Aucun renvoi vers le site public depuis le CMS (demande d'Arnaud,
+    05/08/2026). L'URL doit suivre le syndicat : un rédacteur du 13 arrive sur
+    13.cnt-so.org, pas sur la confédération."""
+
+    MDP = 'test-voir-site'
+
+    def setUp(self):
+        from django.contrib.auth.models import User, Group
+        from cms.provisioning import provision_section
+        self.site = _ensure_section_page(slug='13', name='CNT-SO 13')
+        provision_section(self.site)
+        grp = Group.objects.get(name='redacteur_13')
+        self.user = User.objects.create_user('r13v', 'a@b.fr', self.MDP)
+        self.user.groups.set([grp])
+
+    def _composant(self):
+        from django.test import RequestFactory
+        from cms.wagtail_hooks import VoirLeSiteMenuItem
+        req = RequestFactory().get('/cms/')
+        req.user = self.user
+        req.session = {}
+        item = VoirLeSiteMenuItem('Voir le site', '/', name='voir-le-site',
+                                  icon_name='link-external')
+        return item.render_component(req)
+
+    def test_l_url_suit_le_syndicat(self):
+        self.assertEqual(self._composant().url, self.site.get_absolute_url())
+
+    def test_le_lien_s_ouvre_dans_un_nouvel_onglet(self):
+        attrs = self._composant().attrs
+        self.assertEqual(attrs.get('target'), '_blank')
+        self.assertEqual(attrs.get('rel'), 'noopener')
+
+    def test_sur_un_domaine_autonome_l_url_est_celle_du_domaine(self):
+        self.site.custom_domain = '13.cnt-so.org'
+        self.site.save()
+        self.assertIn('13.cnt-so.org', self._composant().url)
+
+    def test_l_entree_apparait_dans_le_cms(self):
+        self.client.login(username='r13v', password=self.MDP)
+        html = self.client.get('/cms/').content.decode()
+        self.assertIn('Voir le site', html)
+
+
+class ApercuSurDomaineAutonomeTest(TestCase):
+    """L'aperçu d'un article d'un syndicat à domaine autonome affichait
+    « Firefox ne peut pas ouvrir cette page » (Arnaud, 05/08/2026).
+
+    Wagtail bâtit une requête factice à l'URL de la page et la fait traverser
+    toute la chaîne de middlewares. `SectionDomainMiddleware` la redirigeait
+    alors (301) vers le domaine du syndicat : le cadre d'aperçu chargeait une
+    page d'une AUTRE origine, que `X-Frame-Options: SAMEORIGIN` refuse.
+    Wagtail pose `request.is_dummy` pour qu'un middleware puisse s'abstenir.
+    """
+
+    MDP = 'test-apercu'
+
+    def setUp(self):
+        from django.contrib.auth.models import User, Group
+        from cms.provisioning import provision_section
+
+        self.site = _ensure_section_page(slug='stucs', name='CNT-SO STUCS')
+        provision_section(self.site)
+        self.site.custom_domain = 'stucs.cnt-so.org'
+        self.site.save()
+        self.article = make_article_page(section_slug='stucs', title='Test aperçu',
+                                         slug='test-apercu')
+        grp = Group.objects.get(name='redacteur_stucs')
+        u = User.objects.create_user('rstucs', 'a@b.fr', self.MDP)
+        u.groups.set([grp])
+        self.client.login(username='rstucs', password=self.MDP)
+
+    def test_l_apercu_ne_redirige_pas_hors_du_cms(self):
+        """Contrôle de fumée seulement — il passe AUSSI sans le correctif.
+
+        En base de test l'article n'occupe pas la même position d'arbre qu'en
+        production, donc `page.url` ne déclenche pas la redirection. C'est
+        `test_le_middleware_laisse_passer_une_requete_factice` qui verrouille
+        le comportement ; celui-ci vérifie seulement que l'écran répond.
+        """
+        r = self.client.get(
+            f'/cms/snippets/cms/articlepage/preview/{self.article.pk}/')
+        self.assertNotIn(r.status_code, (301, 302),
+                         f"aperçu redirigé vers {r.headers.get('Location')!r} : "
+                         f"le cadre chargera une autre origine")
+        self.assertEqual(r.status_code, 200)
+
+    def test_le_middleware_laisse_passer_une_requete_factice(self):
+        from cntso.middleware import SectionDomainMiddleware
+        from django.test import RequestFactory
+
+        temoin = {}
+
+        def suite(request):
+            temoin['vue'] = True
+            from django.http import HttpResponse
+            return HttpResponse('rendu')
+
+        mw = SectionDomainMiddleware(suite)
+        req = RequestFactory().get('/stucs/test-apercu/')
+        req.is_dummy = True
+        rep = mw(req)
+        self.assertTrue(temoin.get('vue'), 'la requête factice a été détournée')
+        self.assertEqual(rep.status_code, 200)
+
+    def test_une_requete_normale_est_toujours_redirigee(self):
+        """Contrôle : la garde ne doit pas désactiver le middleware."""
+        from cntso.middleware import SectionDomainMiddleware
+        from django.test import RequestFactory
+        from django.http import HttpResponse
+
+        mw = SectionDomainMiddleware(lambda r: HttpResponse('rendu'))
+        req = RequestFactory().get('/stucs/test-apercu/')
+        rep = mw(req)
+        self.assertEqual(rep.status_code, 301)
+        self.assertIn('stucs.cnt-so.org', rep['Location'])

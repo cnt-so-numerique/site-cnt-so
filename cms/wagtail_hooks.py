@@ -7,7 +7,10 @@ from django.utils.html import format_html
 from django.views import View
 from urllib.parse import urlparse
 
+import django_filters
+
 from wagtail import hooks
+from wagtail.admin.filters import WagtailFilterSet
 from wagtail.admin.ui.components import Component
 from wagtail.snippets.bulk_actions.delete import DeleteBulkAction
 from wagtail.snippets.views.chooser import SnippetChooserViewSet
@@ -241,6 +244,38 @@ def _make_scoped_article_page_view(base_class):
 
 # ── Articles ──────────────────────────────────────────────────────────────────
 
+class FiltreArticles(WagtailFilterSet):
+    """Filtres de la liste des articles, dont un par catégorie.
+
+    Le filtre est borné au syndicat courant : sans cela, il proposerait les
+    219 catégories des douze sections, dont « Non classé » six fois — le même
+    défaut que le formulaire d'article (Arnaud, 05/08/2026). django-filter
+    accepte un `queryset` appelable qui reçoit la requête, ce qui permet de
+    réutiliser le périmètre déjà défini par le cloisonnement.
+    """
+
+    @staticmethod
+    def _categories_du_syndicat(request):
+        from django.db.models.functions import Coalesce
+        qs = (CmsCategory.objects.select_related('parent')
+              .annotate(_groupe=Coalesce('parent__name', 'name'))
+              .order_by('_groupe', 'parent__name', 'name'))
+        current = get_current_site(request) if request else None
+        if current:
+            return qs.filter(section_slug__in=current.slugs_contenu)
+        return qs
+
+    cms_categories = django_filters.ModelChoiceFilter(
+        label='Catégorie',
+        field_name='cms_categories',
+        queryset=lambda request: FiltreArticles._categories_du_syndicat(request),
+    )
+
+    class Meta:
+        model = ArticlePage
+        fields = ['live', 'section_slug', 'is_featured', 'cms_categories']
+
+
 class ArticlePageViewSet(ViewSetCloisonne, SnippetViewSet):
     cloisonnement = ('slug', 'section_slug')
     model = ArticlePage
@@ -248,7 +283,7 @@ class ArticlePageViewSet(ViewSetCloisonne, SnippetViewSet):
     menu_label = 'Articles'
     menu_order = 100
     list_display = ['title', 'section_slug', 'publication_date', 'live', 'is_featured']
-    list_filter = ['live', 'section_slug', 'is_featured']
+    filterset_class = FiltreArticles
     search_fields = ['title', 'excerpt']
     ordering = ['-publication_date', '-first_published_at']
     panels = [
@@ -593,6 +628,36 @@ class SyndicatMenuItem(WagtailMenuItem):
     """Entrée visible pour les chefs ET les rédacteurs rattachés à un syndicat."""
     def is_shown(self, request):
         return _is_chef(request.user) or get_current_site(request) is not None
+
+
+class VoirLeSiteMenuItem(WagtailMenuItem):
+    """Renvoi vers le site public, ouvert dans un nouvel onglet.
+
+    L'URL suit le syndicat de l'utilisateur : un rédacteur du 13 arrive sur
+    13.cnt-so.org, pas sur la confédération. `MenuItem.url` étant figé à
+    l'enregistrement, on recalcule au rendu — c'est le seul endroit qui reçoit
+    la requête.
+    """
+
+    def render_component(self, request):
+        from wagtail.admin.ui.sidebar import LinkMenuItem
+        current = get_current_site(request)
+        url = current.get_absolute_url() if current else '/'
+        return LinkMenuItem(
+            self.name, self.label, url,
+            icon_name=self.icon_name, classname=self.classname,
+            attrs={'target': '_blank', 'rel': 'noopener',
+                   'title': f'Ouvrir {current.title if current else "le site"} '
+                            f'dans un nouvel onglet'},
+        )
+
+
+@hooks.register('register_admin_menu_item')
+def add_voir_le_site_menu_item():
+    return VoirLeSiteMenuItem(
+        'Voir le site', '/', name='voir-le-site',
+        icon_name='link-external', order=10,
+    )
 
 
 @hooks.register('register_admin_menu_item')
