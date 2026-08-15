@@ -740,3 +740,62 @@ menu ni de catégorie.
 `est_impasse` les masque donc à l'affichage. Elles sont **conservées en base** et
 réapparaîtront dès qu'on leur donnera une cible — c'est la différence entre « une
 rubrique vide » (qui s'affiche) et « un lien vers nulle part » (qui se cache).
+
+---
+
+## Passe 8 (15/08/2026) — catégories que rien ne desservait
+
+Point de départ : Arnaud demande si un « tag travailleur de la terre » existe sur
+le site de la conf. C'est une **catégorie** (les tags legacy WordPress ne sont
+plus exposés) : `travailleur-euses-de-la-terre`, 2 articles (les deux numéros des
+*Croquants*), fille de « Syndicalisme ». Elle répondait 200 mais **aucun lien de
+navigation ne la desservait** — on n'y arrivait qu'en cliquant l'étiquette sous
+un des deux articles.
+
+Le balayage des 21 filles de « Syndicalisme » a donné trois familles distinctes,
+qu'il ne faut pas confondre :
+
+| Famille | Catégories | Décision |
+|---|---|---|
+| Vraies orphelines | Terre (2 art.), Animation & Éducation populaire (6), Institutions financières & Assurances (2), Intérim (1) | **Ajoutées au menu « Secteurs »** |
+| Fausses orphelines | Éducation & Recherche (96), Travail et affaires sociales, STAA | Rien à faire : le sujet est au menu via un lien `site` ou externe |
+| Doublons régionaux | Marseille (36), Rhône-Alpes (14), Poitou (7), 66 (5), Gard (4) | **Laissées en l'état** — « Unions locales » couvre déjà. ⚠️ à vérifier : si le 66 et le Gard n'ont pas de site à eux, leurs 9 articles ne sont accessibles par rien |
+
+### Commande `ajoute_menu_categorie`
+
+Le pendant de `fix_menus_morts` : celui-là traque les entrées qui ne mènent nulle
+part, celle-ci les catégories que rien ne dessert. Idempotente, `--dry-run`,
+refuse de deviner, signale une catégorie vide plutôt que de fabriquer un lien
+vers du rien. Déployée le 15/08, 4 entrées créées, recette faite (comptage des
+articles affichés, pas seulement le code HTTP).
+
+### Le « doublon » qui n'en était pas
+
+« Syndicat national des transports et de l'aménagement du territoire » (0 article)
+a été diagnostiqué à tort comme un doublon vide de « Transport – Logistique ».
+Il en est le **parent** : 0 article parce que c'est un nœud de hiérarchie, comme
+« Syndicalisme » lui-même. Le contrôle d'inertie de la commande a refusé la
+suppression sur les données réelles. `CmsCategory.parent` étant en `SET_NULL`,
+elle n'aurait rien levé : elle aurait détaché la fille de la hiérarchie en
+silence. **Table `DOUBLONS` volontairement vide**, la raison est écrite dedans.
+
+### Deux écarts dev/prod relevés
+
+- La rubrique des branches s'appelle **« Secteurs » en production**, « Syndicats »
+  en base de dev. Le premier `--dry-run` en prod n'a donc rien créé. `RUBRIQUE_SECTEURS`
+  accepte plusieurs noms, premier trouvé gagne, avec un test verrouillant « Secteurs »
+  en tête.
+- « Animation & Éducation Populaire » : le nom est correct en prod, la coquille
+  n'est que dans le slug `animation-education-popuplaire`. **Non renommé** : c'est
+  l'adresse publique de ses 6 articles.
+- « Unions locales » et « Syndicats sectoriels » sont dans le menu **secondaire**
+  en prod, pas le principal.
+
+### Mis de côté à la demande d'Arnaud (15/08)
+
+- Les 5 catégories régionales ci-dessus (dont la vérification 66 / Gard).
+- Le tri alphabétique de la rubrique « Secteurs » (la liste n'est ordonnée ni
+  alphabétiquement ni thématiquement ; les 4 ajouts sont en 13, 17, 18, 19).
+- Le renommage éventuel de la catégorie « Travailleur-euses de la terre » —
+  seul le libellé du menu porte la formulation d'Arnaud (« Travailleurs et
+  Travailleuses de la Terre »), le nom en base est inchangé.
