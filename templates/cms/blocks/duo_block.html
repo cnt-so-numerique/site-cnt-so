@@ -1,9 +1,28 @@
 {% load wagtailimages_tags %}
+{% comment %}
+Le média remplit sa colonne : sa largeur affichée est celle de la colonne,
+fixée par `repartition`, et sa hauteur suit ses propres proportions.
+
+`sizes` doit donc décrire cette colonne, sinon le navigateur télécharge le
+plus gros fichier par défaut — c'était le cas avant le 15/08/2026 : 900 px et
+207 Ko servis dans une colonne de 297 px, et autant sur un téléphone.
+
+Trois paliers de mise en page à décrire : sous 640 px le bloc s'empile et le
+média prend toute la largeur ; jusqu'à 900 px la barre latérale a disparu mais
+les deux colonnes tiennent ; au-delà, la colonne de texte fait 916 px et le
+média en prend la part choisie.
+{% endcomment %}
+{% if value.repartition == '33' %}
+  {% firstof "(max-width: 640px) 100vw, (max-width: 900px) 30vw, 300px" as tailles %}
+{% elif value.repartition == '66' %}
+  {% firstof "(max-width: 640px) 100vw, (max-width: 900px) 62vw, 600px" as tailles %}
+{% else %}
+  {% firstof "(max-width: 640px) 100vw, (max-width: 900px) 46vw, 450px" as tailles %}
+{% endif %}
 <div class="bloc-duo media-{{ value.media_position }} part-{{ value.repartition }}">
   <figure class="bloc-duo-media">
     {% if value.image %}
-      {% image value.image width-900 as img %}
-      <img src="{{ img.url }}" alt="{{ value.image.title }}" loading="lazy">
+      {% srcset_image value.image width-{300,450,600,900,1200} sizes=tailles alt=value.image.title loading="lazy" %}
     {% elif value.video %}
       {# `.html` d'un embed est déjà l'iframe du fournisseur. #}
       <div class="bloc-duo-video">{{ value.video.html|safe }}</div>

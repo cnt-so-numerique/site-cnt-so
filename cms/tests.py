@@ -3387,3 +3387,59 @@ class GestesFrequentsMisEnAvantTest(TestCase):
         contexte = html[max(0, i - 200):i]
         self.assertIn('redaction', contexte)
         self.assertEqual(html.count('"data-cnt-menu"'), 1)
+
+
+class TailleDuMediaDansLeDuoTest(TestCase):
+    """Le média remplit sa colonne : sa largeur affichée est celle de la
+    colonne, fixée par `repartition`.
+
+    Le bloc servait au départ une seule taille de fichier — 900 px, 207 Ko —
+    quelle que soit la colonne et quel que soit l'écran, donc 900 px dans une
+    colonne de 297 px et autant sur un téléphone (question d'Arnaud,
+    15/08/2026). `sizes` décrit désormais la colonne réelle, sans quoi le
+    navigateur retombe sur le plus gros fichier proposé.
+    """
+
+    def setUp(self):
+        from wagtail.images.tests.utils import get_test_image_file
+        from wagtail.images.models import Image
+        self.img = Image.objects.create(title='Photo', file=get_test_image_file())
+
+    def _rendre(self, repartition):
+        art = make_article_page(section_slug='principal', title='Duo',
+                                slug=f'duo-{repartition}')
+        art.body = [('duo', {
+            'media_position': 'left', 'repartition': repartition,
+            'image': self.img, 'caption': '', 'texte': '<p>Texte.</p>'})]
+        art.save()
+        return str(ArticlePage.objects.get(pk=art.pk).body)
+
+    def test_plusieurs_tailles_sont_proposees(self):
+        import re
+        srcset = re.search(r'srcset="([^"]+)"', self._rendre('50'))
+        self.assertIsNotNone(srcset, 'aucun srcset : une seule taille servie')
+        self.assertGreaterEqual(len(srcset.group(1).split(',')), 3)
+
+    def test_chaque_repartition_decrit_sa_propre_colonne(self):
+        """Sans `sizes` juste, le navigateur prend le plus gros fichier : le
+        srcset ne servirait alors à rien."""
+        import re
+        largeurs = {}
+        for repartition in ('33', '50', '66'):
+            html = self._rendre(repartition)
+            sizes = re.search(r'sizes="([^"]+)"', html)
+            self.assertIsNotNone(sizes, f'sizes absent pour {repartition}')
+            largeurs[repartition] = int(re.search(r'(\d+)px$', sizes.group(1)).group(1))
+        self.assertLess(largeurs['33'], largeurs['50'])
+        self.assertLess(largeurs['50'], largeurs['66'])
+
+    def test_le_media_prend_toute_la_largeur_sur_mobile(self):
+        """Le bloc s'empile sous 640 px : la colonne devient l'écran entier."""
+        self.assertIn('(max-width: 640px) 100vw', self._rendre('33'))
+
+    def test_l_image_garde_son_texte_alternatif(self):
+        html = self._rendre('50')
+        self.assertIn('alt="Photo"', html)
+
+    def test_l_image_reste_en_chargement_differe(self):
+        self.assertIn('loading="lazy"', self._rendre('50'))
