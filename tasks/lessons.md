@@ -73,3 +73,42 @@ séparés a une valeur au-delà de l'organisation.
 
 **Meilleur réflexe encore :** committer en local avant toute contre-épreuve
 destructive. Un commit est réversible, un `checkout` non.
+
+## 2026-08-15 — corriger l'utilisateur à partir d'une base périmée
+
+**Erreur :** Arnaud demande d'ajouter des catégories « dans les secteurs ». Je
+lui réponds qu'il n'existe pas de rubrique « Secteurs » et que ça s'appelle
+« Syndicats ». C'était faux : en **production** la rubrique s'appelle bien
+« Secteurs », c'est ma base de dev qui porte encore l'ancien nom. Le premier
+`--dry-run` en prod n'a donc rien créé. J'ai corrigé l'utilisateur sur un point
+où il connaissait l'état réel du site mieux que moi.
+
+**Règle :** avant de reprendre l'utilisateur sur un nom d'objet visible dans
+l'interface (rubrique, catégorie, libellé, syndicat), vérifier **en prod**, pas
+en local. Quand son vocabulaire ne correspond pas au mien, l'hypothèse par
+défaut est que ma source est périmée, pas qu'il se trompe. Il regarde le site,
+moi une copie du 05/08.
+
+**Corollaire déjà connu, encore vérifié :** la base de dev est désynchronisée de
+la prod. C'est la 3e fois de la journée que la prod contredit mon local.
+
+## 2026-08-15 — « 0 article » ne veut pas dire « doublon »
+
+**Erreur :** j'ai qualifié « Syndicat national des transports et de
+l'aménagement du territoire » (0 article) de doublon vide de
+« Transport – Logistique », d'après la ressemblance des noms et le compteur à
+zéro. Arnaud a confirmé sur cette base. En réalité, c'en est le **parent** :
+0 article parce que c'est un nœud de hiérarchie, comme « Syndicalisme ». La
+suppression aurait détaché la fille de la hiérarchie **sans rien lever**,
+`CmsCategory.parent` étant en `SET_NULL`.
+
+**Règle :** avant de proposer une suppression, regarder les relations
+entrantes ET sortantes de l'objet, pas seulement son contenu. Un compteur à zéro
+est autant le signe d'un conteneur que d'un rebut. Et quand un feu vert repose
+sur mon diagnostic, c'est mon diagnostic qu'il faut vérifier avant d'agir, pas
+le feu vert.
+
+**Ce qui a sauvé la mise :** le contrôle d'inertie écrit dans la commande
+(0 article ET 0 menu ET 0 sous-catégorie) a refusé sur les données réelles.
+Écrire le garde-fou dans la commande plutôt que de vérifier à la main l'a rendu
+opposable à ma propre erreur.
