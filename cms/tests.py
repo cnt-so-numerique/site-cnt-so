@@ -3443,3 +3443,178 @@ class TailleDuMediaDansLeDuoTest(TestCase):
 
     def test_l_image_reste_en_chargement_differe(self):
         self.assertIn('loading="lazy"', self._rendre('50'))
+
+
+class AvertissementArticleSansImageTest(TestCase):
+    """Les listes du site trient par présence d'image AVANT la date
+    (`-has_img`, content/views.py). Mesuré le 15/08/2026 : le plus récent
+    article sans vignette du 13 est en position 521 sur 525, derrière des
+    articles de 2018. Rien ne le disait au rédacteur.
+
+    Arnaud a tranché pour un avertissement très visible, pas un blocage : un
+    communiqué urgent doit pouvoir partir sans qu'on cherche une photo.
+    """
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        self.site = _ensure_section_page(slug='13', name='CNT-SO 13')
+        self.user = User.objects.create_superuser('chef-img', 'i@x.fr', 'x')
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['cms_current_site_id'] = self.site.pk
+        session.save()
+
+    def _creer(self, slug, publier, image=None):
+        donnees = {'title': slug, 'slug': slug, 'body-count': '0',
+                   'cms_tags': '', 'section_slug': '13'}
+        if image is not None:
+            donnees['featured_image'] = image.pk
+        if publier:
+            donnees['action-publish'] = 'action-publish'
+        avant = set(ArticlePage.objects.values_list('pk', flat=True))
+        reponse = self.client.post('/cms/snippets/cms/articlepage/add/',
+                                   donnees, follow=True)
+        return (ArticlePage.objects.exclude(pk__in=avant).first(),
+                reponse.content.decode())
+
+    def test_publier_sans_image_avertit(self):
+        _, html = self._creer('sans-image', publier=True)
+        self.assertIn("n'a pas d'image", html)
+
+    def test_l_avertissement_dit_la_consequence(self):
+        """« Il manque une image » n'apprend rien. Ce qui compte, c'est que
+        l'article partira en bas de sa rubrique."""
+        _, html = self._creer('sans-image-2', publier=True)
+        self.assertIn('en bas de sa rubrique', html)
+
+    def test_publier_sans_image_reste_possible(self):
+        """Avertir, pas bloquer : décision d'Arnaud."""
+        art, _ = self._creer('sans-image-3', publier=True)
+        self.assertIsNotNone(art)
+        self.assertTrue(art.live)
+
+    def test_un_brouillon_n_avertit_pas(self):
+        """L'image viendra peut-être avant la publication : le dire à ce
+        moment-là serait du bruit."""
+        _, html = self._creer('brouillon-sans-image', publier=False)
+        self.assertNotIn("n'a pas d'image", html)
+
+    def test_avec_image_pas_d_avertissement(self):
+        """Contrôle positif : un message affiché à tous les coups
+        n'apprendrait rien et serait vite ignoré."""
+        from wagtail.images.tests.utils import get_test_image_file
+        from wagtail.images.models import Image
+        img = Image.objects.create(title='Vignette', file=get_test_image_file())
+        _, html = self._creer('avec-image', publier=True, image=img)
+        self.assertNotIn("n'a pas d'image", html)
+
+    def test_le_champ_image_explique_la_consequence(self):
+        """L'avertissement arrive après coup ; le formulaire doit le dire avant."""
+        champ = ArticlePage._meta.get_field('featured_image')
+        self.assertIn('DERRIÈRE', champ.help_text)
+
+
+class ExtraitAutomatiqueTest(TestCase):
+    """1677 articles sur 1785 n'avaient pas d'extrait. Il sert les cartes des
+    listes, le référencement et le corps des newsletters. Arnaud a demandé de
+    l'appliquer aussi aux articles déjà en ligne (15/08/2026)."""
+
+    def _article(self, corps, extrait=''):
+        art = make_article_page(section_slug='principal', title='Extrait',
+                                slug=f'extrait-{abs(hash(str(corps))) % 10000}')
+        art.excerpt = extrait
+        art.body = corps
+        art.save()
+        return ArticlePage.objects.get(pk=art.pk)
+
+    def test_l_extrait_est_repris_du_debut_de_l_article(self):
+        art = self._article([('rich_text', '<p>La grève est reconduite ce jeudi.</p>')])
+        self.assertIn('La grève est reconduite', art.excerpt)
+
+    def test_une_saisie_a_la_main_n_est_jamais_ecrasee(self):
+        art = self._article([('rich_text', '<p>Texte du corps assez long pour compter.</p>')],
+                            extrait='Mon résumé à moi')
+        self.assertEqual(art.excerpt, 'Mon résumé à moi')
+
+    def test_le_html_herite_de_wordpress_est_lu_aussi(self):
+        """1060 articles sur 1709 n'ont que des blocs `html` : ne lire que le
+        texte riche laisserait sans extrait la majorité de ceux qui en ont
+        besoin."""
+        art = self._article([('html', '<p>Communiqué du syndicat des nettoyeurs.</p>')])
+        self.assertIn('Communiqué du syndicat', art.excerpt)
+
+    def test_les_balises_ne_ressortent_pas(self):
+        art = self._article([('rich_text', '<p>Un <b>appel</b> à la <i>grève</i> générale.</p>')])
+        self.assertNotIn('<', art.excerpt)
+        self.assertIn('appel', art.excerpt)
+
+    def test_l_extrait_est_coupe_au_mot(self):
+        from cms.models import extrait_depuis_corps
+        long = 'mobilisation ' * 40
+        art = self._article([('rich_text', f'<p>{long}</p>')])
+        self.assertTrue(art.excerpt.endswith('…'))
+        self.assertLessEqual(len(art.excerpt), 225)
+        self.assertNotIn('mobilis…', art.excerpt)   # jamais coupé en plein mot
+
+    def test_un_article_sans_texte_n_invente_rien(self):
+        """Un article fait d'images seules : mieux vaut pas d'extrait qu'un
+        extrait vide de sens."""
+        from cms.models import extrait_depuis_corps
+        self.assertEqual(extrait_depuis_corps([]), '')
+
+    def test_la_commande_remplit_les_articles_existants(self):
+        from django.core.management import call_command
+        from io import StringIO
+        art = make_article_page(section_slug='principal', title='Ancien',
+                                slug='ancien-sans-extrait')
+        art.body = [('rich_text', '<p>Un vieil article importé de WordPress.</p>')]
+        # `update` court-circuite `save()` : on reproduit l'état d'avant.
+        art.save()
+        ArticlePage.objects.filter(pk=art.pk).update(excerpt='')
+        call_command('remplit_extraits', stdout=StringIO())
+        self.assertIn('vieil article', ArticlePage.objects.get(pk=art.pk).excerpt)
+
+    def test_la_commande_epargne_un_brouillon_en_attente(self):
+        """Même garde-fou que promote_body_images et repare_richtext_illisible."""
+        from django.core.management import call_command
+        from io import StringIO
+        art = make_article_page(section_slug='principal', title='Brouillon',
+                                slug='brouillon-extrait')
+        art.body = [('rich_text', '<p>Contenu non validé en attente.</p>')]
+        art.save()
+        ArticlePage.objects.filter(pk=art.pk).update(
+            excerpt='', has_unpublished_changes=True)
+        sortie = StringIO()
+        call_command('remplit_extraits', stdout=sortie)
+        self.assertEqual(ArticlePage.objects.get(pk=art.pk).excerpt, '')
+        self.assertIn('brouillon en attente', sortie.getvalue())
+
+
+class FiltreSansJargonTest(TestCase):
+    """« Section slug » en champ texte libre, à un rédacteur qui n'a qu'un
+    syndicat : inutile et incompréhensible. Retiré du formulaire d'article le
+    matin du 15/08/2026, il avait survécu dans les filtres de la liste."""
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        from django.contrib.auth.models import Group
+        self.site = _ensure_section_page(slug='13', name='CNT-SO 13')
+        self.chef = User.objects.create_superuser('chef-filtre', 'c@x.fr', 'x')
+        self.redac = User.objects.create_user('redac-filtre', 'r@x.fr', 'x')
+        self.redac.is_staff = True
+        self.redac.save()
+        for nom in ('redacteur', 'redacteur_13'):
+            groupe, _ = Group.objects.get_or_create(name=nom)
+            self.redac.groups.add(groupe)
+
+    def _filtres(self, user):
+        self.client.force_login(user)
+        html = self.client.get('/cms/snippets/cms/articlepage/').content.decode()
+        return 'name="section_slug"' in html
+
+    def test_le_redacteur_ne_voit_plus_le_filtre_section_slug(self):
+        self.assertFalse(self._filtres(self.redac))
+
+    def test_le_chef_le_garde(self):
+        """Contrôle positif : lui passe d'un syndicat à l'autre."""
+        self.assertTrue(self._filtres(self.chef))

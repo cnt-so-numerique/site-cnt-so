@@ -245,12 +245,48 @@ def _make_scoped_article_page_view(base_class):
             return form
 
         def form_valid(self, form):
-            """Enforce section_slug côté serveur pour les non-chefs."""
+            """Enforce section_slug côté serveur, et prévient si l'image manque."""
             if not _is_chef(self.request.user):
                 current = get_current_site(self.request)
                 if current:
                     form.instance.section_slug = current.slug
-            return super().form_valid(form)
+            reponse = super().form_valid(form)
+            self._avertir_si_sans_image()
+            return reponse
+
+        def _avertir_si_sans_image(self):
+            """Un article sans vignette part en bas de sa rubrique.
+
+            Les listes du site trient par présence d'image AVANT la date
+            (`-has_img` dans content/views.py). Mesuré le 15/08/2026 : le plus
+            récent article sans vignette du 13 est en position 521 sur 525,
+            derrière des articles de 2018. Rien ne le disait au rédacteur.
+
+            Arnaud a tranché pour un avertissement et non un blocage : un
+            communiqué urgent doit pouvoir partir sans qu'on cherche une photo.
+            Le message ne s'affiche qu'après une mise en ligne — sur un
+            brouillon il serait du bruit, l'image viendra peut-être après.
+            """
+            from django.contrib import messages
+            objet = getattr(self, 'object', None)
+            if objet is None or not objet.pk:
+                return
+            # Relire en base : `publish()` met la ligne à jour, pas forcément
+            # l'instance que la vue tient en mémoire. Se fier à `objet.live`
+            # faisait taire l'avertissement sur la création+publication —
+            # exactement le cas qu'il doit couvrir.
+            etat = (ArticlePage.objects.filter(pk=objet.pk)
+                    .values('live', 'featured_image_id').first())
+            if not etat or not etat['live'] or etat['featured_image_id']:
+                return
+            messages.warning(self.request, format_html(
+                '<b>Cet article n\'a pas d\'image.</b> Les listes du site '
+                'affichent les articles illustrés en premier : sans image, '
+                'celui-ci apparaîtra <b>en bas de sa rubrique</b>, derrière '
+                'tous les autres, quelle que soit sa date. '
+                '<a href="{}">Ajouter une image</a>',
+                reverse('wagtailsnippets_cms_articlepage:edit',
+                        args=[objet.pk]) + '#tab-contenu'))
 
     return ScopedView
 
@@ -283,6 +319,16 @@ class FiltreArticles(WagtailFilterSet):
         field_name='cms_categories',
         queryset=lambda request: FiltreArticles._categories_du_syndicat(request),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # « Section slug » en champ texte libre, à un rédacteur qui n'a qu'un
+        # syndicat : inutile, et c'est du jargon interne. Retiré du formulaire
+        # d'article le 15/08/2026, il avait survécu ici. Les chefs le gardent :
+        # eux passent d'un syndicat à l'autre.
+        requete = getattr(self, 'request', None)
+        if requete is not None and not _is_chef(requete.user):
+            self.filters.pop('section_slug', None)
 
     class Meta:
         model = ArticlePage

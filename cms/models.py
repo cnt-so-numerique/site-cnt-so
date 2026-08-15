@@ -169,6 +169,36 @@ CHOIX_LARGEUR = [
 ]
 
 
+def extrait_depuis_corps(body, longueur=220):
+    """Premier texte lisible d'un corps StreamField, coupé au mot.
+
+    1677 articles sur 1785 n'avaient pas d'extrait (audit du 15/08/2026). Il
+    sert les cartes des listes, les métadonnées de référencement et le corps
+    des newsletters : sans lui, une carte s'affiche sans un mot de
+    présentation.
+
+    On lit aussi les blocs `html` : 1060 articles sur 1709 n'ont que ça, hérité
+    de l'import WordPress. Ne regarder que le texte riche laisserait sans
+    extrait la majorité de ceux qui en ont besoin.
+    """
+    from django.utils.html import strip_tags
+    import html as _html
+    import re
+
+    for bloc in body or []:
+        if bloc.block_type not in ('rich_text', 'html'):
+            continue
+        texte = _html.unescape(strip_tags(str(bloc.value))).strip()
+        texte = re.sub(r'\s+', ' ', texte)
+        if len(texte) < 20:
+            continue          # titre isolé, légende, ligne vide : on continue
+        if len(texte) <= longueur:
+            return texte
+        coupe = texte[:longueur].rsplit(' ', 1)[0]
+        return f'{coupe}…'
+    return ''
+
+
 def _luminance(couleur):
     """Luminance relative WCAG d'un « #RRGGBB », entre 0 et 1."""
     couleur = (couleur or COULEUR_CHARTE).lstrip('#')
@@ -824,7 +854,14 @@ def panneaux_article():
     ⚠️ L'ordre compte : le Contenu d'abord, c'est là qu'un rédacteur commence.
     """
     return TabbedInterface([
-        ObjectList([FieldPanel('body')], heading='Contenu'),
+        ObjectList([
+            FieldPanel('body'),
+            # L'image et l'extrait sont des éléments de rédaction, pas des
+            # réglages : l'image commande le rang de l'article dans les listes
+            # du site, l'extrait est le texte qu'on lira sur les cartes.
+            FieldPanel('featured_image'),
+            FieldPanel('excerpt'),
+        ], heading='Contenu'),
         ObjectList([
             # Réservés aux chefs : imposés par `form_valid` pour les autres,
             # et leur panneau disparaît au lieu de laisser une étiquette vide.
@@ -837,8 +874,6 @@ def panneaux_article():
                 FieldPanel('author_name'),
                 FieldPanel('author_user'),
             ], heading="Publication"),
-            FieldPanel('excerpt'),
-            FieldPanel('featured_image'),
             FieldPanel('cms_categories', widget=forms.CheckboxSelectMultiple),
             FieldPanel('cms_tags'),
         ], heading='Métadonnées'),
@@ -874,13 +909,21 @@ class ArticlePage(SeoMixin, Page):
         blank=True,
         use_json_field=True,
     )
-    excerpt = models.TextField(blank=True, verbose_name="Extrait")
+    excerpt = models.TextField(
+        blank=True, verbose_name="Extrait",
+        help_text="Le texte de présentation sur les listes et dans la newsletter. "
+                  "Laissé vide, il est repris du début de l'article.",
+    )
     featured_image = models.ForeignKey(
         'wagtailimages.Image',
         null=True, blank=True,
         on_delete=models.SET_NULL,
         related_name='+',
         verbose_name="Image mise en avant",
+        help_text="⚠️ Sans image, votre article passe DERRIÈRE tous les articles "
+                  "illustrés de sa rubrique, quelle que soit sa date — les listes "
+                  "du site classent les articles illustrés d'abord. Un article "
+                  "publié aujourd'hui sans image arrive en bas de page.",
     )
     is_featured = models.BooleanField(
         default=False,
@@ -975,6 +1018,12 @@ class ArticlePage(SeoMixin, Page):
         if self.live and self.publication_date is None:
             from django.utils import timezone
             self.publication_date = self.first_published_at or timezone.now()
+        # Extrait repris du début de l'article quand le rédacteur n'en a pas
+        # écrit — jamais par-dessus une saisie. Sans lui, la carte de l'article
+        # s'affiche sans un mot de présentation (1677 articles sur 1785 dans ce
+        # cas au 15/08/2026).
+        if not (self.excerpt or '').strip():
+            self.excerpt = extrait_depuis_corps(self.body)
         if self.pk and not self.section_slug:
             parent = self.get_parent()
             if parent:
