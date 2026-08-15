@@ -2903,3 +2903,267 @@ class ApercuSurDomaineAutonomeTest(TestCase):
         rep = mw(req)
         self.assertEqual(rep.status_code, 301)
         self.assertIn('stucs.cnt-so.org', rep['Location'])
+
+
+class BrouillonNeDoitPasEtreEnLigneTest(TestCase):
+    """« Enregistrer le brouillon » publiait l'article.
+
+    `PageTreeCreateMixin.save_instance` surcharge celui de Wagtail, qui pose
+    explicitement `live = False` à la création (« make sure the live field is
+    set to False »). Sans cette ligne, `Page.live` valait son défaut — True — et
+    l'article partait en ligne dès sa création. Trois essais du STUCS se sont
+    ainsi retrouvés en tête du flux RSS public (constat du 15/08/2026).
+    """
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        self.site = _ensure_section_page(slug='13', name='CNT-SO 13')
+        self.user = User.objects.create_superuser('chef-brouillon', 'c@x.fr', 'x')
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['cms_current_site_id'] = self.site.pk
+        session.save()
+
+    def _creer(self, titre, slug, publier):
+        donnees = {'title': titre, 'slug': slug, 'body-count': '0',
+                   'cms_tags': '', 'section_slug': '13'}
+        if publier:
+            donnees['action-publish'] = 'action-publish'
+        avant = set(ArticlePage.objects.values_list('pk', flat=True))
+        self.client.post('/cms/snippets/cms/articlepage/add/', donnees)
+        return ArticlePage.objects.exclude(pk__in=avant).first()
+
+    def test_un_brouillon_n_est_pas_en_ligne(self):
+        art = self._creer('Brouillon', 'brouillon-test', publier=False)
+        self.assertIsNotNone(art, "l'article n'a pas été créé")
+        self.assertFalse(art.live, "le brouillon est publié sur le site public")
+
+    def test_un_brouillon_n_apparait_pas_dans_les_listes_publiques(self):
+        """Le vrai enjeu : `live()` est le filtre de toutes les vues publiques."""
+        art = self._creer('Brouillon 2', 'brouillon-test-2', publier=False)
+        self.assertNotIn(art.pk, ArticlePage.objects.live().values_list('pk', flat=True))
+
+    def test_publier_met_bien_en_ligne(self):
+        """Contrôle positif : sans lui, `live = False` partout passerait le test."""
+        art = self._creer('Publié', 'publie-test', publier=True)
+        self.assertIsNotNone(art)
+        self.assertTrue(art.live)
+
+
+class DateDePublicationTest(TestCase):
+    """Un article en ligne porte toujours une date.
+
+    Tout le site trie sur `('-publication_date', '-first_published_at')`. En
+    PostgreSQL — la production — un tri décroissant place les NULL **en tête** :
+    un article sans date passe devant tout le reste. SQLite les place en queue,
+    ce qui a rendu le défaut invisible en développement jusqu'au 15/08/2026, où
+    trois essais occupaient les 3 premières places du flux RSS du STUCS.
+    """
+
+    def test_publier_pose_une_date(self):
+        art = make_article_page(section_slug='principal', title='Daté',
+                                slug='date-auto')
+        self.assertIsNotNone(art.publication_date)
+
+    def test_un_brouillon_ne_recoit_pas_de_date(self):
+        """Une date, c'est une date de publication : pas avant."""
+        art = make_article_page(section_slug='principal', title='Sans date',
+                                slug='sans-date-auto')
+        art.publication_date = None
+        art.live = False
+        art.save()
+        self.assertIsNone(ArticlePage.objects.get(pk=art.pk).publication_date)
+
+    def test_republier_ne_redate_pas_un_vieil_article(self):
+        """`first_published_at` prime : republier un article de 2019 ne doit
+        pas le faire remonter en tête des listes."""
+        from django.utils import timezone
+        import datetime
+        art = make_article_page(section_slug='principal', title='Vieux',
+                                slug='vieux-article')
+        vieux = timezone.make_aware(datetime.datetime(2019, 3, 1, 12, 0))
+        ArticlePage.objects.filter(pk=art.pk).update(
+            publication_date=None, first_published_at=vieux)
+        art.refresh_from_db()
+        art.save()
+        self.assertEqual(art.publication_date, vieux)
+
+    def test_aucun_article_en_ligne_sans_date(self):
+        """Balayage : c'est l'invariant qui compte, pas le chemin qui y mène."""
+        sans = ArticlePage.objects.live().filter(publication_date__isnull=True)
+        self.assertFalse(
+            sans.exists(),
+            f'{sans.count()} article(s) en ligne sans date : ils passeraient '
+            f'devant tout le reste en PostgreSQL')
+
+
+class UneSeuleDefinitionDePanneauxTest(TestCase):
+    """`ArticlePage` s'édite par deux écrans — snippet et éditeur de pages.
+
+    Leurs panneaux avaient été écrits séparément et avaient divergé :
+    métadonnées en premier côté pages, ni `in_carousel` ni `featured_on_conf`,
+    et un onglet « Contenu » imbriqué dans un onglet « Contenu » (audit du
+    15/08/2026). Même remède que pour la famille `legacy_site_slug` en passe 7 :
+    une source unique, et un test qui refuse la recopie.
+    """
+
+    @staticmethod
+    def _champs(panneau):
+        noms = set()
+        for enfant in getattr(panneau, 'children', []):
+            noms |= UneSeuleDefinitionDePanneauxTest._champs(enfant)
+        nom = getattr(panneau, 'field_name', None)
+        if nom:
+            noms.add(nom)
+        return noms
+
+    def test_les_deux_ecrans_offrent_les_memes_champs(self):
+        from cms.wagtail_hooks import ArticlePageViewSet
+        du_viewset = set()
+        for p in ArticlePageViewSet.panels:
+            du_viewset |= self._champs(p)
+        onglets = {c.heading: c for c in ArticlePage.edit_handler.children}
+        du_modele = self._champs(onglets['Contenu']) | self._champs(onglets['Métadonnées'])
+        self.assertEqual(du_viewset, du_modele)
+
+    def test_le_contenu_vient_en_premier(self):
+        """L'ordre n'est pas cosmétique : c'est là qu'un rédacteur commence."""
+        self.assertEqual(ArticlePage.edit_handler.children[0].heading, 'Contenu')
+        from cms.wagtail_hooks import ArticlePageViewSet
+        onglets = ArticlePageViewSet.panels[1]
+        self.assertEqual(onglets.children[0].heading, 'Contenu')
+
+    def test_pas_d_onglet_dans_l_onglet(self):
+        from wagtail.admin.panels import TabbedInterface
+        for onglet in ArticlePage.edit_handler.children:
+            with self.subTest(onglet=onglet.heading):
+                self.assertFalse(
+                    any(isinstance(e, TabbedInterface)
+                        for e in getattr(onglet, 'children', [])),
+                    f"l'onglet {onglet.heading!r} en contient d'autres")
+
+    def test_in_carousel_et_featured_on_conf_sont_editables(self):
+        """Deux cases déclarées avec leur aide, mais absentes de l'écran Pages :
+        un rédacteur ne pouvait pas savoir qu'elles existaient."""
+        onglets = {c.heading: c for c in ArticlePage.edit_handler.children}
+        champs = self._champs(onglets['Métadonnées'])
+        self.assertIn('in_carousel', champs)
+        self.assertIn('featured_on_conf', champs)
+
+
+class BlocHtmlBrutHorsDuMenuTest(TestCase):
+    """`RawHTMLBlock` laisse écrire du JavaScript sur une page publique depuis
+    n'importe quel compte de syndicat, et son propre libellé dit « import
+    legacy ». Il ne peut pas être retiré du modèle — 1060 articles sur 1709 en
+    contiennent — donc on le retire du seul menu d'insertion."""
+
+    def test_le_bloc_html_n_est_plus_proposable(self):
+        proposes = set()
+        for _, blocs in ArticlePage.body.field.stream_block.grouped_child_blocks():
+            proposes |= {b.name for b in blocs}
+        self.assertNotIn('html', proposes)
+
+    def test_le_bloc_html_reste_connu_du_modele(self):
+        """Sinon les 1060 articles importés cesseraient de s'afficher."""
+        self.assertIn('html', ArticlePage.body.field.stream_block.child_blocks)
+
+    def test_les_blocs_de_redaction_restent_proposes(self):
+        """Contrôle positif : un filtre trop large passerait le test ci-dessus."""
+        proposes = set()
+        for _, blocs in ArticlePage.body.field.stream_block.grouped_child_blocks():
+            proposes |= {b.name for b in blocs}
+        for attendu in ('rich_text', 'image', 'gallery', 'quote'):
+            with self.subTest(bloc=attendu):
+                self.assertIn(attendu, proposes)
+
+
+class RichTextLisibleParLEditeurTest(TestCase):
+    """261 articles sur 1803 renvoyaient une 500 à l'ouverture pour modification.
+
+    Les `<br>` non fermés laissés par l'import font échouer l'analyseur qui
+    convertit le HTML stocké vers l'éditeur Draftail. Le site public les
+    affichait sans broncher : le défaut ne vivait que dans le back-office, ce
+    qui explique qu'il ait tenu si longtemps sans être signalé.
+    """
+
+    def _lisible(self, page):
+        from wagtail.admin.rich_text.converters.contentstate import ContentstateConverter
+        from cms.models import RICHTEXT_FEATURES
+        conv = ContentstateConverter(RICHTEXT_FEATURES)
+        try:
+            for bloc in page.body:
+                if bloc.block_type == 'rich_text':
+                    conv.from_database_format(str(bloc.value))
+            return True
+        except Exception:
+            return False
+
+    def _casser(self, page):
+        page.body = [('rich_text', '<p>Avant<br>Après</p>')]
+        page.save()
+        return page
+
+    def _lancer(self, **kw):
+        from django.core.management import call_command
+        from io import StringIO
+        sortie = StringIO()
+        call_command('repare_richtext_illisible', stdout=sortie, **kw)
+        return sortie.getvalue()
+
+    def setUp(self):
+        self.art = self._casser(make_article_page(
+            section_slug='principal', title='Cassé', slug='casse-br'))
+
+    def test_le_cas_est_bien_reproduit(self):
+        """Sans ce contrôle, la réparation pourrait ne rien réparer du tout."""
+        self.assertFalse(self._lisible(self.art))
+
+    def test_la_reparation_rend_l_article_ouvrable(self):
+        self._lancer()
+        self.assertTrue(self._lisible(ArticlePage.objects.get(pk=self.art.pk)))
+
+    def test_le_texte_affiche_est_inchange(self):
+        """`<br>` et `<br/>` rendent le même saut de ligne : on répare
+        l'éditeur, pas le contenu public."""
+        self._lancer()
+        corps = str(ArticlePage.objects.get(pk=self.art.pk).body[0].value)
+        self.assertIn('Avant', corps)
+        self.assertIn('Après', corps)
+
+    def test_dry_run_n_ecrit_rien(self):
+        self._lancer(dry_run=True)
+        self.assertFalse(self._lisible(ArticlePage.objects.get(pk=self.art.pk)))
+
+    def test_la_commande_est_idempotente(self):
+        self._lancer()
+        self.assertIn('rien à faire', self._lancer())
+
+    def test_un_brouillon_en_attente_est_epargne(self):
+        """Republier mettrait en ligne des modifications non validées."""
+        self.art.save_revision()
+        ArticlePage.objects.filter(pk=self.art.pk).update(has_unpublished_changes=True)
+        self.assertIn('brouillon en attente', self._lancer())
+
+
+class AlignementDesImagesTest(TestCase):
+    """Le bloc Image offre « Gauche / Centre / Droite / Pleine largeur » depuis
+    l'origine, mais aucune règle CSS ne visait `.article-image` : le choix du
+    rédacteur ne produisait rien à l'écran (audit du 15/08/2026)."""
+
+    def test_chaque_choix_du_bloc_a_une_regle_css(self):
+        from cms.models import ImageBlock
+        with open('templates/base.html', encoding='utf-8') as f:
+            css = f.read()
+        choix = [c[0] for c in ImageBlock().child_blocks['alignment'].field.choices]
+        self.assertTrue(choix, 'aucun choix trouvé sur le bloc')
+        for valeur in choix:
+            with self.subTest(alignement=valeur):
+                self.assertIn(f'.article-image.align-{valeur}', css,
+                              f'« {valeur} » est proposé au rédacteur sans effet')
+
+    def test_le_gabarit_emet_bien_la_classe_attendue(self):
+        """Le lien entre le CSS et le HTML : si le gabarit changeait de nom de
+        classe, le test ci-dessus continuerait de passer pour rien."""
+        with open('templates/cms/blocks/image_block.html', encoding='utf-8') as f:
+            gabarit = f.read()
+        self.assertIn('article-image align-{{ value.alignment }}', gabarit)

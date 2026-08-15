@@ -946,6 +946,34 @@
         .article-content .wp-block-image.alignright { float: right; margin-left: 1.5rem; max-width: 50%; }
         .article-content .wp-block-image.aligncenter { text-align: center; }
 
+        /* Image d'un article Wagtail (cms/blocks/image_block.html).
+           Le bloc offre « Gauche / Centre / Droite / Pleine largeur » depuis
+           l'origine, mais aucune règle ne visait `.article-image` : le choix
+           du rédacteur ne produisait rien à l'écran (audit du 15/08/2026).
+           Les classes WordPress ci-dessus servent le contenu importé, celles-ci
+           le contenu écrit dans le CMS. */
+        .article-content .article-image { margin: 1.5rem 0; }
+        .article-content .article-image img { border-radius: 4px; max-width: 100%; height: auto; }
+        .article-content .article-image figcaption {
+            font-size: 14px;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: .4rem;
+            font-style: italic;
+        }
+        .article-content .article-image.align-left {
+            float: left; margin: .3rem 1.5rem 1rem 0; max-width: 45%;
+        }
+        .article-content .article-image.align-right {
+            float: right; margin: .3rem 0 1rem 1.5rem; max-width: 45%;
+        }
+        .article-content .article-image.align-center { text-align: center; }
+        .article-content .article-image.align-full img { width: 100%; }
+        /* Sans cela, le bloc suivant remonterait le long de l'image flottante. */
+        .article-content > *:not(.article-image) { clear: none; }
+        .article-content .article-image + * { clear: none; }
+        .article-content h2, .article-content h3 { clear: both; }
+
         /* Bouton téléchargement fichier (wp-block-file) */
         .article-content .wp-block-file {
             margin: 1.25rem 0;
@@ -976,6 +1004,10 @@
             .article-content .wp-block-gallery.is-cropped .blocks-gallery-item figure { height: 150px; }
             .article-content .wp-block-image.alignleft,
             .article-content .wp-block-image.alignright { float: none; max-width: 100%; margin: 1rem 0; }
+            /* Sur mobile, texte à côté de l'image devient illisible : on
+               empile. Même règle que pour les images WordPress ci-dessus. */
+            .article-content .article-image.align-left,
+            .article-content .article-image.align-right { float: none; max-width: 100%; margin: 1rem 0; }
         }
 
         /* Pagination */

@@ -141,7 +141,11 @@ class CmsArticleTag(TaggedItemBase):
 # ── Blocs StreamField ─────────────────────────────────────────────────────────
 
 RICHTEXT_FEATURES = [
-    'bold', 'italic', 'underline', 'strikethrough',
+    # 'underline' retiré le 15/08/2026 : Draftail ne connaît pas cette
+    # fonctionnalité sous ce nom, le bouton n'existait donc pas dans la barre
+    # d'outils et chaque rendu du formulaire émettait un RuntimeWarning. Le
+    # souligné se confond de toute façon avec un lien à l'écran.
+    'bold', 'italic', 'strikethrough',
     'h2', 'h3', 'h4', 'h5',
     'ol', 'ul',
     'link',
@@ -209,6 +213,34 @@ class QuoteBlock(blocks.StructBlock):
         icon = 'openquote'
         label = "Citation"
         template = 'cms/blocks/quote_block.html'
+
+
+class CorpsBlock(blocks.StreamBlock):
+    """Corps d'article : masque du menu d'insertion les blocs réservés à l'import.
+
+    `RawHTMLBlock` laisse écrire du HTML — donc du JavaScript — sur une page
+    publique, depuis n'importe quel compte de syndicat. Son propre libellé dit
+    « import legacy » : ce n'est pas un outil de rédaction (audit du
+    15/08/2026).
+
+    Il est **impossible de le retirer du modèle** : 1060 articles sur 1709 et
+    49 pages sur 73 en contiennent, hérités de WordPress, et leur rendu s'en
+    sert. On agit donc sur `grouped_child_blocks()`, qui construit le seul menu
+    « + » de l'éditeur, et non sur `child_blocks`, qui sert au rendu et à la
+    validation. Les blocs existants restent lisibles et modifiables ; on ne
+    peut simplement plus en ajouter.
+
+    Le jour où ces 1060 articles auront été convertis en texte riche, le bloc
+    pourra sortir du modèle et cette classe disparaître.
+    """
+
+    BLOCS_MASQUES = {'html'}
+
+    def grouped_child_blocks(self):
+        return [
+            (groupe, [b for b in blocs if b.name not in self.BLOCS_MASQUES])
+            for groupe, blocs in super().grouped_child_blocks()
+        ]
 
 
 ARTICLE_BODY_BLOCKS = [
@@ -556,11 +588,71 @@ class SectionPage(SeoMixin, Page):
         ] + ([f'section-domain:{self.custom_domain}'] if self.custom_domain else []))
 
 
+def panneaux_article():
+    """Les onglets d'édition d'un article — **source unique**.
+
+    `ArticlePage` est une Page Wagtail ET un snippet : deux écrans savent
+    l'éditer, `/cms/snippets/cms/articlepage/edit/<pk>/` et
+    `/cms/pages/<pk>/edit/`. Leurs panneaux avaient été écrits séparément et
+    avaient divergé — l'éditeur de pages proposait les métadonnées d'abord,
+    n'offrait ni `in_carousel` ni `featured_on_conf`, et imbriquait un onglet
+    « Contenu » dans un onglet « Contenu » (audit du 15/08/2026).
+
+    C'est le même remède que pour la famille `legacy_site_slug` en passe 7 :
+    une définition unique plutôt qu'une recopie. Une **fonction** et non une
+    constante, parce qu'un `ObjectList` se lie à un modèle et garde cet état :
+    partager l'instance entre deux écrans les ferait interférer.
+
+    ⚠️ L'ordre compte : le Contenu d'abord, c'est là qu'un rédacteur commence.
+    """
+    return TabbedInterface([
+        ObjectList([FieldPanel('body')], heading='Contenu'),
+        ObjectList([
+            # Réservés aux chefs : imposés par `form_valid` pour les autres,
+            # et leur panneau disparaît au lieu de laisser une étiquette vide.
+            PanneauChefSeulement('section_slug'),
+            MultiFieldPanel([
+                FieldPanel('publication_date'),
+                FieldPanel('is_featured'),
+                FieldPanel('in_carousel'),
+                PanneauChefSeulement('featured_on_conf'),
+                FieldPanel('author_name'),
+                FieldPanel('author_user'),
+            ], heading="Publication"),
+            FieldPanel('excerpt'),
+            FieldPanel('featured_image'),
+            FieldPanel('cms_categories', widget=forms.CheckboxSelectMultiple),
+            FieldPanel('cms_tags'),
+        ], heading='Métadonnées'),
+    ])
+
+
+class PanneauChefSeulement(FieldPanel):
+    """Champ visible des seuls chefs — panneau compris.
+
+    Masquer le widget en `HiddenInput` ne masquait que l'`<input>` : le
+    rédacteur voyait rester le libellé « Mettre en avant sur la confédération »
+    et son texte d'aide, sans rien dessous. Même chose pour « Section slug »,
+    accompagné de « Slug dénormalisé de la SectionPage parente » — du jargon
+    interne affiché à un syndicaliste (audit du 15/08/2026).
+
+    `is_shown()` est le point d'accroche de Wagtail pour retirer un panneau de
+    l'affichage. Le verrou de fond reste `form_valid`, côté serveur : ce panneau
+    règle la lisibilité, pas la sécurité.
+    """
+
+    class BoundPanel(FieldPanel.BoundPanel):
+        def is_shown(self):
+            # Import différé : content.admin_utils remonte jusqu'à cms.models.
+            from content.admin_utils import is_chef
+            return super().is_shown() and is_chef(self.request.user)
+
+
 class ArticlePage(SeoMixin, Page):
     """Article de blog — remplace content.Article."""
 
     body = StreamField(
-        ARTICLE_BODY_BLOCKS,
+        CorpsBlock(ARTICLE_BODY_BLOCKS),
         blank=True,
         use_json_field=True,
     )
@@ -626,31 +718,23 @@ class ArticlePage(SeoMixin, Page):
         index.FilterField('is_featured'),
     ]
 
-    content_panels = Page.content_panels + [
-        TabbedInterface([
-            ObjectList([
-                MultiFieldPanel([
-                    FieldPanel('publication_date'),
-                    FieldPanel('is_featured'),
-                    FieldPanel('author_name'),
-                    FieldPanel('author_user'),
-                ], heading="Publication"),
-                FieldPanel('excerpt'),
-                FieldPanel('featured_image'),
-                FieldPanel('cms_categories', widget=forms.CheckboxSelectMultiple),
-                FieldPanel('cms_tags'),
-            ], heading='Métadonnées'),
-            ObjectList([
-                FieldPanel('body'),
-            ], heading='Contenu'),
-        ])
-    ]
-
     promote_panels = SeoMixin.seo_panels + Page.promote_panels + [
-        FieldPanel('section_slug'),
         FieldPanel('legacy_article_id'),
         FieldPanel('legacy_wp_id'),
     ]
+
+    # `edit_handler` et non `content_panels` : le `TabbedInterface` doit être la
+    # racine de l'écran. Imbriqué dans `content_panels`, il produisait un onglet
+    # « Contenu » à l'intérieur de l'onglet « Contenu » (audit du 15/08/2026).
+    # Les onglets viennent de `panneaux_article()`, partagé avec le viewset —
+    # c'est ce qui empêche les deux écrans d'édition de diverger à nouveau.
+    edit_handler = TabbedInterface([
+        ObjectList([FieldPanel('title')] + panneaux_article().children[0].children,
+                   heading='Contenu'),
+        panneaux_article().children[1],
+        ObjectList(promote_panels, heading='Promotion'),
+        ObjectList(Page.settings_panels, heading='Paramètres'),
+    ])
 
     parent_page_types = ['cms.HomePage', 'cms.SectionPage']
     subpage_types = []
@@ -660,7 +744,19 @@ class ArticlePage(SeoMixin, Page):
         verbose_name_plural = "Articles"
 
     def save(self, *args, **kwargs):
-        """Auto-rempli section_slug depuis la page parente. Sync in_carousel ↔ CarouselArticle."""
+        """Auto-rempli section_slug, date de publication, sync in_carousel ↔ CarouselArticle."""
+        # Un article mis en ligne porte toujours une date. Tout le site trie
+        # sur `('-publication_date', '-first_published_at')` : en PostgreSQL —
+        # la production — un tri décroissant place les NULL EN TÊTE, donc un
+        # article sans date passe devant tout le reste. SQLite les place en
+        # queue, ce qui a rendu le défaut invisible en développement jusqu'au
+        # 15/08/2026, où trois essais occupaient les 3 premières places du flux
+        # RSS du STUCS.
+        # `first_published_at` d'abord : republier un vieil article ne doit pas
+        # le redater d'aujourd'hui.
+        if self.live and self.publication_date is None:
+            from django.utils import timezone
+            self.publication_date = self.first_published_at or timezone.now()
         if self.pk and not self.section_slug:
             parent = self.get_parent()
             if parent:
@@ -790,7 +886,7 @@ class ContentPage(Page):
     """Page statique — remplace content.Page."""
 
     body = StreamField(
-        ARTICLE_BODY_BLOCKS,
+        CorpsBlock(ARTICLE_BODY_BLOCKS),
         blank=True,
         use_json_field=True,
     )

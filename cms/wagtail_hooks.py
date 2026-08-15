@@ -25,7 +25,9 @@ from content.admin_utils import (
     WagtailChefRequiredMixin, WagtailSyndicatRequiredMixin, is_chef as _is_chef,
 )
 
-from .models import ArticlePage, ContentPage, CmsCategory, Event, SectionPage
+from .models import (
+    ArticlePage, ContentPage, CmsCategory, Event, SectionPage, panneaux_article,
+)
 from .cloisonnement import ViewSetCloisonne
 from .site_context import SESSION_KEY, get_current_site, get_available_sites, set_current_site
 
@@ -76,6 +78,16 @@ class PageTreeCreateMixin:
 
         # save(commit=False) prépare aussi save_m2m (catégories, tags)
         instance = self.form.save(commit=False)
+        # `Page.live` vaut True par défaut : sans cette ligne, « Enregistrer le
+        # brouillon » mettait l'article EN LIGNE dès sa création, et les trois
+        # essais du STUCS se sont retrouvés en tête du flux RSS public
+        # (constaté le 15/08/2026). Wagtail fait la même chose dans le
+        # `save_instance` qu'on surcharge ici — voir le commentaire « make sure
+        # the live field is set to False » dans
+        # wagtail/admin/views/generic/mixins.py. C'est `publish_action()` qui
+        # remettra `live` à True, et lui seul renseigne `first_published_at`.
+        if self.view_name == 'create':
+            instance.live = False
         # Passer par une instance générique Page : sur la classe spécifique,
         # le gestionnaire ne voit que les pages du même type et treebeard
         # calcule un chemin déjà pris.
@@ -286,28 +298,7 @@ class ArticlePageViewSet(ViewSetCloisonne, SnippetViewSet):
     filterset_class = FiltreArticles
     search_fields = ['title', 'excerpt']
     ordering = ['-publication_date', '-first_published_at']
-    panels = [
-        FieldPanel('title'),
-        TabbedInterface([
-            # Contenu en premier : c'est là qu'un rédacteur débutant commence
-            ObjectList([FieldPanel('body')], heading='Contenu'),
-            ObjectList([
-                FieldPanel('section_slug'),
-                MultiFieldPanel([
-                    FieldPanel('publication_date'),
-                    FieldPanel('is_featured'),
-                    FieldPanel('in_carousel'),
-                    FieldPanel('featured_on_conf'),
-                    FieldPanel('author_name'),
-                    FieldPanel('author_user'),
-                ], heading="Publication"),
-                FieldPanel('excerpt'),
-                FieldPanel('featured_image'),
-                FieldPanel('cms_categories', widget=forms.CheckboxSelectMultiple),
-                FieldPanel('cms_tags'),
-            ], heading='Métadonnées'),
-        ]),
-    ]
+    panels = [FieldPanel('title'), panneaux_article()]
 
     add_view_class = _make_scoped_article_page_view(SnippetCreateView)
     edit_view_class = _make_scoped_article_page_view(SnippetEditView)

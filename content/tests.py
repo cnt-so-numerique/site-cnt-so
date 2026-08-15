@@ -252,10 +252,16 @@ class ArticlePageModelTest(TestCase):
     def test_published_at_falls_back_to_first_published_at(self):
         import datetime
         art = make_article_page(section_slug='principal', title='No date', slug='no-date')
-        # Wagtail ne set pas first_published_at via add_child en test — on le force
+        # Wagtail ne set pas first_published_at via add_child en test — on le force.
+        # `publication_date` est remis à None dans le même UPDATE : depuis le
+        # 15/08/2026, `save()` date tout article mis en ligne, et le repli ne
+        # peut plus se produire par une simple création. Il reste la situation
+        # des lignes héritées de l'import, que cette propriété sert toujours —
+        # c'est bien elle qu'on veut couvrir ici.
         from cms.models import ArticlePage as AP
         dt = datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
-        AP.objects.filter(pk=art.pk).update(first_published_at=dt)
+        AP.objects.filter(pk=art.pk).update(first_published_at=dt,
+                                            publication_date=None)
         art.refresh_from_db()
         self.assertEqual(art.published_at, dt)
 
