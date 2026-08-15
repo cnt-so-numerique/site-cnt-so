@@ -95,6 +95,43 @@ class PageTreeCreateMixin:
         return instance
 
 
+class IterateurCategoriesGroupees:
+    """Regroupe les cases à cocher par catégorie parente.
+
+    Django rend nativement des groupes dans `CheckboxSelectMultiple` dès que
+    l'itérateur de choix produit des couples `(nom du groupe, [choix])`. Le 13
+    a 62 catégories sur deux niveaux : une liste plate, même triée et préfixée,
+    reste illisible (retour d'Arnaud sur le compte essai-13, 05/08/2026).
+
+    L'étiquette redevient courte dans un groupe : l'en-tête porte déjà le nom
+    du parent, « BTP › Vos droits » sous « BTP » bégaierait.
+
+    ⚠️ Affecter `field.iterator` ne suffit pas : c'est l'affectation de
+    `field.queryset` qui recharge `widget.choices`. Poser l'itérateur APRÈS le
+    queryset laisse le widget avec ses choix plats, sans rien signaler.
+    """
+
+    def __init__(self, field):
+        self.field = field
+        self.queryset = field.queryset
+
+    def __iter__(self):
+        if self.field.empty_label is not None:
+            yield ('', self.field.empty_label)
+        groupes = {}
+        for obj in self.queryset:
+            cle = obj.parent.name if obj.parent_id else obj.name
+            groupes.setdefault(cle, []).append(obj)
+        for nom, objets in groupes.items():
+            # Le parent d'abord s'il est lui-même sélectionnable, puis ses
+            # enfants par ordre alphabétique.
+            objets.sort(key=lambda o: (o.parent_id is not None, o.name))
+            yield (nom, [(self.field.prepare_value(o), o.name) for o in objets])
+
+    def __len__(self):
+        return sum(1 for _ in self)
+
+
 def _make_scoped_article_page_view(base_class):
     """
     - Filtre cms_categories par section courante.
@@ -104,6 +141,46 @@ def _make_scoped_article_page_view(base_class):
     - Enforce section_slug au save pour les rédacteurs.
     """
     class ScopedView(PageTreeCreateMixin, base_class):
+        @staticmethod
+        def _borner_categories(form, current):
+            """Ne propose que les catégories du syndicat concerné.
+
+            Le filtre ne s'appliquait qu'avec un syndicat sélectionné : un
+            superuser sans sélection voyait les 219 catégories des douze
+            sections, dont « Non classé » six fois (Arnaud, 05/08/2026). Un
+            rédacteur, lui, n'a jamais vu que les siennes.
+
+            Sans sélection, on se rabat sur la section de l'article. Si elle
+            est inconnue (création par un superuser qui n'a rien choisi), on
+            n'ampute pas son choix : on préfixe par la section pour distinguer
+            les homonymes.
+            """
+            from django.db.models.functions import Coalesce
+            champ = form.fields['cms_categories']
+            # Chaque parent immédiatement suivi de ses enfants : trier sur
+            # `parent__name` seul reléguait les 22 parents du 13 tout en bas,
+            # après leurs propres enfants.
+            # `select_related('parent')` : l'étiquette lit le parent, sinon
+            # c'est une requête par catégorie.
+            qs = (CmsCategory.objects.select_related('parent')
+                  .annotate(_groupe=Coalesce('parent__name', 'name'))
+                  .order_by('_groupe', 'parent__name', 'name'))
+            slugs = None
+            if current:
+                slugs = current.slugs_contenu
+            else:
+                propre = getattr(form.instance, 'section_slug', '')
+                if propre:
+                    slugs = {propre}
+            if slugs:
+                champ.iterator = IterateurCategoriesGroupees
+                champ.queryset = qs.filter(section_slug__in=slugs)
+            else:
+                # Toutes sections confondues : grouper mélangerait des
+                # syndicats. Liste plate, préfixée par la section.
+                champ.queryset = qs
+                champ.label_from_instance = lambda c: f'[{c.section_slug}] {c}'
+
         def get_form(self, form_class=None):
             form = super().get_form(form_class)
             current = get_current_site(self.request)
@@ -113,21 +190,14 @@ def _make_scoped_article_page_view(base_class):
                 form.fields['featured_on_conf'].widget = forms.HiddenInput()
                 form.fields['featured_on_conf'].required = False
 
+            if 'cms_categories' in form.fields:
+                self._borner_categories(form, current)
+
             if current:
                 # Lire sur les deux slugs (cf. SectionPage.slugs_contenu),
                 # écrire sur le slug Wagtail.
                 slug = current.slug
                 slugs = current.slugs_contenu
-                if 'cms_categories' in form.fields:
-                    # `select_related('parent')` : l'étiquette de chaque case
-                    # affiche le parent (cf. CmsCategory.__str__), sinon la
-                    # liste déclenche une requête par catégorie — 62 rien que
-                    # pour le 13.
-                    form.fields['cms_categories'].queryset = (
-                        CmsCategory.objects
-                        .filter(section_slug__in=slugs)
-                        .select_related('parent')
-                        .order_by('parent__name', 'name'))
                 if 'section_slug' in form.fields:
                     if chef:
                         form.fields['section_slug'].initial = slug
@@ -562,6 +632,59 @@ def hide_structure_du_site_menu(request, menu_items):
 
 
 # ── Sélecteur de syndicat dans la sidebar ────────────────────────────────────
+
+@hooks.register('insert_global_admin_css')
+def insert_categories_css():
+    """Mise en page de la liste des catégories d'un article.
+
+    62 cases sur une colonne (le cas du 13) obligent à faire défiler l'écran
+    pour choisir une rubrique. Colonnes, en-tête de groupe détaché, cases
+    décalées dessous.
+
+    Le balisage est celui de Wagtail, relevé sur le HTML servi — et NON le
+    `<ul>/<li>` de Django, que j'avais supposé à tort :
+
+        #id_cms_categories > div            un groupe
+          > label (SANS `for`)              son en-tête
+          > div > label[for]                une case
+
+    D'où le `:not([for])` : sans lui, en liste non groupée (superuser sans
+    syndicat choisi), les étiquettes des cases prendraient le style d'en-tête.
+    """
+    return """<style>
+#id_cms_categories {
+    columns: 3 200px;
+    column-gap: 1.5rem;
+}
+#id_cms_categories > div {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: .75rem;
+}
+#id_cms_categories > div > label:not([for]) {
+    display: block;
+    font-weight: 700;
+    font-size: .72rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--w-color-text-label, #5b5b5b);
+    margin-bottom: .25rem;
+}
+#id_cms_categories > div > label:not([for]) + div {
+    padding-left: .6rem;
+    border-left: 2px solid var(--w-color-border-field-default, #d9d9d9);
+}
+#id_cms_categories label[for] {
+    display: block;
+    font-weight: 400;
+    font-size: .87rem;
+    line-height: 1.5;
+}
+@media (max-width: 900px) {
+    #id_cms_categories { columns: 1; }
+}
+</style>"""
+
 
 @hooks.register('insert_global_admin_css')
 def insert_site_selector_css():

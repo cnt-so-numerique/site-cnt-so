@@ -49,3 +49,27 @@ autant que celle de prod, car dev garde des sections que la prod n'a pas. À dé
 **Corollaire, plus large :** l'absence d'une ligne en production ne prouve pas
 l'inexistence de la chose. Ici l'absence de la section STAA en prod était l'anomalie
 à expliquer, pas la preuve que le syndicat avait disparu.
+
+## 2026-08-05 — `git checkout --` n'est pas une restauration
+
+**Erreur :** pour une contre-épreuve, j'ai retiré un `select_related` à la main
+dans `cms/wagtail_hooks.py`, lancé le test (échec attendu, la preuve était
+faite), puis « restauré » le fichier avec `git checkout -- cms/wagtail_hooks.py`.
+Cette commande restaure depuis le **dernier commit**, pas depuis l'état de
+travail : elle a emporté tout ce qui n'était pas commité dans ce fichier —
+itérateur groupé, CSS, tri hiérarchique, méthode de bornage. Une heure de
+travail effacée par une commande de « retour en arrière ».
+
+**Règle :** pour une contre-épreuve, toujours `git stash push -- <fichier>` puis
+`git stash pop`. `git checkout --` ne revient jamais à « avant ma
+manipulation » — il revient au dernier commit, et détruit le reste sans
+avertissement. Si le fichier n'est pas suivi par git (fichier neuf), le déplacer
+(`mv`) et le remettre, jamais `checkout`.
+
+**Ce qui a sauvé la mise :** les tests vivaient dans un AUTRE fichier, donc
+intacts. Ils ont validé que la reconstruction était fidèle, au lieu de me faire
+dépendre de ma mémoire. Corollaire : garder tests et code dans des fichiers
+séparés a une valeur au-delà de l'organisation.
+
+**Meilleur réflexe encore :** committer en local avant toute contre-épreuve
+destructive. Un commit est réversible, un `checkout` non.

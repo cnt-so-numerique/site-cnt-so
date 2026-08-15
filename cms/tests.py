@@ -2351,3 +2351,198 @@ class LibelleCategorieAvecParentTest(TestCase):
         self.assertEqual(len(ctx.captured_queries), 1,
                          f'{len(ctx.captured_queries)} requêtes pour '
                          f'{len(libelles)} catégories')
+
+
+class CategoriesBorneesAuSyndicatTest(TestCase):
+    """Le filtre des catégories ne s'appliquait qu'avec un syndicat
+    sélectionné. Un superuser sans sélection voyait les 219 catégories des
+    douze sections — « Non classé » six fois, « Nettoyage » trois fois : le
+    même nom dans des syndicats différents (signalé par Arnaud le
+    05/08/2026)."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        self.treize = _ensure_section_page(slug='13', name='CNT-SO 13')
+        self.conf = _ensure_section_page(slug='principal', name='Confédération')
+        self.cat_13 = make_cms_category(name='Nettoyage', slug='nettoyage-13',
+                                        section_slug='13')
+        self.cat_conf = make_cms_category(name='Nettoyage', slug='nettoyage-conf',
+                                          section_slug='principal')
+        self.U = get_user_model()
+
+    def _borner(self, current, section_slug=''):
+        """Rejoue le bornage sur un formulaire minimal."""
+        from django import forms as dj
+        from cms.models import CmsCategory
+        from cms.wagtail_hooks import _make_scoped_article_page_view
+
+        class Faux:
+            pass
+
+        instance = Faux()
+        instance.section_slug = section_slug
+
+        class FauxForm:
+            pass
+
+        form = FauxForm()
+        form.instance = instance
+        form.fields = {'cms_categories': dj.ModelMultipleChoiceField(
+            queryset=CmsCategory.objects.none())}
+        vue = _make_scoped_article_page_view(object)
+        vue._borner_categories(form, current)
+        return form.fields['cms_categories']
+
+    def test_avec_un_syndicat_selectionne_seules_ses_categories(self):
+        champ = self._borner(self.treize)
+        slugs = {c.slug for c in champ.queryset}
+        self.assertEqual(slugs, {'nettoyage-13'})
+
+    def test_sans_selection_on_se_rabat_sur_la_section_de_l_article(self):
+        """Un superuser qui édite un article du 13 ne doit pas voir les 219."""
+        champ = self._borner(None, section_slug='13')
+        slugs = {c.slug for c in champ.queryset}
+        self.assertEqual(slugs, {'nettoyage-13'})
+
+    def test_section_inconnue_les_homonymes_sont_distingues(self):
+        """Création par un superuser sans rien choisir : on n'ampute pas son
+        choix, mais « Nettoyage » ne doit pas apparaître deux fois à
+        l'identique."""
+        champ = self._borner(None, section_slug='')
+        libelles = [champ.label_from_instance(c) for c in champ.queryset]
+        # Le provisionnement d'une section crée ses propres catégories : on ne
+        # fige pas un total, on vérifie que les homonymes se distinguent.
+        nettoyages = [l for l in libelles if l.endswith('Nettoyage')]
+        self.assertEqual(len(nettoyages), 2, f'trouvé : {nettoyages}')
+        self.assertEqual(len(set(nettoyages)), 2,
+                         f'homonymes indiscernables : {nettoyages}')
+        self.assertTrue(any(l.startswith('[13]') for l in nettoyages))
+
+    def test_le_bornage_ne_part_pas_en_n_plus_un(self):
+        from django.test.utils import CaptureQueriesContext
+        from django.db import connection
+        for i in range(10):
+            c = make_cms_category(name=f'Sous {i}', slug=f'sous-{i}',
+                                  section_slug='13')
+            c.parent = self.cat_13
+            c.save()
+        from cms.models import CmsCategory
+        n_cat = CmsCategory.objects.filter(section_slug='13').count()
+        # La fenêtre doit couvrir le bornage LUI-MÊME : le groupement évalue
+        # le queryset dès la construction des choix, et mesurer après ne
+        # capturait plus rien (0 requête — le test passait pour rien).
+        with CaptureQueriesContext(connection) as ctx:
+            champ = self._borner(self.treize)
+            [str(c) for c in champ.queryset]
+        self.assertLess(
+            len(ctx.captured_queries), n_cat,
+            f'{len(ctx.captured_queries)} requêtes pour {n_cat} catégories : '
+            f'une par catégorie, le select_related ne joue plus')
+        self.assertLessEqual(len(ctx.captured_queries), 3,
+                             f'{len(ctx.captured_queries)} requêtes')
+
+
+class OrdreHierarchiqueCategoriesTest(TestCase):
+    """Trier sur `parent__name` seul reléguait les catégories sans parent tout
+    en bas : le 13 affichait ses 40 « Parent › Enfant », puis ses 22 parents
+    isolés — « Vos droits » apparaissait donc en bas ET quatre fois plus haut
+    sous ses enfants (constaté par Arnaud le 05/08/2026 avec le compte
+    essai-13)."""
+
+    def setUp(self):
+        _ensure_section_page(slug='13', name='CNT-SO 13')
+        self.btp = make_cms_category(name='BTP', slug='btp', section_slug='13')
+        self.zebre = make_cms_category(name='Zèbre', slug='zebre', section_slug='13')
+        for nom, slug in (('Vos droits', 'vd-btp'), ('Actualités', 'act-btp')):
+            c = make_cms_category(name=nom, slug=slug, section_slug='13')
+            c.parent = self.btp
+            c.save()
+
+    def _ordre(self):
+        from django.db.models.functions import Coalesce
+        from cms.models import CmsCategory
+        qs = (CmsCategory.objects.filter(section_slug='13')
+              .select_related('parent')
+              .annotate(_groupe=Coalesce('parent__name', 'name'))
+              .order_by('_groupe', 'parent__name', 'name'))
+        return [str(c) for c in qs]
+
+    def test_le_parent_precede_immediatement_ses_enfants(self):
+        ordre = self._ordre()
+        i = ordre.index('BTP')
+        self.assertEqual(ordre[i + 1], 'BTP › Actualités')
+        self.assertEqual(ordre[i + 2], 'BTP › Vos droits')
+
+    def test_les_groupes_ne_sont_pas_entremeles(self):
+        """« Zèbre », sans parent, ne doit pas s'intercaler dans le groupe BTP."""
+        ordre = self._ordre()
+        indices = [i for i, l in enumerate(ordre) if l.startswith('BTP')]
+        self.assertEqual(indices, list(range(min(indices), max(indices) + 1)),
+                         f'groupe BTP entrecoupé : {ordre}')
+
+
+class RenduGroupeCategoriesTest(TestCase):
+    """Preuve par le HTML servi : le formulaire de création d'article doit
+    présenter les catégories groupées par parent, pas en liste plate.
+
+    Un test sur l'itérateur seul ne prouverait rien — c'est Wagtail qui rend
+    le champ, et rien ne garantissait qu'il honore les groupes de Django.
+    """
+
+    MDP = 'test-rendu-groupes'
+
+    def setUp(self):
+        from django.contrib.auth.models import User, Group
+        from cms.provisioning import provision_section
+
+        self.site = _ensure_section_page(slug='13', name='CNT-SO 13')
+        provision_section(self.site)
+        self.btp = make_cms_category(name='BTP', slug='btp', section_slug='13')
+        for nom, slug in (('Vos droits', 'vd-btp'), ('Revendiquons !', 'rev-btp')):
+            c = make_cms_category(name=nom, slug=slug, section_slug='13')
+            c.parent = self.btp
+            c.save()
+
+        grp = Group.objects.get(name='redacteur_13')
+        self.user = User.objects.create_user('redac13', 'r@13.fr', self.MDP)
+        self.user.groups.set([grp])
+        self.client.login(username='redac13', password=self.MDP)
+
+    def test_le_formulaire_presente_des_groupes(self):
+        r = self.client.get('/cms/snippets/cms/articlepage/add/')
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        # L'en-tête de groupe est rendu hors <label> : c'est ce qui distingue
+        # une liste groupée d'une liste plate.
+        self.assertIn('BTP', html)
+        self.assertRegex(html, r'BTP\s*</?\w',
+                         "aucun en-tête de groupe : la liste est restée plate")
+
+    def test_les_etiquettes_ne_begaient_pas_dans_un_groupe(self):
+        """Sous l'en-tête « BTP », l'étiquette doit être « Vos droits », pas
+        « BTP › Vos droits »."""
+        html = self.client.get('/cms/snippets/cms/articlepage/add/').content.decode()
+        self.assertNotIn('BTP › Vos droits', html)
+        self.assertIn('Vos droits', html)
+
+    def test_le_balisage_attendu_par_le_css_est_bien_la(self):
+        """Le CSS vise `#id_cms_categories > div > label:not([for])` pour les
+        en-têtes. Si Wagtail change ce balisage, la mise en page redevient une
+        liste plate sans que rien ne le signale — d'où ce verrou."""
+        import re
+        html = self.client.get('/cms/snippets/cms/articlepage/add/').content.decode()
+        i = html.find('id="id_cms_categories"')
+        self.assertGreater(i, 0, 'conteneur #id_cms_categories absent')
+        bloc = html[i:i + 2500]
+        # Un en-tête de groupe : un <label> SANS attribut for.
+        self.assertRegex(bloc, r'<div>\s*<label>[^<]+</label>',
+                         "aucun en-tête de groupe dans le balisage servi")
+        # Et les cases, elles, ont bien un for=.
+        self.assertRegex(bloc, r'<label for="id_cms_categories_\d+_\d+">')
+
+    def test_aucune_categorie_d_un_autre_syndicat(self):
+        autre = _ensure_section_page(slug='auvergne', name='CNT-SO Auvergne')
+        make_cms_category(name='Secret auvergnat', slug='secret-auvergne',
+                          section_slug='auvergne')
+        html = self.client.get('/cms/snippets/cms/articlepage/add/').content.decode()
+        self.assertNotIn('Secret auvergnat', html)
