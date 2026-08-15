@@ -2364,11 +2364,91 @@ class AjoutMenuCategorieTest(TestCase):
         sortie = self._lancer()      # ne doit pas lever
         self.assertIn('ignoré', sortie)
 
+    def test_la_table_reelle_ne_vise_pas_deux_fois_la_meme_categorie(self):
+        """Les tests ci-dessus tournent sur une table forgée : celui-ci regarde
+        celle qui sera jouée en production. Deux lignes vers la même catégorie
+        passeraient l'idempotence de la commande (elle compare à la base, pas à
+        la table) et poseraient deux entrées identiques au menu."""
+        from cms.management.commands.ajoute_menu_categorie import ENTREES
+        cibles = [(e['site'], e['rubrique'], e['categorie']) for e in ENTREES]
+        self.assertEqual(len(cibles), len(set(cibles)), 'doublon dans ENTREES')
+        for e in ENTREES:
+            with self.subTest(cat=e['categorie']):
+                self.assertTrue(e['libelle'].strip(), 'libellé vide')
+
     def test_une_categorie_vide_est_signalee(self):
         """Créer un menu vers du vide, c'est ce que l'audit a passé un mois à
         défaire : la commande le fait quand même, mais le dit."""
         ArticlePage.objects.filter(section_slug='principal').delete()
         self.assertIn('vide', self._lancer())
+
+
+class SuppressionDoublonVideTest(TestCase):
+    """« Syndicat national des transports et de l'aménagement du territoire »
+    est un doublon vide de « Transport – Logistique » (confirmé par Arnaud le
+    15/08/2026).
+
+    Le point sensible : `MenuItem.category` est en `on_delete=SET_NULL` et
+    `cms_categories` est un M2M. Rien dans Django n'empêche de supprimer une
+    catégorie encore utilisée — elle viderait des liens en silence. D'où trois
+    refus explicites."""
+
+    def _lancer(self, **kw):
+        from django.core.management import call_command
+        from io import StringIO
+        from unittest.mock import patch
+        table = [{'site': 'principal', 'categorie': 'doublon',
+                  'doublon_de': 'Transport'}]
+        sortie = StringIO()
+        cmd = 'cms.management.commands.ajoute_menu_categorie'
+        with patch(f'{cmd}.DOUBLONS', table), patch(f'{cmd}.ENTREES', []):
+            call_command('ajoute_menu_categorie', stdout=sortie, **kw)
+        return sortie.getvalue()
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='principal', name='CNT-SO')
+        self.cat = make_cms_category(name='Doublon', slug='doublon',
+                                     section_slug='principal')
+
+    def _existe(self):
+        return CmsCategory.objects.filter(pk=self.cat.pk).exists()
+
+    def test_le_doublon_inerte_est_supprime(self):
+        self._lancer()
+        self.assertFalse(self._existe())
+
+    def test_dry_run_ne_supprime_rien(self):
+        self._lancer(dry_run=True)
+        self.assertTrue(self._existe())
+
+    def test_refus_si_un_article_y_est_range(self):
+        """Même un brouillon : `live()` ne suffirait pas comme critère."""
+        art = make_article_page(section_slug='principal', title='A', slug='a-doublon')
+        art.cms_categories.add(self.cat)
+        art.save()
+        art.unpublish()
+        self.assertIn('pas inerte', self._lancer())
+        self.assertTrue(self._existe())
+
+    def test_refus_si_une_entree_de_menu_la_vise(self):
+        """SET_NULL : la suppression ne lèverait pas, elle créerait une impasse."""
+        from content.models import MenuItem
+        MenuItem.objects.create(site=self.site, menu='main', title='X',
+                                link_type='category', category=self.cat)
+        self.assertIn('pas inerte', self._lancer())
+        self.assertTrue(self._existe())
+
+    def test_refus_si_elle_a_une_sous_categorie(self):
+        enfant = make_cms_category(name='Fille', slug='fille-doublon',
+                                   section_slug='principal')
+        enfant.parent = self.cat
+        enfant.save()
+        self.assertIn('pas inerte', self._lancer())
+        self.assertTrue(self._existe())
+
+    def test_la_commande_est_idempotente(self):
+        self._lancer()
+        self.assertIn('déjà supprimée', self._lancer())
 
 
 class LibelleCategorieAvecParentTest(TestCase):
