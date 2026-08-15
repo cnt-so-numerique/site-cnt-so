@@ -19,38 +19,44 @@ from django.db import transaction
 from cms.models import ArticlePage, CmsCategory, SectionPage
 from content.models import MenuItem
 
+# La rubrique des branches professionnelles s'appelle « Secteurs » en
+# production ; la base de développement l'a encore sous son ancien nom
+# « Syndicats ». D'où plusieurs noms acceptés, le premier trouvé gagne : la
+# commande doit tourner des deux côtés, et survivre à un renommage sans qu'on
+# ait à la modifier. Le premier `--dry-run` en prod a buté là-dessus.
+RUBRIQUE_SECTEURS = ('Secteurs', 'Syndicats')
+
 # Une ligne par entrée à créer. `ordre` est un souhait : si la place est déjà
 # prise chez les frères, l'entrée va à la fin plutôt que d'en bousculer une.
 ENTREES = [
     {
         'site': 'principal',
-        'rubrique': 'Syndicats',
+        'rubrique': RUBRIQUE_SECTEURS,
         'categorie': 'travailleur-euses-de-la-terre',
         'libelle': 'Travailleurs et Travailleuses de la Terre',
         'ordre': 13,
     },
     # Les trois autres branches que rien ne desservait (relevé du 15/08/2026).
-    # Le libellé du menu est écrit correctement même quand le nom de la
-    # catégorie porte une coquille d'import : « Animation & Education
-    # Popuplaire », slug `animation-education-popuplaire`. On ne renomme pas le
-    # slug, c'est l'adresse publique de ses 6 articles.
+    # La coquille d'import est dans le slug seul — `animation-education-
+    # popuplaire` — et on ne le renomme pas : c'est l'adresse publique de ses
+    # 6 articles. Le nom de la catégorie, lui, est correct en production.
     {
         'site': 'principal',
-        'rubrique': 'Syndicats',
+        'rubrique': RUBRIQUE_SECTEURS,
         'categorie': 'animation-education-popuplaire',
         'libelle': 'Animation & Éducation populaire',
         'ordre': 17,
     },
     {
         'site': 'principal',
-        'rubrique': 'Syndicats',
+        'rubrique': RUBRIQUE_SECTEURS,
         'categorie': 'institutions-financieres-et-assurances',
         'libelle': 'Institutions financières & Assurances',
         'ordre': 18,
     },
     {
         'site': 'principal',
-        'rubrique': 'Syndicats',
+        'rubrique': RUBRIQUE_SECTEURS,
         'categorie': 'interim',
         'libelle': 'Intérim',
         'ordre': 19,
@@ -102,20 +108,25 @@ class Command(BaseCommand):
 
     def _traiter(self, entree, sec):
         libelle = entree['libelle']
-        self.stdout.write(self.style.MIGRATE_HEADING(
-            f"{libelle} → {entree['site']} / {entree['rubrique']}"))
+        self.stdout.write(self.style.MIGRATE_HEADING(f"{libelle} → {entree['site']}"))
 
         site = SectionPage.objects.filter(slug=entree['site']).first()
         if site is None:
             return self._refus(f"site {entree['site']!r} introuvable : ignoré")
 
-        rubrique = MenuItem.objects.filter(
-            site=site, title=entree['rubrique'],
-            parent__isnull=True, menu='main').first()
+        noms = entree['rubrique']
+        if isinstance(noms, str):
+            noms = (noms,)
+        rubrique = None
+        for nom in noms:                 # premier trouvé, dans l'ordre donné
+            rubrique = MenuItem.objects.filter(
+                site=site, title=nom, parent__isnull=True, menu='main').first()
+            if rubrique is not None:
+                break
         if rubrique is None:
             return self._refus(
-                f"rubrique {entree['rubrique']!r} absente du menu principal "
-                f"de {site.slug} : ignoré")
+                f"aucune rubrique {' / '.join(map(repr, noms))} dans le menu "
+                f"principal de {site.slug} : ignoré")
 
         # `slugs_contenu` : un syndicat à slug hérité range ses contenus sous
         # l'un OU l'autre. Ne jamais filtrer sur le seul `slug` Wagtail.

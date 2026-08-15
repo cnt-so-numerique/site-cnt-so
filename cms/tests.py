@@ -2364,6 +2364,29 @@ class AjoutMenuCategorieTest(TestCase):
         sortie = self._lancer()      # ne doit pas lever
         self.assertIn('ignoré', sortie)
 
+    def test_plusieurs_noms_de_rubrique_acceptes(self):
+        """La rubrique s'appelle « Secteurs » en production et « Syndicats » en
+        base de développement : le premier `--dry-run` en prod n'a rien trouvé
+        et n'a rien créé. On accepte donc une liste de noms."""
+        from content.models import MenuItem
+        from django.core.management import call_command
+        from io import StringIO
+        from unittest.mock import patch
+        self.rubrique.title = 'Secteurs'
+        self.rubrique.save()
+        table = [{'site': 'principal', 'rubrique': ('Secteurs', 'Syndicats'),
+                  'categorie': 'terre', 'libelle': 'Terre', 'ordre': 1}]
+        with patch('cms.management.commands.ajoute_menu_categorie.ENTREES', table):
+            call_command('ajoute_menu_categorie', stdout=StringIO())
+        self.assertEqual(self._entrees().count(), 1)
+
+    def test_la_rubrique_de_secteurs_reste_celle_de_la_production(self):
+        """Verrou : si quelqu'un réduit RUBRIQUE_SECTEURS au seul nom de dev,
+        la commande redeviendra sans effet en production — en silence, puisque
+        « rubrique absente » est un avertissement, pas une erreur."""
+        from cms.management.commands.ajoute_menu_categorie import RUBRIQUE_SECTEURS
+        self.assertEqual(RUBRIQUE_SECTEURS[0], 'Secteurs')
+
     def test_la_table_reelle_ne_vise_pas_deux_fois_la_meme_categorie(self):
         """Les tests ci-dessus tournent sur une table forgée : celui-ci regarde
         celle qui sera jouée en production. Deux lignes vers la même catégorie
