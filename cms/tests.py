@@ -2287,3 +2287,67 @@ class RepointageMenuVersCategoriePleineTest(TestCase):
         self.item.refresh_from_db()
         self.assertEqual(self.item.category_id, self.vide.pk,
                          "repointé vers une catégorie vide")
+
+
+class LibelleCategorieAvecParentTest(TestCase):
+    """L'import WordPress a gardé la hiérarchie dans `parent` mais pas dans le
+    nom : le 13 a 20 catégories pour 4 libellés — sept « Revendiquons ! », six
+    « Vos droits », cinq « Actualités - luttes », deux « Se syndiquer » —
+    chacune sous un secteur différent, avec ses propres articles. La liste à
+    cocher du formulaire d'article n'affichait que le nom : indiscernables
+    (signalé par Arnaud le 05/08/2026)."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='13', name='CNT-SO 13')
+        self.btp = make_cms_category(name='BTP', slug='btp', section_slug='13')
+        self.nettoyage = make_cms_category(name='Nettoyage', slug='nettoyage',
+                                           section_slug='13')
+
+    def _sous(self, parent, nom, slug):
+        cat = make_cms_category(name=nom, slug=slug, section_slug='13')
+        cat.parent = parent
+        cat.save()
+        return cat
+
+    def test_le_parent_apparait_dans_le_libelle(self):
+        a = self._sous(self.btp, 'Revendiquons !', 'revendiquons')
+        b = self._sous(self.nettoyage, 'Revendiquons !', 'revendiquons-nettoyage')
+        self.assertEqual(str(a), 'BTP › Revendiquons !')
+        self.assertEqual(str(b), 'Nettoyage › Revendiquons !')
+        self.assertNotEqual(str(a), str(b),
+                            'deux catégories distinctes restent indiscernables')
+
+    def test_une_categorie_sans_parent_garde_son_nom(self):
+        self.assertEqual(str(self.btp), 'BTP')
+
+    def test_un_parent_de_meme_nom_ne_begaie_pas(self):
+        """L'import a laissé des cas où le parent porte le même nom."""
+        c = self._sous(self.btp, 'BTP', 'btp-bis')
+        self.assertEqual(str(c), 'BTP')
+
+    def test_les_gabarits_publics_ne_dependent_pas_de_str(self):
+        """Le préfixe doit rester confiné au back-office : les pages publiques
+        affichent `.name`."""
+        from pathlib import Path
+        import re
+        racine = Path(__file__).resolve().parent.parent / 'templates'
+        motif = re.compile(r'{{\s*(category|cat|categorie)\s*}}')
+        fautifs = [str(p.relative_to(racine)) for p in racine.rglob('*.html')
+                   if motif.search(p.read_text())]
+        self.assertEqual(fautifs, [], f'gabarits affichant str(catégorie) : {fautifs}')
+
+    def test_la_liste_a_cocher_ne_part_pas_en_n_plus_un(self):
+        """Une requête par catégorie ferait 62 requêtes rien que pour le 13."""
+        from django.test.utils import CaptureQueriesContext
+        from django.db import connection
+        from cms.models import CmsCategory
+
+        for i in range(12):
+            self._sous(self.btp, f'Rubrique {i}', f'rubrique-{i}')
+        qs = (CmsCategory.objects.filter(section_slug='13')
+              .select_related('parent').order_by('parent__name', 'name'))
+        with CaptureQueriesContext(connection) as ctx:
+            libelles = [str(c) for c in qs]
+        self.assertEqual(len(ctx.captured_queries), 1,
+                         f'{len(ctx.captured_queries)} requêtes pour '
+                         f'{len(libelles)} catégories')

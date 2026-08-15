@@ -119,9 +119,15 @@ def _make_scoped_article_page_view(base_class):
                 slug = current.slug
                 slugs = current.slugs_contenu
                 if 'cms_categories' in form.fields:
-                    form.fields['cms_categories'].queryset = CmsCategory.objects.filter(
-                        section_slug__in=slugs
-                    )
+                    # `select_related('parent')` : l'étiquette de chaque case
+                    # affiche le parent (cf. CmsCategory.__str__), sinon la
+                    # liste déclenche une requête par catégorie — 62 rien que
+                    # pour le 13.
+                    form.fields['cms_categories'].queryset = (
+                        CmsCategory.objects
+                        .filter(section_slug__in=slugs)
+                        .select_related('parent')
+                        .order_by('parent__name', 'name'))
                 if 'section_slug' in form.fields:
                     if chef:
                         form.fields['section_slug'].initial = slug

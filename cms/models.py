@@ -92,6 +92,21 @@ class CmsCategory(models.Model):
         ordering = ['name']
 
     def __str__(self):
+        """Nom précédé de son parent quand il y en a un.
+
+        L'import WordPress a conservé la hiérarchie dans `parent`, mais pas
+        dans le nom : le 13 a sept catégories « Revendiquons ! », six « Vos
+        droits » et cinq « Actualités - luttes », chacune sous un secteur
+        différent et portant ses propres articles. La liste à cocher du
+        formulaire d'article n'affichait que le nom — vingt lignes
+        indiscernables pour quatre libellés, où un rédacteur ne pouvait que
+        se tromper de rubrique (signalé par Arnaud le 05/08/2026).
+
+        Les gabarits publics utilisent `.name`, jamais `str()` : le préfixe
+        reste confiné au back-office.
+        """
+        if self.parent_id and self.parent.name != self.name:
+            return f'{self.parent.name} › {self.name}'
         return self.name
 
     def get_absolute_url(self):
