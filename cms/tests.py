@@ -2597,8 +2597,11 @@ class FiltreParCategorieTest(TestCase):
 
 class BoutonVoirLeSiteTest(TestCase):
     """Aucun renvoi vers le site public depuis le CMS (demande d'Arnaud,
-    05/08/2026). L'URL doit suivre le syndicat : un rédacteur du 13 arrive sur
-    13.cnt-so.org, pas sur la confédération."""
+    05/08/2026). Placé dans la barre du haut, à côté du sélecteur de syndicat,
+    plutôt que dans la barre latérale où Arnaud ne l'a pas trouvé.
+
+    L'URL suit le syndicat : un rédacteur du 13 arrive sur 13.cnt-so.org.
+    """
 
     MDP = 'test-voir-site'
 
@@ -2610,34 +2613,37 @@ class BoutonVoirLeSiteTest(TestCase):
         grp = Group.objects.get(name='redacteur_13')
         self.user = User.objects.create_user('r13v', 'a@b.fr', self.MDP)
         self.user.groups.set([grp])
+        self.client.login(username='r13v', password=self.MDP)
 
-    def _composant(self):
-        from django.test import RequestFactory
-        from cms.wagtail_hooks import VoirLeSiteMenuItem
-        req = RequestFactory().get('/cms/')
-        req.user = self.user
-        req.session = {}
-        item = VoirLeSiteMenuItem('Voir le site', '/', name='voir-le-site',
-                                  icon_name='link-external')
-        return item.render_component(req)
+    def _barre(self):
+        return self.client.get('/cms/current-site-fragment/').content.decode()
+
+    @staticmethod
+    def _href_du_lien(html):
+        import re
+        m = re.search(r'<a href="([^"]*)"[^>]*>\s*🌐 Voir le site', html)
+        return m.group(1) if m else None
+
+    def test_le_lien_est_dans_la_barre_du_haut(self):
+        self.assertIn('Voir le site', self._barre())
 
     def test_l_url_suit_le_syndicat(self):
-        self.assertEqual(self._composant().url, self.site.get_absolute_url())
+        html = self._barre()
+        href = self._href_du_lien(html)
+        self.assertIsNotNone(href, f'lien introuvable dans : {html[:300]}')
+        self.assertEqual(href, self.site.get_absolute_url())
 
     def test_le_lien_s_ouvre_dans_un_nouvel_onglet(self):
-        attrs = self._composant().attrs
-        self.assertEqual(attrs.get('target'), '_blank')
-        self.assertEqual(attrs.get('rel'), 'noopener')
+        html = self._barre()
+        i = html.find('Voir le site')
+        bloc = html[max(0, i - 320):i]
+        self.assertIn('target="_blank"', bloc)
+        self.assertIn('rel="noopener"', bloc)
 
     def test_sur_un_domaine_autonome_l_url_est_celle_du_domaine(self):
         self.site.custom_domain = '13.cnt-so.org'
         self.site.save()
-        self.assertIn('13.cnt-so.org', self._composant().url)
-
-    def test_l_entree_apparait_dans_le_cms(self):
-        self.client.login(username='r13v', password=self.MDP)
-        html = self.client.get('/cms/').content.decode()
-        self.assertIn('Voir le site', html)
+        self.assertIn('13.cnt-so.org', self._href_du_lien(self._barre()))
 
 
 class ApercuSurDomaineAutonomeTest(TestCase):

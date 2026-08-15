@@ -630,36 +630,6 @@ class SyndicatMenuItem(WagtailMenuItem):
         return _is_chef(request.user) or get_current_site(request) is not None
 
 
-class VoirLeSiteMenuItem(WagtailMenuItem):
-    """Renvoi vers le site public, ouvert dans un nouvel onglet.
-
-    L'URL suit le syndicat de l'utilisateur : un rédacteur du 13 arrive sur
-    13.cnt-so.org, pas sur la confédération. `MenuItem.url` étant figé à
-    l'enregistrement, on recalcule au rendu — c'est le seul endroit qui reçoit
-    la requête.
-    """
-
-    def render_component(self, request):
-        from wagtail.admin.ui.sidebar import LinkMenuItem
-        current = get_current_site(request)
-        url = current.get_absolute_url() if current else '/'
-        return LinkMenuItem(
-            self.name, self.label, url,
-            icon_name=self.icon_name, classname=self.classname,
-            attrs={'target': '_blank', 'rel': 'noopener',
-                   'title': f'Ouvrir {current.title if current else "le site"} '
-                            f'dans un nouvel onglet'},
-        )
-
-
-@hooks.register('register_admin_menu_item')
-def add_voir_le_site_menu_item():
-    return VoirLeSiteMenuItem(
-        'Voir le site', '/', name='voir-le-site',
-        icon_name='link-external', order=10,
-    )
-
-
 @hooks.register('register_admin_menu_item')
 def add_syndicats_menu_item():
     return ChefOnlyMenuItem(

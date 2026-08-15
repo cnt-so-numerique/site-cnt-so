@@ -35,6 +35,13 @@
     {% endcomment %}
     <a href="/cms/menus/" style="color:var(--w-color-text-meta);text-decoration:none;font-size:.875rem;">🗂️ Menus</a>
     <a href="/cms/snippets/content/newsletter/" style="color:var(--w-color-text-meta);text-decoration:none;font-size:.875rem;">📧</a>
+    {% comment %}
+    Renvoi vers le site public du syndicat courant. Nouvel onglet : on ne
+    perd pas le travail en cours dans le CMS.
+    {% endcomment %}
+    <a href="{{ current_site.get_absolute_url }}" target="_blank" rel="noopener"
+       title="Ouvrir {{ current_site.name }} dans un nouvel onglet"
+       style="color:var(--w-color-text-meta);text-decoration:none;font-size:.875rem;white-space:nowrap;">🌐 Voir le site</a>
     {% endif %}
     <a href="/cms/" style="color:var(--w-color-text-meta);text-decoration:none;font-size:.875rem;">🏠</a>
   </span>
