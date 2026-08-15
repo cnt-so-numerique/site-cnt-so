@@ -5632,3 +5632,61 @@ class LienVersUnSiteDepuisUnDomaineTest(TestCase):
             site=self.federation, menu='footer', title='CNT-SO 13',
             link_type='site', target_site=autre)
         self.assertIn('13.cnt-so.org', item.get_url())
+
+
+class LienPageParUrlTest(TestCase):
+    """« /page/<slug>/ » est une route réelle qui redirige (301) vers l'URL
+    canonique : le lien marche, mais coûte un aller-retour à chaque clic.
+    Trois entrées du pied de page confédéral étaient dans ce cas (constat H de
+    la passe 1, traité le 05/08/2026).
+
+    Le remède n'est pas de réécrire l'URL mais de rattacher l'entrée à la page :
+    le lien suivra alors un futur changement de slug.
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='principal', name='CNT-SO confédération')
+        self.page = make_content_page(slug='syndicats', title='Nos syndicats',
+                                      section_slug='principal')
+
+    def _lancer(self, **kw):
+        from django.core.management import call_command
+        from io import StringIO
+        call_command('fix_menus_morts', stdout=StringIO(), **kw)
+
+    def test_le_lien_est_rattache_a_la_page(self):
+        item = MenuItem.objects.create(
+            site=self.site, menu='footer', title='Syndicats',
+            link_type='url', url='/page/syndicats/')
+        self._lancer()
+        item.refresh_from_db()
+        self.assertEqual(item.link_type, 'page')
+        self.assertEqual(item.page_id, self.page.pk)
+        self.assertEqual(item.get_url(), self.page.get_absolute_url())
+        self.assertNotIn('/page/', item.get_url())
+
+    def test_une_page_introuvable_est_laissee_intacte(self):
+        item = MenuItem.objects.create(
+            site=self.site, menu='footer', title='Fantôme',
+            link_type='url', url='/page/nexiste-pas/')
+        self._lancer()
+        item.refresh_from_db()
+        self.assertEqual(item.link_type, 'url')
+        self.assertEqual(item.url, '/page/nexiste-pas/')
+
+    def test_une_url_qui_n_est_pas_une_page_est_ignoree(self):
+        item = MenuItem.objects.create(
+            site=self.site, menu='footer', title='Article',
+            link_type='url', url='/article/greve-2026/')
+        self._lancer()
+        item.refresh_from_db()
+        self.assertEqual(item.url, '/article/greve-2026/')
+
+    def test_la_commande_est_idempotente(self):
+        item = MenuItem.objects.create(
+            site=self.site, menu='footer', title='Syndicats',
+            link_type='url', url='/page/syndicats/')
+        self._lancer()
+        self._lancer()
+        item.refresh_from_db()
+        self.assertEqual(item.page_id, self.page.pk)

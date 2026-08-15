@@ -29,6 +29,7 @@ class Command(BaseCommand):
             self._section_staa(sec)
             self._liens_vers_sites(sec)
             self._flux_rss(sec)
+            self._pages_par_url(sec)
             self._categories_orphelines(sec)
             if sec:
                 transaction.set_rollback(True)
@@ -128,6 +129,48 @@ class Command(BaseCommand):
 
             self._agir(f'{item.title!r} ({item.site}) : /rss/ → {cible}',
                        corriger, sec)
+
+    # ── Les liens écrits « /page/<slug>/ » ──────────────────────────────────
+
+    def _pages_par_url(self, sec):
+        self.stdout.write(self.style.MIGRATE_HEADING(
+            "\nLiens vers une page écrits en /page/<slug>/ (301 par clic)"))
+        # `page_detail` existe et redirige vers l'URL canonique : le lien marche,
+        # mais coûte un aller-retour à chaque clic. Plutôt que réécrire l'URL à
+        # la main, on rattache l'entrée à la page : `get_url()` produit alors
+        # l'adresse canonique, et le lien suivra un futur changement de slug.
+        import re
+        from cms.models import ContentPage
+
+        motif = re.compile(r'^/(?:(?P<site>[\w-]+)/)?page/(?P<slug>[\w-]+)/?$')
+        candidats = MenuItem.objects.filter(link_type='url', url__contains='/page/')
+        touche = False
+        for item in candidats:
+            m = motif.match((item.url or '').strip())
+            if not m:
+                continue
+            slugs = item.site.slugs_contenu if item.site else {'principal'}
+            page = ContentPage.objects.filter(
+                slug=m.group('slug'), section_slug__in=slugs).first()
+            if page is None:
+                self.stdout.write(self.style.WARNING(
+                    f'  ? {item.title!r} ({item.site}) : page {m.group("slug")!r} '
+                    f'introuvable, laissé tel quel'))
+                touche = True
+                continue
+
+            def rattacher(item=item, page=page):
+                item.link_type = 'page'
+                item.page = page
+                item.url = ''
+                item.save(update_fields=['link_type', 'page', 'url'])
+
+            self._agir(f'{item.title!r} ({item.site}) : {item.url} → page '
+                       f'« {page.title} » [{page.get_absolute_url()}]',
+                       rattacher, sec)
+            touche = True
+        if not touche:
+            self.stdout.write('  aucun, rien à faire')
 
     # ── Les catégories rattachées à un syndicat hébergé ailleurs ─────────────
 
