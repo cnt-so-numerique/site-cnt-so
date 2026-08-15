@@ -29,8 +29,10 @@
   <span style="margin-left:auto;display:flex;gap:.5rem;align-items:center;">
     {% if current_site %}
     <a href="/cms/snippets/cms/articlepage/" style="color:var(--w-color-text-meta);text-decoration:none;font-size:.875rem;">📄 Articles</a>
-    {# Menus et newsletter sont gérés en autonomie par chaque syndicat : les
-       vues leur sont ouvertes, les raccourcis doivent l'être aussi. #}
+    {% comment %}
+    Menus et newsletter sont gérés en autonomie par chaque syndicat : les
+    vues leur sont ouvertes, les raccourcis doivent l'être aussi.
+    {% endcomment %}
     <a href="/cms/menus/" style="color:var(--w-color-text-meta);text-decoration:none;font-size:.875rem;">🗂️ Menus</a>
     <a href="/cms/snippets/content/newsletter/" style="color:var(--w-color-text-meta);text-decoration:none;font-size:.875rem;">📧</a>
     {% endif %}

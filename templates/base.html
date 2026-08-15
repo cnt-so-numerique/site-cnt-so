@@ -1676,9 +1676,11 @@
             </button>
             <div class="main-nav-content">
                 {% for item in main_nav %}
-                {# Une entrée sans destination ET sans sous-menu ne mène nulle
-                   part : les cibles sont en SET_NULL, un lien se vide tout seul
-                   quand sa cible est supprimée. #}
+                {% comment %}
+                Une entrée sans destination ET sans sous-menu ne mène nulle
+                part : les cibles sont en SET_NULL, un lien se vide tout seul
+                quand sa cible est supprimée.
+                {% endcomment %}
                 {% if not item.est_impasse %}
                 <div class="nav-item">
                     <a href="{{ item.get_url }}"{% if item.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>

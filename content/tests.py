@@ -5518,3 +5518,37 @@ class SitemapSectionExterneTest(TestCase):
         externe.save()
         corps = self.client.get('/sitemap.xml').content.decode()
         self.assertNotIn('staa-cnt-so.org', corps)
+
+
+class CommentaireDeGabaritTest(TestCase):
+    """`{# … #}` en Django ne vaut que sur UNE ligne.
+
+    Étalé sur plusieurs lignes il n'est pas reconnu comme commentaire : le
+    texte s'affiche en clair aux visiteurs. C'est arrivé le 05/08/2026 — un
+    commentaire de trois lignes ajouté au menu de `base.html` s'est imprimé
+    avant chaque entrée, sur toutes les pages du site, en production. La suite
+    de tests était verte : rien ne regardait le HTML rendu de si près.
+    """
+
+    def test_aucun_commentaire_multiligne_dans_les_gabarits(self):
+        from pathlib import Path
+        racine = Path(__file__).resolve().parent.parent / 'templates'
+        fautifs = []
+        for chemin in racine.rglob('*.html'):
+            for num, ligne in enumerate(chemin.read_text().splitlines(), start=1):
+                if '{#' in ligne and '#}' not in ligne.split('{#', 1)[1]:
+                    fautifs.append(f'{chemin.relative_to(racine)}:{num}')
+        self.assertEqual(
+            fautifs, [],
+            "Commentaire {# #} sur plusieurs lignes : Django ne le reconnaît "
+            f"pas et l'affiche aux visiteurs. Utiliser {{% comment %}} : {fautifs}")
+
+    def test_le_menu_rendu_ne_contient_aucun_reste_de_gabarit(self):
+        """Filet côté rendu : aucune page ne doit laisser fuir de syntaxe."""
+        site = make_site(slug='13', name='CNT-SO 13', site_type='regional')
+        MenuItem.objects.create(site=site, menu='main', title='Actualités',
+                                link_type='url', url='/actus/')
+        html = self.client.get('/13/').content.decode()
+        for reste in ('{#', '#}', '{%', '%}', '{{', '}}'):
+            self.assertNotIn(reste, html,
+                             f'{reste!r} laissé tel quel dans le HTML servi')
