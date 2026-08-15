@@ -2189,3 +2189,101 @@ class ContenuConfederalSurUnDomaineTest(TestCase):
                         obj.get_absolute_url().startswith('http'),
                         f'{obj} : adresse relative, elle viserait le mauvais '
                         f'hôte sur un domaine de fédération')
+
+
+class EtiquetageCategoriesTest(TestCase):
+    """STUCS était le seul syndicat dont AUCUN article ne portait de catégorie
+    locale : ses 31 articles portent des catégories confédérales — ce qui est
+    voulu, c'est ce qui les fait paraître sur le site national — et ses
+    8 catégories propres étaient vides, d'où 7 entrées de menu vers du vide
+    (audit du 05/08/2026).
+
+    La règle qui compte : on AJOUTE l'étiquette locale, on ne retire jamais la
+    confédérale.
+    """
+
+    def _lancer(self, **kw):
+        from django.core.management import call_command
+        from io import StringIO
+        from unittest.mock import patch
+        # La table de production est indexée par pk : on la rejoue sur
+        # l'article de test plutôt que de forger un pk (l'arbre Wagtail
+        # l'interdit).
+        table = {self.art.pk: ('greve', 'Grève 6MIC')}
+        with patch('cms.management.commands.fix_etiquetage_categories'
+                   '.ETIQUETTES_STUCS', table):
+            call_command('fix_etiquetage_categories', stdout=StringIO(), **kw)
+
+    def setUp(self):
+        _ensure_section_page(slug='stucs', name='CNT-SO STUCS')
+        self.conf = make_cms_category(name='Culture', slug='culture-conf',
+                                      section_slug='principal')
+        self.greve = make_cms_category(name='Grève', slug='greve',
+                                       section_slug='stucs')
+        self.art = make_article_page(section_slug='stucs', title='Grève 6MIC',
+                                     slug='greve-6mic')
+        # ParentalManyToManyField : sans save(), add() ne persiste rien.
+        self.art.cms_categories.add(self.conf)
+        self.art.save()
+
+    def test_l_etiquette_locale_est_ajoutee(self):
+        self._lancer()
+        slugs = {c.slug for c in ArticlePage.objects.get(pk=self.art.pk).cms_categories.all()}
+        self.assertIn('greve', slugs)
+
+    def test_la_categorie_confederale_est_conservee(self):
+        """Sans elle, l'article disparaîtrait des rubriques du site national."""
+        self._lancer()
+        slugs = {c.slug for c in ArticlePage.objects.get(pk=self.art.pk).cms_categories.all()}
+        self.assertIn('culture-conf', slugs)
+
+    def test_la_commande_est_idempotente(self):
+        self._lancer()
+        self._lancer()
+        cats = ArticlePage.objects.get(pk=self.art.pk).cms_categories.all()
+        self.assertEqual(cats.filter(slug='greve').count(), 1)
+
+    def test_une_categorie_absente_n_arrete_pas_la_commande(self):
+        self.greve.delete()
+        self._lancer()   # ne doit pas lever
+        self.assertTrue(ArticlePage.objects.filter(pk=self.art.pk).exists())
+
+
+class RepointageMenuVersCategoriePleineTest(TestCase):
+    """Le 13 a des doublons créés à l'import : le menu vise une catégorie vide
+    alors que la vraie, remplie, est juste à côté."""
+
+    def _lancer(self):
+        from django.core.management import call_command
+        from io import StringIO
+        call_command('fix_etiquetage_categories', stdout=StringIO())
+
+    def setUp(self):
+        from content.models import MenuItem
+        self.site = _ensure_section_page(slug='13', name='CNT-SO 13')
+        self.vide = make_cms_category(name='Transports', slug='transports',
+                                      section_slug='13')
+        self.pleine = make_cms_category(name='Luttes transports',
+                                        slug='actualites-luttes-transports',
+                                        section_slug='13')
+        art = make_article_page(section_slug='13', title='Grève bus', slug='greve-bus')
+        art.cms_categories.add(self.pleine)
+        art.save()
+        self.item = MenuItem.objects.create(site=self.site, menu='main',
+                                            title='Transports',
+                                            link_type='category',
+                                            category=self.vide)
+
+    def test_le_menu_vise_la_categorie_remplie(self):
+        self._lancer()
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.category_id, self.pleine.pk)
+
+    def test_on_ne_repointe_pas_vers_une_categorie_elle_aussi_vide(self):
+        """Le filet : repointer vers un autre vide ne réparerait rien."""
+        from cms.models import ArticlePage
+        ArticlePage.objects.filter(section_slug='13').delete()
+        self._lancer()
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.category_id, self.vide.pk,
+                         "repointé vers une catégorie vide")
