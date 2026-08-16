@@ -16,6 +16,58 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 
+def _empreinte(chemin):
+    """Empreinte SHA-1 du contenu, calculée comme Wagtail le fait lui-même."""
+    from wagtail.utils.file import hash_filelike
+    with open(chemin, 'rb') as f:
+        return hash_filelike(f)
+
+
+def _image_deja_importee(WImage, abs_path):
+    """Retrouve l'image déjà en médiathèque correspondant à ce fichier.
+
+    On ne peut PAS chercher sur le chemin : `AbstractImage.get_upload_to()`
+    passe le nom entier dans `get_valid_name()`, ce qui supprime les barres
+    obliques — « uploads/2019/02/casque-2.png » est stocké
+    « original_images/uploads201902casque-2.png ». Wagtail tronque en plus au
+    delà de 95 caractères et suffixe en cas de collision. L'ancienne recherche
+    `file=relative` ne pouvait donc jamais aboutir : chaque exécution recréait
+    les mêmes images (relevé par Arnaud, 16/08/2026).
+
+    La seule clé stable est le contenu. Mais `file_hash` n'est rempli par
+    Wagtail qu'à la demande — il était vide sur la totalité des 2 221 images en
+    production — donc chercher uniquement dessus aurait tout dupliqué. On
+    passe donc par un filtre de nom (large, juste pour restreindre), puis on
+    tranche sur l'empreinte, qu'on en profite pour mémoriser au passage.
+    """
+    empreinte = _empreinte(abs_path)
+
+    connue = WImage.objects.filter(file_hash=empreinte).first()
+    if connue:
+        return connue
+
+    # Le radical du nom survit à l'aplatissement : il sert de présélection.
+    radical = Path(abs_path).stem
+    if not radical:
+        return None
+    for candidat in WImage.objects.filter(file__contains=radical,
+                                          file_hash='')[:50]:
+        try:
+            with candidat.open_file() as f:
+                from wagtail.utils.file import hash_filelike
+                h = hash_filelike(f)
+        except Exception:
+            continue
+        # Mémoriser l'empreinte évite de relire ce fichier aux exécutions
+        # suivantes : la médiathèque se rattrape d'elle-même, sans commande
+        # de reprise à lancer.
+        candidat.file_hash = h
+        candidat.save(update_fields=['file_hash'])
+        if h == empreinte:
+            return candidat
+    return None
+
+
 def _find_or_create_wagtail_image(url, media_root, cache):
     """Crée ou retrouve une WagtailImage depuis une URL /media/..."""
     if not url:
@@ -34,16 +86,15 @@ def _find_or_create_wagtail_image(url, media_root, cache):
     else:
         relative = url.lstrip('/')
 
-    # Déjà importé ?
-    existing = WImage.objects.filter(file=relative).first()
-    if existing:
-        cache[url] = existing
-        return existing
-
     abs_path = Path(media_root) / relative
     if not abs_path.exists():
         cache[url] = None
         return None
+
+    existing = _image_deja_importee(WImage, abs_path)
+    if existing:
+        cache[url] = existing
+        return existing
 
     try:
         from django.core.files.base import File
@@ -56,6 +107,9 @@ def _find_or_create_wagtail_image(url, media_root, cache):
         wimg = WImage(title=abs_path.name, width=width, height=height)
         with open(abs_path, 'rb') as f:
             wimg.file.save(relative, File(f), save=False)
+        # Renseigner l'empreinte dès la création : sans elle, la prochaine
+        # exécution repartirait sur la présélection par nom.
+        wimg.file_hash = _empreinte(abs_path)
         wimg.save()
         cache[url] = wimg
         return wimg

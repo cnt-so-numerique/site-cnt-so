@@ -3835,3 +3835,65 @@ class AucunCompteExposeAuxRedacteursTest(TestCase):
         art.author_name = ''
         art.save()
         self.assertEqual(LatestArticlesFeed().item_author_name(art), 'CNT-SO')
+
+
+class DeduplicationDesImagesImporteesTest(TestCase):
+    """`migrate_images` recréait les mêmes images à chaque exécution.
+
+    Il cherchait l'image déjà importée sur `file=<chemin relatif>`, mais
+    `AbstractImage.get_upload_to()` passe le nom entier dans `get_valid_name()`
+    et supprime donc les barres obliques : « uploads/2019/02/casque.png » est
+    stocké « original_images/uploads201902casque.png ». La recherche ne pouvait
+    jamais aboutir (relevé par Arnaud, 16/08/2026).
+    """
+
+    def setUp(self):
+        import os
+        import tempfile
+        from wagtail.images.tests.utils import get_test_image_file
+        self.media = tempfile.mkdtemp()
+        # Un fichier posé dans une ARBORESCENCE : c'est elle qui déclenchait
+        # l'aplatissement, donc un fichier à la racine ne prouverait rien.
+        dossier = os.path.join(self.media, 'uploads', '2019', '02')
+        os.makedirs(dossier, exist_ok=True)
+        self.chemin = os.path.join(dossier, 'affiche-greve.png')
+        with open(self.chemin, 'wb') as f:
+            f.write(get_test_image_file().file.getvalue())
+        self.url = '/media/uploads/2019/02/affiche-greve.png'
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.media, ignore_errors=True)
+
+    def _importe(self):
+        """Cache vidé à chaque appel : on simule une nouvelle exécution."""
+        from cms.management.commands.migrate_images import _find_or_create_wagtail_image
+        return _find_or_create_wagtail_image(self.url, self.media, {})
+
+    def test_deux_executions_ne_creent_qu_une_image(self):
+        from wagtail.images import get_image_model
+        W = get_image_model()
+        depart = W.objects.count()
+
+        premiere = self._importe()
+        self.assertIsNotNone(premiere, "l'image aurait dû être créée")
+        self.assertEqual(W.objects.count(), depart + 1)
+
+        seconde = self._importe()
+        self.assertEqual(seconde.pk, premiere.pk,
+                         "la seconde exécution doit retrouver la première image")
+        self.assertEqual(W.objects.count(), depart + 1,
+                         "aucun doublon ne doit être créé")
+
+    def test_l_empreinte_est_memorisee_des_la_creation(self):
+        """Sans elle, la recherche repartirait sur la présélection par nom —
+        or Wagtail ne remplit `file_hash` qu'à la demande."""
+        image = self._importe()
+        self.assertTrue(image.file_hash)
+
+    def test_le_chemin_stocke_est_bien_aplati(self):
+        """Contrôle du diagnostic lui-même : si Wagtail cessait d'aplatir, la
+        déduplication par nom redeviendrait possible et ce test le signalerait."""
+        image = self._importe()
+        self.assertNotIn('uploads/2019/02', image.file.name)
+        self.assertIn('affiche-greve', image.file.name)
