@@ -1,9 +1,22 @@
 {% load wagtailimages_tags %}
+{% comment %}
+Le bloc recadrait trois fois : rendition `fill` (qui rogne), `aspect-ratio: 1`
+imposé, et `object-fit: cover`. Sur des photos ce serait sans conséquence, mais
+les visuels de la CNT-SO sont des AFFICHES — de l'image qui est déjà du texte.
+Les rogner coupe leurs mots : la galerie « Retraites » affichait « REFORM
+RETRAIT », « ivot ou pas… », « aites Macron » (constaté le 16/08/2026).
+
+L'affiche est donc « contenue » dans une case carrée, sur blanc : la grille
+reste régulière, et aucun mot n'est perdu. `max-` produit une rendition qui
+tient dans la boîte au lieu de la remplir en coupant.
+{% endcomment %}
 <div class="article-gallery" style="display:grid;grid-template-columns:repeat({{ value.columns }},1fr);gap:6px;margin:1.5rem 0;">
   {% for item in value.images %}
-    <figure style="margin:0;aspect-ratio:1;overflow:hidden;border-radius:4px;">
-      {% image item.image fill-400x400 as img %}
-      <img src="{{ img.url }}" alt="{{ item.image.title }}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">
+    <figure style="margin:0;">
+      <div style="aspect-ratio:1;background:#fff;border:1px solid #eaeaea;border-radius:4px;overflow:hidden;">
+        {% image item.image max-600x600 as img %}
+        <img src="{{ img.url }}" alt="{{ item.image.title }}" style="width:100%;height:100%;object-fit:contain;display:block;" loading="lazy">
+      </div>
       {% if item.caption %}<figcaption style="font-size:.875rem;color:#6b7280;padding:.25rem 0;">{{ item.caption }}</figcaption>{% endif %}
     </figure>
   {% endfor %}
