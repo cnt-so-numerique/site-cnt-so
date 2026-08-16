@@ -39,7 +39,13 @@ class SiteArticlesFeed(Feed):
     feed_type = Rss201rev2Feed
 
     def get_object(self, request, site_slug):
-        obj = SectionPage.objects.filter(Q(slug=site_slug) | Q(legacy_site_slug=site_slug)).first()
+        # `live=True` : sans lui, le flux d'un syndicat dépublié continuait de
+        # diffuser ses articles, alors que toutes ses pages renvoyaient un 404.
+        # Un agrégateur ou un lecteur RSS aurait gardé une fenêtre ouverte sur
+        # un site fermé (relevé le 16/08/2026).
+        obj = SectionPage.objects.filter(
+            Q(slug=site_slug) | Q(legacy_site_slug=site_slug), live=True
+        ).first()
         if obj is None:
             raise Http404
         return obj

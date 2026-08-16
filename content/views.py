@@ -13,19 +13,30 @@ from cms.models import ArticlePage, CmsCategory, SectionPage
 from taggit.models import Tag as TaggitTag
 
 
-def get_section_or_404(slug, **extra):
-    """Résout une SectionPage par son slug Wagtail *ou* son slug WordPress hérité.
+def get_section_or_404(slug, inclure_depublies=False, **extra):
+    """Résout une SectionPage PUBLIÉE par son slug Wagtail *ou* son slug hérité.
 
     Sur un domaine autonome, `SectionDomainMiddleware` préfixe le chemin avec
     `legacy_site_slug` quand celui-ci diffère du slug (cas Numérique : slug
     « numerique », legacy « stnum »). Chercher sur le seul `slug` renvoyait
     alors un 404 sur toutes les pages du sous-site sauf le contact et la home.
+
+    Le filtre sur `live` est le point important : dépublier un syndicat le
+    retirait des menus et des listes, mais ses URL continuaient de servir —
+    ses pages comme ses articles. Un site « désactivé » restait donc ouvert à
+    quiconque avait l'adresse, un signet ou un résultat de moteur de recherche
+    (constaté sur Rhône-Alpes, 16/08/2026). Dépublier ferme désormais le site.
+
+    `inclure_depublies` n'est là que pour les rares appels qui doivent voir un
+    syndicat dépublié — jamais depuis une vue publique.
     """
+    if not inclure_depublies:
+        extra.setdefault('live', True)
     section = SectionPage.objects.filter(
         Q(slug=slug) | Q(legacy_site_slug=slug), **extra
     ).first()
     if section is None:
-        raise Http404(f"Syndicat introuvable : {slug}")
+        raise Http404(f"Syndicat introuvable ou dépublié : {slug}")
     return section
 
 
@@ -736,7 +747,10 @@ class SiteContactView(_BaseContactView):
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
         slug = kwargs['site_slug']
-        self.site_obj = SectionPage.objects.filter(Q(slug=slug) | Q(legacy_site_slug=slug)).first()
+        # Passe par get_section_or_404 : cette vue faisait sa propre résolution,
+        # sans filtrer sur `live` — le formulaire de contact restait donc
+        # ouvert sur un syndicat dépublié.
+        self.site_obj = get_section_or_404(slug)
         if self.site_obj is None:
             raise Http404
 
@@ -750,7 +764,7 @@ class SiteContactView(_BaseContactView):
 
 
 def site_contact_success(request, site_slug):
-    site_obj = SectionPage.objects.filter(Q(slug=site_slug) | Q(legacy_site_slug=site_slug)).first()
+    site_obj = get_section_or_404(site_slug)
     if site_obj is None:
         raise Http404
     return render(request, 'content/contact_success.html', {'site': site_obj})

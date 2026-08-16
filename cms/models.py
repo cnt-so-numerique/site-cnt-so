@@ -511,6 +511,36 @@ ARTICLE_BODY_BLOCKS = [
 
 # ── Types de pages ────────────────────────────────────────────────────────────
 
+class ContenuDeSyndicatMixin:
+    """Referme un contenu quand le syndicat qui le porte est dépublié.
+
+    Wagtail sert une page publiée sans regarder si son parent l'est : dépublier
+    un syndicat laissait donc ses articles et ses pages accessibles à qui avait
+    l'adresse, alors que sa page d'accueil, elle, renvoyait un 404 (constaté sur
+    Rhône-Alpes le 16/08/2026). Le site paraissait fermé et ne l'était pas.
+
+    Le rattachement se fait par `section_slug`, qui peut porter le slug Wagtail
+    ou le slug WordPress hérité — les deux sont acceptés, comme partout ailleurs.
+    """
+
+    def _syndicat_est_publie(self):
+        slug = getattr(self, 'section_slug', '')
+        # Le site confédéral n'est pas un sous-site : rien à refermer.
+        if not slug or slug == 'principal':
+            return True
+        return SectionPage.objects.filter(
+            models.Q(slug=slug) | models.Q(legacy_site_slug=slug), live=True
+        ).exists()
+
+    def serve(self, request, *args, **kwargs):
+        if not self._syndicat_est_publie():
+            from django.http import Http404
+            raise Http404(
+                f"Contenu rattaché à un syndicat dépublié : {self.section_slug}"
+            )
+        return super().serve(request, *args, **kwargs)
+
+
 class HomePage(Page):
     """Page racine du site CNT-SO. Une seule instance."""
 
@@ -919,7 +949,7 @@ class PanneauChefSeulement(FieldPanel):
             return super().is_shown() and is_chef(self.request.user)
 
 
-class ArticlePage(SeoMixin, Page):
+class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
     """Article de blog — remplace content.Article."""
 
     body = StreamField(
@@ -1163,7 +1193,7 @@ class ArticlePage(SeoMixin, Page):
         return None
 
 
-class ContentPage(Page):
+class ContentPage(ContenuDeSyndicatMixin, Page):
     """Page statique — remplace content.Page."""
 
     body = StreamField(

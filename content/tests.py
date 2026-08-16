@@ -5962,3 +5962,72 @@ class SouscriptionViewTest(TestCase):
         rédacteur qui a saisi un vrai titre dans /cms/."""
         from content.views import _libelle_document
         self.assertEqual(_libelle_document('Tract à diffuser'), 'Tract à diffuser')
+
+
+class SyndicatDepublieTest(TestCase):
+    """Dépublier un syndicat doit fermer son site, pas seulement le masquer.
+
+    Avant le 16/08/2026, `live=False` le retirait des menus et des listes, mais
+    ses URL continuaient de servir : page d'accueil, contact, agenda, flux RSS
+    et articles. Un site « désactivé » restait ouvert à quiconque avait
+    l'adresse, un signet ou un résultat de moteur de recherche.
+    """
+
+    def setUp(self):
+        make_site()  # la conf, dont dépendent les gabarits
+        self.site = make_site('ferme', wp_blog_id=91, site_type='regional',
+                              name='Syndicat Fermé')
+        self.article = make_article_page(section_slug='ferme',
+                                         title='Tract', slug='tract-ferme')
+
+    URLS = ('/ferme/', '/ferme/contact/', '/ferme/agenda/', '/ferme/feed/',
+            '/ferme/article/tract-ferme/')
+
+    def _codes(self):
+        return {u: self.client.get(u).status_code for u in self.URLS}
+
+    def test_publie_tout_repond(self):
+        """Contrôle positif : sans lui, un garde-fou qui fermerait tout,
+        publié ou non, passerait le test suivant sans qu'on le voie."""
+        for url, code in self._codes().items():
+            with self.subTest(url=url):
+                self.assertEqual(code, 200)
+
+    def test_depublie_tout_est_ferme(self):
+        self.site.live = False
+        self.site.save(update_fields=['live'])
+        for url, code in self._codes().items():
+            with self.subTest(url=url):
+                self.assertEqual(code, 404,
+                                 f"{url} sert encore un syndicat dépublié")
+
+    def test_les_articles_ne_survivent_pas_a_leur_syndicat(self):
+        """Wagtail sert une page publiée sans regarder si son parent l'est :
+        c'est par là que les articles restaient accessibles. On appelle donc
+        `serve()` directement, le chemin que Wagtail emprunte."""
+        from django.http import Http404
+        from django.test import RequestFactory
+        self.site.live = False
+        self.site.save(update_fields=['live'])
+        self.article.refresh_from_db()
+        self.assertTrue(self.article.live, "l'article reste publié en base")
+        with self.assertRaises(Http404):
+            self.article.serve(RequestFactory().get('/ferme/tract-ferme/'))
+
+    def test_un_article_de_la_conf_reste_servi(self):
+        """Le garde-fou ne doit pas se déclencher sur le site confédéral,
+        qui n'est pas un sous-site."""
+        from django.test import RequestFactory
+        art = make_article_page(section_slug='principal', title='Conf',
+                                slug='art-conf-garde-fou')
+        reponse = art.serve(RequestFactory().get('/article/art-conf-garde-fou/'))
+        self.assertEqual(reponse.status_code, 200)
+
+    def test_un_syndicat_voisin_reste_servi(self):
+        """Le garde-fou ne doit fermer que le syndicat visé."""
+        voisin = make_site('ouvert', wp_blog_id=92, site_type='regional',
+                           name='Syndicat Ouvert')
+        self.site.live = False
+        self.site.save(update_fields=['live'])
+        self.assertEqual(self.client.get('/ouvert/').status_code, 200)
+        self.assertTrue(voisin.live)
