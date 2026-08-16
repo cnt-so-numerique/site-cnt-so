@@ -71,6 +71,8 @@ urlpatterns = [
     # désormais une vraie page, et les sept liens du site qui pointaient déjà
     # sur ce nom d'URL y arrivent sans changement.
     path('souscription/', views.SouscriptionView.as_view(), name='souscription'),
+    path('permanences-juridiques/', views.PermanencesJuridiquesView.as_view(),
+         name='permanences_juridiques'),
 
     # Articles et pages du site principal
     path('article/<slug:slug>/', views.ArticleDetailView.as_view(), name='article_detail'),

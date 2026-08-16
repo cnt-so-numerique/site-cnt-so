@@ -684,3 +684,76 @@ class NewsletterArticle(models.Model):
     class Meta:
         ordering = ['order']
         unique_together = [['newsletter', 'article']]
+
+
+class Permanence(models.Model):
+    """Permanence syndicale et juridique d'un syndicat local.
+
+    Ces coordonnées vivaient dans un bloc HTML écrit à la main sur la page
+    « Nos permanences juridiques » : ajouter une ville supposait de recopier
+    des `<div style="...">`, ce qu'aucun rédacteur ne pouvait faire sans
+    risque — et l'ancien rouge, écarté pour contraste insuffisant, y traînait
+    encore faute d'oser y toucher (relevé par Arnaud, 16/08/2026).
+    """
+
+    site = models.ForeignKey(
+        'cms.SectionPage',
+        on_delete=models.CASCADE,
+        related_name='permanences',
+        null=True, blank=True,
+        verbose_name='Syndicat',
+        help_text="Le syndicat qui tient cette permanence.",
+    )
+    ville = models.CharField(
+        max_length=120,
+        help_text="Tel qu'affiché en titre de fiche, ex. « CNT-SO 13 — Marseille ».",
+    )
+    adresse = models.CharField(
+        max_length=300,
+        help_text="Rue, code postal, ville. Ajoutez le métro ou l'arrêt si utile.",
+    )
+    horaires = models.CharField(
+        max_length=200, blank=True,
+        help_text="Ex. « Lun–Ven 09h–12h / 14h–17h ». Laisser vide si variable.",
+    )
+    telephone = models.CharField(max_length=40, blank=True)
+    telephone_secondaire = models.CharField(
+        max_length=40, blank=True,
+        help_text="Second numéro, si la permanence en annonce deux.",
+    )
+    email = models.EmailField(blank=True)
+    lien = models.URLField(
+        blank=True,
+        help_text="Page ou site du syndicat. Laisser vide s'il n'y en a pas : "
+                  "le bouton disparaît alors.",
+    )
+    libelle_lien = models.CharField(
+        max_length=60, blank=True, default='En savoir plus',
+        verbose_name='Libellé du bouton',
+    )
+    order = models.PositiveIntegerField(
+        default=0, verbose_name='Ordre',
+        help_text="Les plus petits nombres s'affichent en premier.",
+    )
+    is_active = models.BooleanField(default=True, verbose_name='Affichée')
+
+    class Meta:
+        verbose_name = 'Permanence juridique'
+        verbose_name_plural = 'Permanences juridiques'
+        ordering = ['order', 'ville']
+
+    def __str__(self):
+        return self.ville
+
+    @property
+    def telephones(self):
+        """Les numéros renseignés, chacun avec sa forme cliquable.
+
+        Le gabarit reçoit le couple tout fait plutôt que d'enchaîner trois
+        filtres `cut` pour fabriquer le `tel:` — c'était illisible et ça
+        cassait au premier numéro écrit autrement.
+        """
+        return [
+            {'texte': t, 'href': t.replace(' ', '').replace('.', '').replace('-', '')}
+            for t in (self.telephone, self.telephone_secondaire) if t
+        ]

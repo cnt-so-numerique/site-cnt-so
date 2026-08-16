@@ -17,6 +17,7 @@ from .models import (
     Comment,
     ContactMessage,
     FormulaireContact,
+    Permanence,
     Subscriber,
     Newsletter,
 )
@@ -343,11 +344,51 @@ class ContactConfigViewSet(ViewSetCloisonne, SnippetViewSet):
 
 
 
+class PermanenceViewSet(ViewSetCloisonne, SnippetViewSet):
+    """Les permanences juridiques, en fiches à remplir.
+
+    Elles étaient écrites en HTML brut dans le corps de la page : ajouter une
+    ville demandait de recopier des balises. Chaque syndicat gère désormais la
+    sienne depuis /cms/, sans toucher au code.
+    """
+    cloisonnement = ('fk', 'site')
+    model = Permanence
+    icon = 'home'
+    menu_label = 'Permanences juridiques'
+    menu_order = 120
+    list_display = ['ville', 'site', 'horaires', 'order', 'is_active']
+    list_filter = ['site', 'is_active']
+    search_fields = ['ville', 'adresse', 'email']
+    ordering = ['order', 'ville']
+
+    panels = [
+        FieldRowPanel([
+            FieldPanel('site'),
+            FieldPanel('ville'),
+        ]),
+        FieldPanel('adresse'),
+        FieldPanel('horaires'),
+        FieldRowPanel([
+            FieldPanel('telephone'),
+            FieldPanel('telephone_secondaire'),
+        ]),
+        FieldPanel('email'),
+        MultiFieldPanel([
+            FieldPanel('lien'),
+            FieldPanel('libelle_lien'),
+        ], heading='Bouton (facultatif)'),
+        FieldRowPanel([
+            FieldPanel('order'),
+            FieldPanel('is_active'),
+        ]),
+    ]
+
+
 class ContactGroup(SnippetViewSetGroup):
     menu_label = 'Contact'
     menu_icon = 'form'
     menu_order = 250
-    items = (ContactMessagesViewSet, ContactConfigViewSet)
+    items = (ContactMessagesViewSet, ContactConfigViewSet, PermanenceViewSet)
 
 
 class ModerationsGroup(SnippetViewSetGroup):

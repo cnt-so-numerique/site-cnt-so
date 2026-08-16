@@ -926,6 +926,27 @@ def _libelle_document(titre):
     return ' '.join(mots).capitalize() if mots else titre
 
 
+class PermanencesJuridiquesView(TemplateView):
+    """Page des permanences syndicales et juridiques.
+
+    Le contenu venait d'un bloc HTML écrit à la main : les fiches sont
+    désormais des `Permanence` éditables dans /cms/, et le chapô reste le
+    corps de la page statique.
+    """
+    template_name = 'content/permanences_juridiques.html'
+
+    def get_context_data(self, **kwargs):
+        from .models import Permanence
+        ctx = super().get_context_data(**kwargs)
+        ctx['site'] = SectionPage.objects.filter(slug='principal').first()
+        ctx['intro_page'] = _page_editoriale('principal', 'permanences-juridiques')
+        ctx['permanences'] = (Permanence.objects.filter(is_active=True)
+                              .select_related('site')
+                              .order_by('order', 'ville'))
+        ctx.update(_sidebar_context('principal'))
+        return ctx
+
+
 class SouscriptionView(TemplateView):
     """Page d'appel à la souscription permanente.
 

@@ -19,7 +19,7 @@ from cms.cloisonnement import ViewSetCloisonne
 from cms.models import ArticlePage, Event, SectionPage
 from content.models import (
     Author, Comment, ContactMessage, FormulaireContact, MenuItem,
-    Newsletter, Subscriber,
+    Newsletter, Permanence, Subscriber,
 )
 from content.tests import (
     _ensure_section_page, make_article, make_article_page,
@@ -80,6 +80,8 @@ FABRIQUES = {
         site=s, title=f'Lien {s.slug}'),
     'content.Author': lambda s: Author.objects.create(
         site=s, username=f'auteur-{s.slug}'),
+    'content.Permanence': lambda s: Permanence.objects.create(
+        site=s, ville=f'Permanence {s.slug}', adresse='1 rue du Travail'),
 }
 
 # Paramètres d'URL autres que `pk` : on vise volontairement des identifiants

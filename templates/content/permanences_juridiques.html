@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% load wagtailcore_tags %}
+
+{% block title %}Nos permanences juridiques — CNT-SO{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Les fiches étaient du HTML écrit à la main dans le corps de la page : pour
+   ajouter une ville il fallait recopier des `<div style="...">`, et l'ancienne
+   teinte de rouge — écartée pour contraste insuffisant — y subsistait faute
+   d'oser y toucher. Elles viennent maintenant du snippet « Permanence », et la
+   mise en forme vit ici, à un seul endroit, sur la couleur de charte.
+
+   (Ne pas citer l'ancien code hexadécimal dans ce fichier : le test de
+   contraste balaie les gabarits sans distinguer une couleur employée d'une
+   couleur mentionnée — il m'a repris ici même, à raison.) */
+.perm-intro {
+    color: var(--text-secondary);
+    font-size: 17px;
+    line-height: 1.7;
+    margin-bottom: 2rem;
+}
+
+.perm-liste { display: grid; gap: 1.25rem; }
+
+.perm-fiche {
+    background: var(--white);
+    border: 1px solid var(--bg-lighter);
+    border-left: 4px solid var(--primary-color);
+    padding: 1.25rem 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 1rem;
+}
+/* Le bouton passe sous le texte plutôt que de comprimer l'adresse. */
+@media (max-width: 640px) {
+    .perm-fiche { grid-template-columns: 1fr; }
+}
+
+.perm-ville {
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    margin: 0 0 .4rem;
+}
+.perm-details {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 15px;
+    line-height: 1.6;
+}
+.perm-details a { color: var(--text-color); }
+.perm-details a.perm-mail { color: var(--primary-color); }
+
+.perm-bouton {
+    background: var(--primary-color);
+    color: #fff;
+    padding: .5rem 1.1rem;
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 3px;
+    white-space: nowrap;
+    justify-self: start;
+}
+.perm-bouton:hover { background: var(--primary-dark); color: #fff; text-decoration: none; }
+
+.perm-pied {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: var(--bg-light);
+    border-left: 3px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 15px;
+}
+.perm-pied a { color: var(--primary-color); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="{% url 'content:home' %}">Accueil</a> /
+    <span>Nos permanences juridiques</span>
+</div>
+
+<h1 class="section-title">Nos permanences juridiques</h1>
+
+{% if intro_page and intro_page.body %}
+<div class="perm-intro">
+    {% for bloc in intro_page.body %}{% include_block bloc %}{% endfor %}
+</div>
+{% else %}
+<p class="perm-intro">
+    La CNT-SO propose des permanences syndicales et juridiques gratuites dans plusieurs
+    villes. Nos militant·es vous accueillent pour répondre à vos questions en droit du
+    travail, vous aider face à votre employeur, ou vous informer sur vos droits.
+</p>
+{% endif %}
+
+<div class="perm-liste">
+    {% for p in permanences %}
+    <div class="perm-fiche">
+        <div>
+            <h2 class="perm-ville">{{ p.ville }}</h2>
+            <p class="perm-details">
+                {{ p.adresse }}<br>
+                {% if p.horaires %}{{ p.horaires }}{% endif %}
+                {% for t in p.telephones %}
+                {% if p.horaires or not forloop.first %}&nbsp;·&nbsp;{% endif %}
+                <a href="tel:{{ t.href }}">{{ t.texte }}</a>
+                {% endfor %}
+                {% if p.email %}
+                {% if p.horaires or p.telephones %}&nbsp;·&nbsp;{% endif %}
+                <a class="perm-mail" href="mailto:{{ p.email }}">{{ p.email }}</a>
+                {% endif %}
+            </p>
+        </div>
+        {% if p.lien %}
+        <a class="perm-bouton" href="{{ p.lien }}">{{ p.libelle_lien|default:"En savoir plus" }}</a>
+        {% endif %}
+    </div>
+    {% empty %}
+    <p style="color:var(--text-muted);">Aucune permanence renseignée pour le moment.</p>
+    {% endfor %}
+</div>
+
+<p class="perm-pied">
+    D'autres permanences sont organisées ponctuellement par nos syndicats locaux.
+    <a href="{% url 'content:contact' %}">Contactez-nous</a> pour connaître la
+    permanence la plus proche de chez vous.
+</p>
+{% endblock %}
