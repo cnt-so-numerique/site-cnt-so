@@ -565,18 +565,57 @@ class HomeViewTest(TestCase):
         response = self.client.get(reverse('content:home'))
         self.assertIn(art, response.context['carousel_articles'])
 
-    def test_all_latest_articles_contains_recent_articles(self):
-        arts = [make_article_page(section_slug='principal', title=f'Art {i}', slug=f'art-{i}')
+    def test_all_latest_articles_exclut_la_confederation(self):
+        """« Le réseau » donne la parole aux syndicats et fédérations. La conf
+        tient déjà le carrousel, la sélection et les colonnes : l'y remettre
+        repoussait les sous-sites hors des 9 places."""
+        make_site('reseau-test', wp_blog_id=42, site_type='sectoral', name='Réseau Test')
+        conf = [make_article_page(section_slug='principal', title=f'Art {i}', slug=f'art-{i}')
                 for i in range(4)]
+        sous_site = make_article_page(section_slug='reseau-test',
+                                      title='Art fédé', slug='art-fede')
         response = self.client.get(reverse('content:home'))
-        for art in arts:
-            self.assertIn(art, response.context['all_latest_articles'])
+        reseau = response.context['all_latest_articles']
+        self.assertIn(sous_site, reseau)
+        for art in conf:
+            self.assertNotIn(art, reseau)
 
     def test_all_latest_articles_capped_at_9(self):
+        make_site('reseau-test', wp_blog_id=42, site_type='sectoral', name='Réseau Test')
         for i in range(12):
-            make_article_page(section_slug='principal', title=f'Flux {i}', slug=f'flux-{i}')
+            make_article_page(section_slug='reseau-test', title=f'Flux {i}', slug=f'flux-{i}')
         response = self.client.get(reverse('content:home'))
-        self.assertLessEqual(len(response.context['all_latest_articles']), 9)
+        self.assertEqual(len(response.context['all_latest_articles']), 9)
+
+    def test_le_reseau_ne_laisse_pas_un_site_bavard_tout_rafler(self):
+        """Un tour de table entre sites : une place chacun avant d'en donner
+        une deuxième à quiconque. À prendre les 9 plus récents tels quels, le
+        syndicat le plus actif occupait les 9 places et les autres
+        n'apparaissaient nulle part sur l'accueil."""
+        for blog_id, (slug, nom) in enumerate((('bavard', 'Le Bavard'),
+                                               ('discret', 'Le Discret')), start=51):
+            make_site(slug, wp_blog_id=blog_id, site_type='sectoral', name=nom)
+        for i in range(15):
+            make_article_page(section_slug='bavard', title=f'Bavard {i}', slug=f'bavard-{i}')
+        discret = make_article_page(section_slug='discret',
+                                    title='Discret 0', slug='discret-0')
+
+        reseau = self.client.get(reverse('content:home')).context['all_latest_articles']
+
+        self.assertIn(discret, reseau,
+                      "le site discret doit avoir sa place malgré le bavard")
+        bavards = [a for a in reseau if a.section_slug == 'bavard']
+        self.assertEqual(len(bavards), 8,
+                         "le bavard prend les places restantes, pas toutes")
+
+    def test_le_reseau_remplit_les_places_meme_avec_un_seul_site(self):
+        """Le tour de table ne doit pas laisser de trous : s'il n'y a qu'un
+        site, il remplit les 9 places comme avant."""
+        make_site('solo', wp_blog_id=77, site_type='sectoral', name='Solo')
+        for i in range(12):
+            make_article_page(section_slug='solo', title=f'Solo {i}', slug=f'solo-{i}')
+        reseau = self.client.get(reverse('content:home')).context['all_latest_articles']
+        self.assertEqual(len(reseau), 9)
 
     def test_all_latest_articles_includes_sous_sites(self):
         make_site('reseau-test', wp_blog_id=42, site_type='sectoral', name='Réseau Test')
@@ -5038,11 +5077,18 @@ class NavigationClavierTest(TestCase):
                 remplacement,
                 f"« {selecteur} » retire le contour de focus sans le remplacer")
 
-    def test_les_cartes_de_la_manchette_se_revelent_au_clavier(self):
-        """Le cartouche porte le lien du titre : sans :focus-within, on tabule
-        sur un lien invisible."""
+    def test_le_titre_des_cartes_de_la_manchette_est_toujours_visible(self):
+        """Le titre était masqué jusqu'au survol, posé sur l'affiche. Au doigt
+        personne ne survole, et au clavier on tabulait sur un lien invisible :
+        il fallait un `:focus-within` pour rattraper le coup. Le titre est
+        maintenant sous l'affiche, affiché en permanence — plus de cartouche à
+        révéler, donc plus de lien invisible possible."""
+        import re
         html = self.client.get('/').content.decode()
-        self.assertIn('.hp-mcard:focus-within .hp-mcard-body', html)
+        bloc = re.search(r'\.hp-mcard-body\s*\{([^}]*)\}', html)
+        self.assertIsNotNone(bloc, "règle .hp-mcard-body introuvable")
+        self.assertNotIn('opacity: 0', bloc.group(1),
+                         "le titre des cartes ne doit pas dépendre du survol")
 
     def _accueil_avec_carrousel(self):
         """Deux articles à la une : le carrousel ne s'anime qu'au-delà d'un."""
@@ -5057,13 +5103,15 @@ class NavigationClavierTest(TestCase):
                       "le carrousel devrait être rendu")
         return html
 
-    def test_le_carrousel_peut_etre_mis_en_pause(self):
+    def test_le_carrousel_ne_defile_pas_tout_seul(self):
         """WCAG 2.2.2 (niveau A) : tout contenu qui défile seul au-delà de
-        5 secondes doit pouvoir être arrêté."""
+        5 secondes doit pouvoir être arrêté. Le carrousel se passe de bouton
+        pause parce qu'il ne bouge que sur clic — supprimer la minuterie sans
+        remettre la pause rouvrirait le manquement."""
         html = self._accueil_avec_carrousel()
-        self.assertIn('id="hp-pause"', html,
-                      "le carrousel doit offrir un bouton de pause")
-        self.assertIn('Mettre le défilement en pause', html)
+        self.assertNotIn('setInterval', html,
+                         "le carrousel ne doit pas défiler de lui-même : sans "
+                         "minuterie, aucun bouton pause n'est exigible")
 
     def test_le_carrousel_respecte_le_reglage_animations_reduites(self):
         html = self._accueil_avec_carrousel()
@@ -5072,13 +5120,14 @@ class NavigationClavierTest(TestCase):
                       "l'utilisateur a réduit les animations")
 
     def test_les_diapositives_inactives_sont_hors_de_l_ordre_de_tabulation(self):
-        """pointer-events ne bloque que la souris ; il faut visibility pour
-        retirer les liens du parcours clavier."""
+        """Masquer par `opacity` ou `pointer-events` laisse les liens dans le
+        parcours clavier : on tabule sur une diapositive invisible. `display:
+        none` les en retire, et les retire aussi de l'arbre d'accessibilité."""
         import re
         html = self.client.get('/').content.decode()
         bloc = re.search(r'\.hp-carousel-slide\s*\{([^}]*)\}', html)
         self.assertIsNotNone(bloc, "règle .hp-carousel-slide introuvable")
-        self.assertIn('visibility: hidden', bloc.group(1))
+        self.assertIn('display: none', bloc.group(1))
 
 
 class HierarchieDesTitresTest(TestCase):

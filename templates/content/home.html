@@ -27,136 +27,130 @@
 }
 
 /* ----------------------------------------------------------
-   COLONNE GAUCHE — HERO "À la une"
-   ---------------------------------------------------------- */
-/* ----------------------------------------------------------
-   CARROUSEL HERO
+   CARROUSEL « À LA UNE »
+   ----------------------------------------------------------
+   Les visuels de la CNT-SO sont des AFFICHES : de l'image qui est déjà du
+   texte. Un titre en surimpression posait donc deux écritures l'une sur
+   l'autre, illisibles quel que soit le voile. C'était criant sur téléphone, ça
+   l'était tout autant sur grand écran (relevé par Arnaud, 16/08/2026).
+
+   D'où le parti pris, identique à toutes les largeurs : l'affiche entière, sur
+   fond blanc, ni recadrée ni assombrie ; le titre EN DESSOUS, en noir ; les
+   commandes dans une barre à elles, plus bas encore. Rien ne se superpose,
+   donc plus rien ne peut se masquer.
    ---------------------------------------------------------- */
 .hp-carousel {
     position: relative;
-    overflow: hidden;
-    background: #111;
-    margin: 0 auto;
-    max-width: 1280px;
-    min-height: 260px;
+    background: var(--white);
+    /* Blanc sur page blanche, le bloc flottait sans contour : un filet discret
+       lui redonne un bord, sans le charger. */
+    border: 1px solid var(--bg-lighter);
+    /* Plus de max-width ni de centrage : le carrousel prend la largeur de
+       la colonne de contenu (884 px sur un écran large) au lieu des 1280 px
+       qui barraient la page. */
+    margin-top: 0.5rem;
 }
 
-@media (min-width: 641px) {
-    .hp-carousel { min-height: 360px; }
-}
+.hp-carousel-track { position: relative; }
 
-.hp-carousel-track {
-    position: relative;
-    width: 100%;
-    height: 100%;
-}
-
-.hp-carousel-slide {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    /* visibility retire aussi les liens de l'ordre de tabulation et de l'arbre
-       d'accessibilité — pointer-events ne bloque que la souris. */
-    visibility: hidden;
-    transition: opacity .6s ease, visibility .6s ease;
-    pointer-events: none;
-}
+/* `display` plutôt qu'`opacity` : une diapositive masquée sort du même coup de
+   l'ordre de tabulation et de l'arbre d'accessibilité, et surtout elle n'a
+   plus besoin d'être empilée en position absolue. C'est cet empilement qui
+   imposait une hauteur fixe à toutes les affiches. */
+.hp-carousel-slide { display: none; }
 
 .hp-carousel-slide--active {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-    position: relative;
+    display: flex;
+    flex-direction: column;
+    animation: hp-fondu .35s ease;
+}
+
+@keyframes hp-fondu { from { opacity: 0; } to { opacity: 1; } }
+
+/* Qui a réduit les animations dans son système ne doit pas subir le fondu. */
+@media (prefers-reduced-motion: reduce) {
+    .hp-carousel-slide--active { animation: none; }
 }
 
 .hp-carousel-img {
     display: block;
     width: 100%;
-    height: 260px;
+    height: auto;
+    max-height: 420px;
+    /* `contain` : l'affiche entière. La recadrer couperait son texte. Le vide
+       éventuel est du blanc, pas un aplat sombre. */
     object-fit: contain;
     object-position: center;
-    background: #111;
+    background: var(--white);
 }
 
 .hp-carousel-img--empty {
-    height: 260px;
-    background: #1a1a1a;
+    height: 220px;
+    background: var(--bg-lighter);
 }
 
 @media (min-width: 641px) {
+    /* Hauteur tenue sur grand écran : sans elle, passer d'une affiche
+       panoramique à une affiche portrait faisait sauter toute la page. */
     .hp-carousel-img,
     .hp-carousel-img--empty {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        object-position: center;
-    }
-    .hp-carousel-slide {
-        min-height: 360px;
-    }
-    .hp-carousel-slide--active {
-        position: absolute;
-        inset: 0;
-    }
-    .hp-carousel-track {
-        min-height: 360px;
+        height: 380px;
+        max-height: none;
     }
 }
 
-/* Flèches nav */
+/* Barre de commandes, en flux sous le titre. Posées sur l'affiche, les flèches
+   la masquaient ; centrées sur la hauteur du bloc, elles tombaient en travers
+   du titre ; et les pastilles blanches disparaissaient sur fond clair. */
+.hp-carousel-cmd {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    background: var(--white);
+    padding: 0 1rem 1rem;
+}
+
 .hp-carousel-btn {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 10;
-    background: rgba(0,0,0,.45);
+    background: var(--bg-light);
     border: none;
-    color: #fff;
-    font-size: 2rem;
+    color: var(--text-color);
+    font-size: 1.6rem;
     line-height: 1;
+    /* 44 px : la cible tactile recommandée par WCAG 2.5.5. */
     width: 44px;
     height: 44px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background .2s;
-    border-radius: 2px;
+    transition: background .2s, color .2s;
+    border-radius: 3px;
 }
 
-.hp-carousel-btn:hover { background: rgba(196,30,58,.8); }
-.hp-carousel-btn--prev { left: .75rem; }
-.hp-carousel-btn--next { right: .75rem; }
-
-/* Pause : exigée par WCAG 2.2.2 (niveau A) dès qu'un contenu défile seul
-   plus de 5 secondes. Placée en haut à droite pour ne pas gêner les flèches. */
-.hp-carousel-btn--pause {
-    top: .75rem;
-    right: .75rem;
-    transform: none;
-    width: 34px;
-    height: 34px;
-    font-size: 1rem;
+.hp-carousel-btn:hover,
+.hp-carousel-btn:focus-visible {
+    background: var(--primary-color);
+    color: #fff;
 }
+
+.hp-carousel-btn--prev { order: 1; }
+.hp-carousel-btn--next { order: 3; }
 
 /* Points de pagination */
 .hp-carousel-dots {
-    position: absolute;
-    bottom: .75rem;
-    left: 50%;
-    transform: translateX(-50%);
+    order: 2;
+    /* Les pastilles occupent la place libre entre les deux flèches. */
+    flex: 1;
     display: flex;
+    justify-content: center;
     gap: .4rem;
-    z-index: 10;
 }
 
 .hp-carousel-dot {
-    width: 8px;
-    height: 8px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
-    background: rgba(255,255,255,.4);
+    background: rgba(0,0,0,.22);
     border: none;
     cursor: pointer;
     padding: 0;
@@ -168,81 +162,11 @@
     transform: scale(1.3);
 }
 
-/* Compat hero existant (utilisé dans .hp-hero-content etc.) */
-.hp-hero {
-    position: relative;
-    overflow: hidden;
-    background: #111;
-    margin-bottom: 0;
-    margin-left: -1rem;
-    margin-right: -1rem;
-}
-
-.hp-hero-img {
-    display: block;
-    width: 100%;
-    height: auto;
-}
-
-@media (min-width: 641px) {
-    .hp-hero { min-height: 440px; }
-    .hp-hero-img {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        object-position: center;
-    }
-}
-
-.hp-hero-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,.80) 0%, rgba(0,0,0,.50) 28%, rgba(0,0,0,.10) 60%, transparent 100%);
-}
-
 .hp-hero-content {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 1;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
-    padding: 2rem;
-    box-sizing: border-box;
-}
-
-@media (min-width: 641px) {
-    .hp-hero-content {
-        position: relative;
-        min-height: 360px;
-    }
-}
-
-.hp-alaune {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-}
-
-.hp-alaune-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--primary-color);
-    flex-shrink: 0;
-}
-
-.hp-alaune-label {
-    color: #fff;
-    font-size: 14px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
+    background: var(--white);
+    padding: 1rem 1rem 0.5rem;
 }
 
 .hp-hero-meta {
@@ -262,8 +186,8 @@
 }
 
 .hp-badge-cat {
-    background: rgba(255,255,255,0.15);
-    color: #fff;
+    background: var(--bg-light);
+    color: var(--text-color);
     font-size: 14px;
     font-weight: 600;
     text-transform: uppercase;
@@ -271,21 +195,28 @@
 }
 
 .hp-badge-cat:hover {
-    background: rgba(255,255,255,0.3);
+    background: var(--bg-lighter);
     text-decoration: none;
-    color: #fff;
+    color: var(--text-color);
 }
 
 .hp-hero-title {
     font-family: var(--font-heading);
     font-size: 34px;
-    color: #fff;
+    color: var(--text-color);
     line-height: 1.2;
     margin: 0;
 }
 
-.hp-hero-title a { color: #fff; }
-.hp-hero-title a:hover { text-decoration: underline; }
+.hp-hero-title a { color: var(--text-color); }
+.hp-hero-title a:hover { color: var(--primary-color); }
+
+/* Le carrousel est déjà « affiche puis titre » à toutes les largeurs : il ne
+   reste ici que ce qui tient vraiment au petit écran. */
+@media (max-width: 640px) {
+    .hp-hero-title { font-size: 22px; }
+    .hp-carousel-cmd { padding: 0 .7rem .8rem; }
+}
 
 /* ----------------------------------------------------------
    MINI CARTES TEXTE (3 sous le hero)
@@ -511,97 +442,89 @@
    ---------------------------------------------------------- */
 .hp-manchette-section {
     border-bottom: 1px solid var(--bg-lighter);
-    padding: 0.5rem 0 2rem 0;
+    padding: 1.5rem 0 2rem 0;
 }
 
 .hp-manchette-section .hp-section-body {
     width: 100%;
 }
+/* Même parti pris que le carrousel : ce sont des AFFICHES, donc déjà du texte.
+   Le titre en surimpression sur fond flouté donnait deux écritures l'une sur
+   l'autre, et il fallait survoler pour le lire — au doigt, personne ne
+   survole. Titre EN DESSOUS, sur blanc, toujours visible. Les hauteurs de
+   rangée disparaissent avec lui : c'est le contenu qui les fixe. */
 .hp-manchette {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: 280px 220px 220px;
-    gap: 5px;
+    gap: 1.25rem;
 }
 
 .hp-manchette .hp-mcard { grid-column: span 2; }
 
 @media (max-width: 760px) {
-    .hp-manchette {
-        grid-template-columns: repeat(2, 1fr);
-        grid-template-rows: 220px 185px 185px 185px;
-    }
+    .hp-manchette { grid-template-columns: repeat(2, 1fr); }
     .hp-manchette .hp-mcard { grid-column: span 1; }
 }
 
 @media (max-width: 480px) {
     .hp-manchette {
         grid-template-columns: 1fr;
-        grid-template-rows: none;
+        /* Empilées serré, les cartes se soudaient en un seul bandeau où l'on
+           ne voyait plus où finissait un article. Il leur faut de l'air. */
+        gap: 1.5rem;
     }
-    .hp-manchette .hp-mcard { height: 180px; }
 }
 
 .hp-mcard {
-    position: relative;
-    overflow: hidden;
-    background: #222;
-    display: block;
+    display: flex;
+    flex-direction: column;
+    background: var(--white);
+    border: 1px solid var(--bg-lighter);
 }
 
+.hp-mcard > a { display: block; }
+
 .hp-mcard img {
-    position: absolute;
-    inset: 0;
+    display: block;
     width: 100%;
-    height: 100%;
+    /* Hauteur tenue pour que la grille reste régulière, `contain` pour ne pas
+       couper l'affiche : le vide est du blanc, pas un aplat flouté. */
+    height: 220px;
     object-fit: contain;
     object-position: center;
-    display: block;
-    transition: transform .4s ease;
+    background: var(--white);
+}
+
+/* Les deux cartes de tête ouvrent la sélection : leur affiche mérite plus de
+   hauteur. */
+.hp-manchette .hp-mcard:nth-child(-n+2) img,
+.hp-manchette .hp-mcard:nth-child(-n+2) .hp-mcard-noimg { height: 280px; }
+
+/* À placer APRÈS la règle ci-dessus : à spécificité égale, c'est l'ordre qui
+   tranche, et un override écrit plus haut se faisait battre en silence.
+   En colonne unique il n'y a plus de rangée à aligner : la hauteur tenue ne
+   sert plus à rien et fait flotter les affiches panoramiques au milieu de
+   grandes bandes blanches. L'image reprend donc ses proportions. */
+@media (max-width: 480px) {
+    .hp-manchette .hp-mcard img,
+    .hp-manchette .hp-mcard:nth-child(-n+2) img {
+        height: auto;
+        max-height: 420px;
+    }
+    .hp-manchette .hp-mcard .hp-mcard-noimg,
+    .hp-manchette .hp-mcard:nth-child(-n+2) .hp-mcard-noimg { height: 200px; }
 }
 
 .hp-mcard-noimg {
-    position: absolute;
-    inset: 0;
+    height: 220px;
     background: linear-gradient(135deg, #1a0505 0%, #2d0a0a 60%, #1a1a1a 100%);
 }
 
-.hp-mcard:hover img { transform: scale(1.04); }
-
 .hp-mcard-body {
-    position: absolute;
-    inset: 0;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
-    padding: .85rem;
-    background: linear-gradient(to top, rgba(0,0,0,.88) 0%, rgba(0,0,0,.5) 40%, transparent 100%);
-    opacity: 0;
-    transition: opacity .3s ease;
-    z-index: 1;
-}
-
-/* :focus-within est indispensable — le cartouche porte le lien du titre.
-   Sans lui, la navigation au clavier passe sur des liens invisibles. */
-.hp-mcard:hover .hp-mcard-body,
-.hp-mcard:focus-within .hp-mcard-body { opacity: 1; }
-
-@media (max-width: 640px) {
-    /* Pas de survol au doigt : le cartouche reste affiché. Le voile doit alors
-       couvrir toute la hauteur, sinon les premières lignes d'un titre long se
-       posent sur l'image nue. */
-    .hp-mcard-body {
-        opacity: 1;
-        background: linear-gradient(to top, rgba(0,0,0,.92) 0%, rgba(0,0,0,.78) 50%, rgba(0,0,0,.5) 100%);
-    }
-    /* La carte a une hauteur fixe et masque ce qui dépasse : borner le titre
-       vaut mieux que le laisser se faire couper en plein mot. */
-    .hp-mcard-title {
-        display: -webkit-box;
-        -webkit-line-clamp: 5;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
+    padding: .8rem .9rem 1rem;
+    border-top: 1px solid var(--bg-lighter);
 }
 
 .hp-mcard-cat {
@@ -621,13 +544,10 @@
     margin: 0;
 }
 
-.hp-manchette .hp-mcard:nth-child(1) .hp-mcard-title,
-.hp-manchette .hp-mcard:nth-child(2) .hp-mcard-title { font-size: 22px; }
+.hp-manchette .hp-mcard:nth-child(-n+2) .hp-mcard-title { font-size: 22px; }
 
-.hp-manchette .hp-mcard:nth-child(n+3) .hp-mcard-body { padding: .6rem; }
-
-.hp-mcard-title a { color: #fff; }
-.hp-mcard-title a:hover { text-decoration: underline; color: #fff; }
+.hp-mcard-title a { color: var(--text-color); }
+.hp-mcard-title a:hover { color: var(--primary-color); }
 
 /* Badge source pour les articles réseau */
 .hp-badge-site {
@@ -920,57 +840,6 @@
 <main id="contenu">
 
 <!-- ============================================================
-     CARROUSEL HERO — full width, hors du grid
-     ============================================================ -->
-{% if carousel_articles %}
-<section class="hp-carousel" aria-label="Articles à la une">
-    <div class="hp-carousel-track" id="hp-carousel-track">
-        {% for article in carousel_articles %}
-        <div class="hp-carousel-slide{% if forloop.first %} hp-carousel-slide--active{% endif %}" aria-hidden="{% if not forloop.first %}true{% else %}false{% endif %}">
-            {% if article.any_image_url %}
-            <img class="hp-carousel-img" src="{{ article.any_image_url }}" alt="{{ article.title }}">
-            {% else %}
-            <div class="hp-carousel-img hp-carousel-img--empty"></div>
-            {% endif %}
-            <div class="hp-hero-overlay"></div>
-            <div class="hp-hero-content">
-                <div class="hp-alaune">
-                    <span class="hp-alaune-dot"></span>
-                    <span class="hp-alaune-label">À la une</span>
-                </div>
-                <div class="hp-hero-meta">
-                    {% for cat in article.cms_categories.all|slice:":2" %}
-                    <a href="{{ cat.get_absolute_url }}" class="hp-badge-cat">{{ cat.name }}</a>
-                    {% endfor %}
-                </div>
-                {% if forloop.first %}
-                <h1 class="hp-hero-title">
-                    <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
-                </h1>
-                {% else %}
-                <h2 class="hp-hero-title">
-                    <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
-                </h2>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% if carousel_articles|length > 1 %}
-    <button class="hp-carousel-btn hp-carousel-btn--prev" id="hp-prev" aria-label="Précédent">&#8249;</button>
-    <button class="hp-carousel-btn hp-carousel-btn--next" id="hp-next" aria-label="Suivant">&#8250;</button>
-    <button class="hp-carousel-btn hp-carousel-btn--pause" id="hp-pause"
-            aria-label="Mettre le défilement en pause">&#9646;&#9646;</button>
-    <div class="hp-carousel-dots" id="hp-carousel-dots">
-        {% for article in carousel_articles %}
-        <button class="hp-carousel-dot{% if forloop.first %} hp-carousel-dot--active{% endif %}" data-index="{{ forloop.counter0 }}" aria-label="Article {{ forloop.counter }}"></button>
-        {% endfor %}
-    </div>
-    {% endif %}
-</section>
-{% endif %}
-
-<!-- ============================================================
      LAYOUT 2 COLONNES : gauche (contenu) + droite (sidebar 300px)
      ============================================================ -->
 <div class="hp-layout">
@@ -980,6 +849,60 @@
          ====================================================== -->
     <div>
 
+        <!-- ============================================================
+             CARROUSEL — dans la colonne de contenu (écart A, 16/08/2026)
+             Il barrait les deux colonnes sur 1280 px : la barre latérale, donc
+             l'adhésion et l'agenda, n'apparaissaient qu'après avoir descendu.
+             ============================================================ -->
+        {% if carousel_articles %}
+        <section class="hp-carousel" aria-label="Articles à la une">
+            <div class="hp-carousel-track" id="hp-carousel-track">
+                {% for article in carousel_articles %}
+                <div class="hp-carousel-slide{% if forloop.first %} hp-carousel-slide--active{% endif %}" aria-hidden="{% if not forloop.first %}true{% else %}false{% endif %}">
+                    {% if article.any_image_url %}
+                    <img class="hp-carousel-img" src="{{ article.any_image_url }}" alt="{{ article.title }}">
+                    {% else %}
+                    <div class="hp-carousel-img hp-carousel-img--empty"></div>
+                    {% endif %}
+                    <div class="hp-hero-content">
+                        <div class="hp-hero-meta">
+                            {% for cat in article.cms_categories.all|slice:":2" %}
+                            <a href="{{ cat.get_absolute_url }}" class="hp-badge-cat">{{ cat.name }}</a>
+                            {% endfor %}
+                        </div>
+                        {% if forloop.first %}
+                        <h1 class="hp-hero-title">
+                            <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                        </h1>
+                        {% else %}
+                        <h2 class="hp-hero-title">
+                            <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                        </h2>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% if carousel_articles|length > 1 %}
+            {% comment %}
+            Les commandes sont regroupées pour pouvoir descendre SOUS l'affiche
+            sur petit écran (cf. .hp-carousel-cmd dans la feuille de style).
+            Sur ordinateur le groupe est `display: contents` : il ne crée
+            aucune boîte, et les commandes restent posées sur l'image comme
+            avant.
+            {% endcomment %}
+            <div class="hp-carousel-cmd">
+                <button class="hp-carousel-btn hp-carousel-btn--prev" id="hp-prev" aria-label="Précédent">&#8249;</button>
+                <button class="hp-carousel-btn hp-carousel-btn--next" id="hp-next" aria-label="Suivant">&#8250;</button>
+                <div class="hp-carousel-dots" id="hp-carousel-dots">
+                    {% for article in carousel_articles %}
+                    <button class="hp-carousel-dot{% if forloop.first %} hp-carousel-dot--active{% endif %}" data-index="{{ forloop.counter0 }}" aria-label="Article {{ forloop.counter }}"></button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </section>
+        {% endif %}
         <!-- 2. MANCHETTE : 6 articles confédéraux mis en avant -->
         {% if manchette_articles %}
         <div class="hp-manchette-section">
@@ -1124,16 +1047,8 @@
     var dots   = document.querySelectorAll('.hp-carousel-dot');
     var prev   = document.getElementById('hp-prev');
     var next   = document.getElementById('hp-next');
-    var pause  = document.getElementById('hp-pause');
     var total  = slides.length;
     var current = 0;
-    var timer;
-    // Défilement suspendu tant que l'utilisateur survole, tabule dedans, ou
-    // l'a explicitement mis en pause. Quiconque a réduit les animations dans
-    // son système ne le voit jamais démarrer.
-    var arretParUtilisateur = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var survol = false;
-    var focusDedans = false;
 
     function goTo(idx) {
         slides[current].classList.remove('hp-carousel-slide--active');
@@ -1145,48 +1060,17 @@
         if (dots[current]) dots[current].classList.add('hp-carousel-dot--active');
     }
 
-    function startAuto() {
-        clearInterval(timer);
-        if (arretParUtilisateur || survol || focusDedans) return;
-        timer = setInterval(function() { goTo(current + 1); }, 5000);
-    }
-
-    function resetAuto() {
-        startAuto();
-    }
-
-    if (prev) prev.addEventListener('click', function() { goTo(current - 1); resetAuto(); });
-    if (next) next.addEventListener('click', function() { goTo(current + 1); resetAuto(); });
+    // Le carrousel ne tourne QUE sur action : pas de minuterie. C'est ce qui
+    // permet de se passer du bouton pause qu'exigeait WCAG 2.2.2 — la règle ne
+    // vise que les contenus qui défilent d'eux-mêmes plus de 5 secondes.
+    if (prev) prev.addEventListener('click', function() { goTo(current - 1); });
+    if (next) next.addEventListener('click', function() { goTo(current + 1); });
 
     dots.forEach(function(dot) {
         dot.addEventListener('click', function() {
             goTo(parseInt(dot.getAttribute('data-index'), 10));
-            resetAuto();
         });
     });
-
-    if (pause) {
-        function majPause() {
-            pause.innerHTML = arretParUtilisateur ? '&#9654;' : '&#9646;&#9646;';
-            pause.setAttribute('aria-label', arretParUtilisateur
-                ? 'Reprendre le défilement' : 'Mettre le défilement en pause');
-        }
-        pause.addEventListener('click', function() {
-            arretParUtilisateur = !arretParUtilisateur;
-            majPause();
-            startAuto();
-        });
-        majPause();
-    }
-
-    // Ne pas faire changer la diapositive sous les doigts ni sous le curseur
-    // clavier de quelqu'un qui est en train de la lire.
-    track.addEventListener('mouseenter', function() { survol = true; startAuto(); });
-    track.addEventListener('mouseleave', function() { survol = false; startAuto(); });
-    track.addEventListener('focusin',  function() { focusDedans = true; startAuto(); });
-    track.addEventListener('focusout', function() { focusDedans = false; startAuto(); });
-
-    startAuto();
 })();
 </script>
 {% endif %}

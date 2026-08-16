@@ -97,18 +97,21 @@ class HomeView(ListView):
         context['manchette_articles'] = manchette
         excl += [a.pk for a in manchette]
 
-        # 9 derniers articles de tout le réseau (conf + sous-sites)
+        # 9 articles du réseau, c'est-à-dire des syndicats et fédérations
+        # UNIQUEMENT : la confédération occupe déjà tout le haut de la page
+        # (carrousel, sélection, colonnes). L'y remettre ici noyait les
+        # sous-sites, seul endroit de l'accueil où ils s'expriment.
         section_names = dict(SectionPage.objects.filter(live=True).values_list('slug', 'title'))
-        all_latest = list(
+        candidats = (
             ArticlePage.objects.live()
+            .exclude(section_slug='principal')
             .order_by('-publication_date', '-first_published_at')
             .select_related('featured_image')
             .prefetch_related('cms_categories')
-            .exclude(pk__in=excl)[:9]
+            .exclude(pk__in=excl)[:60]
         )
-        for a in all_latest:
-            a.source_site = section_names.get(a.section_slug, '')
-        context['all_latest_articles'] = all_latest
+        context['all_latest_articles'] = _reseau_tour_de_table(
+            candidats, section_names, nb=9)
 
         # Droits
         context['droits_articles'] = base_qs.filter(cms_categories__slug='droit')[:5]
@@ -151,6 +154,39 @@ class SiteAgendaView(TemplateView):
             )
             context['agenda_text'] = self.site_obj.agenda_text
         return context
+
+
+def _reseau_tour_de_table(candidats, noms_de_sites, nb=9):
+    """Répartit les places du « réseau » entre les sites, par tour de table.
+
+    À prendre simplement les N plus récents, le site le plus bavard raflait
+    tout : dans la base de développement, les 9 places revenaient au même
+    syndicat, et les autres n'apparaissaient nulle part sur l'accueil. On sert
+    donc d'abord le dernier article de chaque site, puis l'avant-dernier de
+    chacun, et ainsi de suite jusqu'à remplir les places.
+
+    L'ordre des sites reste celui de leur article le plus récent : le réseau
+    montre bien l'actualité en premier, mais une place par site avant d'en
+    accorder une deuxième à quiconque. Un site seul remplit tout, comme avant.
+
+    `candidats` doit déjà être trié du plus récent au plus ancien.
+    """
+    par_site = {}
+    for article in candidats:
+        par_site.setdefault(article.section_slug, []).append(article)
+
+    resultat = []
+    while len(resultat) < nb and any(par_site.values()):
+        for articles in par_site.values():
+            if not articles:
+                continue
+            resultat.append(articles.pop(0))
+            if len(resultat) >= nb:
+                break
+
+    for article in resultat:
+        article.source_site = noms_de_sites.get(article.section_slug, '')
+    return resultat
 
 
 def _completer_carrousel(choisis, candidats, maximum=5):

@@ -112,3 +112,42 @@ le feu vert.
 (0 article ET 0 menu ET 0 sous-catégorie) a refusé sur les données réelles.
 Écrire le garde-fou dans la commande plutôt que de vérifier à la main l'a rendu
 opposable à ma propre erreur.
+
+---
+
+## 2026-08-16 — `{# #}` ne commente qu'une seule ligne
+
+**Erreur :** j'ai écrit un commentaire d'explication sur cinq lignes dans
+`templates/content/home.html` en `{# … #}`. Cette syntaxe Django est
+**mono-ligne** : seule la première ligne a été mangée, les quatre suivantes se
+sont affichées en clair sur la page d'accueil, en haut du carrousel. C'est la
+capture d'écran qui l'a révélé, pas les tests — aucun test ne lit le texte
+rendu de l'accueil.
+
+**Règle :** un commentaire de template sur plusieurs lignes s'écrit
+`{% comment %} … {% endcomment %}`. `{# #}` est réservé aux notes tenant sur
+une ligne.
+
+**Plus général :** une modification de template n'est pas vérifiée par la suite
+de tests seule. Regarder la page rendue — ici, un `curl | grep` sur une phrase
+du commentaire aurait suffi à le prouver en une seconde.
+
+---
+
+## 2026-08-16 — À spécificité égale, c'est l'ordre qui tranche
+
+**Erreur :** pour rendre leurs proportions aux affiches en colonne unique,
+j'ai écrit `height: auto` dans un `@media (max-width: 480px)` placé **avant**
+la règle `.hp-manchette .hp-mcard:nth-child(-n+2) img { height: 280px }`.
+Même spécificité, donc c'est la dernière écrite qui gagne : mon override a été
+battu en silence. La capture d'écran était inchangée et j'ai failli conclure
+que la règle ne s'appliquait pas du tout.
+
+**Règle :** dans une feuille de style longue, un `@media` n'ajoute aucune
+spécificité. Un override doit être écrit **après** la règle qu'il corrige, ou
+porter un sélecteur plus spécifique.
+
+**Ce qui a tranché :** lire `getComputedStyle().height` (280px) plutôt que de
+raisonner sur la capture. Une propriété du même bloc (`max-height`) avait bien
+pris — preuve que le sélecteur matchait et que le problème était la cascade,
+pas le média.
