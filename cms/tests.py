@@ -3777,3 +3777,61 @@ class CarrouselCompleteTest(TestCase):
             CarouselArticle.objects.create(page=self.site, article=art,
                                            sort_order=rang)
         self.assertEqual(len(self._carrousel()), 5)
+
+
+class AucunCompteExposeAuxRedacteursTest(TestCase):
+    """Le champ « Compte utilisateur auteur » offrait à chaque rédacteur la
+    liste de TOUS les comptes, superusers compris — le seul endroit du
+    formulaire qui échappait au cloisonnement (relevé par Arnaud, 16/08/2026).
+
+    Il n'était lu qu'à un endroit, en repli du flux RSS quand « Auteur » est
+    vide : 0 article sur 1709 s'en servait, 1709 sur 1709 remplissaient
+    « Auteur ». Supprimé plutôt que borné — deux champs pour désigner un auteur,
+    c'était un de trop.
+    """
+
+    def setUp(self):
+        from django.contrib.auth.models import User, Group
+        self.site = _ensure_section_page(slug='13', name='CNT-SO 13')
+        User.objects.create_superuser('patron-secret', 'p@x.fr', 'x')
+        User.objects.create_user('redac-voisin-secret', 'v@x.fr', 'x')
+        self.redac = User.objects.create_user('redac-13', 'r@x.fr', 'x')
+        self.redac.is_staff = True
+        self.redac.save()
+        for nom in ('redacteur', 'redacteur_13'):
+            groupe, _ = Group.objects.get_or_create(name=nom)
+            self.redac.groups.add(groupe)
+        self.client.force_login(self.redac)
+        self.art = make_article_page(section_slug='13', title='Au 13',
+                                     slug='au-13-auteur')
+
+    def _formulaire(self):
+        return self.client.get(
+            f'/cms/snippets/cms/articlepage/edit/{self.art.pk}/').content.decode()
+
+    def test_le_champ_a_disparu_du_formulaire(self):
+        self.assertNotIn('author_user', self._formulaire())
+
+    def test_aucun_nom_de_compte_ne_fuit(self):
+        """Le vrai enjeu n'est pas le champ mais ce qu'il montrait."""
+        html = self._formulaire()
+        for compte in ('patron-secret', 'redac-voisin-secret'):
+            with self.subTest(compte=compte):
+                self.assertNotIn(compte, html)
+
+    def test_le_champ_auteur_reste(self):
+        """Contrôle positif : c'est celui que remplissent les 1709 articles."""
+        self.assertIn('id_author_name', self._formulaire())
+
+    def test_le_modele_n_a_plus_ce_champ(self):
+        champs = {f.name for f in ArticlePage._meta.get_fields()}
+        self.assertNotIn('author_user', champs)
+
+    def test_le_flux_rss_donne_toujours_un_auteur(self):
+        """Le repli supprimé ne doit pas laisser un flux sans auteur."""
+        from content.feeds import LatestArticlesFeed
+        art = make_article_page(section_slug='principal', title='Sans auteur',
+                                slug='sans-auteur-rss')
+        art.author_name = ''
+        art.save()
+        self.assertEqual(LatestArticlesFeed().item_author_name(art), 'CNT-SO')

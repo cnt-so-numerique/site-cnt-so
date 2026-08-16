@@ -31,7 +31,7 @@ class LatestArticlesFeed(Feed):
         return item.published_at
 
     def item_author_name(self, item):
-        return item.author_name or (str(item.author_user) if item.author_user else "CNT-SO")
+        return item.author_name or "CNT-SO"
 
 
 class SiteArticlesFeed(Feed):

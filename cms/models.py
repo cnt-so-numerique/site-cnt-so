@@ -863,7 +863,6 @@ def panneaux_article():
                 FieldPanel('in_carousel'),
                 PanneauChefSeulement('featured_on_conf'),
                 FieldPanel('author_name'),
-                FieldPanel('author_user'),
             ], heading="Publication"),
             FieldPanel('cms_categories', widget=forms.CheckboxSelectMultiple),
             FieldPanel('cms_tags'),
@@ -963,13 +962,6 @@ class ArticlePage(SeoMixin, Page):
         help_text="Affiche cet article dans la section vedette de la page d'accueil de la confédération (tous syndicats)",
     )
     author_name = models.CharField(max_length=200, blank=True, verbose_name="Auteur")
-    author_user = models.ForeignKey(
-        'auth.User',
-        null=True, blank=True,
-        on_delete=models.SET_NULL,
-        related_name='cms_articles',
-        verbose_name="Compte utilisateur auteur",
-    )
     publication_date = models.DateTimeField(
         null=True, blank=True,
         verbose_name="Date de publication",
