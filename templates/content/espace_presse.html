@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load content_tags %}
+{% load content_tags wagtailcore_tags %}
 
 {% block title %}Espace Presse - CNT-SO{% endblock %}
 
@@ -18,7 +18,21 @@
     Espace presse{% if site and site.slug != 'principal' %} — {{ site.name }}{% endif %}
 </h1>
 
-<!-- Cartouche contact presse -->
+{% comment %}
+Le cartouche était écrit en dur, avec deux marqueurs « À compléter » jamais
+remplis : la page proposait donc aux journalistes de contacter un service
+presse SANS téléphone ni e-mail (constaté le 16/08/2026). Le texte vient
+maintenant de la page statique « Espace presse » de /cms/, que les rédacteurs
+peuvent modifier eux-mêmes.
+
+À défaut de page renseignée, on retombe sur l'adresse de contact du site, qui
+est un vrai champ éditable. Un cartouche vide n'est plus représentable.
+{% endcomment %}
+{% if intro_page and intro_page.body %}
+<div class="presse-intro">
+    {% for bloc in intro_page.body %}{% include_block bloc %}{% endfor %}
+</div>
+{% elif site.contact_email %}
 <div class="presse-cartouche">
     <div class="presse-cartouche-icon">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -33,20 +47,15 @@
         <div class="presse-cartouche-contacts">
             <div class="presse-contact-item">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8a19.79 19.79 0 01-3.07-8.67A2 2 0 012 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
-                </svg>
-                <span><!-- À compléter : numéro de téléphone --></span>
-            </div>
-            <div class="presse-contact-item">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                     <polyline points="22,6 12,13 2,6"/>
                 </svg>
-                <span><!-- À compléter : adresse e-mail presse --></span>
+                <span><a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a></span>
             </div>
         </div>
     </div>
 </div>
+{% endif %}
 
 <style>
 .presse-cartouche {

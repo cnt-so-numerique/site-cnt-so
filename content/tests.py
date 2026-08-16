@@ -1159,6 +1159,29 @@ class EspacePresseViewTest(TestCase):
         response = self.client.get(reverse('content:espace_presse'))
         self.assertIn(art, response.context['articles'])
 
+    def test_le_cartouche_presse_ne_peut_pas_etre_vide(self):
+        """Le gabarit portait deux marqueurs « À compléter » jamais remplis :
+        la page invitait les journalistes à contacter un service presse sans
+        donner ni téléphone ni e-mail (constaté le 16/08/2026). À défaut de
+        page rédigée, on retombe sur l'adresse de contact du site."""
+        self.site.contact_email = 'presse@exemple.org'
+        self.site.save(update_fields=['contact_email'])
+        html = self.client.get(reverse('content:espace_presse')).content.decode()
+        self.assertIn('presse@exemple.org', html)
+        self.assertNotIn('À compléter', html)
+
+    def test_le_texte_de_l_espace_presse_est_editable_depuis_le_cms(self):
+        """Le chapô vivait dans le gabarit, hors de portée des rédacteurs. Il
+        vient maintenant de la page statique « espace-presse »."""
+        from wagtail.rich_text import RichText
+        page = make_content_page(section_slug='principal',
+                                 title='Espace Presse', slug='espace-presse')
+        page.body = [('rich_text', RichText('<p>Contactez Camille au 01 02 03.</p>'))]
+        page.save()
+
+        html = self.client.get(reverse('content:espace_presse')).content.decode()
+        self.assertIn('Contactez Camille au 01 02 03.', html)
+
 
 class SiteEspacePresseViewTest(TestCase):
     def setUp(self):

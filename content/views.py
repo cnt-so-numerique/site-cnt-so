@@ -443,6 +443,20 @@ class SiteCategoryDetailView(ListView):
         return context
 
 
+def _page_editoriale(section_slug, slug):
+    """Page statique servant de chapô à une vue codée en dur.
+
+    Certaines pages (espace presse…) sont rendues par une vue, pas par l'arbre
+    Wagtail : leur texte vivait donc dans le gabarit, hors de portée des
+    rédacteurs. On va chercher ici la page statique de même slug pour qu'ils
+    puissent en reprendre la main depuis /cms/.
+    """
+    from cms.models import ContentPage
+    return ContentPage.objects.filter(
+        slug=slug, section_slug=section_slug
+    ).first()
+
+
 class EspacePresse(ListView):
     """Page Espace Presse conf — articles communiqué de presse du site principal"""
     model = ArticlePage
@@ -467,6 +481,7 @@ class EspacePresse(ListView):
         context = super().get_context_data(**kwargs)
         context['site'] = self.current_site
         context['category'] = self.category
+        context['intro_page'] = _page_editoriale('principal', 'espace-presse')
         context.update(_sidebar_context('principal'))
         return context
 
@@ -495,6 +510,7 @@ class SiteEspacePresse(ListView):
         context = super().get_context_data(**kwargs)
         context['site'] = self.current_site
         context['category'] = self.category
+        context['intro_page'] = _page_editoriale(self.current_site.slug, 'espace-presse')
         context.update(_sidebar_context(self.current_site.slug))
         return context
 
