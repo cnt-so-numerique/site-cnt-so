@@ -1,0 +1,348 @@
+{% extends 'base.html' %}
+{% load wagtailimages_tags %}
+
+{% block title %}Souscription permanente — Soutenir la CNT-SO{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ──────────────────────────────────────────────────────────────
+   Page souscription. Même langage visuel que « Qui sommes-nous ? » :
+   bandeau sombre, accroche rouge, contenu en deux colonnes.
+
+   L'article dont elle prend la suite noyait son appel au don dans un
+   « cliquez ici » de la taille du texte courant, répété deux fois au fil de
+   3 000 signes. Sur une page qui n'existe que pour recueillir des dons, c'est
+   le seul élément qui devait sauter aux yeux.
+   ────────────────────────────────────────────────────────────── */
+
+.sou-hero { background: var(--dark-bg); padding: 3rem 1rem 2.5rem; }
+.sou-hero-inner { max-width: 1200px; margin: 0 auto; }
+.sou-hero-eyebrow {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--primary-color);
+    margin-bottom: .4rem;
+}
+.sou-hero h1 {
+    font-family: var(--font-heading);
+    font-size: 2.4rem;
+    line-height: 1.1;
+    color: #fff;
+    margin-bottom: .9rem;
+    max-width: 900px;
+}
+.sou-hero-intro {
+    font-size: 15px;
+    line-height: 1.7;
+    color: rgba(255,255,255,.75);
+    max-width: 640px;
+}
+.sou-hero-actions { display: flex; gap: .75rem; margin-top: 1.5rem; flex-wrap: wrap; }
+
+.sou-btn-don {
+    display: inline-block;
+    padding: .85rem 2rem;
+    background: var(--primary-color);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background .15s;
+}
+.sou-btn-don:hover { background: var(--primary-dark); color: #fff; text-decoration: none; }
+.sou-btn-ghost {
+    display: inline-block;
+    padding: .85rem 1.6rem;
+    border: 1px solid rgba(255,255,255,.4);
+    color: rgba(255,255,255,.85);
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: border-color .15s, color .15s;
+}
+.sou-btn-ghost:hover { border-color: #fff; color: #fff; text-decoration: none; }
+
+.sou-quote { background: var(--primary-color); padding: 1.5rem 1rem; text-align: center; }
+.sou-quote p {
+    max-width: 800px;
+    margin: 0 auto;
+    color: #fff;
+    font-family: var(--font-heading);
+    font-size: 1.3rem;
+    line-height: 1.45;
+    font-style: italic;
+}
+
+.sou-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem 0;
+    display: grid;
+    grid-template-columns: 1fr 288px;
+    gap: 0 28px;
+    align-items: start;
+}
+@media (max-width: 960px) { .sou-wrap { grid-template-columns: 1fr; } }
+
+/* L'affiche est du texte : on la montre entière, jamais recadrée. */
+.sou-affiche {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: var(--white);
+    border: 1px solid var(--bg-lighter);
+    margin-bottom: 1.75rem;
+}
+
+.sou-intro p {
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+    margin-bottom: .9rem;
+}
+.sou-intro a { color: var(--primary-color); }
+
+.sou-section-title {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    color: var(--text-color);
+    margin: 2.25rem 0 1.4rem;
+    padding-bottom: .5rem;
+    border-bottom: 3px solid var(--primary-color);
+    display: inline-block;
+}
+
+.sou-cartes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--bg-lighter);
+    border: 1px solid var(--bg-lighter);
+}
+@media (max-width: 580px) { .sou-cartes { grid-template-columns: 1fr; } }
+.sou-carte { background: var(--white); padding: 1.4rem 1.5rem; }
+.sou-carte-num {
+    font-family: var(--font-heading);
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--primary-color);
+    margin-bottom: .5rem;
+}
+.sou-carte-titre {
+    font-family: var(--font-heading);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-color);
+    margin-bottom: .4rem;
+    line-height: 1.25;
+}
+.sou-carte-texte { font-size: 14px; line-height: 1.65; color: var(--text-secondary); }
+
+/* Les deux façons de donner, mises sur le même plan : le virement régulier
+   est ce qui finance un fonds permanent, il ne doit pas passer après. */
+.sou-dons { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: .5rem; }
+@media (max-width: 580px) { .sou-dons { grid-template-columns: 1fr; } }
+.sou-don {
+    border: 1px solid var(--bg-lighter);
+    border-top: 3px solid var(--primary-color);
+    padding: 1.4rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+}
+.sou-don h3 { font-family: var(--font-heading); font-size: 1.05rem; margin-bottom: .5rem; }
+.sou-don p { font-size: 14px; line-height: 1.7; color: var(--text-secondary); margin-bottom: 1rem; flex: 1; }
+.sou-don-action {
+    display: inline-block;
+    padding: .6rem 1.3rem;
+    background: var(--primary-color);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    text-align: center;
+}
+.sou-don-action:hover { background: var(--primary-dark); color: #fff; text-decoration: none; }
+.sou-don-action--sombre { background: var(--dark-bg); }
+
+.sou-docs { display: flex; flex-direction: column; gap: .5rem; }
+.sou-doc {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .85rem 1rem;
+    border: 1px solid var(--bg-lighter);
+    background: var(--bg-light);
+    color: var(--text-color);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+}
+.sou-doc:hover { border-color: var(--primary-color); color: var(--primary-color); text-decoration: none; }
+.sou-doc svg { flex-shrink: 0; }
+
+.sou-final {
+    background: var(--bg-light);
+    border-left: 4px solid var(--primary-color);
+    padding: 1.5rem;
+    margin: 2.25rem 0 2rem;
+}
+.sou-final p {
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    line-height: 1.4;
+    color: var(--text-color);
+    margin: 0;
+}
+.sou-final p + p { margin-top: .35rem; }
+
+@media (max-width: 768px) {
+    .sou-hero { padding: 2rem 1rem; }
+    .sou-hero h1 { font-size: 1.75rem; }
+    .sou-quote p { font-size: 1.05rem; }
+}
+</style>
+{% endblock %}
+
+{% block full_content %}
+<main id="contenu">
+
+<!-- ═══════════════════════════════════════════
+     BANDEAU D'APPEL
+     ═══════════════════════════════════════════ -->
+<div class="sou-hero">
+    <div class="sou-hero-inner">
+        <div class="sou-hero-eyebrow">Souscription permanente</div>
+        <h1>Soutenez les luttes ouvrières et la défense juridique des travailleur·euses</h1>
+        <p class="sou-hero-intro">
+            Aidez à financer une caisse de solidarité permanente et le développement
+            d'un réseau syndical de défense juridique. Sans subvention de l'État
+            ni du patronat, la CNT-SO ne tient que par ses adhérent·es et ses soutiens.
+        </p>
+        <div class="sou-hero-actions">
+            <a href="{{ url_don }}" class="sou-btn-don" target="_blank" rel="noopener">Faire un don en ligne</a>
+            <a href="#documents" class="sou-btn-ghost">Documents à télécharger</a>
+        </div>
+    </div>
+</div>
+
+<div class="sou-quote">
+    <p>« Refusant toute subvention de l'État ou du patronat, la CNT-SO auto-finance
+       un réseau de développeur·euses syndicaux et de juristes. »</p>
+</div>
+
+<div class="sou-wrap">
+    <div>
+
+        {% if affiche %}
+        {% image affiche max-900x700 class="sou-affiche" alt="Souscription permanente de la CNT-Solidarité Ouvrière" %}
+        {% endif %}
+
+        <div class="sou-intro">
+            <p>Implantée dans les secteurs du nettoyage, de la restauration, du commerce,
+               des transports et de la logistique, du bâtiment, de l'éducation, de l'aide
+               à domicile ou du spectacle, <b>la CNT-Solidarité Ouvrière développe un outil
+               syndical, alternatif et combatif</b>, au service des travailleuses et des
+               travailleurs.</p>
+
+            <p>Depuis sa création fin 2012, <b>la CNT-SO a été impliquée dans de nombreuses
+               luttes.</b> Les conflits du nettoyage, en particulier la sous-traitance
+               hôtelière avec des grèves de femmes de chambre ayant duré plusieurs mois, en
+               sont les plus emblématiques. C'est aussi le cas des mouvements de
+               travailleur·euses sans-papiers pour la régularisation, de l'occupation des
+               chantiers des JO de Paris au combat des livreurs uberisés.
+               <b>À chaque conflit, la CNT-SO mobilise ses caisses de grève</b> pour
+               compenser les pertes de salaire et permettre des mobilisations qui tiennent
+               le temps nécessaire à la victoire collective.</p>
+
+            <p><b>La construction de ces luttes dépend aussi d'un travail quotidien
+               « invisible ».</b> Refusant toute subvention de l'État ou du patronat, la
+               CNT-SO auto-finance un réseau de développeur·euses syndicaux et de juristes
+               chargés de la défense syndicale, notamment devant la justice prud'homale. Ce
+               réseau <b>accompagne chaque année des centaines de travailleur·euses</b> face
+               à l'arbitraire patronal, dans des secteurs très précarisés.
+               <i>Pour en savoir plus, lisez
+               <a href="/article/orientations-du-6eme-congres-confederal-action-des-salarie-es-de-la-cnt-so/">notre
+               motion de congrès confédéral</a> à ce sujet.</i></p>
+
+            <p>Ce travail syndical efficace se heurte inévitablement à la <b>répression
+               étatique comme patronale</b>, qui appelle elle aussi une large solidarité.
+               Pour poursuivre son action, y faire face et préparer les luttes futures,
+               <b>la CNT-SO lance une souscription permanente</b> ouverte à tous et toutes.</p>
+        </div>
+
+        <h2 class="sou-section-title">À quoi sert ce fonds</h2>
+        <div class="sou-cartes">
+            <div class="sou-carte">
+                <div class="sou-carte-num">1</div>
+                <div class="sou-carte-titre">Un réseau de défense juridique</div>
+                <div class="sou-carte-texte">
+                    Financer l'extension d'un réseau de développement syndical et
+                    d'assistance juridique, avec les moyens matériels nécessaires :
+                    locaux, reprographie, déplacements.
+                </div>
+            </div>
+            <div class="sou-carte">
+                <div class="sou-carte-num">2</div>
+                <div class="sou-carte-titre">Une caisse nationale de solidarité</div>
+                <div class="sou-carte-texte">
+                    Animer une caisse nationale pour l'appui aux grèves et pour faire
+                    face à la répression, syndicale comme judiciaire.
+                </div>
+            </div>
+        </div>
+
+        <h2 class="sou-section-title">Comment soutenir</h2>
+        <div class="sou-dons">
+            <div class="sou-don">
+                <h3>Un don ponctuel</h3>
+                <p>En ligne, en quelques clics, du montant de votre choix. C'est le
+                   moyen le plus direct d'appuyer une lutte en cours.</p>
+                <a href="{{ url_don }}" class="sou-don-action" target="_blank" rel="noopener">Faire un don en ligne</a>
+            </div>
+            <div class="sou-don">
+                <h3>Un versement régulier</h3>
+                <p>Prélèvement ou virement permanent : c'est ce qui permet de tenir
+                   un fonds dans la durée, et donc de soutenir des grèves longues.
+                   Contactez-nous, nous vous transmettons les documents.</p>
+                <a href="{% url 'content:contact' %}" class="sou-don-action sou-don-action--sombre">Nous contacter</a>
+            </div>
+        </div>
+
+        {% if documents %}
+        <h2 class="sou-section-title" id="documents">Documents à diffuser</h2>
+        <div class="sou-docs">
+            {% for doc in documents %}
+            <a class="sou-doc" href="{{ doc.url }}">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <span>{{ doc.libelle }}</span>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="sou-final">
+            <p>Vive la lutte des travailleur·euses&nbsp;!</p>
+            <p>Vive la solidarité de classe&nbsp;!</p>
+        </div>
+
+        <p style="font-size:14px;color:var(--text-muted);line-height:1.7;margin-bottom:2rem;">
+            La CNT-SO, c'est aussi une orientation syndicale et un projet de transformation
+            sociale. Pour en savoir plus, lisez
+            <a href="/article/on-a-toujours-raison-de-se-syndiquer-presentation-de-la-cnt-solidarite-ouvriere/"
+               style="color:var(--primary-color);">notre présentation</a>.
+        </p>
+
+    </div>
+
+    <aside class="hp-sidebar">
+        {% include "content/_sidebar.html" %}
+    </aside>
+</div>
+
+</main>
+{% endblock full_content %}

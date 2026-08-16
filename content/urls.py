@@ -66,7 +66,11 @@ urlpatterns = [
     path('plan-du-site/', views.PlanDuSiteView.as_view(), name='plan_du_site'),
     path('qui-sommes-nous/', views.QuiSommesNousView.as_view(), name='qui_sommes_nous'),
     path('sorganiser-avec-la-cnt-so/', views.SOrganiserView.as_view(), name='s_organiser'),
-    path('souscription/', RedirectView.as_view(url='/article/souscription/', permanent=True), name='souscription'),
+    # `souscription` était une simple redirection vers l'article, dont l'appel
+    # au don se réduisait à un « cliquez ici » en petits caractères. C'est
+    # désormais une vraie page, et les sept liens du site qui pointaient déjà
+    # sur ce nom d'URL y arrivent sans changement.
+    path('souscription/', views.SouscriptionView.as_view(), name='souscription'),
 
     # Articles et pages du site principal
     path('article/<slug:slug>/', views.ArticleDetailView.as_view(), name='article_detail'),

@@ -912,6 +912,64 @@ class SOrganiserView(TemplateView):
         return ctx
 
 
+def _libelle_document(titre):
+    """Rend lisible un titre de document qui n'est qu'un nom de fichier.
+
+    « cntso_souscription_flyers.pdf » → « Souscription flyers ». Un titre déjà
+    rédigé (avec des espaces) est laissé intact : on ne réécrit que ce qui
+    ressemble à un fichier.
+    """
+    if ' ' in titre.strip():
+        return titre
+    radical = titre.rsplit('.', 1)[0]
+    mots = [m for m in radical.replace('-', '_').split('_') if m and m != 'cntso']
+    return ' '.join(mots).capitalize() if mots else titre
+
+
+class SouscriptionView(TemplateView):
+    """Page d'appel à la souscription permanente.
+
+    Elle remplace l'article du même nom, dont l'appel au don tenait dans un
+    « cliquez ici » en petits caractères, répété deux fois au fil du texte —
+    sur une page dont c'est pourtant la seule raison d'être.
+    """
+    template_name = 'content/souscription.html'
+
+    # Cagnotte externe. En dur, comme le reste de cette page : SectionPage ne
+    # porte pas de champ « don », et en inventer un pour une unique valeur
+    # coûterait une migration sans rien rendre de plus modifiable en pratique.
+    URL_DON = ('https://www.we-solidaire.com/fr/collecte/'
+               'souscription-dappui-aux-luttes-et-a-la-defense-ouvriere')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['site'] = SectionPage.objects.filter(slug='principal').first()
+        ctx['url_don'] = self.URL_DON
+
+        # L'affiche reste portée par l'article : le jour où un rédacteur la
+        # remplace dans /cms/, la page suit. On ne filtre pas sur `live` —
+        # l'article est dépublié au profit de cette page, mais il demeure la
+        # source de l'image.
+        article = ArticlePage.objects.filter(
+            slug='souscription', section_slug='principal'
+        ).first()
+        ctx['affiche'] = article.featured_image if article else None
+
+        from wagtail.documents import get_document_model
+        # Les documents importés portent leur nom de fichier
+        # (« cntso_souscription_flyers.pdf »), qui fait négligé en bouton de
+        # téléchargement. On l'habille sans le remplacer : un titre saisi à la
+        # main dans /cms/ ressort tel quel.
+        ctx['documents'] = [
+            {'url': d.url, 'libelle': _libelle_document(d.title)}
+            for d in get_document_model().objects.filter(
+                title__icontains='souscription').order_by('title')
+        ]
+
+        ctx.update(_sidebar_context('principal'))
+        return ctx
+
+
 class QuiSommesNousView(TemplateView):
     """Page Qui sommes-nous ?"""
     template_name = 'content/qui_sommes_nous.html'

@@ -5916,3 +5916,49 @@ class BanqueImagesSidebarTest(TestCase):
                 self.assertNotEqual(
                     self.client.get(self._chemin(url)).status_code, 404,
                     f'{site.title} : {url} est une adresse morte')
+
+
+class SouscriptionViewTest(TestCase):
+    """La page de souscription remplace un article dont l'appel au don tenait
+    dans un « cliquez ici » de la taille du texte courant, répété deux fois au
+    fil de 3 000 signes — sur une page qui n'existe que pour recueillir des
+    dons (relevé par Arnaud, 16/08/2026)."""
+
+    def setUp(self):
+        self.site = make_site()
+
+    def test_la_page_repond(self):
+        self.assertEqual(self.client.get(reverse('content:souscription')).status_code, 200)
+
+    def test_le_lien_de_don_est_present(self):
+        html = self.client.get(reverse('content:souscription')).content.decode()
+        self.assertIn('we-solidaire.com', html)
+
+    def test_l_url_nommee_ne_redirige_plus_vers_l_article(self):
+        """`content:souscription` était une redirection vers l'article. Sept
+        gabarits pointent sur ce nom : il doit servir la page, pas rebondir."""
+        reponse = self.client.get(reverse('content:souscription'))
+        self.assertEqual(reponse.status_code, 200,
+                         "l'URL nommée doit servir la page directement")
+
+    def test_aucun_lien_vers_l_ancien_wordpress(self):
+        """Deux liens de l'article partaient sur cnt-so.org, qui sert encore
+        l'ancien WordPress : le lecteur quittait le nouveau site sans le
+        savoir. On vise ces deux cibles, pas la chaîne « cnt-so.org » — le
+        gabarit de base l'emploie légitimement pour l'URL canonique."""
+        html = self.client.get(reverse('content:souscription')).content.decode()
+        for cible in ('cnt-so.org/orientations-du-6eme-congres',
+                      'cnt-so.org/on-a-toujours-raison'):
+            with self.subTest(cible=cible):
+                self.assertNotIn(cible, html)
+
+    def test_un_nom_de_fichier_devient_lisible(self):
+        from content.views import _libelle_document
+        self.assertEqual(_libelle_document('cntso_souscription_flyers.pdf'),
+                         'Souscription flyers')
+
+    def test_un_titre_deja_redige_est_respecte(self):
+        """On habille les noms de fichiers, on ne réécrit pas le travail d'un
+        rédacteur qui a saisi un vrai titre dans /cms/."""
+        from content.views import _libelle_document
+        self.assertEqual(_libelle_document('Tract à diffuser'), 'Tract à diffuser')
