@@ -64,7 +64,7 @@
 
         body {
             font-family: var(--font-body);
-            font-size: 17px;
+            font-size: 18px;
             line-height: 1.65;
             color: var(--text-color);
             background: var(--white);
@@ -102,7 +102,7 @@
 
         .top-bar a {
             color: #c4c4c4;
-            font-size: 14px;
+            font-size: 15px;
         }
 
         .top-bar a:hover {
@@ -114,7 +114,7 @@
             display: inline-flex;
             align-items: center;
             gap: .4rem;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 600;
             letter-spacing: .4px;
             text-transform: uppercase;
@@ -139,7 +139,7 @@
             background: transparent;
             border: none;
             color: #c4c4c4;
-            font-size: 14px;
+            font-size: 15px;
             font-family: var(--font-body);
             padding: .28rem .6rem;
             width: 180px;
@@ -216,7 +216,7 @@
 
         .logo-subtitle {
             font-family: 'Oswald', sans-serif;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 500;
             color: var(--text-muted);
             line-height: 1.5;
@@ -255,7 +255,7 @@
         }
 
         .subsite-type {
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.06em;
@@ -288,7 +288,7 @@
             text-decoration: none;
             padding: 0.4rem 0.9rem;
             border-radius: 4px;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 600;
             white-space: nowrap;
             transition: background .15s, color .15s;
@@ -318,7 +318,7 @@
             border: 1px solid var(--border-color);
             border-radius: 4px 0 0 4px;
             font-family: var(--font-body);
-            font-size: 14px;
+            font-size: 15px;
             width: 220px;
         }
 
@@ -334,7 +334,7 @@
             border: none;
             border-radius: 0 4px 4px 0;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 15px;
         }
 
         .search-box button:hover {
@@ -363,7 +363,7 @@
             display: block;
             padding: 1rem 1.2rem;
             color: var(--text-color);
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -399,7 +399,7 @@
             display: block;
             padding: 0.75rem 1.2rem;
             color: var(--text-secondary);
-            font-size: 14px;
+            font-size: 15px;
             border-bottom: 1px solid var(--bg-lighter);
         }
 
@@ -456,7 +456,7 @@
             text-align: left;
             cursor: pointer;
             font-family: var(--font-body);
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 600;
         }
 
@@ -495,7 +495,10 @@
         .container {
             max-width: var(--largeur-max);
             margin: 0 auto;
-            padding: 2rem 1rem;
+            /* 2rem sur les côtés, comme .hp-layout : à 1rem, les pages des
+               sous-sites étaient 32 px plus larges que l'accueil confédéral,
+               et le décalage se voyait en passant de l'un à l'autre. */
+            padding: 2rem;
         }
 
         /* Layout with sidebar */
@@ -544,7 +547,7 @@
         .widget li {
             padding: 0.5rem 0;
             border-bottom: 1px solid var(--border-color);
-            font-size: 14px;
+            font-size: 15px;
         }
 
         .widget li:last-child {
@@ -619,13 +622,13 @@
         }
 
         .article-card-meta {
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-muted);
             margin-bottom: 0.5rem;
         }
 
         .article-card-excerpt {
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-secondary);
             line-height: 1.5;
         }
@@ -676,7 +679,7 @@
             color: var(--white);
             padding: 0.75rem 1.5rem;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 15px;
         }
 
         .hero-link:hover {
@@ -776,7 +779,7 @@
             background: var(--primary-color);
             color: var(--white);
             padding: 0.2rem 0.5rem;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 600;
             text-transform: uppercase;
             margin-right: 0.25rem;
@@ -800,7 +803,7 @@
         }
 
         .article-meta {
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-muted);
             margin-bottom: 1rem;
         }
@@ -927,7 +930,7 @@
             border-radius: 4px;
         }
         .article-content .blocks-gallery-item figcaption {
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-muted);
             padding: 4px 6px;
             background: rgba(0,0,0,.04);
@@ -942,7 +945,7 @@
             border-radius: 4px;
         }
         .article-content .wp-block-image figcaption {
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-muted);
             text-align: center;
             margin-top: .4rem;
@@ -961,7 +964,7 @@
         .article-content .article-image { margin: 1.5rem 0; }
         .article-content .article-image img { border-radius: 4px; max-width: 100%; height: auto; }
         .article-content .article-image figcaption {
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-muted);
             text-align: center;
             margin-top: .4rem;
@@ -1020,7 +1023,7 @@
         .article-content .bloc-duo-media { margin: 0; }
         .article-content .bloc-duo-media img { width: 100%; height: auto; border-radius: 4px; }
         .article-content .bloc-duo-media figcaption {
-            font-size: 14px; color: var(--text-muted);
+            font-size: 15px; color: var(--text-muted);
             font-style: italic; margin-top: .4rem;
         }
         .article-content .bloc-duo-video iframe { width: 100%; aspect-ratio: 16/9; border: 0; }
@@ -1161,7 +1164,7 @@
         .pagination a, .pagination span {
             padding: 0.5rem 1rem;
             border: 1px solid var(--border-color);
-            font-size: 14px;
+            font-size: 15px;
         }
 
         .pagination .current {
@@ -1197,7 +1200,7 @@
 
         /* Colonne marque */
         .footer-brand-tag {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: .1em;
@@ -1215,7 +1218,7 @@
         }
 
         .footer-brand-desc {
-            font-size: 13px;
+            font-size: 14px;
             color: #666;
             line-height: 1.65;
             margin-bottom: 1rem;
@@ -1225,7 +1228,7 @@
             display: flex;
             flex-direction: column;
             gap: .3rem;
-            font-size: 13px;
+            font-size: 14px;
         }
 
         .footer-brand-links a { color: #777; }
@@ -1236,7 +1239,7 @@
             padding-top: .6rem !important;
             border-top: 1px solid #222 !important;
             color: #555 !important;
-            font-size: 12px !important;
+            font-size: 13px !important;
         }
         .footer-confed-link:hover { color: var(--primary-color) !important; }
 
@@ -1251,7 +1254,7 @@
 
         .footer-nav-title {
             font-family: var(--font-body);
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: .1em;
@@ -1263,9 +1266,9 @@
 
         .footer-nav-list { list-style: none; }
         .footer-nav-list li { padding: .3rem 0; }
-        .footer-nav-list a { color: #888; font-size: 14px; }
+        .footer-nav-list a { color: #888; font-size: 15px; }
         .footer-nav-list a:hover { color: #fff; text-decoration: none; }
-        .footer-nav-list span { color: #555; font-size: 14px; }
+        .footer-nav-list span { color: #555; font-size: 15px; }
 
         /* Colonne RS */
         .footer-social-col {}
@@ -1289,8 +1292,8 @@
             flex-wrap: wrap;
         }
 
-        .footer-bottom p { font-size: 12px; color: #444; }
-        .footer-bottom a { color: #555; font-size: 12px; }
+        .footer-bottom p { font-size: 13px; color: #444; }
+        .footer-bottom a { color: #555; font-size: 13px; }
         .footer-bottom a:hover { color: #fff; text-decoration: none; }
 
         /* ── Blocs PDF (wp-block-file) ── */
@@ -1322,7 +1325,7 @@
 
         .wp-block-file__name {
             flex: 1;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 600;
             color: var(--text-color);
             display: flex;
@@ -1345,7 +1348,7 @@
             align-items: center;
             gap: 0.4rem;
             padding: 0.5rem 1rem;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 600;
             border-radius: 3px;
             text-decoration: none;
@@ -1392,7 +1395,7 @@
             align-items: center;
             justify-content: center;
             color: var(--white);
-            font-size: 14px;
+            font-size: 15px;
         }
 
         .social-icon:hover {
@@ -1405,13 +1408,13 @@
             display: inline-block;
             background: var(--bg-light);
             padding: 0.2rem 0.5rem;
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-muted);
         }
 
         /* Breadcrumb */
         .breadcrumb {
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-muted);
             margin-bottom: 1rem;
         }
@@ -1466,7 +1469,7 @@
         }
         .cta-vignette-arrow {
             display: inline-block;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 700;
             color: var(--primary-color);
             margin-bottom: 0.6rem;
@@ -1474,7 +1477,7 @@
             transition: color .2s;
         }
         .cta-vignette-desc {
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-secondary);
             line-height: 1.6;
         }
@@ -1515,7 +1518,7 @@
             padding: .7rem 1rem;
             border: none;
             font-family: var(--font-body);
-            font-size: 14px;
+            font-size: 15px;
             background: #fff;
         }
         /* Anneau interne : le champ est collé au bouton, un contour extérieur
@@ -1528,7 +1531,7 @@
             border: none;
             cursor: pointer;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 15px;
             font-family: var(--font-body);
         }
         .site-newsletter-form button:hover { background: var(--primary-dark); }
@@ -1542,10 +1545,10 @@
         }
         .hp-bloc-soutenir h3 {
             color: #fff; font-family: var(--font-heading);
-            font-size: 17px; margin-bottom: 0.5rem; line-height: 1.2;
+            font-size: 18px; margin-bottom: 0.5rem; line-height: 1.2;
         }
         .hp-bloc-soutenir p {
-            color: rgba(255,255,255,0.85); font-size: 14px;
+            color: rgba(255,255,255,0.85); font-size: 15px;
             line-height: 1.5; margin-bottom: 0.75rem;
         }
         .hp-bloc-social {
@@ -1556,7 +1559,7 @@
             text-align: center;
         }
         .hp-bloc-social h3 {
-            font-family: var(--font-heading); font-size: 14px;
+            font-family: var(--font-heading); font-size: 15px;
             color: var(--dark-bg); margin-bottom: 0.75rem;
         }
         .social-icons-row {
@@ -1588,10 +1591,10 @@
         }
         .hp-sidebar-header h2,
         .hp-sidebar-header h3 {
-            font-family: 'Oswald', sans-serif; font-size: 14px; font-weight: 700;
+            font-family: 'Oswald', sans-serif; font-size: 15px; font-weight: 700;
             letter-spacing: .06em; text-transform: uppercase; color: #fff; margin: 0;
         }
-        .hp-sidebar-header a { font-size: 14px; color: #c4c4c4; }
+        .hp-sidebar-header a { font-size: 15px; color: #c4c4c4; }
         .hp-sidebar-header a:hover { color: #fff; }
         .hp-sidebar-list { padding: 0.5rem 1rem; }
         .hp-sidebar-item {
@@ -1604,12 +1607,12 @@
             background: var(--primary-color); margin-top: 0.4rem; flex-shrink: 0;
         }
         .hp-sidebar-item-title {
-            font-family: var(--font-body); font-size: 14px;
+            font-family: var(--font-body); font-size: 15px;
             line-height: 1.3; margin-bottom: 0.15rem;
         }
         .hp-sidebar-item-title a { color: var(--text-color); }
         .hp-sidebar-item-title a:hover { color: var(--primary-color); }
-        .hp-sidebar-item-cat { font-size: 14px; color: var(--text-muted); }
+        .hp-sidebar-item-cat { font-size: 15px; color: var(--text-muted); }
         .hp-bloc-galerie {
             background: var(--dark-bg); padding: 1.25rem;
             border-top: 3px solid var(--primary-color);
@@ -1617,10 +1620,10 @@
         }
         .hp-bloc-galerie h3 {
             color: #fff; font-family: var(--font-heading);
-            font-size: 17px; margin-bottom: 0.5rem; line-height: 1.2;
+            font-size: 18px; margin-bottom: 0.5rem; line-height: 1.2;
         }
         .hp-bloc-galerie p {
-            color: rgba(255,255,255,0.7); font-size: 14px;
+            color: rgba(255,255,255,0.7); font-size: 15px;
             line-height: 1.5; margin-bottom: 0.75rem;
         }
         .hp-bloc-loupe {
@@ -1629,7 +1632,7 @@
         }
         .hp-btn-outline {
             display: inline-block; padding: 0.4rem 0.9rem;
-            font-size: 14px; font-weight: 600;
+            font-size: 15px; font-weight: 600;
             border: 1px solid rgba(255,255,255,0.6); color: #fff;
             background: transparent;
         }
@@ -1647,7 +1650,7 @@
         @media (max-width: 768px) {
             .logo img { height: 64px; }
             .logo-text { font-size: 2rem; }
-            .logo-subtitle { font-size: 14px; }
+            .logo-subtitle { font-size: 15px; }
             .article-title { font-size: 28px; }
             .hero-title { font-size: 28px; }
             .hero-image { height: 220px; }
@@ -1677,7 +1680,7 @@
             .subsite-logo img { height: 44px; }
             .subsite-name { font-size: 1.15rem; }
             .subsite-logo-info { padding-left: .75rem; }
-            .subsite-back-btn { font-size: 12px; padding: .35rem .6rem; }
+            .subsite-back-btn { font-size: 13px; padding: .35rem .6rem; }
 
             /* Top bar */
             .top-bar-content { flex-wrap: wrap; gap: .4rem; }
@@ -1693,7 +1696,7 @@
             /* Hero */
             .hero { padding: 1.5rem 0; }
             .hero-image { height: 180px; }
-            .hero-excerpt { font-size: 14px; }
+            .hero-excerpt { font-size: 15px; }
 
             /* Container */
             .container { padding: 1rem .75rem; }
@@ -1703,10 +1706,10 @@
 
             /* Widgets */
             .widget { padding: 1rem; }
-            .widget-title { font-size: 17px; }
+            .widget-title { font-size: 18px; }
 
             /* Article list */
-            .article-list-title { font-size: 17px; }
+            .article-list-title { font-size: 18px; }
             .article-card-title { font-size: 16px; }
 
             /* CTA vignettes */
@@ -1719,7 +1722,7 @@
             .site-newsletter-form button { width: 100%; }
 
             /* Pagination */
-            .pagination a, .pagination span { padding: .4rem .65rem; font-size: 14px; }
+            .pagination a, .pagination span { padding: .4rem .65rem; font-size: 15px; }
         }
 
         /* Très petit téléphone (≤ 400px) */
@@ -1884,7 +1887,7 @@
                 </div>
                 {% endif %}
                 {% empty %}
-                <div class="nav-item" style="padding:.5rem 1rem; font-size:14px; color:#999; font-style:italic;">
+                <div class="nav-item" style="padding:.5rem 1rem; font-size:15px; color:#999; font-style:italic;">
                     Aucun menu configuré
                 </div>
                 {% endfor %}

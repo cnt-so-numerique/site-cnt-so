@@ -15,141 +15,137 @@
 
 {% if carousel_articles %}
 <style>
+/* ──────────────────────────────────────────────────────────────
+   Carrousel des sous-sites — même modèle que l'accueil confédéral.
+
+   Il en reprenait l'ancienne forme : fond noir, diapositives empilées en
+   absolu, voile dégradé et titre en surimpression. Or les visuels sont des
+   AFFICHES, donc déjà du texte : superposer le titre au visuel donne deux
+   écritures l'une sur l'autre. Et le bloc noir remplissant sa boîte bord à
+   bord, il paraissait bien plus large que celui de la conf, à 32 px près.
+
+   Il défilait en outre tout seul SANS aucun moyen de l'arrêter — seul le
+   survol le suspendait, ce qui ne vaut ni au doigt ni au clavier
+   (WCAG 2.2.2, niveau A). Il ne bouge désormais que sur action.
+   ────────────────────────────────────────────────────────────── */
 .sc-hero-wrap {
     position: relative;
-    overflow: hidden;
-    background: #111;
-    min-height: 480px;
+    background: var(--white);
+    border: 1px solid var(--bg-lighter);
     margin-bottom: 2rem;
 }
-@media (max-width: 640px) {
-    .sc-hero-wrap { min-height: 300px; }
-}
 
-.sc-slide {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity .6s ease;
-    pointer-events: none;
-}
+.sc-slide { display: none; }
 .sc-slide.active {
-    opacity: 1;
-    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    animation: sc-fondu .35s ease;
+}
+@keyframes sc-fondu { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+    .sc-slide.active { animation: none; }
 }
 
 .sc-slide-img {
-    position: absolute;
-    inset: 0;
+    display: block;
     width: 100%;
-    height: 100%;
+    height: auto;
+    max-height: 420px;
     object-fit: contain;
     object-position: center;
-    display: block;
+    background: var(--white);
 }
-.sc-slide-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,.82) 0%, rgba(0,0,0,.55) 28%, rgba(0,0,0,.10) 60%, transparent 100%);
+.sc-slide-no-img-box {
+    height: 220px;
+    background: var(--bg-lighter);
 }
-.sc-slide-no-img {
-    background: linear-gradient(135deg, #1a0505 0%, #2d0a0a 40%, #1a1a1a 100%);
+
+@media (min-width: 641px) {
+    /* Une proportion plutôt qu'une hauteur fixe : l'affiche grandit avec la
+       colonne au lieu de flotter au milieu du blanc. */
+    .sc-slide-img,
+    .sc-slide-no-img-box {
+        height: auto;
+        aspect-ratio: 2 / 1;
+        max-height: 560px;
+    }
 }
-.sc-slide-no-img .sc-slide-overlay {
-    background: none;
-}
+
 .sc-slide-content {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 1;
-    padding: 1.5rem 5rem 1.5rem 2rem;
-}
-.sc-slide-label {
-    display: inline-flex;
-    align-items: center;
-    gap: .5rem;
-    margin-bottom: .6rem;
-}
-.sc-label-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--primary-color);
-    flex-shrink: 0;
-}
-.sc-label-text {
-    color: #fff;
-    font-size: 14px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
+    display: flex;
+    flex-direction: column;
+    background: var(--white);
+    padding: 1rem 1rem 0.5rem;
 }
 .sc-slide-title {
     font-family: var(--font-heading);
-    font-size: clamp(1.2rem, 3vw, 1.85rem);
-    color: #fff;
-    line-height: 1.25;
+    font-size: 34px;
+    color: var(--text-color);
+    line-height: 1.2;
     margin: 0;
 }
-.sc-slide-title a { color: #fff; }
-.sc-slide-title a:hover { text-decoration: underline; }
+.sc-slide-title a { color: var(--text-color); }
+.sc-slide-title a:hover { color: var(--primary-color); }
+@media (max-width: 640px) {
+    .sc-slide-title { font-size: 24px; }
+}
 
+/* Commandes en flux sous le titre : posées sur l'affiche, elles la masquaient. */
+.sc-cmd {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    background: var(--white);
+    padding: 0 1rem 1rem;
+}
 .sc-arrow {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 2;
-    background: rgba(0,0,0,.45);
-    border: 1px solid rgba(255,255,255,.2);
-    color: #fff;
-    width: 42px; height: 42px;
-    border-radius: 50%;
+    background: var(--bg-light);
+    border: none;
+    color: var(--text-color);
+    /* 44 px : la cible tactile recommandée par WCAG 2.5.5. */
+    width: 44px; height: 44px;
+    border-radius: 3px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background .15s, border-color .15s;
-    flex-shrink: 0;
+    transition: background .2s, color .2s;
 }
-.sc-arrow:hover { background: var(--primary-color); border-color: var(--primary-color); }
-#sc-prev { left: 1rem; }
-#sc-next { right: 1rem; }
+.sc-arrow:hover,
+.sc-arrow:focus-visible { background: var(--primary-color); color: #fff; }
+#sc-prev { order: 1; }
+#sc-next { order: 3; }
 
 .sc-dots-wrap {
-    position: absolute;
-    bottom: 1rem;
-    right: 1.5rem;
-    z-index: 2;
+    order: 2;
+    flex: 1;
     display: flex;
+    justify-content: center;
     gap: .4rem;
     align-items: center;
 }
 .sc-dot {
-    width: 7px; height: 7px;
+    width: 9px; height: 9px;
     border-radius: 50%;
-    background: rgba(255,255,255,.35);
+    background: rgba(0,0,0,.22);
     border: none;
     cursor: pointer;
     padding: 0;
     transition: background .2s, transform .2s;
 }
-.sc-dot.on { background: var(--primary-color); transform: scale(1.35); }
+.sc-dot.on { background: var(--primary-color); transform: scale(1.3); }
 </style>
 
-<div class="sc-hero-wrap" id="sc-wrap">
+<section class="sc-hero-wrap" id="sc-wrap" aria-label="Articles à la une">
   {% for article in carousel_articles %}
   {% with img_url=article.any_image_url %}
-  <div class="sc-slide{% if forloop.first %} active{% endif %}{% if not img_url %} sc-slide-no-img{% endif %}">
+  <div class="sc-slide{% if forloop.first %} active{% endif %}" aria-hidden="{% if forloop.first %}false{% else %}true{% endif %}">
     {% if img_url %}
     <img class="sc-slide-img" src="{{ img_url }}" alt="{{ article.title }}">
+    {% else %}
+    <div class="sc-slide-no-img-box"></div>
     {% endif %}
-    <div class="sc-slide-overlay"></div>
     <div class="sc-slide-content">
-      <div class="sc-slide-label">
-        <span class="sc-label-dot"></span>
-        <span class="sc-label-text">À la une</span>
-      </div>
       <h2 class="sc-slide-title">
         <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
       </h2>
@@ -158,45 +154,49 @@
   {% endwith %}
   {% endfor %}
 
-  <button class="sc-arrow" id="sc-prev" aria-label="Précédent">
-    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
-  </button>
-  <button class="sc-arrow" id="sc-next" aria-label="Suivant">
-    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
-  </button>
-  <div class="sc-dots-wrap" id="sc-dots"></div>
-</div>
+  {% if carousel_articles|length > 1 %}
+  <div class="sc-cmd">
+    <button class="sc-arrow" id="sc-prev" aria-label="Précédent">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <button class="sc-arrow" id="sc-next" aria-label="Suivant">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+    <div class="sc-dots-wrap" id="sc-dots">
+      {% for article in carousel_articles %}
+      <button class="sc-dot{% if forloop.first %} on{% endif %}" data-i="{{ forloop.counter0 }}" aria-label="Article {{ forloop.counter }}"></button>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</section>
 
 <script>
 (function(){
   var wrap = document.getElementById('sc-wrap');
-  var slides = wrap ? wrap.querySelectorAll('.sc-slide') : [];
-  var dotsEl = document.getElementById('sc-dots');
+  if (!wrap) return;
+  var slides = wrap.querySelectorAll('.sc-slide');
+  var dots = wrap.querySelectorAll('.sc-dot');
   if (slides.length < 2) return;
   var cur = 0;
 
-  for (var i = 0; i < slides.length; i++) {
-    var d = document.createElement('button');
-    d.className = 'sc-dot' + (i === 0 ? ' on' : '');
-    d.setAttribute('data-i', String(i));
-    d.addEventListener('click', function(){ go(+this.getAttribute('data-i')); });
-    dotsEl.appendChild(d);
-  }
-
   function go(n) {
     slides[cur].classList.remove('active');
-    dotsEl.querySelectorAll('.sc-dot')[cur].classList.remove('on');
+    slides[cur].setAttribute('aria-hidden', 'true');
+    if (dots[cur]) dots[cur].classList.remove('on');
     cur = (n + slides.length) % slides.length;
     slides[cur].classList.add('active');
-    dotsEl.querySelectorAll('.sc-dot')[cur].classList.add('on');
+    slides[cur].setAttribute('aria-hidden', 'false');
+    if (dots[cur]) dots[cur].classList.add('on');
   }
 
+  // Aucune minuterie : le carrousel ne bouge que sur action. C'est ce qui
+  // dispense du bouton d'arrêt qu'exigerait WCAG 2.2.2 — et qui manquait.
   document.getElementById('sc-prev').addEventListener('click', function(){ go(cur - 1); });
   document.getElementById('sc-next').addEventListener('click', function(){ go(cur + 1); });
-
-  var timer = setInterval(function(){ go(cur + 1); }, 5000);
-  wrap.addEventListener('mouseenter', function(){ clearInterval(timer); });
-  wrap.addEventListener('mouseleave', function(){ timer = setInterval(function(){ go(cur + 1); }, 5000); });
+  Array.prototype.forEach.call(dots, function(d){
+    d.addEventListener('click', function(){ go(+d.getAttribute('data-i')); });
+  });
 })();
 </script>
 {% endif %}

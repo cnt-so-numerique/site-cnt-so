@@ -3,9 +3,9 @@
 {% if site.slug and site.slug != 'principal' %}{% section_url 'content:site_contact' site as sidebar_contact_url %}{% else %}{% url 'content:contact' as sidebar_contact_url %}{% endif %}
 <div style="background:var(--primary-color);padding:1.25rem;text-align:center;">
     <h2 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Nous rejoindre / nous contacter&nbsp;?</h2>
-    <p style="color:rgba(255,255,255,.85);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Rejoignez le syndicat et participez à l'organisation collective de votre secteur.</p>
+    <p style="color:rgba(255,255,255,.85);font-size:15px;line-height:1.5;margin-bottom:.85rem;">Rejoignez le syndicat et participez à l'organisation collective de votre secteur.</p>
     <a href="{{ sidebar_contact_url }}"
-       style="display:block;padding:.6rem;background:#fff;color:var(--primary-color);font-weight:700;font-size:14px;font-family:var(--font-body);text-align:center;text-decoration:none;">
+       style="display:block;padding:.6rem;background:#fff;color:var(--primary-color);font-weight:700;font-size:15px;font-family:var(--font-body);text-align:center;text-decoration:none;">
         Nous contacter / Adhérer
     </a>
 </div>
@@ -16,13 +16,13 @@
 <!-- Restez informé·e·s -->
 <div style="background:var(--dark-bg);padding:1.25rem;text-align:center;margin-top:1rem;">
     <h2 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Restez informé·e·s&nbsp;!</h2>
-    <p style="color:rgba(255,255,255,.7);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Abonnez-vous à la newsletter pour recevoir nos actualités et luttes directement par e-mail.</p>
+    <p style="color:rgba(255,255,255,.7);font-size:15px;line-height:1.5;margin-bottom:.85rem;">Abonnez-vous à la newsletter pour recevoir nos actualités et luttes directement par e-mail.</p>
     <form method="post" action="{% url 'content:newsletter_subscribe' %}" style="display:flex;flex-direction:column;gap:.5rem;">
         {% csrf_token %}
         <input type="email" name="email" placeholder="votre@email.fr" aria-label="Votre adresse e-mail pour la newsletter" required
-               style="padding:.6rem .8rem;border:none;font-size:14px;font-family:var(--font-body);background:#fff;width:100%;box-sizing:border-box;">
+               style="padding:.6rem .8rem;border:none;font-size:15px;font-family:var(--font-body);background:#fff;width:100%;box-sizing:border-box;">
         <button type="submit"
-                style="padding:.6rem;background:var(--primary-color);color:#fff;border:none;cursor:pointer;font-weight:700;font-size:14px;font-family:var(--font-body);width:100%;">
+                style="padding:.6rem;background:var(--primary-color);color:#fff;border:none;cursor:pointer;font-weight:700;font-size:15px;font-family:var(--font-body);width:100%;">
             S'abonner
         </button>
     </form>
@@ -31,9 +31,9 @@
 <!-- Nous soutenir -->
 <div style="background:var(--dark-bg);padding:1.25rem;text-align:center;margin-top:1rem;">
     <h2 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Nous soutenir&nbsp;?</h2>
-    <p style="color:rgba(255,255,255,.7);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Faites un don pour soutenir nos actions syndicales.</p>
+    <p style="color:rgba(255,255,255,.7);font-size:15px;line-height:1.5;margin-bottom:.85rem;">Faites un don pour soutenir nos actions syndicales.</p>
     <a href="{% url 'content:souscription' %}"
-       style="display:block;padding:.6rem;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);font-weight:700;font-size:14px;font-family:var(--font-body);text-align:center;text-decoration:none;">
+       style="display:block;padding:.6rem;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);font-weight:700;font-size:15px;font-family:var(--font-body);text-align:center;text-decoration:none;">
         Nous soutenir
     </a>
 </div>
@@ -57,7 +57,7 @@
             </div>
         </div>
         {% empty %}
-        <p style="font-size:14px;color:var(--text-muted);padding:0.5rem 0;">Aucun article.</p>
+        <p style="font-size:15px;color:var(--text-muted);padding:0.5rem 0;">Aucun article.</p>
         {% endfor %}
     </div>
 </div>
@@ -70,9 +70,9 @@ ne l'ont pas — le bloc menait alors à un 404, sur toutes leurs pages.
 {% if banque_url %}
 <div style="background:var(--dark-bg);padding:1.25rem;text-align:center;margin-top:1rem;">
     <h2 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Notre banque d'images</h2>
-    <p style="color:rgba(255,255,255,.7);font-size:14px;line-height:1.5;margin-bottom:.85rem;">Découvrez nos archives photographiques des luttes ouvrières.</p>
+    <p style="color:rgba(255,255,255,.7);font-size:15px;line-height:1.5;margin-bottom:.85rem;">Découvrez nos archives photographiques des luttes ouvrières.</p>
     <a href="{{ banque_url }}"
-       style="display:block;padding:.6rem;background:var(--primary-color);color:#fff;font-weight:700;font-size:14px;font-family:var(--font-body);text-align:center;text-decoration:none;">
+       style="display:block;padding:.6rem;background:var(--primary-color);color:#fff;font-weight:700;font-size:15px;font-family:var(--font-body);text-align:center;text-decoration:none;">
         Voir la galerie
     </a>
 </div>
@@ -97,7 +97,7 @@ ne l'ont pas — le bloc menait alors à un 404, sur toutes leurs pages.
             </div>
         </div>
         {% empty %}
-        <p style="font-size:14px;color:var(--text-muted);padding:0.5rem 0;">Aucun article.</p>
+        <p style="font-size:15px;color:var(--text-muted);padding:0.5rem 0;">Aucun article.</p>
         {% endfor %}
     </div>
 </div>
