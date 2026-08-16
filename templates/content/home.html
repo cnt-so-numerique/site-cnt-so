@@ -286,26 +286,31 @@
 
 .hp-labeled-section {
     display: flex;
+    /* En colonne : l'intertitre au-dessus, le contenu dessous. Auparavant en
+       ligne, avec une étiquette pivotée à 90° dans une bande de 28 px — elle
+       tenait lieu de marge à gauche, mais rien ne la tenait à droite, et sous
+       960 px elle se retrouvait à cheval sur le texte. */
+    flex-direction: column;
     gap: 0;
-    padding: 2rem 0;
+    padding: 2rem 1.25rem;
     border-bottom: 1px solid var(--bg-lighter);
     margin-top: 2rem;
 }
 
+/* Intertitre de section. Il était vertical ; il ne l'est plus à aucune taille
+   (choix d'Arnaud, 16/08/2026). Les sections « Droits » et « Actions » n'en
+   portent plus du tout : leur <h2> disait déjà la même chose, et l'étiquette
+   la répétait en travers. */
 .hp-vert-label {
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
+    align-self: flex-start;
     font-size: 15px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 2px;
-    color: var(--text-muted);
-    width: 28px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    padding-bottom: 0.5rem;
+    color: var(--text-color);
+    padding-bottom: 0.3rem;
+    margin-bottom: 0.9rem;
+    border-bottom: 2px solid var(--primary-color);
 }
 
 .hp-section-body {
@@ -580,11 +585,13 @@
     gap: 0 2rem;
 }
 
-@media (max-width: 760px) {
-    .hp-reseau-grid { grid-template-columns: repeat(2, 1fr); }
+/* Trois colonnes tenaient encore à 820 px, mais chacune tombait sous 250 px :
+   les titres s'y brisaient en cinq lignes. On repasse à deux dès 960. */
+@media (max-width: 960px) {
+    .hp-reseau-grid { grid-template-columns: repeat(2, 1fr); gap: 0 1.5rem; }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 560px) {
     .hp-reseau-grid { grid-template-columns: 1fr; }
 }
 
@@ -824,8 +831,7 @@
 .hp-newsletter-form button:hover { background: var(--primary-dark); }
 
 @media (max-width: 600px) {
-    .hp-vert-label { display: none; }
-    .hp-labeled-section { padding: 1rem 0; }
+    .hp-labeled-section { padding: 1.25rem 1rem; }
 }
 
 /* Mobile : texte 16px minimum */
@@ -973,12 +979,10 @@
 
         <!-- 4. DROITS + ACTIONS (2 colonnes dans la colonne gauche) -->
         <div class="hp-labeled-section hp-section-grey">
-            <span class="hp-vert-label" style="visibility:hidden;"></span>
             <div class="hp-section-body">
                 <div class="hp-two-col-section">
 
                     <div class="hp-col-section">
-                        <span class="hp-vert-label" style="font-size:15px;">Droits</span>
                         <div class="hp-col-title-block">
                             <h2 class="hp-col-title">Droits</h2>
                             {% for article in droits_articles %}
@@ -1000,7 +1004,6 @@
                     </div>
 
                     <div class="hp-col-section">
-                        <span class="hp-vert-label" style="font-size:15px;">Actions</span>
                         <div class="hp-col-title-block">
                             <h2 class="hp-col-title">Actions</h2>
                             {% for article in actions_articles %}
