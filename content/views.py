@@ -85,8 +85,10 @@ class HomeView(ListView):
                 main_site.carousel_items.select_related('article__featured_image').all()
                 if ci.article and ci.article.live
             ]
-        if not carousel:
-            carousel = list(base_qs.exclude(featured_image=None)[:5])
+        # Compléter jusqu'à 5, plutôt que de tout couper au premier choisi.
+        # Avant le 16/08/2026, un seul article épinglé faisait disparaître les
+        # quatre autres : mettre un article en avant en retirait quatre.
+        carousel = _completer_carrousel(carousel, base_qs.exclude(featured_image=None))
         context['carousel_articles'] = carousel
         excl = [a.pk for a in carousel]
 
@@ -151,6 +153,29 @@ class SiteAgendaView(TemplateView):
         return context
 
 
+def _completer_carrousel(choisis, candidats, maximum=5):
+    """Les articles épinglés d'abord, puis les récents illustrés jusqu'à 5.
+
+    Le carrousel fonctionnait en tout ou rien : tant qu'aucun article n'était
+    coché, l'accueil affichait les 5 récents illustrés ; dès qu'un seul était
+    coché, l'automatique s'arrêtait et le carrousel n'affichait plus que celui-
+    là. Mettre un article en avant en retirait donc quatre — l'inverse de ce
+    qu'attend un rédacteur (relevé par Arnaud, 15/08/2026).
+
+    L'ordre voulu par le syndicat est conservé : les choisis restent en tête,
+    dans leur ordre, et le complément ne fait que remplir les places libres.
+    """
+    resultat = list(choisis)[:maximum]
+    deja = {a.pk for a in resultat}
+    for article in candidats:
+        if len(resultat) >= maximum:
+            break
+        if article.pk not in deja:
+            resultat.append(article)
+            deja.add(article.pk)
+    return resultat
+
+
 class SiteHomeView(ListView):
     """Page d'accueil d'un sous-site"""
     model = ArticlePage
@@ -199,14 +224,14 @@ class SiteHomeView(ListView):
                 ci.article for ci in
                 self.current_site.carousel_items.select_related('article').all()
             ]
-            if not carousel:
-                candidates = list(
-                    ArticlePage.objects.live()
-                    .filter(section_slug=self.current_site.slug)
-                    .select_related('featured_image')
-                    .order_by('-first_published_at')[:20]
-                )
-                carousel = [a for a in candidates if a.any_image_url][:5]
+            candidats = [
+                a for a in ArticlePage.objects.live()
+                .filter(section_slug=self.current_site.slug)
+                .select_related('featured_image')
+                .order_by('-publication_date', '-first_published_at')[:20]
+                if a.any_image_url
+            ]
+            carousel = _completer_carrousel(carousel, candidats)
             context['carousel_articles'] = carousel
             context.update(_sectoral_sidebar_context(self.current_site))
         else:

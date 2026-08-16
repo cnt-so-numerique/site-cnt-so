@@ -581,9 +581,6 @@ class HomePage(Page):
         context['manques_articles'] = list(base_qs.exclude(pk__in=excl)[6:11])
         return context
 
-    def is_previewable(self):
-        return False
-
     def get_template(self, request, *args, **kwargs):
         return 'content/home.html'
 
@@ -773,12 +770,6 @@ class SectionPage(SeoMixin, Page):
                     f"Ce domaine est déjà utilisé par « {clash.first().title} »"})
             self.custom_domain = domain
 
-    def is_previewable(self):
-        return False
-
-    def serve_preview(self, request, mode_name):
-        from django.shortcuts import redirect
-        return redirect(self.get_absolute_url())
 
     @property
     def slugs_contenu(self):
@@ -868,7 +859,7 @@ def panneaux_article():
             PanneauChefSeulement('section_slug'),
             MultiFieldPanel([
                 FieldPanel('publication_date'),
-                FieldPanel('is_featured'),
+                PanneauSitePrincipal('is_featured'),
                 FieldPanel('in_carousel'),
                 PanneauChefSeulement('featured_on_conf'),
                 FieldPanel('author_name'),
@@ -878,6 +869,34 @@ def panneaux_article():
             FieldPanel('cms_tags'),
         ], heading='Métadonnées'),
     ])
+
+
+class PanneauSitePrincipal(FieldPanel):
+    """Champ visible uniquement sur un article du site confédéral.
+
+    `is_featured` n'est lu qu'à un seul endroit — la vedette de l'accueil
+    confédéral, et seulement pour `section_slug='principal'` (voir
+    `HomePage.get_context`). Sur un article de syndicat, cocher la case ne
+    produisait **rien, nulle part**, alors que son libellé annonçait « Mis en
+    avant sur l'accueil du syndicat » (relevé par Arnaud, 15/08/2026).
+
+    Le libellé est corrigé ; le panneau disparaît là où il ne peut rien faire,
+    plutôt que de proposer un geste sans effet.
+    """
+
+    class BoundPanel(FieldPanel.BoundPanel):
+        def is_shown(self):
+            if not super().is_shown():
+                return False
+            instance = getattr(self, 'instance', None)
+            # À la création, la section n'est pas encore fixée : on se rabat
+            # sur le syndicat sélectionné dans le back-office.
+            slug = getattr(instance, 'section_slug', '') or ''
+            if not slug:
+                from .site_context import get_current_site
+                courant = get_current_site(self.request)
+                slug = getattr(courant, 'slug', '') or ''
+            return slug == 'principal'
 
 
 class PanneauChefSeulement(FieldPanel):
@@ -927,8 +946,11 @@ class ArticlePage(SeoMixin, Page):
     )
     is_featured = models.BooleanField(
         default=False,
-        verbose_name="Mis en avant sur l'accueil du syndicat",
-        help_text="Place cet article en position vedette sur la page d'accueil de son syndicat",
+        verbose_name="Mis en avant sur l'accueil de la confédération",
+        help_text="Réservé aux articles du site confédéral : place l'article en "
+                  "position vedette sur cnt-so.org. Pour mettre un article en "
+                  "avant sur l'accueil de VOTRE syndicat, utilisez « Dans le "
+                  "carrousel de l'accueil ».",
     )
     in_carousel = models.BooleanField(
         default=False,
@@ -1225,12 +1247,6 @@ class ContentPage(Page):
                     return text
         return ''
 
-    def is_previewable(self):
-        return False
-
-    def serve_preview(self, request, mode_name):
-        from django.shortcuts import redirect
-        return redirect(self.get_absolute_url())
 
     def get_absolute_url(self):
         url = self.url or '/'

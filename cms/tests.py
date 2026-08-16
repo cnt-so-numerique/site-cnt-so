@@ -18,7 +18,7 @@ from cms.models import (
     ArticlePage, CarouselArticle, CmsCategory, ContentPage, Event, HomePage, SectionPage,
 )
 from content.tests import (
-    make_article_page, make_cms_category, make_superuser,
+    make_article_page, make_cms_category, make_content_page, make_superuser,
     _ensure_section_page,
 )
 
@@ -3618,3 +3618,162 @@ class FiltreSansJargonTest(TestCase):
     def test_le_chef_le_garde(self):
         """Contrôle positif : lui passe d'un syndicat à l'autre."""
         self.assertTrue(self._filtres(self.chef))
+
+
+class PrevisualisationRetablieTest(TestCase):
+    """La prévisualisation avait été coupée sur TOUS les types de page le
+    18/06/2026 (b0b1a7c), puis rétablie le 12/07 pour les seuls articles
+    (5b84c5d). Les pages statiques et les fiches syndicat étaient restées sans,
+    et `serve_preview` y redirigeait vers l'adresse publique — donc vers la
+    version DÉJÀ EN LIGNE, jamais le brouillon qu'on voulait relire.
+
+    Ce qui bloquait en juin — le middleware qui interceptait les requêtes de
+    prévisualisation — a été corrigé depuis (`request.is_dummy`).
+    """
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        self.user = User.objects.create_superuser('chef-prev', 'p@x.fr', 'x')
+        self.client.force_login(self.user)
+
+    def test_tous_les_types_de_page_sont_previsualisables(self):
+        from cms.models import ContentPage, SectionPage, HomePage
+        for modele in (ArticlePage, ContentPage, SectionPage, HomePage):
+            objet = modele.objects.first()
+            if objet is None:
+                continue
+            with self.subTest(modele=modele.__name__):
+                self.assertTrue(objet.is_previewable(),
+                                f'{modele.__name__} reste sans prévisualisation')
+
+    def test_la_previsualisation_rend_la_page_et_pas_un_message_d_attente(self):
+        """⚠️ Piège de mesure : un GET seul renvoie 200 avec « Prévisualisation
+        indisponible » — Wagtail attend d'abord le POST du formulaire. Vérifier
+        le code HTTP aurait conclu que tout allait bien alors que rien n'était
+        rendu."""
+        from cms.models import ContentPage
+        page = make_content_page(section_slug='principal', title='Statique',
+                                 slug='statique-preview')
+        url = f'/cms/snippets/cms/contentpage/preview/{page.pk}/'
+        post = self.client.post(url, {'title': page.title, 'slug': page.slug,
+                                      'body-count': '0'})
+        self.assertEqual(post.status_code, 200)
+        self.assertTrue(post.json()['is_available'])
+
+        html = self.client.get(url).content.decode()
+        self.assertNotIn('Prévisualisation indisponible', html)
+        self.assertIn('Statique', html)
+
+    def test_sans_post_prealable_on_obtient_bien_le_message_d_attente(self):
+        """Contrôle du piège lui-même : si ce test cessait d'échouer sans POST,
+        c'est que la vérification ci-dessus ne prouverait plus rien."""
+        from cms.models import ContentPage
+        page = make_content_page(section_slug='principal', title='Autre',
+                                 slug='autre-preview')
+        html = self.client.get(
+            f'/cms/snippets/cms/contentpage/preview/{page.pk}/').content.decode()
+        self.assertIn('Prévisualisation indisponible', html)
+
+
+class CaseMiseEnAvantHonneteTest(TestCase):
+    """`is_featured` annonçait « Mis en avant sur l'accueil du syndicat » alors
+    qu'il n'est lu qu'à un seul endroit : la vedette de l'accueil confédéral,
+    et seulement pour `section_slug='principal'`. Sur un article de syndicat,
+    la cocher ne produisait rien, nulle part (relevé par Arnaud, 15/08/2026)."""
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        self.site = _ensure_section_page(slug='13', name='CNT-SO 13')
+        self.user = User.objects.create_superuser('chef-vedette', 'v@x.fr', 'x')
+        self.client.force_login(self.user)
+
+    def test_le_libelle_ne_parle_plus_du_syndicat(self):
+        champ = ArticlePage._meta.get_field('is_featured')
+        self.assertIn('confédération', str(champ.verbose_name))
+        self.assertNotIn("l'accueil du syndicat", str(champ.verbose_name))
+
+    def test_l_aide_renvoie_vers_le_bon_reglage(self):
+        """Corriger le libellé sans dire où aller laisserait le rédacteur sans
+        solution : c'est `in_carousel` qu'il cherche."""
+        champ = ArticlePage._meta.get_field('is_featured')
+        self.assertIn('carrousel', champ.help_text)
+
+    def test_la_case_disparait_sur_un_article_de_syndicat(self):
+        art = make_article_page(section_slug='13', title='Au 13', slug='au-13')
+        html = self.client.get(
+            f'/cms/snippets/cms/articlepage/edit/{art.pk}/').content.decode()
+        self.assertNotIn('id_is_featured', html)
+
+    def test_la_case_reste_sur_un_article_confederal(self):
+        """Contrôle positif : la masquer partout supprimerait une fonction qui
+        marche pour la confédération."""
+        art = make_article_page(section_slug='principal', title='Conf',
+                                slug='au-principal')
+        html = self.client.get(
+            f'/cms/snippets/cms/articlepage/edit/{art.pk}/').content.decode()
+        self.assertIn('id_is_featured', html)
+
+
+class CarrouselCompleteTest(TestCase):
+    """Le carrousel fonctionnait en tout ou rien : tant qu'aucun article
+    n'était coché, l'accueil affichait les 5 récents illustrés ; dès qu'un seul
+    était coché, l'automatique s'arrêtait et il n'affichait plus que celui-là.
+    Mettre un article en avant en retirait quatre."""
+
+    def _articles(self, n, prefixe):
+        from wagtail.images.tests.utils import get_test_image_file
+        from wagtail.images.models import Image
+        faits = []
+        for i in range(n):
+            img = Image.objects.create(title=f'img{prefixe}{i}',
+                                       file=get_test_image_file())
+            art = make_article_page(section_slug='13', title=f'{prefixe} {i}',
+                                    slug=f'{prefixe}-{i}')
+            art.featured_image = img
+            art.save()
+            faits.append(art)
+        return faits
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='13', name='CNT-SO 13')
+        self.site.section_type = 'regional'
+        self.site.save()
+        self.tous = self._articles(7, 'art')
+
+    def _carrousel(self):
+        reponse = self.client.get('/13/')
+        return [a.pk for a in reponse.context['carousel_articles']]
+
+    def test_sans_choix_le_carrousel_se_remplit_tout_seul(self):
+        self.assertEqual(len(self._carrousel()), 5)
+
+    def test_un_article_epingle_n_en_retire_pas_quatre(self):
+        from cms.models import CarouselArticle
+        CarouselArticle.objects.create(page=self.site, article=self.tous[0],
+                                       sort_order=0)
+        carrousel = self._carrousel()
+        self.assertEqual(len(carrousel), 5, "épingler un article a vidé le carrousel")
+        self.assertEqual(carrousel[0], self.tous[0].pk, "l'épinglé n'est plus en tête")
+
+    def test_l_ordre_choisi_par_le_syndicat_est_conserve(self):
+        from cms.models import CarouselArticle
+        for rang, art in enumerate([self.tous[3], self.tous[1]]):
+            CarouselArticle.objects.create(page=self.site, article=art,
+                                           sort_order=rang)
+        carrousel = self._carrousel()
+        self.assertEqual(carrousel[:2], [self.tous[3].pk, self.tous[1].pk])
+
+    def test_aucun_doublon_entre_epingles_et_complement(self):
+        from cms.models import CarouselArticle
+        CarouselArticle.objects.create(page=self.site, article=self.tous[0],
+                                       sort_order=0)
+        carrousel = self._carrousel()
+        self.assertEqual(len(carrousel), len(set(carrousel)))
+
+    def test_cinq_epingles_ne_sont_pas_completes(self):
+        """Le complément remplit les places libres, il n'en crée pas."""
+        from cms.models import CarouselArticle
+        for rang, art in enumerate(self.tous[:5]):
+            CarouselArticle.objects.create(page=self.site, article=art,
+                                           sort_order=rang)
+        self.assertEqual(len(self._carrousel()), 5)
