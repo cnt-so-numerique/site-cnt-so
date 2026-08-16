@@ -13,7 +13,7 @@
    LAYOUT GLOBAL : 2 colonnes persistantes
    ---------------------------------------------------------- */
 .hp-layout {
-    max-width: 1280px;
+    max-width: var(--largeur-max);
     margin: 0.5rem auto 0;
     padding: 0 2rem;
     display: grid;
@@ -90,12 +90,20 @@
 }
 
 @media (min-width: 641px) {
-    /* Hauteur tenue sur grand écran : sans elle, passer d'une affiche
-       panoramique à une affiche portrait faisait sauter toute la page. */
+    /* Une hauteur FIXE de 380 px laissait l'affiche flotter : dans une colonne
+       de 1 104 px, elle n'en occupait que 537, soit 51 % de blanc de part et
+       d'autre (mesuré le 16/08/2026). En raisonnant en proportion plutôt qu'en
+       pixels, la boîte grandit avec la colonne et l'affiche avec elle.
+
+       La hauteur reste tenue — c'est ce qui empêche la page de sauter quand on
+       passe d'une affiche panoramique à une affiche portrait — mais elle est
+       désormais tenue par un rapport, pas par un nombre. */
     .hp-carousel-img,
     .hp-carousel-img--empty {
-        height: 380px;
-        max-height: none;
+        height: auto;
+        aspect-ratio: 2 / 1;
+        /* Au-delà, l'affiche mangerait tout l'écran avant le moindre titre. */
+        max-height: 560px;
     }
 }
 
@@ -202,7 +210,10 @@
 
 .hp-hero-title {
     font-family: var(--font-heading);
-    font-size: 34px;
+    /* Le titre a quitté la surimpression sur l'affiche pour une bande claire :
+       il y gagne en lisibilité mais y perd en présence, à taille égale. On la
+       lui rend, ce que le fond blanc permet sans peine. */
+    font-size: 40px;
     color: var(--text-color);
     line-height: 1.2;
     margin: 0;
@@ -214,7 +225,7 @@
 /* Le carrousel est déjà « affiche puis titre » à toutes les largeurs : il ne
    reste ici que ce qui tient vraiment au petit écran. */
 @media (max-width: 640px) {
-    .hp-hero-title { font-size: 22px; }
+    .hp-hero-title { font-size: 26px; }
     .hp-carousel-cmd { padding: 0 .7rem .8rem; }
 }
 
@@ -539,12 +550,12 @@
 
 .hp-mcard-title {
     font-family: var(--font-heading);
-    font-size: 16px;
+    font-size: 18px;
     line-height: 1.3;
     margin: 0;
 }
 
-.hp-manchette .hp-mcard:nth-child(-n+2) .hp-mcard-title { font-size: 22px; }
+.hp-manchette .hp-mcard:nth-child(-n+2) .hp-mcard-title { font-size: 26px; }
 
 .hp-mcard-title a { color: var(--text-color); }
 .hp-mcard-title a:hover { color: var(--primary-color); }
@@ -832,6 +843,10 @@
     .hp-reseau-meta .hp-card-cat { font-size: 14px; }
     .hp-hero-title { font-size: 26px; }
     .hp-col-title { font-size: 18px; }
+    /* La règle groupée ci-dessus ramenait les titres de la sélection à 16 px,
+       annulant sur mobile l'agrandissement voulu. */
+    .hp-manchette .hp-mcard-title { font-size: 18px; }
+    .hp-manchette .hp-mcard:nth-child(-n+2) .hp-mcard-title { font-size: 20px; }
 }
 </style>
 {% endblock %}

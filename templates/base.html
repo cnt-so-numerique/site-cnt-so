@@ -39,6 +39,12 @@
             --dark-bg: #111111;
             --font-heading: 'Amiri', serif;
             --font-body: 'Noto Sans', sans-serif;
+            /* Largeur de tous les conteneurs du site. Elle était écrite en dur
+               à 1280 px en dix endroits : sur un écran de 1920, cela laissait
+               320 px de blanc de chaque côté, soit un tiers de l'écran perdu
+               (relevé par Arnaud, 16/08/2026). Une seule valeur à régler
+               désormais, et les dix conteneurs restent alignés. */
+            --largeur-max: 1500px;
         }
 
         * {
@@ -86,7 +92,7 @@
         }
 
         .top-bar-content {
-            max-width: 1280px;
+            max-width: var(--largeur-max);
             margin: 0 auto;
             padding: 0 1rem;
             display: flex;
@@ -163,7 +169,7 @@
         }
 
         .header-main {
-            max-width: 1280px;
+            max-width: var(--largeur-max);
             margin: 0 auto;
             padding: 1rem;
             display: flex;
@@ -220,7 +226,7 @@
 
         /* Sous-site header */
         .subsite-header-main {
-            max-width: 1280px;
+            max-width: var(--largeur-max);
             margin: 0 auto;
             padding: 1rem;
             display: flex;
@@ -342,7 +348,7 @@
         }
 
         .main-nav-content {
-            max-width: 1280px;
+            max-width: var(--largeur-max);
             margin: 0 auto;
             padding: 0 1rem;
             display: flex;
@@ -487,7 +493,7 @@
 
         /* Main Container */
         .container {
-            max-width: 1280px;
+            max-width: var(--largeur-max);
             margin: 0 auto;
             padding: 2rem 1rem;
         }
@@ -632,7 +638,7 @@
         }
 
         .hero-content {
-            max-width: 1280px;
+            max-width: var(--largeur-max);
             margin: 0 auto;
             padding: 0 1rem;
             display: grid;
@@ -1173,7 +1179,7 @@
         }
 
         .footer-inner {
-            max-width: 1280px;
+            max-width: var(--largeur-max);
             margin: 0 auto;
             padding: 0 2rem 2.5rem;
             display: grid;
@@ -1274,7 +1280,7 @@
         .footer-bottom {
             border-top: 1px solid #1e1e1e;
             padding: 1rem 2rem;
-            max-width: 1280px;
+            max-width: var(--largeur-max);
             margin: 0 auto;
             display: flex;
             align-items: center;
@@ -1420,7 +1426,7 @@
 
         /* ── Vignettes CTA (partagées toutes pages) ── */
         .cta-vignettes-outer {
-            max-width: 1280px;
+            max-width: var(--largeur-max);
             margin: 0 auto;
             padding: 2rem 1rem;
             display: grid;
