@@ -76,6 +76,31 @@ STAA et le TAS — que j'ai donc annoncés à tort comme absents de la page.
 `--completer` n'a rien eu à ajouter, les 19 cartes couvrant déjà tous les
 syndicats publiés. Leçon consignée dans `tasks/lessons.md`.
 
+## Alignement page / menu (17/08/2026)
+
+Le menu « Secteurs » listait 20 rubriques, la page 19 cartes. `--completer`
+couvre désormais les deux sources : tout syndicat publié **et** toute rubrique
+rangée sous « Secteurs » a sa carte. Ajoutés en production : T.P.E., Animation
+& Éducation populaire, Intérim. « Librairie » supprimée sur demande d'Arnaud
+(fusionnée dans le STUCS) ; sa catégorie et l'article qu'elle porte restent en
+base, à rebasculer vers le STUCS — c'est éditorial. « Fonction publique » est
+gardée bien qu'absente du menu. Total : 21 cartes.
+
+Trois défauts rattrapés en chemin, tous par le `--dry-run` sur la base de
+production ou par la vérification de la page rendue :
+
+1. Le filtre prenait **toute** entrée de menu pointant vers une catégorie, y
+   compris « Solidarités », rubrique racine et non champ de syndicalisation.
+   Restreint aux enfants de l'entrée « Secteurs ».
+2. « Activités postales et Télécommunications » existe en **deux catégories**
+   (héritage WordPress) : la fiche pointait sur l'une, le menu sur l'autre.
+   Une carte de plus n'aurait été qu'un doublon. Les homonymes sont reconnus
+   par nom normalisé et ignorés.
+3. Le rang des cartes ajoutées repartait du nombre de cartes lues dans le HTML
+   — zéro une fois la page vidée, ce que fait ce chantier lui-même. Les trois
+   nouvelles se sont entrelacées en tête de grille avant correction. Le rang de
+   départ est désormais lu en base.
+
 ## Reste à faire
 
 - Rien de bloquant. Sept fiches n'ont pas de visuel (Fonction publique,
