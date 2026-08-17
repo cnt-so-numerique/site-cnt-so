@@ -16,6 +16,7 @@ from .models import (
     MenuItem,
     Comment,
     ContactMessage,
+    FicheSyndicat,
     FormulaireContact,
     Permanence,
     Subscriber,
@@ -405,11 +406,47 @@ class NewsletterGroup(SnippetViewSetGroup):
     items = (NewsletterViewSet, SubscriberViewSet)
 
 
+class FicheSyndicatViewSet(ViewSetCloisonne, SnippetViewSet):
+    """Les cartes de la page « Nos syndicats et structures ».
+
+    Elles étaient écrites en HTML brut dans le corps de la page, feuille de
+    style comprise. Ajouter un champ de syndicalisation se fait désormais
+    depuis /cms/, en remplissant une fiche.
+    """
+    cloisonnement = ('fk', 'site')
+    model = FicheSyndicat
+    icon = 'group'
+    menu_label = 'Fiches syndicats'
+    menu_order = 410
+    list_display = ['titre', 'site', 'categorie', 'site_cible', 'order', 'is_active']
+    list_filter = ['site', 'is_active']
+    search_fields = ['titre', 'description']
+    ordering = ['order', 'titre']
+
+    panels = [
+        FieldRowPanel([
+            FieldPanel('site'),
+            FieldPanel('titre'),
+        ]),
+        FieldPanel('description'),
+        FieldPanel('image'),
+        MultiFieldPanel([
+            FieldPanel('categorie'),
+            FieldPanel('site_cible'),
+            FieldPanel('url'),
+        ], heading="Où mène la carte (remplissez-en une seule)"),
+        FieldRowPanel([
+            FieldPanel('order'),
+            FieldPanel('is_active'),
+        ]),
+    ]
+
+
 class NavigationGroup(SnippetViewSetGroup):
     menu_label = 'Navigation'
     menu_icon = 'list-ul'
     menu_order = 400
-    items = (MenuItemViewSet,)
+    items = (MenuItemViewSet, FicheSyndicatViewSet)
 
 
 class AdministrationGroup(SnippetViewSetGroup):

@@ -1,0 +1,73 @@
+# Chantier — rendre éditable la page « Nos syndicats et structures »
+
+Ouvert et livré le 17/08/2026, à la demande d'Arnaud.
+
+## Le problème
+
+`/syndicats/` était une `ContentPage` dont tout le corps tenait dans **un seul
+bloc HTML de près de 10 000 caractères**, feuille de style comprise. Ajouter un
+champ de syndicalisation supposait de recopier un `<a>` et ses quatre `<div>`
+imbriqués au milieu du CSS — le même symptôme que les permanences juridiques
+avant leur refonte (cf. `content.Permanence`).
+
+Symptôme révélateur : la page oubliait trois syndicats existants (STAA, TAS,
+Numérique selon les bases). Non par choix éditorial, mais parce que personne
+n'osait toucher au bloc.
+
+## Ce qui a été fait
+
+- **`content.FicheSyndicat`** — `site` (propriétaire, pour le cloisonnement),
+  `titre`, `description`, `image` (image Wagtail) + `image_url` (repli sur les
+  visuels hérités de l'ancien site), `order`, `is_active`.
+- **La cible du lien est une clé étrangère**, seul écart au patron des
+  permanences : `categorie` → `CmsCategory`, `site_cible` → `SectionPage`, ou
+  `url` libre, résolus dans cet ordre par `get_lien()`. Onze cartes pointent
+  vers une catégorie, et le réimport des catégories WordPress prévu au
+  lancement (cf. `tasks/chantier-categories-lancement.md`) réécrira les slugs :
+  onze `/categorie/<slug>/` en dur seraient devenus onze liens morts
+  silencieux. `clean()` refuse une carte sans aucune destination.
+- **`FicheSyndicatViewSet`** cloisonné par site, dans le groupe *Navigation* de
+  `/cms/` aux côtés des menus, et déclaré dans les fabriques de
+  `cms/tests_cloisonnement.py`.
+- **`SyndicatsView`** sur `/syndicats/`, déclarée dans `content/urls.py` donc
+  prioritaire sur le service Wagtail de la page de même slug. Le chapô reste le
+  corps de la `ContentPage`, éditable dans `/cms/` via `_page_editoriale` —
+  exactement comme les permanences.
+- **`templates/content/syndicats.html`** — la grille et son CSS, qui ont leur
+  place dans un gabarit et pas dans un champ de saisie.
+- **`importe_fiches_syndicats`** — convertit les cartes existantes en fiches,
+  idempotente, `--dry-run`, `--completer` (ajoute les syndicats absents),
+  `--vider-la-page` (réduit le corps au seul chapô).
+
+## Deux pièges rencontrés
+
+**Ne pas parser du HTML à la regex.** Ma première version exigeait un `<img>`
+par carte et sautait en silence les deux cartes sans image (Numérique et STAA
+ont un aplat de couleur à la place). Pire, le `.*?` pouvait apparier le titre
+d'une carte avec la description de la suivante. Réécrit avec BeautifulSoup,
+déjà dans les dépendances.
+
+**Les affiches ne se recadrent pas.** L'ancien CSS montait les visuels en
+`object-fit: cover` sur 150 px de haut, ce qui rognait des affiches portant
+titre, date et mot d'ordre. Passé en `contain` sur fond blanc, 170 px, comme
+partout ailleurs depuis la refonte de l'accueil (cf. mémoire
+`project_redesign_accueil`). Les cartes sans visuel gardent leur bloc sombre,
+sans quoi la grille se désaligne.
+
+## Tests
+
+18 nouveaux, suite complète à **963 tests verts** : résolution des trois types
+de liens, refus d'une carte sans destination, ordre, fiche masquée,
+cloisonnement entre syndicats, chapô éditable, import (cartes sans image,
+idempotence, `--dry-run`, `--completer`, `--vider-la-page`), et non-duplication
+des cartes une fois la page vidée.
+
+## Reste à faire
+
+- Déploiement en production : `migrate`, puis
+  `importe_fiches_syndicats --completer --vider-la-page`. En prod la page
+  compte 13 cartes (11 catégories + Éducation + STUCS) : `--completer` doit y
+  ajouter Numérique, le STAA et le TAS.
+- Vérifier après import que les visuels hérités s'affichent : ils manquent en
+  base de développement (`media/uploads/` incomplet en local), ce n'est pas un
+  bug du code.

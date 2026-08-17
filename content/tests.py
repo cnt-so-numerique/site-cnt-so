@@ -14,7 +14,7 @@ from taggit.models import Tag as TaggitTag
 
 from content.models import (
     Author, Tag, Media, Article, Page,
-    Comment, MenuItem, Subscriber, Newsletter, ExternalArticle,
+    Comment, MenuItem, Subscriber, Newsletter, ExternalArticle, FicheSyndicat,
 )
 from content.forms import ContactForm, CommentForm
 from cms.models import ArticlePage, CmsCategory, ContentPage, HomePage
@@ -6209,3 +6209,195 @@ class ReseauAccueilFluxExterneTest(TestCase):
                 published_at=timezone.now())
         html = self.client.get('/').content.decode()
         self.assertIn('Grève au nettoyage', html)
+
+
+# ── Page « Nos syndicats et structures » ──────────────────────────────────────
+
+PAGE_SYNDICATS_HTML = """<div class="article-content">
+<p>La CNT-SO organise les travailleur·euses de tous les secteurs.</p>
+</div>
+
+<style>
+.syndicats-grid { display: grid; }
+</style>
+
+<div class="syndicats-grid">
+  <a href="/categorie/nettoyage/" class="syndicat-card">
+    <img class="syndicat-card-img" src="/media/uploads/2025/12/nettoyage.png" alt="Nettoyage">
+    <div class="syndicat-card-body">
+      <div class="syndicat-card-title">Nettoyage</div>
+      <div class="syndicat-card-desc">Propreté, multiservices&hellip;</div>
+    </div>
+  </a>
+  <a href="/numerique/" class="syndicat-card">
+    <div class="syndicat-card-img" style="background:#3e3e3e;"><span>&lt;/&gt;</span></div>
+    <div class="syndicat-card-body">
+      <div class="syndicat-card-title">Numérique</div>
+      <div class="syndicat-card-desc">Tech, informatique&hellip;</div>
+    </div>
+  </a>
+</div>"""
+
+
+class FicheSyndicatModeleTest(TestCase):
+
+    def setUp(self):
+        self.principal = make_site(slug='principal')
+
+    def test_lien_vers_une_categorie(self):
+        """La cible est une clé étrangère : renommer le slug de la catégorie
+        ne laisse pas un lien mort derrière lui."""
+        cat = make_cms_category(name='Nettoyage', slug='nettoyage')
+        fiche = FicheSyndicat.objects.create(
+            site=self.principal, titre='Nettoyage', categorie=cat)
+        self.assertEqual(fiche.get_lien(), '/categorie/nettoyage/')
+
+    def test_lien_vers_un_syndicat_heberge_ailleurs(self):
+        """Le STAA vit sur son propre site : la carte doit y mener."""
+        staa = make_site(slug='staa', name='STAA', site_type='sectoral',
+                         external_url='https://staa-cnt-so.org/')
+        fiche = FicheSyndicat.objects.create(
+            site=self.principal, titre='STAA', site_cible=staa)
+        self.assertEqual(fiche.get_lien(), 'https://staa-cnt-so.org/')
+
+    def test_lien_libre_en_dernier_recours(self):
+        fiche = FicheSyndicat.objects.create(
+            site=self.principal, titre='Ailleurs', url='/une/page/')
+        self.assertEqual(fiche.get_lien(), '/une/page/')
+
+    def test_une_carte_sans_destination_est_refusee(self):
+        """Une carte qui ne mène nulle part est un piège pour le visiteur."""
+        from django.core.exceptions import ValidationError
+        fiche = FicheSyndicat(site=self.principal, titre='Orpheline')
+        with self.assertRaises(ValidationError):
+            fiche.full_clean()
+
+    def test_visuel_replie_sur_limage_heritee(self):
+        fiche = FicheSyndicat.objects.create(
+            site=self.principal, titre='Nettoyage', url='/x/',
+            image_url='/media/uploads/2025/12/nettoyage.png')
+        self.assertEqual(fiche.visuel_url, '/media/uploads/2025/12/nettoyage.png')
+
+
+class PageSyndicatsTest(TestCase):
+
+    def setUp(self):
+        self.principal = make_site(slug='principal')
+        self.cat = make_cms_category(name='Nettoyage', slug='nettoyage')
+
+    def _fiche(self, titre='Nettoyage', **kwargs):
+        kwargs.setdefault('categorie', self.cat)
+        return FicheSyndicat.objects.create(
+            site=self.principal, titre=titre, **kwargs)
+
+    def test_la_page_affiche_les_fiches(self):
+        self._fiche(description='Propreté, multiservices…')
+        html = self.client.get('/syndicats/').content.decode()
+        self.assertIn('Nettoyage', html)
+        self.assertIn('Propreté, multiservices', html)
+        self.assertIn('/categorie/nettoyage/', html)
+
+    def test_une_fiche_masquee_ne_sort_pas(self):
+        self._fiche(titre='Brouillon', is_active=False)
+        html = self.client.get('/syndicats/').content.decode()
+        self.assertNotIn('Brouillon', html)
+
+    def test_lordre_est_respecte(self):
+        self._fiche(titre='Dernière', order=10)
+        self._fiche(titre='Première', order=1)
+        html = self.client.get('/syndicats/').content.decode()
+        self.assertLess(html.index('Première'), html.index('Dernière'))
+
+    def test_le_chapo_vient_de_la_page_editable(self):
+        """Le texte d'introduction reste modifiable dans /cms/, comme pour les
+        permanences : seule la grille est passée au gabarit."""
+        make_content_page(section_slug='principal', title='Nos syndicats',
+                          slug='syndicats',
+                          body='[{"type": "html", "value": "<p>Notre chapô à nous</p>"}]')
+        html = self.client.get('/syndicats/').content.decode()
+        self.assertIn('Notre chapô à nous', html)
+
+    def test_la_page_repond_sans_aucune_fiche(self):
+        r = self.client.get('/syndicats/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('Aucun syndicat renseigné', r.content.decode())
+
+    def test_les_fiches_dun_autre_site_ne_sortent_pas(self):
+        autre = make_site(slug='13', name='CNT-SO 13', site_type='regional')
+        FicheSyndicat.objects.create(site=autre, titre='Fiche du 13',
+                                     categorie=self.cat)
+        html = self.client.get('/syndicats/').content.decode()
+        self.assertNotIn('Fiche du 13', html)
+
+
+class ImporteFichesSyndicatsTest(TestCase):
+    """La conversion du vieux bloc HTML en fiches éditables."""
+
+    def setUp(self):
+        self.principal = make_site(slug='principal')
+        self.cat = make_cms_category(name='Nettoyage', slug='nettoyage')
+        self.numerique = make_site(slug='numerique', name='CNT-SO Numérique',
+                                   site_type='sectoral')
+        self.page = make_content_page(
+            section_slug='principal', title='Nos syndicats', slug='syndicats',
+            body=json_module.dumps([{'type': 'html', 'value': PAGE_SYNDICATS_HTML}]))
+
+    def _importer(self, *args):
+        from django.core.management import call_command
+        sortie = StringIO()
+        call_command('importe_fiches_syndicats', *args,
+                     stdout=sortie, stderr=StringIO())
+        return sortie.getvalue()
+
+    def test_les_cartes_deviennent_des_fiches(self):
+        self._importer()
+        self.assertEqual(FicheSyndicat.objects.count(), 2)
+        nettoyage = FicheSyndicat.objects.get(titre='Nettoyage')
+        self.assertEqual(nettoyage.categorie, self.cat)
+        self.assertEqual(nettoyage.description, 'Propreté, multiservices…')
+        self.assertEqual(nettoyage.image_url,
+                         '/media/uploads/2025/12/nettoyage.png')
+
+    def test_une_carte_sans_image_est_importee_quand_meme(self):
+        """Numérique et le STAA n'ont pas d'image mais un aplat de couleur :
+        une regex qui attendait un `<img>` les sautait en silence."""
+        self._importer()
+        numerique = FicheSyndicat.objects.get(titre='Numérique')
+        self.assertEqual(numerique.site_cible, self.numerique)
+        self.assertEqual(numerique.image_url, '')
+
+    def test_relancer_ne_duplique_pas(self):
+        self._importer()
+        self._importer()
+        self.assertEqual(FicheSyndicat.objects.count(), 2)
+
+    def test_dry_run_necrit_rien(self):
+        self._importer('--dry-run')
+        self.assertEqual(FicheSyndicat.objects.count(), 0)
+
+    def test_completer_ajoute_les_syndicats_absents(self):
+        """La page oubliait le STAA, le TAS et le Numérique — non par choix,
+        mais parce qu'ajouter une carte demandait de recopier des balises."""
+        tas = make_site(slug='tas', name='TAS', site_type='sectoral',
+                        external_url='https://www.cnt-tas.org/')
+        self._importer('--completer')
+        fiche = FicheSyndicat.objects.get(site_cible=tas)
+        self.assertEqual(fiche.get_lien(), 'https://www.cnt-tas.org/')
+        # Le Numérique était déjà une carte : il ne doit pas être ajouté deux fois.
+        self.assertEqual(
+            FicheSyndicat.objects.filter(site_cible=self.numerique).count(), 1)
+
+    def test_vider_la_page_garde_le_chapo(self):
+        self._importer('--vider-la-page')
+        self.page.refresh_from_db()
+        corps = ''.join(str(b.value) for b in self.page.body)
+        self.assertIn('La CNT-SO organise', corps)
+        self.assertNotIn('syndicats-grid', corps)
+        self.assertNotIn('<style>', corps)
+
+    def test_la_page_rendue_ne_double_pas_les_cartes(self):
+        """Tant que le corps garde l'ancienne grille, chaque carte s'affiche
+        deux fois : celle du gabarit et celle du bloc HTML."""
+        self._importer('--vider-la-page')
+        html = self.client.get('/syndicats/').content.decode()
+        self.assertEqual(html.count('class="syndicat-card"'), 2)

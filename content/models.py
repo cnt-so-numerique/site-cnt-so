@@ -812,3 +812,117 @@ class ExternalArticle(models.Model):
 
     def get_absolute_url(self):
         return self.url
+
+
+class FicheSyndicat(models.Model):
+    """Une carte de la page « Nos syndicats et structures ».
+
+    Les treize cartes vivaient dans un unique bloc HTML de 9 800 caractères,
+    feuille de style comprise : ajouter un champ de syndicalisation supposait
+    de recopier un `<a>` et ses quatre `<div>` imbriqués, au milieu du CSS.
+    Trois syndicats existants (STAA, TAS, Numérique) manquaient d'ailleurs à
+    l'appel, faute d'oser y toucher — le même symptôme que les permanences
+    juridiques avant leur refonte (cf. `Permanence`).
+
+    La cible du lien est une clé étrangère plutôt qu'un chemin écrit à la
+    main : onze cartes pointent vers une catégorie, et le réimport des
+    catégories WordPress prévu au lancement réécrira les slugs. Onze
+    `/categorie/<slug>/` en dur deviendraient onze liens morts silencieux.
+    """
+
+    site = models.ForeignKey(
+        'cms.SectionPage',
+        on_delete=models.CASCADE,
+        related_name='fiches_syndicats',
+        null=True, blank=True,
+        verbose_name='Site propriétaire',
+        help_text="Le site dont c'est l'annuaire. La confédération, sauf "
+                  "si un syndicat veut le sien.",
+    )
+    titre = models.CharField(
+        max_length=120,
+        help_text="Le nom du champ de syndicalisation, ex. « Nettoyage ».",
+    )
+    description = models.CharField(
+        max_length=300, blank=True,
+        help_text="Une ligne pour dire ce que le champ recouvre, ex. "
+                  "« Hôtels, restaurants, tourisme… ».",
+    )
+    image = models.ForeignKey(
+        'wagtailimages.Image',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='+',
+        verbose_name='Visuel',
+        help_text="L'affiche est montrée entière, jamais recadrée.",
+    )
+    image_url = models.CharField(
+        max_length=500, blank=True,
+        verbose_name='Visuel hérité',
+        help_text="Chemin d'un visuel de l'ancien site, utilisé faute "
+                  "d'image ci-dessus. Renseigné par l'import, à ne pas "
+                  "saisir à la main.",
+    )
+
+    # -- Les trois cibles possibles du lien, dans l'ordre de priorité --
+    categorie = models.ForeignKey(
+        'cms.CmsCategory',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='fiches_syndicats',
+        verbose_name='Catégorie',
+        help_text="La carte mène à cette rubrique du site.",
+    )
+    site_cible = models.ForeignKey(
+        'cms.SectionPage',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='fiches_pointant_ici',
+        verbose_name='Syndicat',
+        help_text="La carte mène à l'accueil de ce syndicat.",
+    )
+    url = models.CharField(
+        max_length=500, blank=True,
+        verbose_name='Autre adresse',
+        help_text="À défaut de catégorie ou de syndicat : une adresse libre.",
+    )
+
+    order = models.PositiveIntegerField(
+        default=0, verbose_name='Ordre',
+        help_text="Les plus petits nombres s'affichent en premier.",
+    )
+    is_active = models.BooleanField(default=True, verbose_name='Affichée')
+
+    class Meta:
+        verbose_name = 'Fiche syndicat'
+        verbose_name_plural = 'Fiches syndicats'
+        ordering = ['order', 'titre']
+
+    def __str__(self):
+        return self.titre
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if not (self.categorie_id or self.site_cible_id or self.url):
+            raise ValidationError(
+                "Une carte sans destination ne mène nulle part : choisissez "
+                "une catégorie, un syndicat, ou saisissez une adresse."
+            )
+
+    def get_lien(self):
+        """L'adresse de la carte, la première cible renseignée l'emportant."""
+        if self.categorie_id:
+            return reverse('content:category_detail',
+                           kwargs={'slug': self.categorie.slug})
+        if self.site_cible_id:
+            # `get_absolute_url()` sait déjà router vers un domaine autonome
+            # ou vers le site propre d'un syndicat hébergé ailleurs.
+            return self.site_cible.get_absolute_url()
+        return self.url
+
+    @property
+    def visuel_url(self):
+        """L'image Wagtail, à défaut le visuel hérité de l'ancien site."""
+        if self.image_id:
+            return self.image.file.url
+        return self.image_url or ''

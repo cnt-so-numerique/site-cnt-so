@@ -75,12 +75,62 @@ réponse toute prête est un cartouche distinct type « Nos soutiens ».
 Section créée en base de développement : slug `tas`, type sectoriel,
 `external_url = https://www.cnt-tas.org/`.
 
+## Déploiement (17/08/2026) — fait
+
+`pip install -r requirements.txt`, `migrate`, `fix_cms_sessions` (0 session à
+corriger), `collectstatic`, redémarrage supervisor. Accueil en 200, les deux
+flux moissonnés (10 + 10 articles), `/staa/` et `/tas/` renvoient bien en 302
+vers les sites concernés, le sitemap ne publie aucune URL d'autrui.
+
+Deux découvertes à garder en tête :
+
+**Il n'y a pas de cron sur ce serveur.** Ni binaire `crontab`, ni
+`cron.service` — la prod tourne sur des timers systemd (comme certbot). Le
+moissonnage est donc un timer, pas une ligne de crontab :
+
+    /etc/systemd/system/cntso-flux.service   (oneshot, User=debian, WorkingDirectory=/var/www/cntso)
+    /etc/systemd/system/cntso-flux.timer     (OnCalendar=*:17, Persistent=true)
+
+    systemctl list-timers cntso-flux      # prochaine exécution
+    journalctl -u cntso-flux -n 20        # ce qu'a fait la dernière
+
+`Persistent=true` rattrape l'exécution manquée si le serveur redémarre. Minute
+17 et non l'heure pile, pour ne pas taper sur les serveurs voisins en même
+temps que la moitié du web.
+
+**Ni le STAA ni le TAS n'existaient comme `SectionPage` en production** : ils
+n'y étaient que des liens de menu. La
+commande `fix_menus_morts` sait créer la section STAA mais n'avait jamais été
+lancée en prod. Les deux sections ont été créées à l'identique du dev
+(sectoriel, `external_url`, publiées). Créer une `SectionPage` n'ajoute rien
+aux menus : la navigation est bâtie sur les `MenuItem`, aucun gabarit ne liste
+les sections.
+
 ## Reste à faire
 
-1. En production : vérifier que la section `tas` existe et porte bien son
-   `external_url` (la base de dev est désynchronisée de la prod).
-2. En production : `pip install -r requirements.txt`, `migrate`, puis le cron
-   horaire
+- **Le menu `secondary` était rendu nulle part** — `base.html` n'appelle
+  `get_menu` que pour `main` et `footer`, et aucun autre gabarit ne l'appelle.
+  La prod en portait 10 entrées invisibles sur la conf : « Unions locales »
+  (Rhône-Alpes, 13, Auvergne, Poitiers) et « Syndicats sectoriels » (Numérique,
+  STAA, Éducation, STUCS), reliquat d'une navigation abandonnée. Elles
+  s'éditaient dans `/cms/` sans rien changer au site — de quoi faire perdre
+  une demi-journée à un rédacteur.
 
-       17 * * * * cd /var/www/cntso && venv/bin/python manage.py sync_flux_reseau >> /var/log/cntso/flux.log 2>&1
+  **Purgées le 17/08/2026** sur go d'Arnaud, après sauvegarde :
+  `/var/www/cntso/logs/menu_secondary_supprime_20260817.json` (restaurable par
+  `loaddata`). Les menus visibles n'ont pas bougé : `main` garde ses 7 entrées
+  racine, `footer` son « A propos ».
+
+  (J'avais d'abord annoncé « deux entrées STAA en double » : c'était faux, ma
+  requête ne filtrait que l'URL. Les deux entrées vivaient dans deux menus
+  différents, l'une visible sous « Secteurs », l'autre dans ce menu mort.)
+
+- Reste la cause : `MenuItem.MENU_CHOICES` propose toujours « Menu secondaire »
+  dans `/cms/`. Rien ne l'affiche : un rédacteur peut recréer demain le menu
+  fantôme qu'on vient de purger. Retirer le choix (+ migration `AlterField`)
+  fermerait la porte.
+- La base de développement est désynchronisée de la prod (elle a des sections
+  `debug-a`, `debug-b`, `test`, et un `legacy_site_slug` sur `staa`/`tas` que
+  la prod n'a pas). Sans conséquence ici, mais ne pas s'y fier pour juger de
+  l'état réel.
 

@@ -1001,6 +1001,30 @@ class PermanencesJuridiquesView(TemplateView):
         return ctx
 
 
+class SyndicatsView(TemplateView):
+    """Page « Nos syndicats et structures ».
+
+    Ses treize cartes tenaient dans un bloc HTML de 9 800 caractères, feuille
+    de style comprise : elles sont désormais des `FicheSyndicat` à remplir
+    dans /cms/, et le chapô reste le corps de la page statique.
+    """
+    template_name = 'content/syndicats.html'
+
+    def get_context_data(self, **kwargs):
+        from .models import FicheSyndicat
+        ctx = super().get_context_data(**kwargs)
+        principal = SectionPage.objects.filter(slug='principal').first()
+        ctx['site'] = principal
+        ctx['intro_page'] = _page_editoriale('principal', 'syndicats')
+        ctx['fiches'] = (
+            FicheSyndicat.objects.filter(is_active=True, site=principal)
+            .select_related('image', 'categorie', 'site_cible')
+            .order_by('order', 'titre')
+        )
+        ctx.update(_sidebar_context('principal'))
+        return ctx
+
+
 class SouscriptionView(TemplateView):
     """Page d'appel à la souscription permanente.
 

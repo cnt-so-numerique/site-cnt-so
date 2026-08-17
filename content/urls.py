@@ -73,6 +73,9 @@ urlpatterns = [
     path('souscription/', views.SouscriptionView.as_view(), name='souscription'),
     path('permanences-juridiques/', views.PermanencesJuridiquesView.as_view(),
          name='permanences_juridiques'),
+    # Déclarée ici, donc prioritaire sur le service Wagtail de la ContentPage
+    # de même slug — dont le corps ne garde que le chapô.
+    path('syndicats/', views.SyndicatsView.as_view(), name='syndicats'),
 
     # Articles et pages du site principal
     path('article/<slug:slug>/', views.ArticleDetailView.as_view(), name='article_detail'),

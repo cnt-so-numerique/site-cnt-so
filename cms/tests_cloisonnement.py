@@ -18,8 +18,8 @@ from wagtail.snippets.models import get_snippet_models
 from cms.cloisonnement import ViewSetCloisonne
 from cms.models import ArticlePage, Event, SectionPage
 from content.models import (
-    Author, Comment, ContactMessage, FormulaireContact, MenuItem,
-    Newsletter, Permanence, Subscriber,
+    Author, Comment, ContactMessage, FicheSyndicat, FormulaireContact,
+    MenuItem, Newsletter, Permanence, Subscriber,
 )
 from content.tests import (
     _ensure_section_page, make_article, make_article_page,
@@ -82,6 +82,8 @@ FABRIQUES = {
         site=s, username=f'auteur-{s.slug}'),
     'content.Permanence': lambda s: Permanence.objects.create(
         site=s, ville=f'Permanence {s.slug}', adresse='1 rue du Travail'),
+    'content.FicheSyndicat': lambda s: FicheSyndicat.objects.create(
+        site=s, titre=f'Fiche {s.slug}', url='/categorie/nettoyage/'),
 }
 
 # Paramètres d'URL autres que `pk` : on vise volontairement des identifiants

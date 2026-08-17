@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% load wagtailcore_tags wagtailimages_tags %}
+
+{% block title %}Nos syndicats et structures — CNT-SO{% endblock %}
+
+{% block extra_css %}
+<style>
+.syndicats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.25rem;
+    margin-top: 2rem;
+}
+
+.syndicat-card {
+    border: 1px solid var(--border-color, #ddd);
+    border-top: 3px solid var(--primary-color, #c00);
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow .2s, border-color .2s;
+    background: #fff;
+}
+
+.syndicat-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,.12);
+    text-decoration: none;
+    color: inherit;
+}
+
+/* Ces visuels sont des AFFICHES : les recadrer coupe le titre, la date et le
+   mot d'ordre que le syndicat a placés dessus. On montre donc l'affiche
+   entière, posée sur blanc, quitte à laisser des marges — la hauteur fixe
+   garde la grille alignée. */
+.syndicats-grid .syndicat-card-img {
+    width: 100%;
+    height: 170px !important;
+    object-fit: contain !important;
+    object-position: center;
+    display: block;
+    margin: 0 !important;
+    background: #fff;
+    padding: .4rem;
+}
+
+/* Toutes les fiches n'ont pas d'affiche — le Numérique et le STAA n'en
+   avaient déjà pas. Sans ce bloc, leur carte démarre sur du vide et casse
+   l'alignement de la grille. */
+.syndicats-grid .syndicat-card-img--vide {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--dark-bg, #3e3e3e);
+    color: rgba(255,255,255,.6);
+    font-family: var(--font-heading, serif);
+    font-size: 1.3rem;
+    line-height: 1.2;
+    text-align: center;
+    padding: 0 1rem;
+}
+
+.syndicat-card-body {
+    padding: .9rem 1rem;
+    flex: 1;
+}
+
+.syndicat-card-title {
+    font-family: var(--font-heading, serif);
+    font-size: 17px;
+    color: var(--primary-color, #c00);
+    margin-bottom: .3rem;
+    line-height: 1.2;
+}
+
+.syndicat-card-desc {
+    font-size: 13px;
+    color: var(--text-secondary, #555);
+    line-height: 1.5;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="{% url 'content:home' %}">Accueil</a> /
+    <span>Nos syndicats et structures</span>
+</div>
+
+<h1 class="section-title">Nos syndicats et structures</h1>
+
+{% if intro_page and intro_page.body %}
+<div class="article-content">
+    {% for bloc in intro_page.body %}{% include_block bloc %}{% endfor %}
+</div>
+{% else %}
+<p class="article-content">
+    La CNT-SO organise les travailleur·euses de tous les secteurs d'activité.
+    Retrouvez ci-dessous l'ensemble de nos champs de syndicalisation.
+</p>
+{% endif %}
+
+<div class="syndicats-grid">
+    {% for fiche in fiches %}
+    <a href="{{ fiche.get_lien }}" class="syndicat-card">
+        {% if fiche.image %}
+        {% image fiche.image width-500 class="syndicat-card-img" alt=fiche.titre %}
+        {% elif fiche.image_url %}
+        <img class="syndicat-card-img" src="{{ fiche.image_url }}" alt="{{ fiche.titre }}">
+        {% else %}
+        <div class="syndicat-card-img syndicat-card-img--vide" aria-hidden="true">{{ fiche.titre }}</div>
+        {% endif %}
+        <div class="syndicat-card-body">
+            <div class="syndicat-card-title">{{ fiche.titre }}</div>
+            {% if fiche.description %}
+            <div class="syndicat-card-desc">{{ fiche.description }}</div>
+            {% endif %}
+        </div>
+    </a>
+    {% empty %}
+    <p style="color:var(--text-muted);">Aucun syndicat renseigné pour le moment.</p>
+    {% endfor %}
+</div>
+{% endblock %}
