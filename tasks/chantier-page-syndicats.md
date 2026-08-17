@@ -82,9 +82,18 @@ Le menu « Secteurs » listait 20 rubriques, la page 19 cartes. `--completer`
 couvre désormais les deux sources : tout syndicat publié **et** toute rubrique
 rangée sous « Secteurs » a sa carte. Ajoutés en production : T.P.E., Animation
 & Éducation populaire, Intérim. « Librairie » supprimée sur demande d'Arnaud
-(fusionnée dans le STUCS) ; sa catégorie et l'article qu'elle porte restent en
-base, à rebasculer vers le STUCS — c'est éditorial. « Fonction publique » est
-gardée bien qu'absente du menu. Total : 21 cartes.
+(fusionnée dans le STUCS). « Fonction publique » est gardée bien qu'absente du
+menu. Total : 21 cartes.
+
+**L'article de « Librairie » n'était pas celui de la confédération.**
+« Travailleur·euses des librairies, organisons-nous ! » (id 920) appartient à
+**Auvergne**, comme la catégorie « Librairie » (id 98) vers laquelle pointait
+la carte confédérale — le piège inter-syndicats déjà connu. Il a donc été
+rebasculé vers la catégorie STUCS *d'Auvergne* (« Culture et Spectacle »,
+id 64) et non vers celle de la conf : filer un article d'Auvergne sous une
+catégorie confédérale irait à rebours du cloisonnement appliqué partout
+ailleurs. Sa seconde catégorie (« TPE 2021 ») est conservée. La catégorie
+« Librairie » reste en base, vide.
 
 Trois défauts rattrapés en chemin, tous par le `--dry-run` sur la base de
 production ou par la vérification de la page rendue :

@@ -125,10 +125,11 @@ les sections.
   requête ne filtrait que l'URL. Les deux entrées vivaient dans deux menus
   différents, l'une visible sous « Secteurs », l'autre dans ce menu mort.)
 
-- Reste la cause : `MenuItem.MENU_CHOICES` propose toujours « Menu secondaire »
-  dans `/cms/`. Rien ne l'affiche : un rédacteur peut recréer demain le menu
-  fantôme qu'on vient de purger. Retirer le choix (+ migration `AlterField`)
-  fermerait la porte.
+- **Cause refermée le 17/08/2026** : « Menu secondaire » est retiré de
+  `MenuItem.MENU_CHOICES` (migration `0032`), le bloc correspondant disparaît
+  de l'écran de gestion des menus, et un test relit les gabarits pour vérifier
+  que chaque menu proposé aux rédacteurs est bien rendu quelque part. Ne
+  rajouter un choix qu'en même temps que le `get_menu` qui l'affiche.
 - La base de développement est désynchronisée de la prod (elle a des sections
   `debug-a`, `debug-b`, `test`, et un `legacy_site_slug` sur `staa`/`tas` que
   la prod n'a pas). Sans conséquence ici, mais ne pas s'y fier pour juger de
