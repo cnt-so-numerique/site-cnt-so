@@ -25,6 +25,7 @@ import unicodedata
 from bs4 import BeautifulSoup
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import Max
 
 from cms.models import CmsCategory, ContentPage, SectionPage
 from content.models import FicheSyndicat, MenuItem
@@ -151,8 +152,19 @@ class Command(BaseCommand):
         La règle vaut désormais dans les deux sens : ce que le menu annonce,
         la page le montre.
         """
+        # Les cartes ajoutées se rangent APRÈS celles déjà en base, et pas
+        # après le nombre de cartes lues dans la page : une fois la page vidée
+        # de son HTML, ce nombre est zéro et les nouvelles venaient s'entrelacer
+        # en tête de grille (constaté en production, 17/08/2026).
+        depart = max(depart, self._rang_libre())
         depart = self._completer_les_secteurs(depart)
         self._completer_les_syndicats(depart)
+
+    def _rang_libre(self):
+        """Le premier numéro d'ordre qui ne bouscule aucune carte existante."""
+        maxi = (FicheSyndicat.objects.filter(site=self.principal)
+                .aggregate(Max('order'))['order__max'])
+        return 0 if maxi is None else maxi + 1
 
     def _completer_les_secteurs(self, depart):
         """Une carte pour chaque rubrique rangée sous « Secteurs » dans le menu.

@@ -6412,6 +6412,20 @@ class ImporteFichesSyndicatsTest(TestCase):
         self.assertEqual(
             FicheSyndicat.objects.filter(categorie=self.cat).count(), 1)
 
+    def test_les_cartes_ajoutees_se_rangent_a_la_fin(self):
+        """Une fois la page vidée de son HTML, le compteur de cartes lues vaut
+        zéro : les cartes ajoutées venaient s'entrelacer en tête de grille."""
+        self._importer('--vider-la-page')
+        interim = make_cms_category(name='Intérim', slug='interim')
+        MenuItem.objects.create(site=self.principal, menu='main',
+                                link_type='category', title='Intérim',
+                                category=interim, order=5,
+                                parent=self._menu_secteurs())
+        self._importer('--completer')
+        ajoutee = FicheSyndicat.objects.get(titre='Intérim')
+        autres = FicheSyndicat.objects.exclude(pk=ajoutee.pk)
+        self.assertTrue(all(f.order < ajoutee.order for f in autres))
+
     def _menu_secteurs(self):
         return MenuItem.objects.create(
             site=self.principal, menu='main', title='Secteurs', url='#')
