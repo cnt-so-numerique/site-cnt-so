@@ -151,3 +151,21 @@ porter un sélecteur plus spécifique.
 raisonner sur la capture. Une propriété du même bloc (`max-height`) avait bien
 pris — preuve que le sélecteur matchait et que le problème était la cascade,
 pas le média.
+
+---
+
+## Ne pas parser du HTML à l'expression régulière (17/08/2026)
+
+**Le piège :** pour convertir les cartes HTML de `/syndicats/` en fiches, j'ai
+écrit une regex exigeant `<a href> … <img src> … titre … description`. Deux
+cartes n'ont pas d'image mais un aplat de couleur : elles ont été **sautées en
+silence**. Pire, le `.*?` peut franchir la frontière d'une carte et apparier le
+titre de l'une avec la description de la suivante — l'import aurait été faux
+sans rien signaler. J'ai cru la page à 13 cartes ; elle en comptait 19.
+
+**Règle :** dès qu'il s'agit de lire du HTML existant, utiliser BeautifulSoup
+(déjà dans `requirements.txt`). Une regex ne dit pas ce qu'elle n'a pas vu.
+
+**Corollaire :** toute conversion de contenu doit s'annoncer avant d'écrire —
+un `--dry-run` listant ce qui a été reconnu. C'est lui qui a révélé les six
+cartes manquantes, sur la base de production et non en dev.

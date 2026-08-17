@@ -62,12 +62,23 @@ cloisonnement entre syndicats, chapô éditable, import (cartes sans image,
 idempotence, `--dry-run`, `--completer`, `--vider-la-page`), et non-duplication
 des cartes une fois la page vidée.
 
+## Déploiement (17/08/2026) — fait
+
+`migrate`, `collectstatic`, `importe_fiches_syndicats --dry-run --completer`
+pour lecture, puis `--completer --vider-la-page`, redémarrage supervisor.
+Page en 200, 19 cartes rendues dont 7 sans visuel, chapô conservé (183
+caractères contre 9 802 avant). Visuels vérifiés à l'écran : les affiches
+s'affichent entières, plus rognées.
+
+**La page comptait 19 cartes et non 13.** Mon relevé initial passait par une
+regex exigeant un `<img>` : elle avait sauté six cartes sans visuel, dont le
+STAA et le TAS — que j'ai donc annoncés à tort comme absents de la page.
+`--completer` n'a rien eu à ajouter, les 19 cartes couvrant déjà tous les
+syndicats publiés. Leçon consignée dans `tasks/lessons.md`.
+
 ## Reste à faire
 
-- Déploiement en production : `migrate`, puis
-  `importe_fiches_syndicats --completer --vider-la-page`. En prod la page
-  compte 13 cartes (11 catégories + Éducation + STUCS) : `--completer` doit y
-  ajouter Numérique, le STAA et le TAS.
-- Vérifier après import que les visuels hérités s'affichent : ils manquent en
-  base de développement (`media/uploads/` incomplet en local), ce n'est pas un
-  bug du code.
+- Rien de bloquant. Sept fiches n'ont pas de visuel (Fonction publique,
+  Finance & Assurances, Agriculture, Numérique, STAA, TAS…) et affichent un
+  bloc sombre portant leur nom : elles n'attendent qu'une affiche, désormais
+  déposable depuis `/cms/` sans toucher au code.
