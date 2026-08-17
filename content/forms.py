@@ -157,3 +157,39 @@ class CommentForm(forms.ModelForm):
                 'rows': 4
             }),
         }
+
+
+class NewsletterSubscribeForm(forms.Form):
+    """Première étape de l'inscription : l'adresse, et un champ piège.
+
+    L'inscription acceptait auparavant n'importe quel POST : ni formulaire, ni
+    captcha, ni limite. Un botnet s'en est servi du 24/07 au 17/08/2026 pour
+    faire envoyer par nos serveurs près de 2 000 courriels de confirmation à
+    des adresses tierces, une centaine par jour depuis 25 adresses IP.
+    """
+
+    email = forms.EmailField()
+    name = forms.CharField(max_length=200, required=False)
+    # Invisible pour un humain, et sans raison d'être rempli : un robot qui
+    # remplit tous les champs qu'il trouve se signale en le renseignant.
+    site_web = forms.CharField(required=False)
+
+    def clean_site_web(self):
+        if self.cleaned_data.get('site_web'):
+            raise forms.ValidationError("Robot détecté.")
+        return ''
+
+
+class NewsletterCaptchaForm(forms.Form):
+    """Deuxième étape : prouver qu'on est humain.
+
+    Le formulaire d'inscription est inclus sur l'accueil et sur chaque article :
+    y placer le hCaptcha chargerait son script sur tout le site, pour un champ
+    unique. On le demande donc sur une page dédiée, à laquelle mène la première
+    étape — et c'est cette page, et elle seule, qui crée l'abonné.
+    """
+
+    email = forms.EmailField(widget=forms.HiddenInput)
+    name = forms.CharField(max_length=200, required=False,
+                           widget=forms.HiddenInput)
+    captcha = hCaptchaField()

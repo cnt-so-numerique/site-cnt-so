@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Confirmez votre inscription — {{ site.name }}{% endblock %}
+{% block content %}
+<div style="max-width:600px; margin:60px auto; padding:0 1rem; text-align:center;">
+  <div style="background:#fff; border:1px solid var(--border-color); border-radius:6px; padding:40px 32px;">
+
+    {% if trop_de_demandes %}
+    <div style="font-size:2rem; margin-bottom:16px;">⏳</div>
+    <h1 style="font-size:1.5rem; margin-bottom:12px;">Trop de demandes</h1>
+    <p style="color:var(--text-secondary);">
+      Plusieurs inscriptions ont déjà été demandées depuis votre connexion dans
+      l'heure. Réessayez plus tard, ou écrivez-nous si vous êtes bloqué·e.
+    </p>
+    {% else %}
+    <div style="font-size:2rem; margin-bottom:16px;">✉</div>
+    <h1 style="font-size:1.5rem; margin-bottom:12px;">Une dernière étape</h1>
+    <p style="color:var(--text-secondary); margin-bottom:24px;">
+      Confirmez que vous n'êtes pas un robot, et nous vous enverrons le lien
+      d'inscription à la newsletter de <strong>{{ site.name }}</strong>.
+    </p>
+
+    {% if form.errors %}
+    <p style="color:var(--primary-color); margin-bottom:16px;">
+      La vérification n'a pas abouti. Merci de réessayer.
+    </p>
+    {% endif %}
+
+    <form method="post"
+          action="{% if site.slug != 'principal' %}{% url 'content:site_newsletter_subscribe_verify' site.slug %}{% else %}{% url 'content:newsletter_subscribe_verify' %}{% endif %}">
+      {% csrf_token %}
+      {{ form.email }}
+      {{ form.name }}
+      <div style="display:flex; justify-content:center; margin-bottom:20px;">
+        {{ form.captcha }}
+      </div>
+      <button type="submit"
+              style="background:var(--primary-color); color:#fff; border:none; padding:10px 24px; border-radius:4px; font-size:.95rem; cursor:pointer;">
+        Je m'inscris
+      </button>
+    </form>
+    {% endif %}
+
+    <a href="/" style="display:inline-block; margin-top:24px; color:var(--text-secondary); font-size:.9rem;">
+      Retour à l'accueil
+    </a>
+  </div>
+</div>
+{% endblock %}

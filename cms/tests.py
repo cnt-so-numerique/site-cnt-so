@@ -1744,9 +1744,16 @@ class DomainFormsTest(TestCase):
         self.site.custom_domain = self.HOST
         self.site.save(update_fields=['custom_domain'])
 
-    def test_inscription_newsletter_sur_le_domaine(self):
+    @patch('hcaptcha.fields.hCaptchaField.validate')
+    def test_inscription_newsletter_sur_le_domaine(self, _captcha):
         from content.models import Subscriber
+        from django.core.cache import caches
+        caches['limites'].clear()  # la limite par IP est partagée entre tests
         r = self.client.post('/newsletter/inscription/', {'email': 'fed@example.org'},
+                             HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+        r = self.client.post('/newsletter/inscription/valider/',
+                             {'email': 'fed@example.org', 'h-captcha-response': 'ok'},
                              HTTP_HOST=self.HOST)
         self.assertEqual(r.status_code, 200)
         sub = Subscriber.objects.get(email='fed@example.org')

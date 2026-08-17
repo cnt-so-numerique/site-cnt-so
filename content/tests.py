@@ -1003,11 +1003,21 @@ class SiteContactViewTest(TestCase):
 
 class NewsletterSubscribeViewTest(TestCase):
     def setUp(self):
+        from django.core.cache import caches
+        # La limite par IP vit dans le cache, qui survit d'un test à l'autre :
+        # tous nos clients de test partagent 127.0.0.1.
+        caches['limites'].clear()
         self.site = make_site()
         self.url = reverse('content:newsletter_subscribe')
 
-    def test_valid_email_creates_inactive_subscriber(self):
+    @patch('hcaptcha.fields.hCaptchaField.validate')
+    def test_valid_email_creates_inactive_subscriber(self, _captcha):
+        # L'inscription se fait à la deuxième étape : la première ne crée plus
+        # rien, elle mène au captcha (cf. NewsletterAntiAbusTest).
         self.client.post(self.url, {'email': 'new@example.com', 'name': 'Test'})
+        self.client.post(reverse('content:newsletter_subscribe_verify'),
+                         {'email': 'new@example.com', 'name': 'Test',
+                          'h-captcha-response': 'ok'})
         sub = Subscriber.objects.filter(site=self.site, email='new@example.com').first()
         self.assertIsNotNone(sub)
         self.assertFalse(sub.is_active)
@@ -1020,14 +1030,20 @@ class NewsletterSubscribeViewTest(TestCase):
         response = self.client.post(self.url, {'email': 'bad', 'name': ''})
         self.assertEqual(response.status_code, 302)
 
-    def test_resubscribe_with_already_inactive_returns_200(self):
+    @patch('hcaptcha.fields.hCaptchaField.validate')
+    def test_resubscribe_with_already_inactive_returns_200(self, _captcha):
         Subscriber.objects.create(site=self.site, email='exists@example.com', is_active=False)
-        response = self.client.post(self.url, {'email': 'exists@example.com', 'name': ''})
+        response = self.client.post(reverse('content:newsletter_subscribe_verify'),
+                                    {'email': 'exists@example.com',
+                                     'h-captcha-response': 'ok'})
         self.assertEqual(response.status_code, 200)
 
-    def test_subscribe_already_active_subscriber_returns_200(self):
+    @patch('hcaptcha.fields.hCaptchaField.validate')
+    def test_subscribe_already_active_subscriber_returns_200(self, _captcha):
         Subscriber.objects.create(site=self.site, email='active@example.com', is_active=True)
-        response = self.client.post(self.url, {'email': 'active@example.com', 'name': ''})
+        response = self.client.post(reverse('content:newsletter_subscribe_verify'),
+                                    {'email': 'active@example.com',
+                                     'h-captcha-response': 'ok'})
         self.assertEqual(response.status_code, 200)
 
 
@@ -5366,6 +5382,8 @@ class ParcoursNewsletterCompletTest(TestCase):
 
     def setUp(self):
         from django.core import mail
+        from django.core.cache import caches
+        caches['limites'].clear()  # la limite par IP est partagée entre tests
         self.site = _ensure_section_page(slug='parcours-nl', name='CNT-SO Parcours',
                                          site_type='sectoral')
         self.article = make_article_page(section_slug='parcours-nl',
@@ -5379,14 +5397,21 @@ class ParcoursNewsletterCompletTest(TestCase):
         self.assertIsNotNone(m, f"lien « {motif} » absent de l'e-mail")
         return m.group(0)
 
-    def test_de_l_inscription_au_desabonnement(self):
+    @patch('hcaptcha.fields.hCaptchaField.validate')
+    def test_de_l_inscription_au_desabonnement(self, _captcha):
         from django.core import mail
         from content.models import Newsletter, NewsletterArticle
 
-        # 1. inscription depuis le site public
+        # 1. inscription depuis le site public : le formulaire mène à la page
+        #    de vérification, seule habilitée à inscrire (cf. NewsletterAntiAbusTest)
         r = self.client.post(
             reverse('content:site_newsletter_subscribe', args=['parcours-nl']),
             {'email': 'militante@example.org', 'name': 'Militante'})
+        self.assertEqual(r.status_code, 200)
+        r = self.client.post(
+            reverse('content:site_newsletter_subscribe_verify', args=['parcours-nl']),
+            {'email': 'militante@example.org', 'name': 'Militante',
+             'h-captcha-response': 'ok'})
         self.assertEqual(r.status_code, 200)
         abonnee = Subscriber.objects.get(email='militante@example.org')
         self.assertFalse(abonnee.is_active, "l'inscription doit rester à confirmer")
@@ -6496,3 +6521,84 @@ class MenuChoixTest(TestCase):
                 if f"get_menu site '{code}'" in texte:
                     rendus.add(code)
         self.assertEqual(rendus, {code for code, _ in MenuItem.MENU_CHOICES})
+
+
+class NewsletterAntiAbusTest(TestCase):
+    """L'inscription ne doit plus servir de relais à courriels.
+
+    Du 24/07 au 17/08/2026, un botnet a posté une centaine de fois par jour sur
+    `/newsletter/inscription/` depuis 25 adresses IP : la vue lisait
+    `request.POST` sans formulaire ni captcha, créait l'abonné et faisait
+    partir un courriel de confirmation vers l'adresse postée. Près de 2 000
+    boîtes tierces ont été bombardées depuis nos serveurs.
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='principal')
+        from django.core.cache import cache
+        cache.clear()
+
+    def test_un_post_direct_ninscrit_personne(self):
+        """Le geste exact du botnet : poster une adresse et rien d'autre."""
+        r = self.client.post('/newsletter/inscription/',
+                             {'email': 'victime@example.com'})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(Subscriber.objects.count(), 0)
+
+    def test_un_post_direct_nenvoie_aucun_courriel(self):
+        from django.core import mail
+        self.client.post('/newsletter/inscription/',
+                         {'email': 'victime@example.com'})
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_la_premiere_etape_mene_au_captcha(self):
+        r = self.client.post('/newsletter/inscription/',
+                             {'email': 'camarade@example.org'})
+        self.assertContains(r, 'robot')
+        self.assertContains(r, 'camarade@example.org')
+
+    def test_le_champ_piege_arrete_le_robot(self):
+        r = self.client.post('/newsletter/inscription/',
+                             {'email': 'robot@example.com',
+                              'site_web': 'http://spam.example'})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(Subscriber.objects.count(), 0)
+
+    @patch('hcaptcha.fields.hCaptchaField.validate')
+    def test_le_captcha_franchi_inscrit_et_envoie(self, _):
+        from django.core import mail
+        r = self.client.post('/newsletter/inscription/valider/', {
+            'email': 'camarade@example.org', 'name': '',
+            'h-captcha-response': 'ok'})
+        self.assertEqual(r.status_code, 200)
+        abonne = Subscriber.objects.get(email='camarade@example.org')
+        self.assertFalse(abonne.is_active)  # double opt-in : le lien reste à cliquer
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('camarade@example.org', mail.outbox[0].to)
+
+    def test_sans_captcha_la_validation_est_refusee(self):
+        from django.core import mail
+        r = self.client.post('/newsletter/inscription/valider/',
+                             {'email': 'victime@example.com'})
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(Subscriber.objects.count(), 0)
+        self.assertEqual(len(mail.outbox), 0)
+
+    @patch('hcaptcha.fields.hCaptchaField.validate')
+    def test_une_meme_ip_est_bornee(self, _):
+        """Même avec un captcha résolu, une IP ne peut pas enchaîner."""
+        from content.views import NEWSLETTER_MAX_PAR_IP
+        for i in range(NEWSLETTER_MAX_PAR_IP):
+            r = self.client.post('/newsletter/inscription/valider/', {
+                'email': f'camarade{i}@example.org', 'h-captcha-response': 'ok'})
+            self.assertEqual(r.status_code, 200)
+        r = self.client.post('/newsletter/inscription/valider/', {
+            'email': 'un-de-trop@example.org', 'h-captcha-response': 'ok'})
+        self.assertEqual(r.status_code, 429)
+        self.assertFalse(
+            Subscriber.objects.filter(email='un-de-trop@example.org').exists())
+
+    def test_le_champ_piege_est_dans_le_formulaire_public(self):
+        """Sans le champ dans la page, le piège ne se déclencherait jamais."""
+        html = self.client.get('/').content.decode()
+        self.assertIn('name="site_web"', html)

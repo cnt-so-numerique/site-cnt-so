@@ -12,7 +12,8 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from .models import (Page, ContactMessage, FormulaireContact, Subscriber,
                      ExternalArticle)
-from .forms import ContactForm, DynamicContactForm
+from .forms import (ContactForm, DynamicContactForm, NewsletterCaptchaForm,
+                    NewsletterSubscribeForm)
 from cms.models import ArticlePage, CmsCategory, SectionPage
 from taggit.models import Tag as TaggitTag
 
@@ -870,8 +871,45 @@ class PlanDuSiteView(TemplateView):
 
 # ── Newsletter publique ────────────────────────────────────────────────────────
 
+#: Une même adresse IP ne peut pas demander plus de N inscriptions par heure.
+#: Le botnet du 24/07 au 17/08/2026 en postait une centaine par jour depuis 25
+#: IP : trois par heure et par IP laisse passer un couple qui s'inscrit depuis
+#: le même local syndical, et coupe court à l'abus.
+NEWSLETTER_MAX_PAR_IP = 3
+NEWSLETTER_FENETRE = 3600
+
+
+def _ip_du_visiteur(request):
+    """L'IP réelle derrière le reverse proxy nginx."""
+    transmis = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if transmis:
+        return transmis.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', '')
+
+
+def _trop_de_demandes(request):
+    """Vrai si cette IP a déjà épuisé son quota d'inscriptions de l'heure."""
+    from django.core.cache import caches
+    # Cache PARTAGÉ entre les workers gunicorn : dans le cache local du
+    # processus, la limite aurait valu trois fois plus (cf. settings.CACHES).
+    cache = caches['limites']
+    cle = f'newsletter-inscription:{_ip_du_visiteur(request)}'
+    essais = cache.get(cle, 0)
+    if essais >= NEWSLETTER_MAX_PAR_IP:
+        return True
+    cache.set(cle, essais + 1, NEWSLETTER_FENETRE)
+    return False
+
+
 class NewsletterSubscribeView(View):
-    """Formulaire d'inscription à la newsletter d'un site."""
+    """Première étape de l'inscription : recueillir l'adresse.
+
+    Cette vue n'inscrit personne et n'envoie aucun courriel. Elle se contente
+    de mener à la page de validation, qui porte le hCaptcha. Avant le
+    17/08/2026 elle créait l'abonné et envoyait la confirmation sur simple
+    POST, sans la moindre vérification : un botnet en a fait un relais pour
+    bombarder des adresses tierces depuis nos serveurs.
+    """
 
     def _get_site(self, site_slug=None):
         if site_slug:
@@ -880,20 +918,51 @@ class NewsletterSubscribeView(View):
 
     def post(self, request, site_slug=None):
         site = self._get_site(site_slug)
-        email = request.POST.get('email', '').strip().lower()
-        name = request.POST.get('name', '').strip()
-
-        from django.core.validators import validate_email
-        from django.core.exceptions import ValidationError
-        try:
-            validate_email(email)
-        except ValidationError:
+        form = NewsletterSubscribeForm(request.POST)
+        if not form.is_valid():
             messages.error(request, 'Adresse e-mail invalide.')
             return redirect(request.META.get('HTTP_REFERER', '/'))
 
+        return render(request, 'content/newsletter_subscribe_verify.html', {
+            'site': site,
+            'form': NewsletterCaptchaForm(initial={
+                'email': form.cleaned_data['email'],
+                'name': form.cleaned_data.get('name', ''),
+            }),
+        })
+
+
+class NewsletterSubscribeVerifyView(View):
+    """Deuxième étape : le hCaptcha franchi, on inscrit et on envoie le courriel.
+
+    Seule cette vue crée un `Subscriber`. C'est aussi la seule à faire partir
+    un courriel vers une adresse que le visiteur a saisie : le captcha et la
+    limite par IP protègent donc autant notre base que les boîtes d'autrui.
+    """
+
+    def _get_site(self, site_slug=None):
+        if site_slug:
+            return get_section_or_404(site_slug, live=True)
+        return get_object_or_404(SectionPage, slug='principal')
+
+    def post(self, request, site_slug=None):
+        site = self._get_site(site_slug)
+        form = NewsletterCaptchaForm(request.POST)
+        if not form.is_valid():
+            return render(request, 'content/newsletter_subscribe_verify.html', {
+                'site': site, 'form': form,
+            }, status=400)
+
+        if _trop_de_demandes(request):
+            return render(request, 'content/newsletter_subscribe_verify.html', {
+                'site': site, 'form': form,
+                'trop_de_demandes': True,
+            }, status=429)
+
+        email = form.cleaned_data['email'].strip().lower()
         subscriber, created = Subscriber.objects.get_or_create(
             site=site, email=email,
-            defaults={'name': name},
+            defaults={'name': form.cleaned_data.get('name', '')},
         )
 
         if not subscriber.is_active:

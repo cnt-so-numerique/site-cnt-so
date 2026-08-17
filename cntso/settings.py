@@ -236,6 +236,25 @@ WAGTAIL_WORKFLOW_ENABLED = False
 HCAPTCHA_SITEKEY = _os.environ.get('HCAPTCHA_SITEKEY', '10000000-ffff-ffff-ffff-000000000001')
 HCAPTCHA_SECRET = _os.environ.get('HCAPTCHA_SECRET', '0x0000000000000000000000000000000000000000')
 
+# ── Caches ────────────────────────────────────────────────────────────────────
+#
+# `default` reste le cache local du processus : c'est celui des pages
+# (wagtail-cache), et chaque worker gunicorn peut garder le sien.
+#
+# `limites` doit au contraire être PARTAGÉ entre les trois workers : il porte le
+# compteur d'inscriptions à la newsletter par adresse IP. Dans un cache local,
+# la limite de 3 par heure en aurait valu 9, et serait repartie de zéro à chaque
+# redémarrage — une passoire face au botnet de juillet-août 2026.
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    },
+    'limites': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'cache_limites',
+    },
+}
+
 # ── wagtail-cache ─────────────────────────────────────────────────────────────
 WAGTAILCACHE_CACHE = 'default'
 WAGTAILCACHE_TIMEOUT = 3600

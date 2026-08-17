@@ -5,6 +5,9 @@
         <form class="site-newsletter-form" method="post"
               action="{% if newsletter_site and newsletter_site.slug != 'principal' %}{% section_url 'content:site_newsletter_subscribe' newsletter_site %}{% else %}{% url 'content:newsletter_subscribe' %}{% endif %}">
             {% csrf_token %}
+            {# Champ piège : invisible et sans raison d'être rempli, sinon par un robot. #}
+            <input type="text" name="site_web" tabindex="-1" autocomplete="off" aria-hidden="true"
+                   style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
             <input type="email" name="email" placeholder="Votre adresse e-mail…" aria-label="Votre adresse e-mail pour la newsletter" required>
             <button type="submit">S'inscrire</button>
         </form>

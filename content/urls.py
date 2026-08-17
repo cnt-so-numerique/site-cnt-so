@@ -47,6 +47,9 @@ urlpatterns = [
 
     # Newsletter
     path('newsletter/inscription/', views.NewsletterSubscribeView.as_view(), name='newsletter_subscribe'),
+    # Seule cette étape inscrit et fait partir un courriel : elle porte le hCaptcha.
+    path('newsletter/inscription/valider/', views.NewsletterSubscribeVerifyView.as_view(),
+         name='newsletter_subscribe_verify'),
     path('newsletter/confirmer/<uuid:token>/', views.NewsletterConfirmView.as_view(), name='newsletter_confirm'),
     path('newsletter/desinscription/<uuid:token>/', views.NewsletterUnsubscribeView.as_view(), name='newsletter_unsubscribe'),
 
@@ -83,6 +86,8 @@ urlpatterns = [
 
     # Sous-sites newsletter
     path('<slug:site_slug>/newsletter/inscription/', views.NewsletterSubscribeView.as_view(), name='site_newsletter_subscribe'),
+    path('<slug:site_slug>/newsletter/inscription/valider/', views.NewsletterSubscribeVerifyView.as_view(),
+         name='site_newsletter_subscribe_verify'),
 
     # Sous-sites — pages fonctionnelles génériques
     path('<slug:site_slug>/rejoindre/', views.SiteRejoindreView.as_view(), name='site_rejoindre'),

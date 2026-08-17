@@ -25,6 +25,9 @@
     <p style="color:rgba(255,255,255,.7);font-size:15px;line-height:1.5;margin-bottom:.85rem;">Abonnez-vous à la newsletter pour recevoir nos actualités et luttes directement par e-mail.</p>
     <form method="post" action="{{ newsletter_url }}" style="display:flex;flex-direction:column;gap:.5rem;">
         {% csrf_token %}
+        {# Champ piège : invisible et sans raison d'être rempli, sinon par un robot. #}
+        <input type="text" name="site_web" tabindex="-1" autocomplete="off" aria-hidden="true"
+               style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
         <input type="email" name="email" placeholder="votre@email.fr" aria-label="Votre adresse e-mail pour la newsletter" required
                style="padding:.6rem .8rem;border:none;font-size:15px;font-family:var(--font-body);background:#fff;width:100%;box-sizing:border-box;">
         <button type="submit"
