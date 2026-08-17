@@ -1,3 +1,6 @@
+from datetime import datetime, timezone as dt_timezone
+from itertools import chain
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView, DetailView, View, CreateView, TemplateView
 from django.http import Http404
@@ -7,7 +10,8 @@ from django.contrib import messages
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
-from .models import Page, ContactMessage, FormulaireContact, Subscriber
+from .models import (Page, ContactMessage, FormulaireContact, Subscriber,
+                     ExternalArticle)
 from .forms import ContactForm, DynamicContactForm
 from cms.models import ArticlePage, CmsCategory, SectionPage
 from taggit.models import Tag as TaggitTag
@@ -113,16 +117,8 @@ class HomeView(ListView):
         # (carrousel, sélection, colonnes). L'y remettre ici noyait les
         # sous-sites, seul endroit de l'accueil où ils s'expriment.
         section_names = dict(SectionPage.objects.filter(live=True).values_list('slug', 'title'))
-        candidats = (
-            ArticlePage.objects.live()
-            .exclude(section_slug='principal')
-            .order_by('-publication_date', '-first_published_at')
-            .select_related('featured_image')
-            .prefetch_related('cms_categories')
-            .exclude(pk__in=excl)[:60]
-        )
         context['all_latest_articles'] = _reseau_tour_de_table(
-            candidats, section_names, nb=9)
+            _candidats_reseau(excl), section_names, nb=9)
 
         # Droits
         context['droits_articles'] = base_qs.filter(cms_categories__slug='droit')[:5]
@@ -165,6 +161,50 @@ class SiteAgendaView(TemplateView):
             )
             context['agenda_text'] = self.site_obj.agenda_text
         return context
+
+
+#: Date de repli pour un article sans aucune date : il passe en dernier plutôt
+#: que de faire échouer le tri de tout le cartouche.
+_DATE_ZERO = datetime(1970, 1, 1, tzinfo=dt_timezone.utc)
+
+
+def _date_reseau(article):
+    """Date commune à nos articles et à ceux moissonnés ailleurs."""
+    return (getattr(article, 'published_at', None)
+            or getattr(article, 'publication_date', None)
+            or getattr(article, 'first_published_at', None)
+            or _DATE_ZERO)
+
+
+def _candidats_reseau(exclus, nb=60):
+    """Les articles récents des syndicats : les nôtres ET ceux d'ailleurs.
+
+    Un syndicat hébergé sur son propre site (le STAA, le TAS) n'a aucune
+    `ArticlePage` chez nous : à ne regarder que notre base, il était absent du
+    cartouche « réseau », c'est-à-dire du seul endroit de l'accueil où les
+    sous-sites s'expriment. On y ajoute donc les articles moissonnés dans leurs
+    flux par la commande `sync_flux_reseau` — jamais lus en direct ici : un
+    serveur voisin en panne ferait tomber l'accueil de la confédération.
+
+    La confédération est exclue des deux côtés : elle occupe déjà tout le haut
+    de la page.
+    """
+    locaux = (
+        ArticlePage.objects.live()
+        .exclude(section_slug='principal')
+        .order_by('-publication_date', '-first_published_at')
+        .select_related('featured_image')
+        .prefetch_related('cms_categories')
+        .exclude(pk__in=exclus)[:nb]
+    )
+    externes = (
+        ExternalArticle.objects
+        .filter(section__live=True)
+        .exclude(section__slug='principal')
+        .select_related('section')
+        .order_by('-published_at')[:nb]
+    )
+    return sorted(chain(locaux, externes), key=_date_reseau, reverse=True)
 
 
 def _reseau_tour_de_table(candidats, noms_de_sites, nb=9):

@@ -18,6 +18,8 @@ django-treebeard==5.1.0
 djangorestframework==3.17.1
 draftjs_exporter==5.2.0
 et_xmlfile==2.0.0
+feedparser==6.0.14
+feedparser-sgmllib==2.1.0
 filetype==1.2.0
 greenlet==3.5.1
 idna==3.11

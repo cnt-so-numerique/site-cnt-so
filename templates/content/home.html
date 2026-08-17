@@ -619,6 +619,23 @@
 .hp-reseau-title a { color: var(--text-color); }
 .hp-reseau-title a:hover { color: var(--primary-color); }
 
+/* Article moissonné sur le site propre d'un syndicat : le lecteur quitte
+   cnt-so.org, il doit le savoir avant de cliquer. */
+.hp-ext-marqueur {
+    font-size: .85em;
+    margin-left: .2em;
+    color: var(--primary-color);
+}
+
+.hp-hors-ecran {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
 /* ----------------------------------------------------------
    DROITS + ACTIONS (2 colonnes dans la colonne gauche)
    ---------------------------------------------------------- */
@@ -954,7 +971,7 @@
         <!-- 3. RÉSEAU : 9 derniers articles de tous les sites -->
         {% if all_latest_articles %}
         <div class="hp-labeled-section hp-section-grey">
-            <span class="hp-vert-label">Le réseau</span>
+            <span class="hp-vert-label">Les nouvelles du réseau</span>
             <div class="hp-section-body">
                 <div class="hp-reseau-grid">
                     {% for article in all_latest_articles %}
@@ -963,12 +980,18 @@
                             {% if article.source_site %}
                             <span class="hp-badge-site">{{ article.source_site }}</span>
                             {% endif %}
+                            {% if not article.is_external %}
                             {% for cat in article.cms_categories.all|slice:":1" %}
                             <span class="hp-card-cat">{{ cat.name }}</span>
                             {% endfor %}
+                            {% endif %}
                         </div>
                         <div class="hp-reseau-title">
+                            {% if article.is_external %}
+                            <a href="{{ article.get_absolute_url }}" target="_blank" rel="noopener">{{ article.title }}<span class="hp-ext-marqueur" aria-hidden="true">↗</span><span class="hp-hors-ecran"> (sur le site du syndicat, nouvel onglet)</span></a>
+                            {% else %}
                             <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                            {% endif %}
                         </div>
                     </div>
                     {% endfor %}

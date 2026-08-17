@@ -628,6 +628,18 @@ class SectionPage(SeoMixin, Page):
     description = models.TextField(blank=True, verbose_name="Description / accroche",
         help_text="Texte court affiché sous le titre en page d'accueil du sous-site")
     external_url = models.URLField(blank=True)
+    feed_url = models.URLField(
+        blank=True, verbose_name="URL du flux RSS / Atom",
+        help_text="Uniquement pour un syndicat hébergé ailleurs : ses articles "
+                  "remontent alors dans « Les nouvelles du réseau » sur "
+                  "l'accueil confédéral. Sur un WordPress, laissez vide — le "
+                  "flux est déduit de l'adresse du site (…/feed/).",
+    )
+    # État de la synchronisation du flux. Hors panneaux : diagnostic, pas
+    # édition. `feed_etag` évite de retélécharger un flux inchangé,
+    # `feed_last_sync` répond à « pourquoi ce syndicat ne remonte plus ? ».
+    feed_etag = models.CharField(max_length=255, blank=True)
+    feed_last_sync = models.DateTimeField(null=True, blank=True)
     agenda_url = models.URLField(blank=True)
     linkstack_url = models.URLField(blank=True, verbose_name="URL Linkstack")
     framaform_url = models.URLField(blank=True, verbose_name="URL Framaform adhésion")
@@ -708,6 +720,7 @@ class SectionPage(SeoMixin, Page):
         FieldPanel('description'),
         FieldPanel('contact_email'),
         FieldPanel('external_url'),
+        FieldPanel('feed_url'),
         FieldPanel('agenda_url'),
         FieldPanel('linkstack_url'),
         FieldPanel('framaform_url'),
@@ -746,6 +759,20 @@ class SectionPage(SeoMixin, Page):
     class Meta:
         verbose_name = "Section (syndicat)"
         verbose_name_plural = "Sections (syndicats)"
+
+    def get_feed_url(self):
+        """URL du flux à moissonner, ou '' si ce syndicat n'en a pas.
+
+        Un syndicat hébergé chez nous n'a pas de flux à moissonner : ses
+        articles sont déjà en base. Seuls les syndicats à `external_url` en
+        ont un — déduit de l'adresse du site, la quasi-totalité tournant sous
+        WordPress, et surchargeable par `feed_url` pour les autres.
+        """
+        if self.feed_url:
+            return self.feed_url
+        if self.external_url:
+            return self.external_url.rstrip('/') + '/feed/'
+        return ''
 
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)
@@ -951,6 +978,13 @@ class PanneauChefSeulement(FieldPanel):
 
 class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
     """Article de blog — remplace content.Article."""
+
+    # Le cartouche « réseau » de l'accueil mélange nos articles et ceux
+    # moissonnés chez les syndicats hébergés ailleurs (content.ExternalArticle) :
+    # le gabarit a besoin de les distinguer pour ouvrir les seconds dans un
+    # nouvel onglet. Dire ici « je suis chez nous » vaut mieux que compter sur
+    # l'absence d'attribut.
+    is_external = False
 
     body = StreamField(
         CorpsBlock(ARTICLE_BODY_BLOCKS),

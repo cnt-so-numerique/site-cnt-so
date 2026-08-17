@@ -757,3 +757,58 @@ class Permanence(models.Model):
             {'texte': t, 'href': t.replace(' ', '').replace('.', '').replace('-', '')}
             for t in (self.telephone, self.telephone_secondaire) if t
         ]
+
+
+class ExternalArticle(models.Model):
+    """Article moissonné dans le flux RSS d'un syndicat hébergé ailleurs.
+
+    Les syndicats à `external_url` — le STAA, le TAS — n'ont aucune
+    `ArticlePage` chez nous. Le cartouche « Les nouvelles du réseau » de
+    l'accueil, qui pioche dans `ArticlePage`, les ignorait donc
+    structurellement, alors que c'est le seul endroit de l'accueil où les
+    sous-sites s'expriment : partir vivre ailleurs revenait à disparaître du
+    réseau.
+
+    On copie ici le strict minimum pour les afficher — un titre, un lien, une
+    date — et surtout pas sous forme de page Wagtail : le contenu ne nous
+    appartient pas, il n'a rien à faire dans l'arbre des pages, la recherche,
+    le sitemap ni l'interface de rédaction. Le remplissage est le fait de la
+    commande `sync_flux_reseau`, jamais du rendu d'une page.
+    """
+
+    section = models.ForeignKey(
+        'cms.SectionPage',
+        on_delete=models.CASCADE,
+        related_name='external_articles',
+        verbose_name='Syndicat',
+    )
+    guid = models.CharField(
+        max_length=500,
+        help_text="Identifiant de l'entrée dans le flux : ce qui distingue un "
+                  "article republié d'un nouvel article.",
+    )
+    title = models.CharField(max_length=500, verbose_name='Titre')
+    url = models.URLField(max_length=500, verbose_name='Lien')
+    published_at = models.DateTimeField(verbose_name='Date de publication')
+    fetched_at = models.DateTimeField(auto_now=True)
+
+    # Le gabarit du réseau distingue les articles d'ici de ceux d'ailleurs.
+    is_external = True
+
+    class Meta:
+        unique_together = ('section', 'guid')
+        ordering = ['-published_at']
+        verbose_name = "Article d'un site externe"
+        verbose_name_plural = "Articles des sites externes"
+
+    def __str__(self):
+        return f'{self.title} ({self.section.title})'
+
+    # -- Interface commune avec ArticlePage, pour le tour de table du réseau --
+
+    @property
+    def section_slug(self):
+        return self.section.slug
+
+    def get_absolute_url(self):
+        return self.url

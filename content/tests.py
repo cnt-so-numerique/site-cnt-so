@@ -1,4 +1,6 @@
 import uuid
+from datetime import timedelta
+from io import StringIO
 from unittest.mock import patch, MagicMock
 
 from django.test import TestCase, RequestFactory, override_settings
@@ -12,7 +14,7 @@ from taggit.models import Tag as TaggitTag
 
 from content.models import (
     Author, Tag, Media, Article, Page,
-    Comment, MenuItem, Subscriber, Newsletter,
+    Comment, MenuItem, Subscriber, Newsletter, ExternalArticle,
 )
 from content.forms import ContactForm, CommentForm
 from cms.models import ArticlePage, CmsCategory, ContentPage, HomePage
@@ -6031,3 +6033,179 @@ class SyndicatDepublieTest(TestCase):
         self.site.save(update_fields=['live'])
         self.assertEqual(self.client.get('/ouvert/').status_code, 200)
         self.assertTrue(voisin.live)
+
+
+# ── Flux des syndicats hébergés ailleurs ──────────────────────────────────────
+
+FLUX_RSS_EXEMPLE = b"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+  <title>STAA</title>
+  <item>
+    <title>La surcotisation forfaitaire</title>
+    <link>https://staa-cnt-so.org/2026/05/25/surcotisation/</link>
+    <guid isPermaLink="false">https://staa-cnt-so.org/?p=1234</guid>
+    <pubDate>Mon, 25 May 2026 08:00:00 +0000</pubDate>
+  </item>
+  <item>
+    <title>Communiqu&#233; de soutien</title>
+    <link>https://staa-cnt-so.org/2026/06/03/soutien/</link>
+    <guid isPermaLink="false">https://staa-cnt-so.org/?p=1250</guid>
+    <pubDate>Wed, 03 Jun 2026 08:00:00 +0000</pubDate>
+  </item>
+</channel></rss>"""
+
+
+class _FausseReponse:
+    """Réponse HTTP minimale, pour ne pas sortir sur le réseau pendant les tests."""
+
+    def __init__(self, contenu=FLUX_RSS_EXEMPLE, status_code=200, etag='"abc"'):
+        self.content = contenu
+        self.status_code = status_code
+        self.headers = {'ETag': etag} if etag else {}
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            import requests
+            raise requests.HTTPError(f'{self.status_code}')
+
+
+class FluxUrlTest(TestCase):
+    """Un syndicat hébergé ailleurs publie presque toujours un WordPress :
+    imposer la saisie du `/feed/` à la main serait un champ de plus à remplir
+    et une occasion d'oubli."""
+
+    def test_flux_deduit_du_site_externe(self):
+        site = make_site(slug='staa', name='STAA', site_type='sectoral',
+                         external_url='https://staa-cnt-so.org/')
+        self.assertEqual(site.get_feed_url(), 'https://staa-cnt-so.org/feed/')
+
+    def test_feed_url_explicite_prioritaire(self):
+        site = make_site(slug='staa', name='STAA', site_type='sectoral',
+                         external_url='https://staa-cnt-so.org/')
+        site.feed_url = 'https://staa-cnt-so.org/atom.xml'
+        site.save()
+        self.assertEqual(site.get_feed_url(), 'https://staa-cnt-so.org/atom.xml')
+
+    def test_syndicat_heberge_chez_nous_na_pas_de_flux(self):
+        """Ses articles sont déjà en base : aller les chercher en RSS les
+        dupliquerait dans le cartouche du réseau."""
+        site = make_site(slug='13', name='CNT-SO 13', site_type='regional')
+        self.assertEqual(site.get_feed_url(), '')
+
+
+class SyncFluxReseauTest(TestCase):
+
+    def setUp(self):
+        self.site = make_site(slug='staa', name='STAA', site_type='sectoral',
+                              external_url='https://staa-cnt-so.org/')
+
+    def _sync(self, reponse=None, **kwargs):
+        from django.core.management import call_command
+        with patch('content.management.commands.sync_flux_reseau.requests.get',
+                   return_value=reponse or _FausseReponse()) as faux:
+            call_command('sync_flux_reseau', stdout=StringIO(), stderr=StringIO(), **kwargs)
+        return faux
+
+    def test_moissonne_les_entrees(self):
+        self._sync()
+        articles = ExternalArticle.objects.filter(section=self.site)
+        self.assertEqual(articles.count(), 2)
+        recent = articles.first()
+        self.assertEqual(recent.title, 'Communiqué de soutien')
+        self.assertEqual(recent.get_absolute_url(),
+                         'https://staa-cnt-so.org/2026/06/03/soutien/')
+        self.assertEqual(recent.published_at.date().isoformat(), '2026-06-03')
+
+    def test_deux_passages_ne_dupliquent_pas(self):
+        self._sync()
+        self._sync()
+        self.assertEqual(ExternalArticle.objects.count(), 2)
+
+    def test_flux_inchange_ne_retelecharge_pas(self):
+        """Le 304 économise la bande passante du syndicat qui nous l'offre."""
+        self._sync()
+        self.site.refresh_from_db()
+        self.assertEqual(self.site.feed_etag, '"abc"')
+        faux = self._sync(reponse=_FausseReponse(status_code=304))
+        self.assertEqual(faux.call_args.kwargs['headers']['If-None-Match'], '"abc"')
+        self.assertEqual(ExternalArticle.objects.count(), 2)
+
+    def test_flux_injoignable_ne_fait_pas_echouer_la_commande(self):
+        """Un serveur voisin en panne ne doit ni casser le cron ni effacer
+        les articles déjà connus : on réessaiera à l'heure suivante."""
+        from django.core.management import call_command
+        import requests
+        self._sync()
+        with patch('content.management.commands.sync_flux_reseau.requests.get',
+                   side_effect=requests.ConnectionError('injoignable')):
+            call_command('sync_flux_reseau', stdout=StringIO(), stderr=StringIO())
+        self.assertEqual(ExternalArticle.objects.count(), 2)
+
+    def test_dry_run_necrit_rien(self):
+        self._sync(**{'dry_run': True})
+        self.assertEqual(ExternalArticle.objects.count(), 0)
+
+    def test_purge_au_dela_du_plafond(self):
+        from content.management.commands.sync_flux_reseau import MAX_PAR_SITE
+        for i in range(MAX_PAR_SITE + 5):
+            ExternalArticle.objects.create(
+                section=self.site, guid=f'vieux-{i}', title=f'Vieux {i}',
+                url=f'https://staa-cnt-so.org/vieux-{i}/',
+                published_at=timezone.now() - timedelta(days=100 + i))
+        self._sync()
+        self.assertEqual(ExternalArticle.objects.filter(section=self.site).count(),
+                         MAX_PAR_SITE)
+        # Les deux entrées du flux sont récentes : elles survivent à la purge.
+        self.assertTrue(ExternalArticle.objects.filter(
+            title='Communiqué de soutien').exists())
+
+
+class ReseauAccueilFluxExterneTest(TestCase):
+    """Un syndicat parti vivre sur son propre site disparaissait du cartouche
+    « réseau », c'est-à-dire du seul endroit de l'accueil où les sous-sites
+    s'expriment."""
+
+    def setUp(self):
+        make_site(slug='principal')
+        self.externe = make_site(slug='staa', name='STAA', site_type='sectoral',
+                                 external_url='https://staa-cnt-so.org/')
+        self.interne = make_site(slug='13', name='CNT-SO 13', site_type='regional')
+        make_article_page(section_slug='13', title='Grève au nettoyage')
+        self.article_externe = ExternalArticle.objects.create(
+            section=self.externe, guid='p1', title='La surcotisation forfaitaire',
+            url='https://staa-cnt-so.org/2026/05/25/surcotisation/',
+            published_at=timezone.now())
+
+    def test_larticle_externe_apparait_dans_le_reseau(self):
+        html = self.client.get('/').content.decode()
+        self.assertIn('La surcotisation forfaitaire', html)
+        self.assertIn('https://staa-cnt-so.org/2026/05/25/surcotisation/', html)
+        self.assertIn('STAA', html)
+
+    def test_le_lien_externe_souvre_dans_un_nouvel_onglet(self):
+        html = self.client.get('/').content.decode()
+        lien = [l for l in html.split('<a ') if 'surcotisation' in l][0]
+        self.assertIn('target="_blank"', lien)
+        self.assertIn('rel="noopener"', lien)
+
+    def test_les_articles_internes_restent(self):
+        html = self.client.get('/').content.decode()
+        self.assertIn('Grève au nettoyage', html)
+
+    def test_depublier_le_syndicat_retire_ses_articles_du_reseau(self):
+        """Dépublier ferme le site du syndicat : ses articles ne doivent pas
+        continuer à s'afficher sur l'accueil de la confédération."""
+        self.externe.live = False
+        self.externe.save(update_fields=['live'])
+        html = self.client.get('/').content.decode()
+        self.assertNotIn('La surcotisation forfaitaire', html)
+
+    def test_le_tour_de_table_melange_les_deux_sources(self):
+        """Un site externe bavard ne doit pas rafler toutes les places."""
+        for i in range(9):
+            ExternalArticle.objects.create(
+                section=self.externe, guid=f'p{i + 10}', title=f'Externe {i}',
+                url=f'https://staa-cnt-so.org/{i}/',
+                published_at=timezone.now())
+        html = self.client.get('/').content.decode()
+        self.assertIn('Grève au nettoyage', html)
