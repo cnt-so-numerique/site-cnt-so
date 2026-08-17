@@ -6602,3 +6602,62 @@ class NewsletterAntiAbusTest(TestCase):
         """Sans le champ dans la page, le piège ne se déclencherait jamais."""
         html = self.client.get('/').content.decode()
         self.assertIn('name="site_web"', html)
+
+
+class OvhListeInscriptionTest(TestCase):
+    """Où atterrissent les inscrits venus du site.
+
+    Le 17/08/2026, la liste « news » était pleine (plafond dur OVH : 5 000)
+    mais son compteur `nbSubscribers` annonçait 1 260. Le site la croyait donc
+    disponible, continuait d'y inscrire, et chaque ajout échouait en silence :
+    la newsletter ne pouvait plus gagner un seul abonné.
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='principal')
+        self.site.ovh_mailing_list = 'news,news2,news3'
+        self.site.save()
+
+    @override_settings(OVH_APPLICATION_KEY='cle-de-test', OVH_LIST_CAP=4900)
+    @patch('cms.ovh_client.get_subscribers')
+    def test_le_comptage_enumere_au_lieu_de_croire_le_compteur(self, faux_abonnes):
+        from django.core.cache import cache
+        from content.ovh_sync import list_count
+        cache.clear()
+        faux_abonnes.return_value = ['a@x.fr'] * 5000
+        self.assertEqual(list_count('news'), 5000)
+
+    @override_settings(OVH_APPLICATION_KEY='cle-de-test', OVH_LIST_CAP=4900)
+    @patch('cms.ovh_client.get_subscribers')
+    def test_une_liste_pleine_est_evitee(self, faux_abonnes):
+        from django.core.cache import cache
+        from content.ovh_sync import pick_list
+        cache.clear()
+        faux_abonnes.side_effect = lambda nom: (['a@x.fr'] * 5000 if nom == 'news'
+                                                else ['b@x.fr'] * 10)
+        self.assertEqual(pick_list(self.site), 'news2')
+
+    @override_settings(OVH_APPLICATION_KEY='cle-de-test', OVH_LIST_CAP=4900)
+    @patch('cms.ovh_client.get_subscribers')
+    def test_la_liste_dediee_lemporte(self, faux_abonnes):
+        """Les inscrits du site doivent rester distincts des adresses héritées,
+        dont on ne connaît ni l'origine ni le consentement."""
+        from django.core.cache import cache
+        from content.ovh_sync import pick_list
+        cache.clear()
+        faux_abonnes.return_value = ['b@x.fr'] * 10
+        self.site.ovh_liste_inscription = 'news3'
+        self.site.save()
+        self.assertEqual(pick_list(self.site), 'news3')
+
+    @override_settings(OVH_APPLICATION_KEY='cle-de-test', OVH_LIST_CAP=4900)
+    @patch('cms.ovh_client.get_subscribers')
+    def test_une_liste_dediee_pleine_ne_bloque_pas_linscription(self, faux_abonnes):
+        from django.core.cache import cache
+        from content.ovh_sync import pick_list
+        cache.clear()
+        faux_abonnes.side_effect = lambda nom: (['a@x.fr'] * 5000 if nom == 'news3'
+                                                else ['b@x.fr'] * 10)
+        self.site.ovh_liste_inscription = 'news3'
+        self.site.save()
+        self.assertEqual(pick_list(self.site), 'news')

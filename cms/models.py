@@ -684,7 +684,16 @@ class SectionPage(SeoMixin, Page):
     ovh_mailing_list = models.CharField(
         max_length=500, blank=True,
         verbose_name="Liste(s) mail OVH (newsletter)",
-        help_text="Noms des listes sur cnt-so.info, séparés par des virgules",
+        help_text="Noms des listes sur cnt-so.info, séparés par des virgules. "
+                  "La newsletter part à TOUTES ces listes.",
+    )
+    ovh_liste_inscription = models.CharField(
+        max_length=100, blank=True,
+        verbose_name="Liste d'arrivée des inscrits du site",
+        help_text="Les personnes qui s'inscrivent depuis le site atterrissent "
+                  "sur cette liste, pour rester distinctes des adresses "
+                  "héritées. Elle doit aussi figurer ci-dessus pour recevoir "
+                  "la newsletter. Vide : première liste non pleine.",
     )
     custom_domain = models.CharField(
         max_length=253, blank=True, default='',
@@ -731,6 +740,7 @@ class SectionPage(SeoMixin, Page):
         FieldPanel('logo'),
         MultiFieldPanel([
             FieldPanel('ovh_mailing_list', widget=OVHMailingListWidget),
+            FieldPanel('ovh_liste_inscription'),
         ], heading="Newsletter OVH"),
         MultiFieldPanel([
             FieldPanel('social_mastodon'),

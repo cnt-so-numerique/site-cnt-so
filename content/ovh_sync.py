@@ -42,8 +42,14 @@ def list_count(name):
     if cached is not None:
         return cached
     try:
-        from cms.ovh_client import get_mailing_list_info
-        count = int(get_mailing_list_info(name).get('nbSubscribers', 0))
+        # On ÉNUMÈRE les abonnés au lieu de croire le champ `nbSubscribers` :
+        # OVH applique les changements de liste de façon asynchrone et ce
+        # compteur reste périmé, parfois de beaucoup. Le 17/08/2026 il
+        # annonçait 1 260 abonnés sur « news » qui en comptait 5 000 — soit le
+        # plafond dur d'OVH. Résultat : le site croyait la liste disponible,
+        # continuait d'y inscrire, et chaque ajout échouait en silence.
+        from cms.ovh_client import get_subscribers
+        count = len(get_subscribers(name))
     except Exception as e:
         logger.warning("Comptage liste OVH %s impossible : %s", name, e)
         return 0
@@ -62,6 +68,18 @@ def pick_list(site):
     if not lists:
         return None
     cap = getattr(settings, 'OVH_LIST_CAP', 4900)
+
+    # Une liste dédiée aux inscrits du site, s'il y en a une : elle les tient
+    # à part des adresses héritées de l'ancien site, dont on ne connaît ni
+    # l'origine ni le consentement.
+    dediee = (getattr(site, 'ovh_liste_inscription', '') or '').strip()
+    if dediee:
+        if list_count(dediee) < cap:
+            return dediee
+        logger.critical(
+            "La liste d'inscription %s de %s est pleine — en créer une autre.",
+            dediee, site,
+        )
     for name in lists:
         if list_count(name) < cap:
             return name
