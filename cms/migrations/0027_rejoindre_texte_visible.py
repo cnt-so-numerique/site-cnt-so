@@ -71,7 +71,11 @@ def vider_le_corps(apps, schema_editor):
     SectionPage = apps.get_model('cms', 'SectionPage')
 
     for page in SectionPage.objects.all():
-        valeurs = [bloc.get('value', '') for bloc in (page.rejoindre_text or [])]
+        # `rejoindre_text` rend une StreamValue, dont les enfants sont des
+        # blocs Wagtail et non des dictionnaires : c'est `raw_data` qui donne
+        # le JSON tel qu'il est stocké.
+        brut = getattr(page.rejoindre_text, 'raw_data', page.rejoindre_text) or []
+        valeurs = [str(bloc.get('value', '')) for bloc in brut]
         if not any('Pourquoi adhérer' in v for v in valeurs):
             continue
         page.rejoindre_text = []
