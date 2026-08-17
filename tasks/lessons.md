@@ -169,3 +169,23 @@ sans rien signaler. J'ai cru la page à 13 cartes ; elle en comptait 19.
 **Corollaire :** toute conversion de contenu doit s'annoncer avant d'écrire —
 un `--dry-run` listant ce qui a été reconnu. C'est lui qui a révélé les six
 cartes manquantes, sur la base de production et non en dev.
+
+---
+
+## Une lecture immédiate ne dit rien d'un système asynchrone (17/08/2026)
+
+**Le piège :** après avoir ajouté une adresse à une liste OVH, le retrait a
+échoué avec « does not exist ». J'ai annoncé à Arnaud une découverte « grave » —
+un bug d'encodage d'URL dans `remove_subscriber` qui aurait empêché tout
+désabonnement. C'était faux : les opérations OVH sont **asynchrones**, l'ajout
+n'était pas encore appliqué. Même cause pour le compteur `nbSubscribers`
+périmé, et pour l'adresse de test qui n'apparaissait pas dans `news3` avant
+une minute.
+
+**Règle :** face à une API distante, ne jamais diagnostiquer sur une lecture
+qui suit immédiatement une écriture. Refaire la mesure après un délai avant
+d'accuser le code.
+
+**Corollaire :** je l'avais annoncé comme « grave » avant de vérifier. Une
+hypothèse alarmante se qualifie d'abord, se communique ensuite — sinon on fait
+courir l'utilisateur après un bug qui n'existe pas.
