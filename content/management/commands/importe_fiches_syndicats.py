@@ -12,7 +12,7 @@ sont reconnues à leur titre) et n'en crée pas de doublon.
 
     python manage.py importe_fiches_syndicats --dry-run   # voir sans écrire
     python manage.py importe_fiches_syndicats
-    python manage.py importe_fiches_syndicats --completer  # + les syndicats absents
+    python manage.py importe_fiches_syndicats --completer  # + secteurs et syndicats absents
     python manage.py importe_fiches_syndicats --vider-la-page  # ne garder que le chapô
 
 Le parsing passe par BeautifulSoup et non par des expressions régulières :
@@ -25,7 +25,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from cms.models import CmsCategory, ContentPage, SectionPage
-from content.models import FicheSyndicat
+from content.models import FicheSyndicat, MenuItem
 
 
 class Command(BaseCommand):
@@ -37,8 +37,8 @@ class Command(BaseCommand):
                             help="Afficher ce qui serait fait, sans rien écrire.")
         parser.add_argument(
             '--completer', action='store_true',
-            help="Ajouter une carte pour chaque syndicat publié qui n'en a "
-                 "pas encore : la page en oubliait trois.",
+            help="Ajouter une carte pour chaque syndicat publié et pour "
+                 "chaque secteur du menu qui n'en a pas encore.",
         )
         parser.add_argument(
             '--vider-la-page', action='store_true',
@@ -56,10 +56,11 @@ class Command(BaseCommand):
 
         self.dry = options['dry_run']
         self.principal = SectionPage.objects.filter(slug='principal').first()
-        #: Les syndicats déjà pointés par une carte lue. Tenu à jour pendant
-        #: l'import pour que `--completer` dise vrai même à blanc, où rien
-        #: n'est encore écrit en base.
+        #: Les syndicats et catégories déjà pointés par une carte lue. Tenus
+        #: à jour pendant l'import pour que `--completer` dise vrai même à
+        #: blanc, où rien n'est encore écrit en base.
         self.vus = set()
+        self.vus_cat = set()
         html = ''.join(str(b.value) for b in page.body)
         soup = BeautifulSoup(html, 'html.parser')
         cartes = soup.select('a.syndicat-card')
@@ -97,6 +98,8 @@ class Command(BaseCommand):
         cible = self._resoudre(href)
         if isinstance(cible, SectionPage):
             self.vus.add(cible.pk)
+        elif isinstance(cible, CmsCategory):
+            self.vus_cat.add(cible.pk)
         if cible is None and href:
             self.stderr.write(self.style.WARNING(
                 f"  ? {titre} : lien « {href} » non résolu, conservé tel quel"))
@@ -131,13 +134,49 @@ class Command(BaseCommand):
     # ── Les syndicats que la page oubliait ────────────────────────────────
 
     def _completer(self, depart):
-        """Une carte pour chaque syndicat publié qui n'en avait pas.
+        """Un syndicat publié ou un secteur du menu = une carte.
 
-        La page listait treize champs de syndicalisation et oubliait le STAA,
-        le TAS et le Numérique — non par choix, mais parce qu'ajouter une
-        carte demandait de recopier des balises au milieu d'une feuille de
-        style. C'est précisément ce que cette refonte corrige.
+        La page et le menu « Secteurs » énumèrent la même chose et divergeaient
+        pourtant : trois secteurs du menu (T.P.E., Animation & Éducation
+        populaire, Intérim) n'avaient pas de carte. Non par choix, mais parce
+        qu'ajouter une carte demandait de recopier des balises au milieu d'une
+        feuille de style — ce que cette refonte corrige.
+
+        La règle vaut désormais dans les deux sens : ce que le menu annonce,
+        la page le montre.
         """
+        depart = self._completer_les_secteurs(depart)
+        self._completer_les_syndicats(depart)
+
+    def _completer_les_secteurs(self, depart):
+        """Une carte pour chaque rubrique de secteur affichée dans le menu."""
+        deja = self.vus_cat | set(
+            FicheSyndicat.objects.filter(site=self.principal)
+            .exclude(categorie=None).values_list('categorie_id', flat=True)
+        )
+        liens = (
+            MenuItem.objects
+            .filter(site=self.principal, menu='main', link_type='category',
+                    is_active=True)
+            .exclude(category=None).exclude(category_id__in=deja)
+            .select_related('category').order_by('order')
+        )
+        rang = depart
+        for lien in liens:
+            if lien.category_id in deja:
+                continue
+            deja.add(lien.category_id)
+            self.stdout.write(self.style.SUCCESS(
+                f"  + {lien.title:34} → secteur du menu sans carte, ajouté"))
+            if not self.dry:
+                self._enregistrer(
+                    titre=lien.title, description='', image_url='',
+                    cible=lien.category, url='', order=rang)
+            rang += 1
+        return rang
+
+    def _completer_les_syndicats(self, depart):
+        """Une carte pour chaque syndicat publié qui n'en avait pas."""
         deja = self.vus | set(
             FicheSyndicat.objects.filter(site=self.principal)
             .exclude(site_cible=None).values_list('site_cible_id', flat=True)

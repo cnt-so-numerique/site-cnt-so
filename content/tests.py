@@ -6387,6 +6387,29 @@ class ImporteFichesSyndicatsTest(TestCase):
         self.assertEqual(
             FicheSyndicat.objects.filter(site_cible=self.numerique).count(), 1)
 
+    def test_completer_ajoute_les_secteurs_du_menu_sans_carte(self):
+        """La page et le menu « Secteurs » énumèrent la même chose : ce que le
+        menu annonce, la page doit le montrer. Trois secteurs du menu n'avaient
+        pas de carte (T.P.E., Animation & Éducation populaire, Intérim)."""
+        interim = make_cms_category(name='Intérim', slug='interim')
+        MenuItem.objects.create(site=self.principal, menu='main',
+                                link_type='category', title='Intérim',
+                                category=interim, order=5)
+        self._importer('--completer')
+        fiche = FicheSyndicat.objects.get(titre='Intérim')
+        self.assertEqual(fiche.categorie, interim)
+        self.assertEqual(fiche.get_lien(), '/categorie/interim/')
+
+    def test_completer_ne_double_pas_un_secteur_deja_en_carte(self):
+        """« Nettoyage » est déjà une carte de la page : le menu ne doit pas
+        en ajouter une seconde."""
+        MenuItem.objects.create(site=self.principal, menu='main',
+                                link_type='category', title='Nettoyage',
+                                category=self.cat, order=1)
+        self._importer('--completer')
+        self.assertEqual(
+            FicheSyndicat.objects.filter(categorie=self.cat).count(), 1)
+
     def test_vider_la_page_garde_le_chapo(self):
         self._importer('--vider-la-page')
         self.page.refresh_from_db()
