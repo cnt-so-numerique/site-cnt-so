@@ -111,23 +111,7 @@ body.cnt-dragging .menu-li > .sortable-list:empty {
 
   </div>
 
-  {% if site_data.secondary %}
-  <div>
-    <h2 style="margin:0 0 .6rem;font-size:.9rem;color:var(--w-color-text-context);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">
-      ↔️ Menu secondaire
-    </h2>
-    <div class="menu-block" data-menu-type="secondary" style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:8px;overflow:hidden;">
-      <ul class="sortable-list" data-parent="">
-        {% for item in site_data.secondary %}
-        <li class="menu-li" data-id="{{ item.pk }}">
-          {% include "cms/menus/_menu_item_row.html" with item=item %}
-          <ul class="sortable-list" data-parent="{{ item.pk }}"></ul>
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-  </div>
-  {% endif %}
+  {# Un « Menu secondaire » figurait ici, qu'aucun gabarit public n'affichait : dix entrées éditables et sans effet en prod, purgées le 17/08/2026. #}
 
   {% endif %}
 

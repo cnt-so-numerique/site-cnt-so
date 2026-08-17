@@ -393,10 +393,15 @@ class ChampContactCustom(models.Model):
 
 class MenuItem(models.Model):
     """Élément de menu de navigation"""
+    # Deux menus, parce que `base.html` n'en affiche que deux : `main` et
+    # `footer`. Un troisième choix, « Menu secondaire », a été proposé aux
+    # rédacteurs pendant des mois alors qu'aucun gabarit ne l'appelait : la
+    # prod portait dix entrées invisibles, éditables, sans effet — purgées le
+    # 17/08/2026. Ne rajouter un choix ici qu'en même temps que le `get_menu`
+    # qui le rend.
     MENU_CHOICES = [
         ('main', 'Menu principal'),
         ('footer', 'Menu pied de page'),
-        ('secondary', 'Menu secondaire'),
     ]
     LINK_TYPE_CHOICES = [
         ('url',      'URL externe / personnalisée'),

@@ -1258,7 +1258,6 @@ class MenuTreeView(WagtailSyndicatRequiredMixin, View):
                 'site': current,
                 'main': build_tree('main', current),
                 'footer': build_tree('footer', current),
-                'secondary': build_tree('secondary', current),
             }
 
         ctx = {

@@ -6471,3 +6471,28 @@ class ImporteFichesSyndicatsTest(TestCase):
         self._importer('--vider-la-page')
         html = self.client.get('/syndicats/').content.decode()
         self.assertEqual(html.count('class="syndicat-card"'), 2)
+
+
+class MenuChoixTest(TestCase):
+    """Un menu proposé aux rédacteurs doit être un menu affiché.
+
+    « Menu secondaire » a figuré des mois dans la liste déroulante de /cms/
+    sans qu'aucun gabarit ne l'appelle : la production portait dix entrées
+    éditables et sans effet, dont personne ne pouvait deviner l'inutilité.
+    """
+
+    def test_seuls_les_menus_rendus_sont_proposes(self):
+        proposes = {code for code, _ in MenuItem.MENU_CHOICES}
+        self.assertEqual(proposes, {'main', 'footer'})
+
+    def test_chaque_menu_propose_a_un_gabarit_qui_lappelle(self):
+        from pathlib import Path
+        from django.conf import settings
+        base = Path(settings.BASE_DIR) / 'templates'
+        rendus = set()
+        for gabarit in base.rglob('*.html'):
+            texte = gabarit.read_text(encoding='utf-8', errors='ignore')
+            for code, _ in MenuItem.MENU_CHOICES:
+                if f"get_menu site '{code}'" in texte:
+                    rendus.add(code)
+        self.assertEqual(rendus, {code for code, _ in MenuItem.MENU_CHOICES})
