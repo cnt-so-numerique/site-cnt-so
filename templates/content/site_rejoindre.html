@@ -1,17 +1,22 @@
 {% extends "content/site_subpage_base.html" %}
+{% load content_tags %}
 {% block nav_rejoindre %}class="active"{% endblock %}
 {% block title %}Nous rejoindre — {{ site.name }}{% endblock %}
 
 {% block extra_head %}
 <style>
 .rj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; }
+
+/* Un encadré par bloc de la page « Nous rejoindre » : le texte vient du CMS,
+   l'habillage reste ici, pour qu'un rédacteur ne puisse pas le casser. */
 .rj-info-card {
   background: var(--bg-light);
   border: 1px solid var(--border-color);
   padding: 1.75rem;
   margin-bottom: 1.5rem;
 }
-.rj-info-card h3 {
+.rj-info-card > :last-child { margin-bottom: 0; }
+.rj-info-card h2, .rj-info-card h3, .rj-info-card h4, .rj-info-card h5 {
   font-family: var(--font-heading);
   font-size: 1.15rem;
   color: var(--text-color);
@@ -20,24 +25,33 @@
   border-bottom: 1px solid var(--border-color);
 }
 .rj-info-card p { font-size: .9rem; color: var(--text-secondary); line-height: 1.75; margin-bottom: .75rem; }
-.rj-info-card p:last-child { margin-bottom: 0; }
-.rj-list { list-style: none; }
-.rj-list li {
+.rj-info-card strong, .rj-info-card b { color: var(--text-color); }
+.rj-info-card ul { list-style: none; }
+.rj-info-card ul li {
   font-size: .88rem; color: var(--text-secondary); line-height: 1.6;
   padding: .35rem 0 .35rem 1.4rem; position: relative;
   border-bottom: 1px solid var(--border-color);
 }
-.rj-list li:last-child { border-bottom: none; }
-.rj-list li::before { content: '→'; position: absolute; left: 0; color: var(--primary-color); font-size: .875rem; top: .45rem; }
+.rj-info-card ul li:last-child { border-bottom: none; }
+.rj-info-card ul li::before { content: '→'; position: absolute; left: 0; color: var(--primary-color); font-size: .875rem; top: .45rem; }
+.rj-info-card ol { padding-left: 1.4rem; }
+.rj-info-card ol li { font-size: .88rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: .3rem; }
 
-.rj-form-wrap { background: var(--bg-light); border: 1px solid var(--border-color); padding: 1.75rem; }
-.rj-form-wrap h2 {
-  font-family: var(--font-heading);
-  font-size: 1.25rem;
-  color: var(--text-color);
-  margin-bottom: .4rem;
+.rj-contact-btn {
+  display: block;
+  margin-top: 1.25rem;
+  padding: .8rem 1.25rem;
+  background: var(--primary-color);
+  color: #fff;
+  font-weight: 700;
+  font-size: .95rem;
+  text-align: center;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  transition: transform .15s, box-shadow .15s;
 }
-.rj-form-wrap .sub { font-size: .875rem; color: var(--text-muted); margin-bottom: 1.25rem; }
+.rj-contact-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,.2); }
 
 .rj-adherer-banner {
   display: flex;
@@ -87,21 +101,6 @@
   .rj-adherer-perks { justify-content: center; }
 }
 
-.rj-info-cms { color: var(--text-secondary); font-size: .9rem; line-height: 1.75; margin-bottom: 1.5rem; }
-.rj-info-cms h2, .rj-info-cms h3 { font-family: var(--font-heading); color: var(--text-color); margin: 1.2rem 0 .6rem; }
-.rj-info-cms ul, .rj-info-cms ol { padding-left: 1.4rem; margin-bottom: .75rem; }
-.rj-info-cms li { margin-bottom: .3rem; }
-.rj-info-cms strong { color: var(--text-color); }
-.rj-info-cms p { margin-bottom: .75rem; }
-.success-box {
-  background: rgba(40,120,40,.1);
-  border: 1px solid rgba(40,120,40,.3);
-  padding: 1rem 1.4rem;
-  color: #2d7a2d;
-  font-size: .9rem;
-  border-radius: 3px;
-}
-
 @media (max-width: 900px) {
   .rj-grid { grid-template-columns: 1fr; }
 }
@@ -109,6 +108,7 @@
 {% endblock %}
 
 {% block content %}
+{% if site.slug and site.slug != 'principal' %}{% section_url 'content:site_contact' site as rj_contact_url %}{% else %}{% url 'content:contact' as rj_contact_url %}{% endif %}
 <div class="s-page">
   <h1 class="s-section-title" style="margin-bottom:1.5rem;">Nous rejoindre</h1>
 
@@ -116,69 +116,33 @@
   <div class="rj-adherer-banner">
     <div class="rj-adherer-text">
       <h2>Adhérer {% if site.name %}à {{ site.name }}{% endif %}</h2>
-      <p>Remplis le formulaire d'adhésion en ligne, paiement de la cotisation inclus.</p>
+      {% if site.rejoindre_accroche %}<p>{{ site.rejoindre_accroche }}</p>{% endif %}
+      {% if site.rejoindre_atouts_lignes %}
       <ul class="rj-adherer-perks">
-        <li>Formulaire en ligne, 5 minutes</li>
-        <li>Cotisation libre et solidaire</li>
-        <li>Un·e militant·e te recontacte pour finaliser</li>
+        {% for atout in site.rejoindre_atouts_lignes %}<li>{{ atout }}</li>{% endfor %}
       </ul>
+      {% endif %}
     </div>
     <a href="{% url 'adherer' site_slug=site.slug %}" class="rj-adherer-btn">
-      Adhérer maintenant
+      {{ site.rejoindre_bouton_libelle }}
     </a>
   </div>
 
   <div class="rj-grid">
 
-    <!-- Colonne gauche : pourquoi / comment -->
+    <!-- Colonne gauche : le corps de la page, un encadré par bloc -->
     <div>
-      {% if site.rejoindre_text %}
-        <div class="rj-info-cms">{{ site.rejoindre_text }}</div>
-      {% else %}
-      <div class="rj-info-card">
-        <h3>Pourquoi adhérer {% if site.name %}à {{ site.name }}{% else %}à la CNT-SO{% endif %} ?</h3>
-        <p>La CNT-SO est un syndicat autogestionnaire, sans permanents rémunérés, qui organise les travailleur·ses de ce secteur.</p>
-        <ul class="rj-list">
-          <li>Défense individuelle en cas de litige avec l'employeur</li>
-          <li>Rapport de force collectif dans le secteur</li>
-          <li>Syndicat autogestionnaire, sans permanents rémunérés</li>
-          <li>Cotisation libre et solidaire</li>
-          <li>Réseau national CNT-SO</li>
-        </ul>
-      </div>
-      <div class="rj-info-card">
-        <h3>Comment ça marche ?</h3>
-        <p>Clique sur « Adhérer maintenant » ci-dessus pour remplir le formulaire d'adhésion en ligne. Un·e militant·e te contactera pour finaliser.</p>
-        <p>La cotisation est libre — nous suggérons environ <strong style="color:#ccc;">1 % de ton salaire net mensuel</strong>.</p>
-      </div>
-      {% endif %}
+      {% for bloc in site.rejoindre_text %}
+      <div class="rj-info-card">{{ bloc }}</div>
+      {% endfor %}
     </div>
 
     <!-- Colonne droite : une question avant d'adhérer -->
     <div>
-      <div class="rj-form-wrap">
-        <h2>Une question avant d'adhérer ?</h2>
-        <p class="sub">On te répond avant, si besoin.</p>
-
-        {% if success %}
-          <div class="success-box">Ton message a bien été envoyé. Nous te répondrons rapidement !</div>
-        {% else %}
-          <form method="post">
-            {% csrf_token %}
-            {% for field in form %}
-            <div class="s-field">
-              <label class="s-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-              {{ field }}
-              {% if field.errors %}
-              <ul class="error-list" style="color:#c00;font-size:.85rem;margin-top:.25rem;list-style:none;">
-                {% for error in field.errors %}<li>{{ error }}</li>{% endfor %}
-              </ul>
-              {% endif %}
-            </div>
-            {% endfor %}
-            <button type="submit" class="btn-red">Envoyer</button>
-          </form>
-        {% endif %}
+      <div class="rj-info-card">
+        <h3>Une question avant d'adhérer ?</h3>
+        <p>Écris-nous : on te répond avant que tu t'engages.</p>
+        <a href="{{ rj_contact_url }}" class="rj-contact-btn">Poser une question</a>
       </div>
     </div>
 

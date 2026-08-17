@@ -4276,23 +4276,22 @@ class SiteRejoindreViewTest(TestCase):
         r = self.client.get(self.url)
         self.assertEqual(r.status_code, 200)
 
-    def test_post_invalide_reaffiche_formulaire(self):
-        r = self.client.post(self.url, {'name': '', 'email': 'bad'})
-        self.assertEqual(r.status_code, 200)
-        self.assertFalse(r.context['form'].is_valid())
+    def test_renvoie_vers_la_page_de_contact(self):
+        # Le formulaire a quitté la page le 17/08/2026 : il doublonnait celui
+        # de /<slug>/contact/, au champ et au captcha près.
+        r = self.client.get(self.url)
+        self.assertContains(r, '/rejoindre-site/contact/')
 
-    def test_post_valide_cree_message_et_succes(self):
+    def test_post_refuse_et_ne_cree_rien(self):
         from content.models import ContactMessage
         data = {
             'name': 'Alice', 'email': 'alice@test.fr',
-            'phone': '', 'city': '', 'sector': '',
             'subject': 'Test', 'message': 'Bonjour',
             'h-captcha-response': 'test-token',
         }
         r = self.client.post(self.url, data)
-        self.assertEqual(r.status_code, 200)
-        self.assertTrue(r.context.get('success'))
-        self.assertTrue(ContactMessage.objects.filter(email='alice@test.fr').exists())
+        self.assertEqual(r.status_code, 405)
+        self.assertFalse(ContactMessage.objects.filter(email='alice@test.fr').exists())
 
 
 class SiteRessourcesViewTest(TestCase):

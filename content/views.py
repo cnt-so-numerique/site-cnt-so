@@ -1197,10 +1197,17 @@ class QuiSommesNousView(TemplateView):
 
 # ── Vues STUCS ────────────────────────────────────────────────────────────────
 
-class SiteRejoindreView(ContactFormMixin, View):
-    """Page 'Nous rejoindre' générique pour tout sous-site."""
+class SiteRejoindreView(View):
+    """Page 'Nous rejoindre' générique pour tout sous-site.
 
-    def _ctx(self, site_slug):
+    La page portait jusqu'au 17/08/2026 un second formulaire de contact, copie
+    exacte de celui de `/<slug>/contact/` : même formulaire dynamique, même
+    captcha, même destinataire. Elle renvoie désormais vers lui, ce qui laisse
+    un seul chemin à maintenir et un seul endroit où un champ personnalisé peut
+    manquer. La vue redevient donc une simple lecture.
+    """
+
+    def get(self, request, site_slug):
         site = get_section_or_404(site_slug)
         ctx = {
             'site': site,
@@ -1208,24 +1215,6 @@ class SiteRejoindreView(ContactFormMixin, View):
             'on_rejoindre_page': True,
         }
         ctx.update(_sectoral_sidebar_context(site))
-        return ctx
-
-    def get(self, request, site_slug):
-        ctx = self._ctx(site_slug)
-        formulaire = self._get_formulaire(ctx['site'])
-        ctx['form'] = self._build_form(formulaire)
-        return render(request, 'content/site_rejoindre.html', ctx)
-
-    def post(self, request, site_slug):
-        ctx = self._ctx(site_slug)
-        site = ctx['site']
-        formulaire = self._get_formulaire(site)
-        form = self._build_form(formulaire, request.POST)
-        ctx['form'] = form
-        if form.is_valid():
-            msg = self._save_submission(form, site, formulaire)
-            _send_contact_email(site, msg)
-            ctx['success'] = True
         return render(request, 'content/site_rejoindre.html', ctx)
 
 

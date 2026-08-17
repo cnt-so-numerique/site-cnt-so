@@ -14,9 +14,12 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
 
+from wagtail.rich_text import RichText
+
 from cms.models import (
     ArticlePage, CarouselArticle, CmsCategory, ContentPage, Event, HomePage, SectionPage,
 )
+from content.models import ContactMessage
 from content.tests import (
     make_article_page, make_cms_category, make_content_page, make_superuser,
     _ensure_section_page,
@@ -186,29 +189,67 @@ class StucsRejoindreViewTest(TestCase):
         r = self.client.get('/stucs/rejoindre/')
         self.assertContains(r, '/adherer/stucs/')
 
-    def test_contact_form_present(self):
+    def test_renvoie_vers_le_formulaire_de_contact(self):
+        # Le formulaire vivait en double sur cette page ; il n'en reste qu'un
+        # lien vers /<slug>/contact/, seul endroit où le formulaire est servi.
         r = self.client.get('/stucs/rejoindre/')
-        self.assertContains(r, 'csrfmiddlewaretoken')
+        self.assertContains(r, '/stucs/contact/')
 
-    def test_post_contact_form_valid(self):
-        with patch('hcaptcha.fields.hCaptchaField.validate', return_value=None):
-            r = self.client.post('/stucs/rejoindre/', {
-                'name': 'Test User',
-                'email': 'test@example.org',
-                'message': 'Je voudrais adhérer',
-                'h-captcha-response': 'test',
-            })
-        self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'bien été envoyé')
+    def test_plus_de_formulaire_dans_la_page(self):
+        r = self.client.get('/stucs/rejoindre/')
+        self.assertNotContains(r, 'csrfmiddlewaretoken')
 
-    def test_post_contact_form_invalid(self):
+    def test_la_page_ne_recoit_plus_de_post(self):
+        # Le doublon était aussi un doublon de traitement : la page acceptait
+        # des messages. Un POST ne doit plus rien créer.
+        avant = ContactMessage.objects.count()
         r = self.client.post('/stucs/rejoindre/', {
-            'name': '',
-            'email': 'pas-un-email',
-            'message': '',
+            'name': 'Test User',
+            'email': 'test@example.org',
+            'message': 'Je voudrais adhérer',
         })
+        self.assertEqual(r.status_code, 405)
+        self.assertEqual(ContactMessage.objects.count(), avant)
+
+    def test_banniere_reprend_les_champs_du_cms(self):
+        self.stucs.rejoindre_accroche = "On adhère en cinq minutes."
+        self.stucs.rejoindre_atouts = "Premier atout\nDeuxième atout"
+        self.stucs.rejoindre_bouton = "Je rejoins le syndicat"
+        self.stucs.save()
+        r = self.client.get('/stucs/rejoindre/')
+        self.assertContains(r, "On adhère en cinq minutes.")
+        self.assertContains(r, "Premier atout")
+        self.assertContains(r, "Deuxième atout")
+        self.assertContains(r, "Je rejoins le syndicat")
+
+    def test_bouton_vide_retombe_sur_le_libelle_par_defaut(self):
+        # Le bouton est le seul chemin vers l'adhésion : vidé, il doit tenir.
+        self.stucs.rejoindre_bouton = ''
+        self.stucs.save()
+        r = self.client.get('/stucs/rejoindre/')
+        self.assertContains(r, 'Adhérer maintenant')
+        self.assertContains(r, '/adherer/stucs/')
+
+    def test_le_corps_vient_du_cms(self):
+        # Le texte des encadrés n'est plus écrit dans le gabarit : ce qu'un
+        # syndicat écrit dans /cms/ est ce qui s'affiche, et rien d'autre.
+        self.stucs.rejoindre_text = [
+            ('contenu', RichText('<h3>Notre section</h3><p>Un texte à nous.</p>')),
+        ]
+        self.stucs.save()
+        r = self.client.get('/stucs/rejoindre/')
+        self.assertContains(r, 'Un texte à nous.')
+        self.assertContains(r, 'rj-info-card')
+
+    def test_corps_vide_laisse_la_page_debout(self):
+        # Le corps est facultatif : le bandeau d'adhésion et le lien de contact
+        # doivent tenir sans lui.
+        self.stucs.rejoindre_text = []
+        self.stucs.save()
+        r = self.client.get('/stucs/rejoindre/')
         self.assertEqual(r.status_code, 200)
-        self.assertNotContains(r, 'bien été envoyé')
+        self.assertContains(r, '/adherer/stucs/')
+        self.assertContains(r, '/stucs/contact/')
 
 
 class StucsRessourcesViewTest(TestCase):

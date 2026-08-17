@@ -197,6 +197,10 @@ RICHTEXT_FEATURES = [
 
 COULEUR_CHARTE = '#E81C24'
 
+# Libellé de repli du bouton d'adhésion : vidé par mégarde, le bouton doit
+# rester cliquable — c'est le seul chemin vers le formulaire d'adhésion.
+REJOINDRE_BOUTON_DEFAUT = 'Adhérer maintenant'
+
 # Largeurs proposées, en pourcentage de la colonne de texte. Des paliers
 # plutôt qu'un curseur libre : une image à 37 % ne veut rien dire de plus
 # qu'une image à 33 %, et les paliers restent alignés d'un article à l'autre.
@@ -702,9 +706,45 @@ class SectionPage(SeoMixin, Page):
         [('contenu', blocks.RichTextBlock(features=RICHTEXT_FEATURES, label="Contenu")),
          ('liste', blocks.ListBlock(blocks.CharBlock(label="Item"), label="Liste à puces"))],
         blank=True, verbose_name="Page Nous rejoindre",
-        help_text="Texte de la page d'adhésion (pourquoi, comment ça marche…)",
+        help_text="Corps de la page d'adhésion. Chaque bloc s'affiche dans son "
+                  "propre encadré : un bloc « pourquoi adhérer », un bloc "
+                  "« comment ça marche »…",
         use_json_field=True,
     )
+    # Les trois champs du bandeau arrivent avec le texte qui était écrit en dur
+    # dans le gabarit : les fiches existantes ne bougent pas d'un mot, mais le
+    # texte devient visible et modifiable dans /cms/ au lieu d'être invisible.
+    rejoindre_accroche = models.CharField(
+        max_length=300, blank=True,
+        default="Remplis le formulaire d'adhésion en ligne, paiement de la cotisation inclus.",
+        verbose_name="Bandeau : phrase d'accroche",
+        help_text="Sous le titre « Adhérer à … », en haut de la page. "
+                  "Vide : aucune phrase.",
+    )
+    rejoindre_atouts = models.TextField(
+        blank=True,
+        default="Formulaire en ligne, 5 minutes\n"
+                "Cotisation libre et solidaire\n"
+                "Un·e militant·e te recontacte pour finaliser",
+        verbose_name="Bandeau : arguments",
+        help_text="Une ligne par argument, chacun précédé d'une coche. "
+                  "Vide : aucun argument affiché.",
+    )
+    rejoindre_bouton = models.CharField(
+        max_length=60, blank=True, default=REJOINDRE_BOUTON_DEFAUT,
+        verbose_name="Bandeau : libellé du bouton",
+        help_text="Vidé, le bouton reprend « Adhérer maintenant » : il ne peut "
+                  "pas disparaître, c'est le seul chemin vers l'adhésion.",
+    )
+
+    @property
+    def rejoindre_atouts_lignes(self):
+        """Les arguments du bandeau, une ligne à la fois, sans les vides."""
+        return [ligne.strip() for ligne in self.rejoindre_atouts.splitlines() if ligne.strip()]
+
+    @property
+    def rejoindre_bouton_libelle(self):
+        return self.rejoindre_bouton.strip() or REJOINDRE_BOUTON_DEFAUT
     agenda_text = StreamField(
         [('contenu', blocks.RichTextBlock(features=RICHTEXT_FEATURES, label="Contenu"))],
         blank=True, verbose_name="Agenda",
@@ -787,7 +827,12 @@ class SectionPage(SeoMixin, Page):
         FieldPanel('framaform_url'),
         FieldPanel('banque_images_propre'),
         FieldPanel('intro_text'),
-        FieldPanel('rejoindre_text'),
+        MultiFieldPanel([
+            FieldPanel('rejoindre_accroche'),
+            FieldPanel('rejoindre_atouts'),
+            FieldPanel('rejoindre_bouton'),
+            FieldPanel('rejoindre_text'),
+        ], heading="Page Nous rejoindre"),
         FieldPanel('agenda_text'),
         FieldPanel('logo'),
         MultiFieldPanel([

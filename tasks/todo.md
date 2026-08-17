@@ -1,229 +1,89 @@
-# Mise en service 34.cnt-so.org — restes (2026-07-17)
+# Chantier — la page « Nous rejoindre » des sous-sites
 
-Le domaine est en service (DNS + nginx + cert + section prod pk=1903 +
-`custom_domain` posés le 2026-07-17 ; provisionnement auto OK : groupe
-`redacteur_34` + collection « CNT-SO 34 (Hérault) »). La section est vierge :
+Demandé par Arnaud le 17/08/2026, à partir de https://stucs.cnt-so.org/rejoindre/ :
+« revoir cette page en la rendant modifiable et surtout mettre un bouton vers un
+formulaire de contact et non mettre le formulaire dans la page ».
 
-- [ ] Remplir la fiche du syndicat dans /cms/ (email de contact, réseaux
-      sociaux, framaform d'adhésion, linkstack, agenda, carousel, logo…)
-- [ ] Créer le(s) compte(s) rédacteur(s) du 34 (groupe `redacteur_34`)
-- [ ] Tester un envoi réel du formulaire de contact une fois l'email renseigné
-- [ ] (Optionnel) liste OVH `ovh_mailing_list` si le 34 veut une newsletter
+## Ce qui cloche aujourd'hui
 
----
+1. **Le formulaire de contact est en dur dans la page.** Colonne droite de
+   `templates/content/site_rejoindre.html` : champs, captcha, envoi. C'est un
+   doublon exact de `/<slug>/contact/` — même formulaire dynamique, même
+   destinataire, même `_send_contact_email`. Deux chemins à maintenir, et
+   `SiteRejoindreView` traîne pour ça un `ContactFormMixin` et un `post()`.
+2. **Rien n'est modifiable, ou presque.** Seul `rejoindre_text` l'est, et en
+   tout ou rien : tant qu'il est vide, deux cartes écrites en dur s'affichent ;
+   dès qu'un rédacteur y écrit un mot, elles disparaissent toutes les deux. Il
+   ne voit donc jamais le texte qu'il est en train de remplacer. Sur 14 sites,
+   un seul l'a rempli.
+3. **Le bandeau « Adhérer » est entièrement figé** : titre, accroche, les trois
+   puces, le libellé du bouton.
 
-# Migration content.Site → cms.SectionPage
+## Le plan
 
-**Objectif** : Supprimer le doublon `content.Site` / `cms.SectionPage`. Tout ce qui pointe vers
-`content.Site` doit pointer vers `cms.SectionPage`. À la fin, `content.Site` est supprimé.
+### A. Le formulaire devient un bouton
 
-**Principe** : chaque phase laisse les tests verts et l'app fonctionnelle.
-Ne jamais supprimer `content.Site` avant que tous les FK soient migrés.
+- [ ] `site_rejoindre.html` : la colonne droite garde son cartouche « Une
+      question avant d'adhérer ? » mais son contenu devient un bouton vers
+      `{% section_url 'content:site_contact' site %}`.
+- [ ] `SiteRejoindreView` perd `ContactFormMixin` et sa méthode `post()` — la
+      page redevient une simple vue en lecture.
+- [ ] Le CSS `.rj-form-wrap` / `.success-box` devenu inutile est retiré.
 
-**Clé de correspondance** : `content.Site.slug` ↔ `cms.SectionPage.slug`
-(ou `SectionPage.legacy_site_slug` pour les cas hérités de WordPress)
+### B. Le corps de la page devient vraiment modifiable
 
----
+- [ ] Migration de données : pour chaque `SectionPage` dont `rejoindre_text`
+      est vide, y écrire le contenu affiché aujourd'hui (les deux cartes, avec
+      le nom du syndicat). **Rien ne change à l'écran**, mais le texte existe
+      désormais dans `/cms/` et se modifie bloc par bloc.
+- [ ] Le gabarit perd sa branche `{% else %}` : il ne rend plus que
+      `rejoindre_text`.
 
-## Phase 0 — Préparer SectionPage (champs manquants)
+### C. Le bandeau « Adhérer » devient modifiable
 
-SectionPage doit avoir tous les champs de content.Site pour être un remplacement complet.
+- [ ] Trois champs sur `SectionPage`, groupés avec `rejoindre_text` dans un
+      `MultiFieldPanel` « Page Nous rejoindre » :
+      - `rejoindre_accroche` (CharField) — la phrase sous le titre
+      - `rejoindre_atouts` (TextField, une ligne = une puce)
+      - `rejoindre_bouton` (CharField, défaut « Adhérer maintenant »)
+- [ ] La même migration les remplit avec les libellés actuels. Vidés
+      volontairement, l'accroche et les puces disparaissent ; le bouton, lui,
+      garde son libellé par défaut pour ne jamais casser le parcours d'adhésion.
 
-- [ ] Ajouter `contact_email = EmailField(blank=True)` sur `SectionPage`
-- [ ] Ajouter `wp_blog_id = IntegerField(null=True, blank=True)` (compat import WP)
-- [ ] Ajouter `path = CharField(max_length=100, blank=True)` (compat import WP)
-- [ ] Ajouter property `name` → `return self.title` (compatibilité API content.Site)
-- [ ] Ajouter property `is_active` → `return self.live`
-- [ ] Vérifier / adapter `get_absolute_url()` sur SectionPage
-- [ ] Créer migration `cms/migrations/XXXX_sectionpage_extra_fields.py`
-- [ ] Tests verts ✓
+### D. Tests
 
----
+- [ ] `test_contact_form_present` → vérifie le **lien** vers `/stucs/contact/`.
+- [ ] Les deux tests POST sont remplacés par un test « la page ne reçoit plus
+      de POST » et un test « aucun `ContactMessage` créé depuis cette URL ».
+- [ ] Nouveau test : un syndicat qui réécrit `rejoindre_text` voit son texte,
+      et lui seul.
+- [ ] Nouveau test : `rejoindre_bouton` vidé retombe sur le libellé par défaut.
 
-## Phase 1 — Migrer les utilitaires de scoping (colonne vertébrale)
+## Hors périmètre
 
-### cms/site_context.py
-- [ ] `from content.models import Site` → `from cms.models import SectionPage`
-- [ ] `get_current_site()` : retourne `SectionPage` (pk stocké en session = SectionPage.pk)
-- [ ] `get_available_sites()` : `SectionPage.objects.filter(live=True)`
-- [ ] `scope_qs()` / `scope_qs_slug()` : vérifier compatibilité
+Le titre `<h1>` « Nous rejoindre » et le libellé du cartouche de droite restent
+en dur : ils nomment la page et sont repris dans le menu et la barre latérale,
+les laisser diverger par site créerait plus de confusion que de liberté.
 
-### content/admin_utils.py
-- [ ] `get_current_site_for_view()` : `Site.objects.get` → `SectionPage.objects.get`
-- [ ] Adapter `author_profile.site` → `author_profile.section_page` (après Phase 2)
+## Revue — 17/08/2026
 
-- [ ] Tests verts ✓
+Fait, **1 018 tests verts**. Trois pièges rencontrés :
 
----
+1. **Les révisions Wagtail auraient avalé le semis.** L'éditeur ouvre la page
+   via `get_latest_revision_as_object()`, pas la ligne en base : semer
+   `rejoindre_text` sans toucher à la révision aurait donné un champ vide à
+   l'écran de rédaction, et le texte aurait disparu à la première modification
+   de la fiche. La migration 0027 corrige donc la ligne **et** la révision la
+   plus récente. Vérifié : `/cms/pages/<pk>/edit/` affiche bien le texte semé.
+2. **Les trois champs du bandeau n'ont pas ce problème** : absents des
+   révisions existantes, c'est le `default=` du modèle qui parle. D'où le choix
+   de vrais défauts plutôt qu'un repli dans le gabarit — le rédacteur voit le
+   texte qu'il peut changer.
+3. **Le rendu devait rester identique au mot près.** Les puces fléchées de
+   `.rj-list` sont reprises par `.rj-info-card ul li`, sinon le texte migré
+   serait passé aux puces rondes du navigateur. Contrôlé dans le navigateur :
+   fond `#F1F1F1`, bordure 1 px, flèche `→` en rouge de charte `#E81C24`.
 
-## Phase 2 — Migrer les modèles content/ (FK DB)
-
-Pour chaque modèle : changer le FK target, migration schema + migration data (slug mapping).
-
-### Template de migration data à réutiliser
-```python
-def migrate_fk(apps, schema_editor):
-    from django.db.models import Q
-    Model = apps.get_model('content', 'MonModele')
-    SectionPage = apps.get_model('cms', 'SectionPage')
-    for obj in Model.objects.select_related('site').filter(site__isnull=False):
-        sp = SectionPage.objects.filter(
-            Q(slug=obj.site.slug) | Q(legacy_site_slug=obj.site.slug)
-        ).first()
-        if sp:
-            obj.section_page = sp
-            obj.save(update_fields=['section_page'])
-```
-
-### Modèles à migrer (dans cet ordre)
-- [ ] `FormulaireContact.site` (OneToOne → SectionPage)
-- [ ] `ContactMessage.site` (FK nullable → SectionPage)
-- [ ] `MenuItem.site` (FK nullable → SectionPage)
-- [ ] `MenuItem.target_site` (FK nullable → SectionPage)
-- [ ] `Subscriber.site` (FK CASCADE → SectionPage)
-- [ ] `Newsletter.site` (FK CASCADE → SectionPage)
-- [ ] `Author.site` (FK nullable → SectionPage) — renommer `section_page`
-- [ ] `Category.site` (FK nullable → SectionPage)
-- [ ] `Tag.site` (FK nullable → SectionPage)
-- [ ] `Media.site` (FK nullable → SectionPage)
-- [ ] `Article.site` (FK nullable → SectionPage) — modèle legacy
-- [ ] `Page.site` (FK nullable → SectionPage) — modèle legacy
-
-- [ ] Tests verts ✓
-
----
-
-## Phase 3 — Migrer les modèles adhesion/ (FK DB)
-
-- [ ] `FormulaireAdhesion.site` (OneToOne CASCADE → SectionPage)
-- [ ] `ZoneGeographique.site` (FK CASCADE → SectionPage)
-- [ ] `Adhesion.site` (FK PROTECT → SectionPage)
-  - ⚠️ PROTECT : migration en deux temps — ajouter `section_page` nullable, migrer data, supprimer `site`
-- [ ] Mettre à jour `adhesion/signals.py` : `Site.objects.filter(slug='principal')` → SectionPage
-- [ ] Mettre à jour `adhesion/views.py` : `get_object_or_404(Site, slug=..., is_active=True)`
-  → `get_object_or_404(SectionPage, slug=..., live=True)`
-
-- [ ] Tests verts ✓
-
----
-
-## Phase 4 — Migrer content/views.py
-
-- [ ] Supprimer import `Site`
-- [ ] `Site.objects.filter(slug='principal')` → `SectionPage.objects.filter(slug='principal')`
-- [ ] `Site.objects.filter(is_active=True)` → `SectionPage.objects.filter(live=True)`
-- [ ] `get_object_or_404(Site, slug=...)` → `get_object_or_404(SectionPage, slug=...)`
-- [ ] `WordPressRedirectView` : `Site.objects.filter(path__icontains=...)` → SectionPage
-- [ ] `_send_contact_email()` : `site.contact_email` → inchangé (property sur SectionPage)
-
-- [ ] Tests verts ✓
-
----
-
-## Phase 5 — Migrer content/context_processors.py
-
-- [ ] `Site.objects.get(slug='principal')` → `SectionPage.objects.get(...)`
-- [ ] `Site.objects.filter(is_active=True)` → `SectionPage.objects.filter(live=True)`
-- [ ] Adapter les filtres `site_type`, `site=main_site`
-
-- [ ] Tests verts ✓
-
----
-
-## Phase 6 — Migrer feeds, sitemaps, newsletter_views
-
-- [ ] `content/feeds.py` : `get_object_or_404(Site, slug=...)` → SectionPage
-- [ ] `content/sitemaps.py` : `Site.objects.filter(is_active=True)` → SectionPage
-- [ ] `content/newsletter_views.py` : vérifier usages de site
-
-- [ ] Tests verts ✓
-
----
-
-## Phase 7 — Migrer les wagtail hooks
-
-### cms/wagtail_hooks.py
-- [ ] `SyndicatManageView` : utiliser SectionPage directement (plus de jointure Site ↔ SectionPage)
-- [ ] `SiteDashboardPanel` : stats via SectionPage
-- [ ] Supprimer toute référence à `ContentSite`
-
-### content/wagtail_hooks.py
-- [ ] `_scope_by_site()` : vérifier compatibilité
-- [ ] Supprimer `SiteViewSet` (contenu.Site n'existera plus)
-
-- [ ] Tests verts ✓
-
----
-
-## Phase 8 — Migrer les templates
-
-> Si les properties `name`, `is_active`, `get_absolute_url()` sont bien sur SectionPage (Phase 0),
-> la plupart des templates ne changent pas. Vérifier uniquement les cas spéciaux.
-
-- [ ] `templates/content/contact.html` — `site.slug`, `site.name`
-- [ ] `templates/content/page_detail.html` — `site.slug`, `site.name`, `site.get_absolute_url`
-- [ ] `templates/content/site_home_page.html` — `site.name`
-- [ ] `templates/content/site_agenda.html` — `site.name`, `site.slug`
-- [ ] `templates/content/espace_presse.html` — `site.name`, `site.slug`
-- [ ] `templates/newsletter/confirm_email.html` — `site.name`
-- [ ] `templates/cms/dashboard/*.html` — `current_site.name`, etc.
-- [ ] `adhesion/templates/adhesion/*.html` — `site.name`, `site.slug`
-
-- [ ] Tests verts ✓
-
----
-
-## Phase 9 — Migrer les tests
-
-- [ ] Créer helper `make_section_page()` en remplacement de `make_site()`
-  (crée HomePage si besoin, puis SectionPage dans le page tree)
-- [ ] `content/tests.py` : remplacer tous `make_site()` → `make_section_page()`
-- [ ] `adhesion/tests.py` : même chose
-- [ ] Supprimer imports `from content.models import Site` dans les tests
-
-- [ ] Tests verts ✓
-
----
-
-## Phase 10 — Nettoyage final
-
-```bash
-# Vérification avant suppression
-grep -rn "from content.models import.*\bSite\b\|content\.Site\b" --include="*.py" .
-# Doit retourner zéro résultat (hors models.py lui-même et sa migration de suppression)
-```
-
-- [x] Supprimer `class Site` de `content/models.py`
-- [x] Supprimer `SiteAdmin` de `content/admin.py`
-- [x] Supprimer `SiteViewSet` de `content/wagtail_hooks.py`
-- [x] Créer migration de suppression (`content/migrations/0020_delete_site.py`)
-- [x] Supprimer `SectionPage._sync_content_site()` dans `cms/models.py`
-- [x] Supprimer les commandes d'import WP cassées par la suppression de Site
-  (`import_comments`, `import_featured_images`, `create_users_from_authors`) — 2026-07-12
-- [x] Évaluer suppression des modèles legacy `content.Article` / `content.Page` — 2026-07-12
-  **Verdict : on garde les deux.**
-  - `content.Page` sert encore les vues publiques (pages statiques des sous-sites,
-    `content/views.py`)
-  - `content.Article` est utilisé activement par la composition de newsletters
-    (`NewsletterArticle.article` FK CASCADE, `content/newsletter_views.py`) et par
-    le fallback images legacy (`ArticlePage.any_image_url` via `legacy_article_id`)
-  - Suppression possible seulement après : migration de `NewsletterArticle` vers
-    `cms.ArticlePage` + import des images legacy dans Wagtail (cf. chantier STUCS)
-- [x] Suite complète verte ✓ (562 tests, 2026-07-12)
-
----
-
-## État d'avancement
-
-- [x] Audit complet — 2026-05-29
-- [x] Phase 0 — Préparer SectionPage — 2026-05-29
-- [x] Phase 1 — Migrer site_context.py + admin_utils.py — 2026-05-29
-- [x] Phase 2 — Migrer modèles content/ (FK DB) — 2026-05-30
-- [x] Phase 3 — Migrer modèles adhesion/ (FK DB) — 2026-05-30
-- [x] Phase 4 — Migrer content/views.py — 2026-05-30
-- [x] Phase 5 — Migrer context_processors.py — 2026-05-30
-- [x] Phase 6 — Migrer feeds, sitemaps, newsletter — 2026-05-30
-- [x] Phase 7 — Migrer wagtail hooks — 2026-05-30
-- [x] Phase 8 — Migrer templates — 2026-05-30
-- [x] Phase 9 — Migrer tests — 2026-05-30
-- [x] Phase 10 — Nettoyage final — 2026-05-30
+Différence assumée : le syndicat Éducation, seul à avoir déjà rempli
+`rejoindre_text`, gagne l'encadré gris que son texte n'avait pas — cohérent
+avec les treize autres.
