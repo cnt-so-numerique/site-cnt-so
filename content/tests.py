@@ -6394,7 +6394,8 @@ class ImporteFichesSyndicatsTest(TestCase):
         interim = make_cms_category(name='Intérim', slug='interim')
         MenuItem.objects.create(site=self.principal, menu='main',
                                 link_type='category', title='Intérim',
-                                category=interim, order=5)
+                                category=interim, order=5,
+                                parent=self._menu_secteurs())
         self._importer('--completer')
         fiche = FicheSyndicat.objects.get(titre='Intérim')
         self.assertEqual(fiche.categorie, interim)
@@ -6405,10 +6406,42 @@ class ImporteFichesSyndicatsTest(TestCase):
         en ajouter une seconde."""
         MenuItem.objects.create(site=self.principal, menu='main',
                                 link_type='category', title='Nettoyage',
-                                category=self.cat, order=1)
+                                category=self.cat, order=1,
+                                parent=self._menu_secteurs())
         self._importer('--completer')
         self.assertEqual(
             FicheSyndicat.objects.filter(categorie=self.cat).count(), 1)
+
+    def _menu_secteurs(self):
+        return MenuItem.objects.create(
+            site=self.principal, menu='main', title='Secteurs', url='#')
+
+    def test_completer_ignore_les_rubriques_hors_secteurs(self):
+        """« Solidarités » est une rubrique racine du menu, pas un champ de
+        syndicalisation : lui fabriquer une carte n'aurait aucun sens."""
+        solidarites = make_cms_category(name='Solidarités', slug='solidarites')
+        MenuItem.objects.create(site=self.principal, menu='main',
+                                link_type='category', title='Solidarités',
+                                category=solidarites, order=6)
+        self._importer('--completer')
+        self.assertFalse(FicheSyndicat.objects.filter(titre='Solidarités').exists())
+
+    def test_completer_ignore_une_categorie_homonyme(self):
+        """Le même champ existe parfois en deux catégories, héritage de
+        l'import WordPress : « Activités postales » est en base deux fois, la
+        fiche pointant sur l'une et le menu sur l'autre. Deux cartes pour la
+        même chose ne seraient qu'un doublon aux yeux du lecteur."""
+        postale_a = make_cms_category(name='Activités postales', slug='postales-a')
+        postale_b = make_cms_category(name='Activités Postales', slug='postales-b')
+        FicheSyndicat.objects.create(site=self.principal, titre='Activités postales',
+                                     categorie=postale_a)
+        MenuItem.objects.create(site=self.principal, menu='main',
+                                link_type='category', title='Activités postales',
+                                category=postale_b, order=7,
+                                parent=self._menu_secteurs())
+        self._importer('--completer')
+        self.assertEqual(
+            FicheSyndicat.objects.filter(titre__icontains='postales').count(), 1)
 
     def test_vider_la_page_garde_le_chapo(self):
         self._importer('--vider-la-page')

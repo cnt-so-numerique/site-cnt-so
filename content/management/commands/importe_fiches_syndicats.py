@@ -20,6 +20,8 @@ deux cartes (Numérique, STAA) n'ont pas d'image mais un aplat de couleur, et
 une regex qui attendait un `<img>` les sautait en silence.
 """
 
+import unicodedata
+
 from bs4 import BeautifulSoup
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -29,6 +31,10 @@ from content.models import FicheSyndicat, MenuItem
 
 
 class Command(BaseCommand):
+    #: L'entrée racine du menu principal qui range les champs de
+    #: syndicalisation. Les cartes de la page en sont le reflet.
+    MENU_SECTEURS = 'Secteurs'
+
     help = ("Convertit les cartes HTML de la page « Nos syndicats » "
             "en fiches éditables dans /cms/.")
 
@@ -149,31 +155,68 @@ class Command(BaseCommand):
         self._completer_les_syndicats(depart)
 
     def _completer_les_secteurs(self, depart):
-        """Une carte pour chaque rubrique de secteur affichée dans le menu."""
+        """Une carte pour chaque rubrique rangée sous « Secteurs » dans le menu.
+
+        Sous « Secteurs » et non dans tout le menu principal : « Solidarités »
+        ou « International » y sont des rubriques racine, pas des champs de
+        syndicalisation, et leur fabriquer une carte n'aurait aucun sens.
+        """
+        secteurs = (
+            MenuItem.objects
+            .filter(site=self.principal, menu='main', parent__isnull=True,
+                    title__iexact=self.MENU_SECTEURS)
+            .first()
+        )
+        if secteurs is None:
+            self.stderr.write(self.style.WARNING(
+                f"  ? pas d'entrée de menu « {self.MENU_SECTEURS} » : "
+                f"aucun secteur à compléter"))
+            return depart
+
         deja = self.vus_cat | set(
             FicheSyndicat.objects.filter(site=self.principal)
             .exclude(categorie=None).values_list('categorie_id', flat=True)
         )
-        liens = (
-            MenuItem.objects
-            .filter(site=self.principal, menu='main', link_type='category',
-                    is_active=True)
-            .exclude(category=None).exclude(category_id__in=deja)
-            .select_related('category').order_by('order')
-        )
+        # Le même champ de syndicalisation existe parfois en deux catégories,
+        # héritage de l'import WordPress : « Activités postales et
+        # Télécommunications » est en base deux fois, la fiche pointant sur
+        # l'une et le menu sur l'autre. Deux cartes pour la même chose, le
+        # lecteur ne verrait qu'un doublon.
+        deja_noms = {
+            self._normaliser(nom) for nom in
+            CmsCategory.objects.filter(pk__in=deja).values_list('name', flat=True)
+        }
+
         rang = depart
-        for lien in liens:
-            if lien.category_id in deja:
+        for lien in (secteurs.children.filter(link_type='category', is_active=True)
+                     .exclude(category=None).select_related('category')
+                     .order_by('order')):
+            categorie = lien.category
+            nom = self._normaliser(categorie.name)
+            if categorie.pk in deja:
                 continue
-            deja.add(lien.category_id)
+            if nom in deja_noms:
+                self.stdout.write(self.style.WARNING(
+                    f"  = {lien.title:34} → déjà une carte sous une catégorie "
+                    f"homonyme, ignoré"))
+                continue
+            deja.add(categorie.pk)
+            deja_noms.add(nom)
             self.stdout.write(self.style.SUCCESS(
                 f"  + {lien.title:34} → secteur du menu sans carte, ajouté"))
             if not self.dry:
                 self._enregistrer(
                     titre=lien.title, description='', image_url='',
-                    cible=lien.category, url='', order=rang)
+                    cible=categorie, url='', order=rang)
             rang += 1
         return rang
+
+    @staticmethod
+    def _normaliser(nom):
+        """Un nom de catégorie comparable : sans casse, accents ni ponctuation."""
+        nom = unicodedata.normalize('NFD', nom.lower())
+        return ''.join(c for c in nom
+                       if unicodedata.category(c) != 'Mn' and c.isalnum())
 
     def _completer_les_syndicats(self, depart):
         """Une carte pour chaque syndicat publié qui n'en avait pas."""
