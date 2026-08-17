@@ -1,4 +1,6 @@
 {% load content_tags %}
+{# Seule la confédération diffuse une newsletter : ailleurs l'encart menait à une base que personne n'utilise. Case « Proposer la newsletter » du syndicat, dans /cms/. #}
+{% if newsletter_site.newsletter_active or site.newsletter_active %}
 <section class="site-newsletter">
     <div class="site-newsletter-inner">
         <h2>Restez aux aguets grâce à la newsletter&nbsp;!</h2>
@@ -13,3 +15,4 @@
         </form>
     </div>
 </section>
+{% endif %}

@@ -39,6 +39,9 @@ def _ensure_section_page(slug, name=None, site_type='regional', live=True,
         legacy_site_slug=slug,
         external_url=external_url,
         contact_email=contact_email,
+        # Comme en production : seule la confédération propose une newsletter.
+        # Un test qui en veut une sur un syndicat la coche explicitement.
+        newsletter_active=(slug == 'principal'),
     ))
 
 
@@ -2112,6 +2115,11 @@ class SectionAutonomyPermissionsTest(TestCase):
 
     def test_section_redacteur_can_open_own_newsletter_send(self):
         from content.models import Newsletter
+        # Ce test porte sur le cloisonnement, pas sur l'arbitrage éditorial :
+        # le syndicat doit donc proposer une newsletter pour qu'on puisse
+        # vérifier que son rédacteur y accède.
+        self.site_b.newsletter_active = True
+        self.site_b.save(update_fields=['newsletter_active'])
         nl = Newsletter.objects.create(site=self.site_b, title='Locale', intro='x')
         redacteur = make_redacteur(site=self.site_b, username='nl-redac2')
         self.client.force_login(redacteur)
@@ -3313,7 +3321,10 @@ class NewsletterSendOvhGetTest(TestCase):
     def setUp(self):
         self.site = _ensure_section_page(slug='nl-ovh-get', name='NL OVH GET', site_type='sectoral')
         self.site.ovh_mailing_list = 'actu-test-cntso'
-        self.site.save(update_fields=['ovh_mailing_list'])
+        # Ces tests exercent l'envoi : le syndicat doit donc proposer une
+        # newsletter, coupée par défaut depuis le 17/08/2026.
+        self.site.newsletter_active = True
+        self.site.save(update_fields=['ovh_mailing_list', 'newsletter_active'])
         self.newsletter = _make_newsletter(self.site)
         self.url = f'/cms/newsletter/{self.newsletter.pk}/envoyer/'
 
@@ -3333,7 +3344,10 @@ class NewsletterSendOvhGetTest(TestCase):
 
     def test_get_shows_direct_mode_when_no_ovh_list(self):
         self.site.ovh_mailing_list = ''
-        self.site.save(update_fields=['ovh_mailing_list'])
+        # Ces tests exercent l'envoi : le syndicat doit donc proposer une
+        # newsletter, coupée par défaut depuis le 17/08/2026.
+        self.site.newsletter_active = True
+        self.site.save(update_fields=['ovh_mailing_list', 'newsletter_active'])
         Subscriber.objects.create(site=self.site, email='x@y.com', is_active=True)
         c = _chef_client(self.site)
         r = c.get(self.url)
@@ -3348,7 +3362,10 @@ class NewsletterSendOvhPostTest(TestCase):
     def setUp(self):
         self.site = _ensure_section_page(slug='nl-ovh-post', name='NL OVH POST', site_type='sectoral')
         self.site.ovh_mailing_list = 'actu-test-cntso'
-        self.site.save(update_fields=['ovh_mailing_list'])
+        # Ces tests exercent l'envoi : le syndicat doit donc proposer une
+        # newsletter, coupée par défaut depuis le 17/08/2026.
+        self.site.newsletter_active = True
+        self.site.save(update_fields=['ovh_mailing_list', 'newsletter_active'])
         self.newsletter = _make_newsletter(self.site)
         self.url = f'/cms/newsletter/{self.newsletter.pk}/envoyer/'
 
@@ -3397,7 +3414,10 @@ class NewsletterSendOvhPostTest(TestCase):
         """Sans liste OVH, l'envoi direct email-par-email est utilisé."""
         from django.core import mail
         self.site.ovh_mailing_list = ''
-        self.site.save(update_fields=['ovh_mailing_list'])
+        # Ces tests exercent l'envoi : le syndicat doit donc proposer une
+        # newsletter, coupée par défaut depuis le 17/08/2026.
+        self.site.newsletter_active = True
+        self.site.save(update_fields=['ovh_mailing_list', 'newsletter_active'])
         Subscriber.objects.create(site=self.site, email='s1@example.com', is_active=True)
         Subscriber.objects.create(site=self.site, email='s2@example.com', is_active=True)
         c = _chef_client(self.site)
@@ -3425,7 +3445,10 @@ class NewsletterArticlePageTest(TestCase):
         from content.models import NewsletterArticle
         self.site = _ensure_section_page(slug='nl-artpage', name='NL ArtPage', site_type='sectoral')
         self.site.ovh_mailing_list = 'nl-artpage-liste'
-        self.site.save(update_fields=['ovh_mailing_list'])
+        # Ces tests exercent l'envoi : le syndicat doit donc proposer une
+        # newsletter, coupée par défaut depuis le 17/08/2026.
+        self.site.newsletter_active = True
+        self.site.save(update_fields=['ovh_mailing_list', 'newsletter_active'])
         self.newsletter = _make_newsletter(self.site)
         self.article = make_article_page(
             title='Un article Wagtail dans la newsletter', section_slug='nl-artpage')
@@ -3461,7 +3484,10 @@ class NewsletterMultiListTest(TestCase):
     def setUp(self):
         self.site = _ensure_section_page(slug='nl-multi', name='NL Multi', site_type='sectoral')
         self.site.ovh_mailing_list = 'liste-a, liste-b'
-        self.site.save(update_fields=['ovh_mailing_list'])
+        # Ces tests exercent l'envoi : le syndicat doit donc proposer une
+        # newsletter, coupée par défaut depuis le 17/08/2026.
+        self.site.newsletter_active = True
+        self.site.save(update_fields=['ovh_mailing_list', 'newsletter_active'])
         self.newsletter = _make_newsletter(self.site)
         self.url = f'/cms/newsletter/{self.newsletter.pk}/envoyer/'
 
@@ -3519,7 +3545,10 @@ class OvhSyncSubscriptionTest(TestCase):
     def setUp(self):
         self.site = _ensure_section_page(slug='ovh-sync', name='OVH Sync', site_type='sectoral')
         self.site.ovh_mailing_list = 'liste-un, liste-deux'
-        self.site.save(update_fields=['ovh_mailing_list'])
+        # Ces tests exercent l'envoi : le syndicat doit donc proposer une
+        # newsletter, coupée par défaut depuis le 17/08/2026.
+        self.site.newsletter_active = True
+        self.site.save(update_fields=['ovh_mailing_list', 'newsletter_active'])
 
     def _make_subscriber(self, active=False):
         return Subscriber.objects.create(
@@ -3570,7 +3599,10 @@ class OvhSyncSubscriptionTest(TestCase):
     @patch('cms.ovh_client.add_subscriber')
     def test_site_sans_liste_ovh_aucun_appel(self, mock_add):
         self.site.ovh_mailing_list = ''
-        self.site.save(update_fields=['ovh_mailing_list'])
+        # Ces tests exercent l'envoi : le syndicat doit donc proposer une
+        # newsletter, coupée par défaut depuis le 17/08/2026.
+        self.site.newsletter_active = True
+        self.site.save(update_fields=['ovh_mailing_list', 'newsletter_active'])
         sub = self._make_subscriber(active=False)
         self.client.get(f'/newsletter/confirmer/{sub.token}/')
         mock_add.assert_not_called()
@@ -3700,6 +3732,8 @@ class NewsletterSendEdgeTest(TestCase):
     def setUp(self):
         _setup_editorial_groups()
         self.site = _ensure_section_page(slug='nl-edge', name='NL Edge', site_type='sectoral')
+        self.site.newsletter_active = True   # ce test exerce l'envoi
+        self.site.save(update_fields=['newsletter_active'])
         self.newsletter = _make_newsletter(self.site)
         self.url = f'/cms/newsletter/{self.newsletter.pk}/envoyer/'
 
@@ -3712,7 +3746,10 @@ class NewsletterSendEdgeTest(TestCase):
 
     def test_get_ovh_liste_erreur_affiche_none_abonnes(self):
         self.site.ovh_mailing_list = 'liste-err'
-        self.site.save(update_fields=['ovh_mailing_list'])
+        # Ces tests exercent l'envoi : le syndicat doit donc proposer une
+        # newsletter, coupée par défaut depuis le 17/08/2026.
+        self.site.newsletter_active = True
+        self.site.save(update_fields=['ovh_mailing_list', 'newsletter_active'])
         with patch('cms.ovh_client.get_subscribers', side_effect=Exception('OVH down')):
             c = _chef_client(self.site)
             r = c.get(self.url)
@@ -4681,6 +4718,9 @@ class NewsletterSendViewRemainingTest(TestCase):
         _setup_editorial_groups()
         self.site_a = _ensure_section_page(slug='nl-site-a', name='Site A', site_type='sectoral')
         self.site_b = _ensure_section_page(slug='nl-site-b', name='Site B', site_type='sectoral')
+        for s_ in (self.site_a, self.site_b):   # ces tests exercent l'envoi
+            s_.newsletter_active = True
+            s_.save(update_fields=['newsletter_active'])
         self.newsletter = _make_newsletter(self.site_a)
 
     def test_chef_mauvais_site_leve_permission_denied(self):
@@ -5386,6 +5426,8 @@ class ParcoursNewsletterCompletTest(TestCase):
         caches['limites'].clear()  # la limite par IP est partagée entre tests
         self.site = _ensure_section_page(slug='parcours-nl', name='CNT-SO Parcours',
                                          site_type='sectoral')
+        self.site.newsletter_active = True   # parcours complet : inscription → envoi
+        self.site.save(update_fields=['newsletter_active'])
         self.article = make_article_page(section_slug='parcours-nl',
                                          title='Grève reconductible',
                                          slug='greve-reconductible')
@@ -6852,3 +6894,98 @@ class CartouchesDeBarreLateraleTest(TestCase):
         html = self.client.get('/poitiers/').content.decode()
         bloc = html.split('Nouvelles de la confédération')[-1][:2000]
         self.assertNotIn('Grève locale au 86', bloc)
+
+
+class InscriptionDepuisUnSousSiteTest(TestCase):
+    """Seule la confédération diffuse une newsletter.
+
+    Les autres listes OVH sont des listes de travail internes, réservées aux
+    adhérent·es (arbitrage d'Arnaud, 17/08/2026). Un visiteur qui s'abonne
+    depuis le site du 86 doit donc rejoindre la lettre confédérale — et non
+    une base que personne n'utilise, l'impasse silencieuse qu'on a passé la
+    journée à supprimer.
+    """
+
+    def setUp(self):
+        from django.core.cache import caches
+        caches['limites'].clear()
+        self.conf = make_site(slug='principal')
+        self.conf.ovh_mailing_list = 'news3'
+        self.conf.save()
+        self.sous_site = make_site(slug='poitiers', name='CNT-SO Poitiers',
+                                   site_type='regional')
+
+    @patch('hcaptcha.fields.hCaptchaField.validate')
+    def test_un_abonne_du_86_rejoint_la_lettre_confederale(self, _captcha):
+        self.client.post('/poitiers/newsletter/inscription/valider/',
+                         {'email': 'camarade@example.org', 'h-captcha-response': 'ok'})
+        abonne = Subscriber.objects.get(email='camarade@example.org')
+        self.assertEqual(abonne.site, self.conf)
+
+    @patch('hcaptcha.fields.hCaptchaField.validate')
+    def test_un_syndicat_qui_a_sa_liste_garde_ses_inscrits(self, _captcha):
+        """La règle suit les données : rendre sa liste à un syndicat lui rend
+        sa newsletter, sans toucher au code."""
+        self.sous_site.ovh_mailing_list = 'sante-social-86'
+        self.sous_site.save()
+        self.client.post('/poitiers/newsletter/inscription/valider/',
+                         {'email': 'locale@example.org', 'h-captcha-response': 'ok'})
+        abonne = Subscriber.objects.get(email='locale@example.org')
+        self.assertEqual(abonne.site, self.sous_site)
+
+    def test_la_page_de_validation_annonce_la_bonne_newsletter(self):
+        """Le visiteur doit savoir à quelle lettre il s'abonne avant de valider."""
+        r = self.client.post('/poitiers/newsletter/inscription/',
+                             {'email': 'camarade@example.org'})
+        self.assertContains(r, self.conf.title)
+
+
+class NewsletterReserveeALaConfTest(TestCase):
+    """La newsletter n'est plus proposée que par la confédération.
+
+    Les autres listes OVH sont des listes de travail internes, réservées aux
+    adhérent·es (arbitrage d'Arnaud, 17/08/2026). Un interrupteur par syndicat
+    permet de la lui rendre : « Proposer la newsletter sur ce site », dans sa
+    fiche.
+    """
+
+    def setUp(self):
+        self.conf = make_site(slug='principal')
+        self.conf.newsletter_active = True
+        self.conf.save()
+        self.sous_site = make_site(slug='poitiers', name='CNT-SO Poitiers',
+                                   site_type='regional')
+
+    def test_lencart_a_disparu_du_sous_site(self):
+        html = self.client.get('/poitiers/').content.decode()
+        self.assertNotIn('Restez informé', html)
+        self.assertNotIn("Restez aux aguets", html)
+
+    def test_lencart_reste_sur_la_conf(self):
+        html = self.client.get('/').content.decode()
+        self.assertIn('newsletter', html.lower())
+        self.assertIn("Restez aux aguets", html)
+
+    def test_linterrupteur_le_rend_au_syndicat(self):
+        """Cocher la case suffit : c'est le bouton de réactivation."""
+        self.sous_site.newsletter_active = True
+        self.sous_site.save()
+        html = self.client.get('/poitiers/').content.decode()
+        self.assertIn('Restez informé', html)
+
+    def test_par_defaut_un_nouveau_syndicat_na_pas_de_newsletter(self):
+        neuf = make_site(slug='34', name='CNT-SO 34', site_type='regional')
+        self.assertFalse(neuf.newsletter_active)
+
+    def test_envoyer_depuis_un_syndicat_coupe_est_refuse(self):
+        """Sans ce garde-fou, la lettre « partait » sans destinataire et sans
+        que rien ne le dise."""
+        from django.contrib.auth.models import User
+        chef = User.objects.create_superuser('chef-nl', 'c@x.fr', 'x')
+        self.client.force_login(chef)
+        nl = Newsletter.objects.create(site=self.sous_site, title='Lettre du 86',
+                                       intro='Bonjour')
+        r = self.client.get(f'/cms/newsletter/{nl.pk}/envoyer/', follow=True)
+        self.assertIn("n&#x27;est pas activée", r.content.decode())
+        nl.refresh_from_db()
+        self.assertEqual(nl.status, 'draft')

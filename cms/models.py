@@ -728,6 +728,17 @@ class SectionPage(SeoMixin, Page):
         help_text="Noms des listes sur cnt-so.info, séparés par des virgules. "
                   "La newsletter part à TOUTES ces listes.",
     )
+    newsletter_active = models.BooleanField(
+        default=False,
+        verbose_name="Proposer la newsletter sur ce site",
+        help_text="Décoché : aucun encart d'inscription n'apparaît sur le site "
+                  "et le syndicat ne peut pas envoyer de lettre. Seule la "
+                  "confédération diffuse une newsletter publique — les autres "
+                  "listes OVH sont des listes de travail internes, réservées "
+                  "aux adhérent·es. Cochez pour rendre la newsletter à ce "
+                  "syndicat : il faudra aussi lui rattacher une liste "
+                  "ci-dessous.",
+    )
     ovh_liste_inscription = models.CharField(
         max_length=100, blank=True,
         verbose_name="Liste d'arrivée des inscrits du site",
@@ -780,6 +791,7 @@ class SectionPage(SeoMixin, Page):
         FieldPanel('agenda_text'),
         FieldPanel('logo'),
         MultiFieldPanel([
+            FieldPanel('newsletter_active'),
             FieldPanel('ovh_mailing_list', widget=OVHMailingListWidget),
             FieldPanel('ovh_liste_inscription'),
         ], heading="Newsletter OVH"),

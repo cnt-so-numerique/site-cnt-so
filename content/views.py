@@ -916,6 +916,25 @@ def _trop_de_demandes(request):
     return False
 
 
+def _site_de_la_newsletter(site):
+    """Le syndicat dont la liste recevra cette inscription.
+
+    Seule la confédération diffuse une newsletter : les autres listes OVH sont
+    des listes de travail internes, réservées aux adhérent·es et non
+    destinées à la diffusion publique (arbitrage d'Arnaud, 17/08/2026).
+
+    La règle suit les données plutôt qu'un nom écrit en dur : un syndicat qui
+    a une liste garde ses inscrits, les autres envoient vers la conf. Rendre
+    sa liste à un syndicat suffirait donc à lui rendre sa newsletter, sans
+    toucher au code. Et surtout, personne n'atterrit plus dans une base que
+    nul n'utilise.
+    """
+    from .ovh_sync import lists_for_site
+    if lists_for_site(site):
+        return site
+    return SectionPage.objects.filter(slug='principal').first() or site
+
+
 class NewsletterSubscribeView(View):
     """Première étape de l'inscription : recueillir l'adresse.
 
@@ -939,7 +958,7 @@ class NewsletterSubscribeView(View):
             return redirect(request.META.get('HTTP_REFERER', '/'))
 
         return render(request, 'content/newsletter_subscribe_verify.html', {
-            'site': site,
+            'site': _site_de_la_newsletter(site),
             'form': NewsletterCaptchaForm(initial={
                 'email': form.cleaned_data['email'],
                 'name': form.cleaned_data.get('name', ''),
@@ -961,7 +980,7 @@ class NewsletterSubscribeVerifyView(View):
         return get_object_or_404(SectionPage, slug='principal')
 
     def post(self, request, site_slug=None):
-        site = self._get_site(site_slug)
+        site = _site_de_la_newsletter(self._get_site(site_slug))
         form = NewsletterCaptchaForm(request.POST)
         if not form.is_valid():
             return render(request, 'content/newsletter_subscribe_verify.html', {

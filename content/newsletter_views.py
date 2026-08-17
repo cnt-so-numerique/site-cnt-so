@@ -70,11 +70,32 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
             raise PermissionDenied
         return newsletter
 
+    def _refus_si_newsletter_coupee(self, request, newsletter):
+        """Refuse l'envoi si le syndicat ne propose pas de newsletter.
+
+        Sans ce garde-fou, un syndicat dont la newsletter est coupée pouvait
+        malgré tout composer et « envoyer » une lettre : elle ne partait à
+        personne, ses listes étant vides, sans que rien ne le dise.
+        """
+        site = newsletter.site
+        if site is not None and not site.newsletter_active:
+            messages.error(request, (
+                f"La newsletter n'est pas activée pour « {site.title} ». "
+                f"Seule la confédération en diffuse une ; les autres listes "
+                f"sont internes. Pour la rendre à ce syndicat, cochez "
+                f"« Proposer la newsletter sur ce site » dans sa fiche."
+            ))
+            return redirect('/cms/snippets/content/newsletter/')
+        return None
+
     def get(self, request, pk):
         newsletter = self._get_newsletter(request, pk)
         if newsletter.status == 'sent':
             messages.error(request, 'Newsletter déjà envoyée.')
             return redirect('/cms/snippets/content/newsletter/')
+        refus = self._refus_si_newsletter_coupee(request, newsletter)
+        if refus:
+            return refus
 
         site = newsletter.site
         list_names = _ovh_list_names(site)
@@ -102,6 +123,9 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
         if newsletter.status == 'sent':
             messages.error(request, 'Newsletter déjà envoyée.')
             return redirect('/cms/snippets/content/newsletter/')
+        refus = self._refus_si_newsletter_coupee(request, newsletter)
+        if refus:
+            return refus
 
         mode = request.POST.get('mode', 'send')
         articles = list(
