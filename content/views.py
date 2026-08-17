@@ -56,7 +56,11 @@ def _sidebar_context(section_slug):
     )
     return {
         'campagnes_articles': base_qs.filter(cms_categories__slug='campagne').distinct()[:5],
-        'manques_articles': base_qs.filter(cms_categories__slug='incontournables').distinct()[:5],
+        # « Ce que vous avez loupé », ce sont les articles récents — pas ceux
+        # d'une catégorie « incontournables » qui n'existe dans AUCUNE section :
+        # le cartouche était vide depuis toujours, sur la conf comme sur les
+        # sous-sites (constaté en production, 17/08/2026).
+        'manques_articles': base_qs.distinct()[:5],
     }
 
 
@@ -64,6 +68,17 @@ def _sectoral_sidebar_context(site):
     """Contexte commun pour la sidebar des sous-sites sectoriel/régional."""
     ctx = _sidebar_context(site.slug)
     ctx['rejoindre_url'] = site.get_rejoindre_url()
+    # Le cartouche « Nouvelles de la confédération » recevait les articles du
+    # sous-site lui-même : il annonçait la conf et montrait autre chose — rien,
+    # en l'occurrence. Il montre désormais ce que son titre promet.
+    ctx['manques_articles'] = (
+        ArticlePage.objects.live()
+        .filter(section_slug='principal')
+        .order_by('-publication_date', '-first_published_at')
+        .select_related('featured_image')
+        .prefetch_related('cms_categories')
+        .distinct()[:5]
+    )
     return ctx
 
 

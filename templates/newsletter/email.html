@@ -74,8 +74,20 @@
           </td>
         </tr>
 
-        <!-- Articles -->
-        {% for na in newsletter_articles %}
+        <!-- Articles, groupés par rubrique : une section n'apparaît que si le
+             rédacteur y a mis au moins un article -->
+        {% for libelle, articles_rubrique in groupes %}
+        {% if libelle %}
+        <tr>
+          <td style="padding:22px 32px 10px; background:#ffffff; border-bottom:2px solid #c41e3a;">
+            <h2 style="margin:0; font-family:Georgia,serif; font-size:15px; color:#c41e3a;
+                       text-transform:uppercase; letter-spacing:1.5px; font-weight:700;">
+              {{ libelle }}
+            </h2>
+          </td>
+        </tr>
+        {% endif %}
+        {% for na in articles_rubrique %}
         <tr>
           <td style="padding:0; border-bottom:1px solid #ececec;">
             <table width="100%" cellpadding="0" cellspacing="0">
@@ -92,7 +104,8 @@
                 {% endif %}
                 <td class="article-body" valign="top"
                     style="padding:20px 24px 20px {% if na.image_url %}16px{% else %}24px{% endif %};">
-                  {% if na.article.categories.all %}
+                  {# Catégorie affichée hors rubrique seulement : sous un titre de section elle fait doublon, et « Non classé » y est disgracieux. #}
+                  {% if not libelle and na.article.categories.all %}
                   <p style="margin:0 0 4px; font-family:sans-serif; font-size:10px; color:#c41e3a; text-transform:uppercase; letter-spacing:1px; font-weight:700;">
                     {{ na.article.categories.all.0.name }}
                   </p>
@@ -118,6 +131,7 @@
             </table>
           </td>
         </tr>
+        {% endfor %}
         {% endfor %}
 
         <!-- Pied de page -->

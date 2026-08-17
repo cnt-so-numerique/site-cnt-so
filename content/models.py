@@ -674,6 +674,47 @@ class Newsletter(ClusterableModel, models.Model):
     def __str__(self):
         return self.title
 
+    def par_rubrique(self, articles=None):
+        """Les articles groupés par rubrique, prêts à composer le sommaire.
+
+        Renvoie une liste de `(libellé, [articles])` : d'abord les articles
+        sans rubrique — en tête, sans titre de section — puis chaque rubrique
+        DANS L'ORDRE DE `RUBRIQUES_NEWSLETTER`, en sautant celles que le
+        rédacteur n'a pas garnies. Choisir les articles suffit donc à composer
+        l'e-mail : il n'y a aucune section à cocher ni à décocher.
+
+        `articles` permet de passer la liste déjà annotée d'URLs d'images par
+        la vue d'envoi, plutôt que de relire la base. L'aperçu, l'envoi HTML et
+        la version texte partagent ainsi un seul groupement — trois rendus qui
+        divergeraient sinon.
+        """
+        if articles is None:
+            articles = list(
+                self.newsletter_articles.select_related('article').order_by('order')
+            )
+        groupes = []
+        sans_rubrique = [na for na in articles if not na.rubrique]
+        if sans_rubrique:
+            groupes.append(('', sans_rubrique))
+        for code, libelle in RUBRIQUES_NEWSLETTER:
+            dedans = [na for na in articles if na.rubrique == code]
+            if dedans:
+                groupes.append((libelle, dedans))
+        return groupes
+
+
+#: Le découpage de la newsletter confédérale. Ce sont des rubriques propres à
+#: l'envoi, pas les catégories du site : « actu syndicale » et « actu générale »
+#: n'existent pas en catégorie, et la conf compose son sommaire comme elle
+#: l'entend. L'ordre de ce tuple est l'ordre des sections dans l'e-mail.
+RUBRIQUES_NEWSLETTER = [
+    ('campagne', 'Campagnes'),
+    ('actu-syndicale', 'Actu syndicale'),
+    ('actu-generale', 'Actu générale'),
+    ('droits', 'Nos droits'),
+    ('international', 'International'),
+]
+
 
 class NewsletterArticle(models.Model):
     """Article inclus dans une newsletter, avec ordre d'affichage."""
@@ -683,6 +724,14 @@ class NewsletterArticle(models.Model):
     article = models.ForeignKey(
         'cms.ArticlePage', on_delete=models.CASCADE,
         related_name='+', verbose_name='Article'
+    )
+    rubrique = models.CharField(
+        max_length=30, blank=True, choices=RUBRIQUES_NEWSLETTER,
+        verbose_name='Rubrique',
+        help_text="La section de la newsletter où ranger cet article. "
+                  "Laisser vide place l'article en tête, sans titre de "
+                  "section — ce que font les syndicats, qui n'ont pas de "
+                  "rubriques.",
     )
     order = models.PositiveIntegerField(default=0)
 

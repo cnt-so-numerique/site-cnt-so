@@ -2070,6 +2070,9 @@ class CreationArticleDepuisCmsTest(TestCase):
         grp, _ = Group.objects.get_or_create(name='redacteur_numerique')
         self.redacteur = User.objects.create_user('redac_creation', 'r@c.fr', self.MDP)
         self.redacteur.groups.set([grp])
+        from content.tests import make_cms_category
+        self.categorie = make_cms_category(name='Numérique', slug='cat-numerique',
+                                           section_slug='numerique')
 
     def _creer(self, titre):
         self.client.login(username='redac_creation', password=self.MDP)
@@ -2077,6 +2080,9 @@ class CreationArticleDepuisCmsTest(TestCase):
             'title': titre,
             'body-count': '0',
             'section_slug': 'numerique',
+            # Obligatoire depuis le 17/08/2026 : un article sans catégorie
+            # n'apparaît dans aucune rubrique et devient introuvable.
+            'cms_categories': [self.categorie.pk],
             'action-publish': 'action-publish',
         })
 
@@ -2932,8 +2938,12 @@ class BrouillonNeDoitPasEtreEnLigneTest(TestCase):
         session.save()
 
     def _creer(self, titre, slug, publier):
+        from content.tests import make_cms_category
+        cat = (CmsCategory.objects.filter(slug='cat-13').first()
+               or make_cms_category(name='Luttes', slug='cat-13', section_slug='13'))
         donnees = {'title': titre, 'slug': slug, 'body-count': '0',
-                   'cms_tags': '', 'section_slug': '13'}
+                   'cms_tags': '', 'section_slug': '13',
+                   'cms_categories': [cat.pk]}
         if publier:
             donnees['action-publish'] = 'action-publish'
         avant = set(ArticlePage.objects.values_list('pk', flat=True))
@@ -3472,8 +3482,12 @@ class AvertissementArticleSansImageTest(TestCase):
         session.save()
 
     def _creer(self, slug, publier, image=None):
+        from content.tests import make_cms_category
+        cat = (CmsCategory.objects.filter(slug='cat-13').first()
+               or make_cms_category(name='Luttes', slug='cat-13', section_slug='13'))
         donnees = {'title': slug, 'slug': slug, 'body-count': '0',
-                   'cms_tags': '', 'section_slug': '13'}
+                   'cms_tags': '', 'section_slug': '13',
+                   'cms_categories': [cat.pk]}
         if image is not None:
             donnees['featured_image'] = image.pk
         if publier:
@@ -3904,3 +3918,98 @@ class DeduplicationDesImagesImporteesTest(TestCase):
         image = self._importe()
         self.assertNotIn('uploads/2019/02', image.file.name)
         self.assertIn('affiche-greve', image.file.name)
+
+
+class CategorieFourreToutInterditeTest(TestCase):
+    """« Non classé » ne doit plus pouvoir revenir.
+
+    WordPress en collait une par site : la production en comptait six, portant
+    45 articles publiés, étiquetés « NON CLASSÉ » sur le site et jusque dans la
+    newsletter. L'import WordPress la saute déjà, mais un réimport des
+    catégories est prévu au lancement et rien n'empêchait un autre script de la
+    recréer (demandé par Arnaud, 17/08/2026).
+    """
+
+    def _refuse(self, **kwargs):
+        from django.core.exceptions import ValidationError
+        from cms.models import CmsCategory
+        with self.assertRaises(ValidationError):
+            CmsCategory.objects.create(section_slug='principal', **kwargs)
+
+    def test_le_nom_est_refuse(self):
+        self._refuse(name='Non classé', slug='fourre-tout')
+
+    def test_les_variantes_daccent_et_de_casse_sont_refusees(self):
+        self._refuse(name='NON CLASSEE', slug='autre')
+        self._refuse(name='non classé', slug='encore-autre')
+
+    def test_langlais_de_wordpress_est_refuse(self):
+        self._refuse(name='Uncategorized', slug='uncat')
+
+    def test_le_slug_seul_suffit_a_refuser(self):
+        """Un import qui poserait un nom présentable sur le slug d'origine."""
+        self._refuse(name='Divers', slug='non-classe')
+
+    def test_une_categorie_normale_passe(self):
+        from cms.models import CmsCategory
+        c = CmsCategory.objects.create(name='Nettoyage', slug='nettoyage',
+                                       section_slug='principal')
+        self.assertEqual(c.name, 'Nettoyage')
+
+    def test_renommer_une_categorie_existante_la_libere(self):
+        """Les six catégories déjà en base doivent pouvoir être corrigées."""
+        from cms.models import CmsCategory
+        c = CmsCategory(name='Non classé', slug='non-classe', section_slug='principal')
+        CmsCategory.objects.bulk_create([c])  # contourne save(), comme l'ancien import
+        c = CmsCategory.objects.get(slug='non-classe')
+        c.name, c.slug = 'Vie syndicale', 'vie-syndicale'
+        c.save()
+        self.assertEqual(CmsCategory.objects.get(pk=c.pk).name, 'Vie syndicale')
+
+
+class ArticleSansCategorieTest(TestCase):
+    """Un article sans catégorie est un article perdu.
+
+    Il n'apparaît sur aucune page de rubrique, dans aucune colonne de
+    l'accueil, dans aucun sommaire de newsletter : il ne reste joignable que
+    par son adresse directe (demandé par Arnaud, 17/08/2026).
+    """
+
+    def setUp(self):
+        from content.tests import make_cms_category, _get_article_parent
+        self.cat = make_cms_category(name='Nettoyage', slug='nettoyage')
+        self.parent = _get_article_parent()
+
+    def _formulaire(self, categories):
+        from cms.models import ArticlePage
+        donnees = {
+            'title': 'Grève au nettoyage',
+            'slug': 'greve-nettoyage',
+            'section_slug': 'principal',
+            'body-count': '0',
+            'cms_categories': [c.pk for c in categories],
+        }
+        # Le formulaire réellement servi dans /cms/, construit par Wagtail à
+        # partir de l'edit_handler — `base_form_class` seule n'a pas de modèle.
+        classe = ArticlePage.get_edit_handler().get_form_class()
+        return classe(data=donnees, instance=ArticlePage(), parent_page=self.parent)
+
+    def test_la_redaction_refuse_un_article_sans_categorie(self):
+        form = self._formulaire([])
+        self.assertFalse(form.is_valid())
+        self.assertIn('cms_categories', form.errors)
+        self.assertIn('Personne ne le retrouvera', str(form.errors['cms_categories']))
+
+    def test_un_article_categorise_passe(self):
+        form = self._formulaire([self.cat])
+        form.is_valid()
+        self.assertNotIn('cms_categories', form.errors)
+
+    def test_les_scripts_dimport_restent_libres(self):
+        """`Page.save()` de Wagtail appelle `full_clean()` : une règle posée
+        sur le modèle aurait bloqué tout import, qui crée légitimement la page
+        avant de lui attacher ses catégories."""
+        from content.tests import make_article_page
+        art = make_article_page(section_slug='principal', title='Import sans catégorie',
+                                slug='import-sans-categorie')
+        self.assertTrue(ArticlePage.objects.filter(pk=art.pk).exists())

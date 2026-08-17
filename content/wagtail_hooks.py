@@ -103,6 +103,7 @@ class NewsletterViewSet(ViewSetCloisonne, SnippetViewSet):
             heading="Articles sélectionnés (dans l'ordre)",
             panels=[
                 FieldPanel('article'),
+                FieldPanel('rubrique'),
                 FieldPanel('order'),
             ]
         ),

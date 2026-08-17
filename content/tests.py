@@ -6661,3 +6661,194 @@ class OvhListeInscriptionTest(TestCase):
         self.site.ovh_liste_inscription = 'news3'
         self.site.save()
         self.assertEqual(pick_list(self.site), 'news')
+
+
+class NewsletterRubriquesTest(TestCase):
+    """Le sommaire de la newsletter confédérale.
+
+    Le rédacteur choisit des articles et leur donne une rubrique ; les sections
+    se composent seules. Il n'y a rien à cocher : une rubrique sans article
+    n'existe pas dans l'e-mail.
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='principal')
+        self.nl = Newsletter.objects.create(
+            site=self.site, title='La lettre de la conf', intro='Bonjour à toutes et tous.')
+        self.rang = 0
+
+    def _article(self, titre, rubrique=''):
+        from content.models import NewsletterArticle
+        self.rang += 1
+        art = make_article_page(section_slug='principal', title=titre,
+                                slug=titre.lower().replace(' ', '-').replace("'", ''))
+        return NewsletterArticle.objects.create(
+            newsletter=self.nl, article=art, rubrique=rubrique, order=self.rang)
+
+    def test_les_rubriques_sortent_dans_lordre_prevu(self):
+        self._article('Solidarité internationale', 'international')
+        self._article('Grève au nettoyage', 'actu-syndicale')
+        self._article('Campagne sans-papiers', 'campagne')
+        libelles = [libelle for libelle, _ in self.nl.par_rubrique()]
+        self.assertEqual(libelles, ['Campagnes', 'Actu syndicale', 'International'])
+
+    def test_une_rubrique_sans_article_nexiste_pas(self):
+        self._article('Campagne sans-papiers', 'campagne')
+        libelles = [libelle for libelle, _ in self.nl.par_rubrique()]
+        self.assertEqual(libelles, ['Campagnes'])
+        self.assertNotIn('Nos droits', libelles)
+
+    def test_les_articles_sans_rubrique_passent_en_tete(self):
+        """Ce que produisent les newsletters des syndicats, qui n'ont pas de
+        rubriques : une liste à plat, sans titre de section."""
+        self._article('Campagne sans-papiers', 'campagne')
+        self._article('Un mot du syndicat')
+        groupes = self.nl.par_rubrique()
+        self.assertEqual(groupes[0][0], '')
+        self.assertEqual(groupes[0][1][0].article.title, 'Un mot du syndicat')
+
+    def test_lordre_est_respecte_dans_une_rubrique(self):
+        self._article('Première grève', 'actu-syndicale')
+        self._article('Seconde grève', 'actu-syndicale')
+        _, articles = self.nl.par_rubrique()[0]
+        self.assertEqual([na.article.title for na in articles],
+                         ['Première grève', 'Seconde grève'])
+
+    def test_une_newsletter_sans_article_ne_produit_aucune_section(self):
+        self.assertEqual(self.nl.par_rubrique(), [])
+
+    def test_le_gabarit_affiche_les_titres_de_section(self):
+        from django.template.loader import render_to_string
+        self._article('Campagne sans-papiers', 'campagne')
+        self._article('Grève au nettoyage', 'actu-syndicale')
+        html = render_to_string('newsletter/email.html', {
+            'newsletter': self.nl,
+            'newsletter_articles': list(self.nl.newsletter_articles.all()),
+            'groupes': self.nl.par_rubrique(),
+            'site_url': 'https://cnt-so.org/',
+            'unsubscribe_url': 'https://cnt-so.org/desabo/',
+            'is_preview': True,
+        })
+        self.assertIn('Campagnes', html)
+        self.assertIn('Actu syndicale', html)
+        self.assertNotIn('International', html)
+        self.assertLess(html.index('Campagnes'), html.index('Actu syndicale'))
+
+    def test_la_version_texte_reprend_les_rubriques(self):
+        """Un lecteur en texte brut doit recevoir le même sommaire, pas une
+        liste à plat qui perdrait le sens des sections."""
+        from content.newsletter_views import _corps_texte
+        self._article('Campagne sans-papiers', 'campagne')
+        articles = list(self.nl.newsletter_articles.select_related('article'))
+        for na in articles:
+            na.link_url = 'https://cnt-so.org/article/x/'
+        texte = _corps_texte(self.nl, articles, 'https://cnt-so.org/desabo/')
+        self.assertIn('CAMPAGNES', texte)
+        self.assertIn('Campagne sans-papiers', texte)
+        self.assertIn('Gérer votre abonnement', texte)
+
+    def test_letiquette_de_categorie_disparait_sous_une_rubrique(self):
+        """Sous un titre de section, la catégorie du site fait doublon — et
+        « Non classé » y était disgracieux (signalé par Arnaud, 17/08/2026)."""
+        from django.template.loader import render_to_string
+        cat = make_cms_category(name='Orientations', slug='orientations')
+        na = self._article('Campagne sans-papiers', 'campagne')
+        through = ArticlePage.cms_categories.through
+        through.objects.create(articlepage=na.article, cmscategory=cat)
+
+        def rendu():
+            return render_to_string('newsletter/email.html', {
+                'newsletter': self.nl,
+                'newsletter_articles': list(self.nl.newsletter_articles.all()),
+                'groupes': self.nl.par_rubrique(),
+                'site_url': 'https://cnt-so.org/',
+                'unsubscribe_url': 'https://cnt-so.org/desabo/',
+                'is_preview': True,
+            })
+
+        self.assertNotIn('Orientations', rendu())
+
+        # Sans rubrique, l'étiquette reste : c'est le rendu des syndicats.
+        na.rubrique = ''
+        na.save()
+        self.assertIn('Orientations', rendu())
+
+
+class BoutonRedactionTest(TestCase):
+    """Une porte d'entrée vers /cms/ depuis chaque sous-site.
+
+    Le lien était conditionné à `user.is_authenticated`. Or la session est
+    propre à chaque domaine : un gestionnaire du 86 arrive déconnecté sur
+    86.cnt-so.org, ne voyait donc aucun bouton, et devait passer par le site
+    de la confédération pour modifier ses propres pages (signalé par Arnaud,
+    17/08/2026).
+    """
+
+    def setUp(self):
+        make_site(slug='principal')
+        self.sous_site = make_site(slug='poitiers', name='CNT-SO Poitiers',
+                                   site_type='regional')
+
+    def test_le_bouton_est_visible_sur_un_sous_site_sans_etre_connecte(self):
+        html = self.client.get('/poitiers/').content.decode()
+        self.assertIn('Rédaction', html)
+
+    def test_le_bouton_reste_absent_de_laccueil_conf_pour_un_visiteur(self):
+        """Rien ne change pour le public de la confédération."""
+        html = self.client.get('/').content.decode()
+        self.assertNotIn('>\n                Rédaction', html)
+
+    def test_le_bouton_apparait_pour_un_utilisateur_connecte(self):
+        User.objects.create_user('camarade', password='secret-12345')
+        self.client.login(username='camarade', password='secret-12345')
+        html = self.client.get('/').content.decode()
+        self.assertIn('Rédaction', html)
+
+    @override_settings(ALLOWED_HOSTS=['testserver', '86.cnt-so.org'],
+                       MAIN_SITE_BASE_URL='https://newsite.cnt-so.org')
+    def test_depuis_un_domaine_de_federation_le_lien_est_absolu(self):
+        """Un /cms/ relatif y provoque une redirection, et surtout la session
+        n'existe pas sur ce domaine : le lien doit mener droit à la conf."""
+        from django.core.cache import cache
+        cache.clear()  # le lookup hôte→section est mis en cache 60 s
+        self.sous_site.custom_domain = '86.cnt-so.org'
+        self.sous_site.save()
+        html = self.client.get('/', HTTP_HOST='86.cnt-so.org').content.decode()
+        self.assertIn('https://newsite.cnt-so.org/cms/', html)
+
+
+class CartouchesDeBarreLateraleTest(TestCase):
+    """Deux cartouches annonçaient du contenu et n'en montraient aucun.
+
+    Tous deux filtraient sur une catégorie « incontournables » qui n'existe
+    dans aucune section : « Ce que vous avez loupé » sur l'accueil confédéral
+    et « Nouvelles de la confédération » sur les sous-sites étaient vides
+    depuis toujours (constaté en production le 17/08/2026, signalé par Arnaud).
+    """
+
+    def setUp(self):
+        make_site(slug='principal')
+        self.sous_site = make_site(slug='poitiers', name='CNT-SO Poitiers',
+                                   site_type='regional')
+        self.cat = make_cms_category(name='Luttes', slug='luttes')
+        make_article_page(section_slug='principal', title='Communiqué confédéral',
+                          slug='communique-confederal', categories=[self.cat])
+        make_article_page(section_slug='poitiers', title='Grève locale au 86',
+                          slug='greve-locale-86', categories=[self.cat])
+
+    def test_laccueil_conf_montre_les_articles_recents(self):
+        html = self.client.get('/').content.decode()
+        bloc = html.split('Ce que vous avez loupé')[-1][:2000]
+        self.assertIn('Communiqué confédéral', bloc)
+
+    def test_le_sous_site_montre_bien_les_nouvelles_de_la_conf(self):
+        html = self.client.get('/poitiers/').content.decode()
+        bloc = html.split('Nouvelles de la confédération')[-1][:2000]
+        self.assertIn('Communiqué confédéral', bloc)
+
+    def test_le_sous_site_ny_montre_pas_ses_propres_articles(self):
+        """C'est l'erreur d'origine : le cartouche annonçait la conf et
+        recevait les articles du sous-site."""
+        html = self.client.get('/poitiers/').content.decode()
+        bloc = html.split('Nouvelles de la confédération')[-1][:2000]
+        self.assertNotIn('Grève locale au 86', bloc)

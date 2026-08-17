@@ -37,6 +37,22 @@ def _annotate_image_urls(articles, site_url):
         na.link_url = link if link.startswith('http') else base + link
 
 
+def _corps_texte(newsletter, articles, unsubscribe_url):
+    """Version texte de la newsletter, rubriques comprises.
+
+    Elle suit le même découpage que le HTML : un lecteur en texte brut doit
+    recevoir le même sommaire, pas une liste à plat qui perdrait le sens des
+    sections.
+    """
+    lignes = [newsletter.title, '', newsletter.intro, '']
+    for libelle, groupe in newsletter.par_rubrique(articles):
+        if libelle:
+            lignes += ['', libelle.upper(), '-' * len(libelle)]
+        lignes += [f'- {na.article.title} : {na.link_url}' for na in groupe]
+    lignes += ['', f'Gérer votre abonnement : {unsubscribe_url}']
+    return '\n'.join(lignes)
+
+
 class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
     """Confirmation puis envoi de la newsletter."""
 
@@ -112,6 +128,7 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
             html_body = render_to_string('newsletter/email.html', {
                 'newsletter': newsletter,
                 'newsletter_articles': articles,
+                'groupes': newsletter.par_rubrique(articles),
                 'site_url': site_url,
                 'unsubscribe_url': unsubscribe_url,
                 'is_preview': True,
@@ -146,18 +163,12 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
             html_body = render_to_string('newsletter/email.html', {
                 'newsletter': newsletter,
                 'newsletter_articles': articles,
+                'groupes': newsletter.par_rubrique(articles),
                 'site_url': site_url,
                 'unsubscribe_url': unsubscribe_url,
                 'is_preview': False,
             }, request=request)
-            text_body = (
-                f"{newsletter.title}\n\n{newsletter.intro}\n\n"
-                + "\n".join(
-                    f"- {na.article.title}: {na.link_url}"
-                    for na in articles
-                )
-                + f"\n\nGérer votre abonnement : {unsubscribe_url}"
-            )
+            text_body = _corps_texte(newsletter, articles, unsubscribe_url)
 
             sent_lists = []
             failed = []
@@ -219,15 +230,13 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
             html_body = render_to_string('newsletter/email.html', {
                 'newsletter': newsletter,
                 'newsletter_articles': articles,
+                'groupes': newsletter.par_rubrique(articles),
                 'site_url': site_url,
                 'unsubscribe_url': unsubscribe_url,
                 'subscriber': subscriber,
                 'is_preview': False,
             }, request=request)
-            text_body = f"{newsletter.title}\n\n{newsletter.intro}\n\n" + "\n".join(
-                f"- {na.article.title}: {na.link_url}"
-                for na in articles
-            ) + f"\n\nSe désabonner : {unsubscribe_url}"
+            text_body = _corps_texte(newsletter, articles, unsubscribe_url)
             try:
                 msg = EmailMultiAlternatives(
                     subject=newsletter.title,

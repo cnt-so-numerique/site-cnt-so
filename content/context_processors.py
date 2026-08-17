@@ -125,7 +125,18 @@ def menu_context(request):
 
     org_base_url = _canonical_base or getattr(_settings, 'MAIN_SITE_BASE_URL', '') or 'https://cnt-so.org'
 
+    # Adresse de l'espace de rédaction. Absolue depuis un domaine de
+    # fédération : un `/cms/` relatif y provoque une redirection 301 vers le
+    # site principal, et surtout la session n'y existe pas — le rédacteur
+    # arriverait déconnecté sans comprendre pourquoi.
+    _main_base = getattr(_settings, 'MAIN_SITE_BASE_URL', '')
+    if _section is not None and _section.custom_domain and _main_base:
+        cms_url = f'{_main_base}/cms/'
+    else:
+        cms_url = '/cms/'
+
     return {
+        'cms_url': cms_url,
         'canonical_url': canonical_url,
         'site_base_url': _canonical_base,
         'org_structured_data': _organization_structured_data(main_site, org_base_url),

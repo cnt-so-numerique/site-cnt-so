@@ -19,6 +19,7 @@ from wagtail.images.blocks import ImageChooserBlock
 from wagtail.models import Orderable, Page
 from wagtail.search import index
 from wagtail.snippets.models import register_snippet
+from wagtail.admin.forms import WagtailAdminPageForm
 from wagtailseo.models import SeoMixin
 
 
@@ -60,6 +61,25 @@ def section_base_url(section_slug):
 
 
 # ── Taxonomie ─────────────────────────────────────────────────────────────────
+
+#: Une catégorie « Non classé » n'informe personne : elle dit seulement que le
+#: classement n'a pas été fait. WordPress en collait une par site — la prod en
+#: comptait six, portant 45 articles publiés, jusque dans les cartes de la
+#: newsletter. On refuse donc qu'elle revienne, par quelque chemin que ce soit :
+#: l'import WordPress la saute déjà, mais un réimport des catégories est prévu
+#: au lancement et rien n'empêchait un autre script de la recréer.
+NOMS_DE_CATEGORIE_INTERDITS = {
+    'nonclasse', 'nonclassee', 'uncategorized', 'sanscategorie',
+}
+
+
+def _cle_de_nom(valeur):
+    """Nom comparable : sans casse, accents, espaces ni ponctuation."""
+    import unicodedata
+    valeur = unicodedata.normalize('NFD', (valeur or '').lower())
+    return ''.join(c for c in valeur
+                   if unicodedata.category(c) != 'Mn' and c.isalnum())
+
 
 class CmsCategory(models.Model):
     """Catégorie d'article — snippet Wagtail, pas une Page."""
@@ -123,9 +143,30 @@ class CmsCategory(models.Model):
         except NoReverseMatch:
             return '/'
 
+    def _refuser_le_fourre_tout(self):
+        """Interdit « Non classé » et ses variantes, sur le nom comme sur le slug."""
+        from django.core.exceptions import ValidationError
+        for champ, valeur in (('name', self.name), ('slug', self.slug)):
+            if _cle_de_nom(valeur) in NOMS_DE_CATEGORIE_INTERDITS:
+                raise ValidationError({champ: (
+                    "« Non classé » n'est pas une catégorie : elle dit seulement "
+                    "que le classement reste à faire, et l'article s'affiche "
+                    "ainsi étiqueté sur le site comme dans la newsletter. "
+                    "Choisissez la rubrique qui convient, ou laissez l'article "
+                    "sans catégorie."
+                )})
+
+    def clean(self):
+        super().clean()
+        self._refuser_le_fourre_tout()
+
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
+        # Validé jusque dans `save()`, et pas seulement dans les formulaires :
+        # les catégories arrivent surtout par des scripts d'import, qui
+        # n'appellent jamais `full_clean()`.
+        self._refuser_le_fourre_tout()
         super().save(*args, **kwargs)
 
 
@@ -986,6 +1027,32 @@ class PanneauChefSeulement(FieldPanel):
             return super().is_shown() and is_chef(self.request.user)
 
 
+class ArticlePageForm(WagtailAdminPageForm):
+    """Le formulaire de rédaction d'un article, dans /cms/.
+
+    Il exige au moins une catégorie. Sans elle, l'article n'apparaît sur
+    aucune page de rubrique, dans aucune colonne de l'accueil, dans aucun
+    sommaire de newsletter : il ne reste joignable que par son adresse directe
+    ou la recherche — autant dire perdu, y compris pour celui qui l'a écrit
+    (demandé par Arnaud, 17/08/2026).
+
+    La règle est ICI et non dans `ArticlePage.clean()` : `Page.save()` de
+    Wagtail appelle `full_clean()`, si bien qu'un contrôle sur le modèle
+    bloquerait aussi les scripts d'import, qui créent légitimement la page
+    d'abord et lui attachent ses catégories ensuite.
+    """
+
+    def clean(self):
+        donnees = super().clean()
+        if not donnees.get('cms_categories'):
+            self.add_error('cms_categories', (
+                "Choisissez au moins une catégorie : sans elle, l'article "
+                "n'apparaît sur aucune page de rubrique, dans aucune colonne "
+                "de l'accueil ni dans la newsletter. Personne ne le retrouvera."
+            ))
+        return donnees
+
+
 class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
     """Article de blog — remplace content.Article."""
 
@@ -1087,6 +1154,8 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
 
     parent_page_types = ['cms.HomePage', 'cms.SectionPage']
     subpage_types = []
+
+    base_form_class = ArticlePageForm
 
     class Meta:
         verbose_name = "Article"
