@@ -7275,3 +7275,39 @@ class TractAllegeTest(TestCase):
         self.assertIn('Sourcing et recrutement', rendu)
         self.assertIn('pas un titre', rendu)
         self.assertNotIn('<h2>Références</h2>', rendu)
+
+
+class TractUrlSurLeBonDomaineTest(TestCase):
+    """Le bouton du tract ne doit pas quitter le domaine du syndicat.
+
+    Bâti par un simple `reverse`, il portait le slug en préfixe : sur
+    numerique.cnt-so.org, « /numerique/article/…/tract/ » redirigeait vers
+    newsite.cnt-so.org. Constaté en production le 18/08/2026, juste après la
+    mise en ligne.
+    """
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='tract-domaine', name='Tract Domaine',
+                                         site_type='sectoral')
+        self.cat = make_cms_category(name='Nos droits', slug='droit-domaine',
+                                     section_slug='tract-domaine')
+        self.article = make_article_page(
+            section_slug='tract-domaine', title='Fiche', slug='fiche-domaine',
+            categories=[self.cat], fiche_pratique=True)
+
+    def test_sans_domaine_autonome_ladresse_est_relative(self):
+        self.assertEqual(self.article.get_tract_url(),
+                         '/tract-domaine/article/fiche-domaine/tract/')
+
+    def test_avec_domaine_autonome_le_slug_ne_se_repete_pas(self):
+        self.site.custom_domain = 'tract-domaine.cnt-so.org'
+        self.site.save()
+        url = self.article.get_tract_url()
+        self.assertEqual(url, 'https://tract-domaine.cnt-so.org/article/fiche-domaine/tract/')
+        self.assertNotIn('/tract-domaine/article/', url)
+
+    def test_le_bouton_de_larticle_reprend_cette_adresse(self):
+        """Le gabarit doit lire `get_tract_url`, pas refaire un `reverse`."""
+        html = self.client.get('/tract-domaine/article/fiche-domaine/').content.decode()
+        self.assertIn(self.article.get_tract_url(), html)
+        self.assertIn('Télécharger le tract', html)

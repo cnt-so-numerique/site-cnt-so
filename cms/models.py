@@ -1325,6 +1325,28 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
         except NoReverseMatch:
             return self.url or '/'
 
+    def get_tract_url(self):
+        """L'adresse du tract, sur le domaine du syndicat.
+
+        Calculée comme `get_absolute_url`, et pour la même raison : bâtie par
+        un simple `reverse`, elle portait le slug en préfixe (« /numerique/… »)
+        et un syndicat à domaine autonome renvoyait alors son lecteur sur le
+        domaine de la confédération, par redirection (constaté en production le
+        18/08/2026, juste après la mise en ligne).
+        """
+        from django.urls import reverse, NoReverseMatch
+        try:
+            if self.section_slug and self.section_slug != 'principal':
+                base = section_base_url(self.section_slug)
+                if base:
+                    return f'{base}/article/{self.slug}/tract/'
+                return reverse('content:site_article_tract',
+                               kwargs={'site_slug': self.section_slug, 'slug': self.slug})
+            return url_site_principal(
+                reverse('content:article_tract', kwargs={'slug': self.slug}))
+        except NoReverseMatch:
+            return ''
+
     def get_cms_edit_url(self):
         """URL d'édition dans l'interface CMS (Wagtail snippets)."""
         from django.urls import reverse

@@ -99,18 +99,13 @@
     Une fiche pratique ne sert vraiment qu'affichée au travail : le tract est
     la même fiche en A4 couleur, que le navigateur enregistre en PDF.
     {% endcomment %}
-    {% if site.slug and site.slug != 'principal' %}
-      {% url 'content:site_article_tract' site_slug=site.slug slug=article.slug as url_tract %}
-    {% else %}
-      {% url 'content:article_tract' slug=article.slug as url_tract %}
-    {% endif %}
     <aside class="tract-encart">
       <div>
         <h2>Affiche-la au travail</h2>
         <p>Cette fiche existe en version tract&nbsp;: une page A4 en couleur,
            à imprimer et à punaiser sur le panneau syndical.</p>
       </div>
-      <a class="tract-btn" href="{{ url_tract }}">Télécharger le tract</a>
+      <a class="tract-btn" href="{{ article.get_tract_url }}">Télécharger le tract</a>
     </aside>
     <style>
       .tract-encart {
