@@ -16,6 +16,7 @@ from django.utils import timezone
 from django.views import View
 
 from content.admin_utils import WagtailSyndicatRequiredMixin, get_current_site_for_view, is_chef
+from content.courriel import destinataire_de_reponse
 from content.models import Newsletter, Subscriber
 
 
@@ -146,8 +147,9 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
             except DjangoValidationError:
                 messages.error(request, 'Adresse e-mail de test invalide.')
                 return redirect(f'/cms/newsletter/{pk}/envoyer/')
+            # L'aperçu doit montrer le lien que les destinataires recevront.
             unsubscribe_url = request.build_absolute_uri(
-                reverse('content:newsletter_unsubscribe', args=['00000000-0000-0000-0000-000000000000'])
+                reverse('content:newsletter_desabonnement')
             )
             html_body = render_to_string('newsletter/email.html', {
                 'newsletter': newsletter,
@@ -163,6 +165,7 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
                     body=f"[TEST] {newsletter.title}\n\n{newsletter.intro}",
                     from_email=None,
                     to=[test_email],
+                    reply_to=destinataire_de_reponse(),
                 )
                 msg.attach_alternative(html_body, 'text/html')
                 msg.send()
@@ -180,9 +183,14 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
             # ── Envoi via liste(s) OVH — un e-mail par liste ──────────────────
             ovh_domain = getattr(django_settings, 'OVH_DOMAIN', 'cnt-so.info')
             site_slug = (site.legacy_site_slug or site.slug) if site else ''
+            # Un message unique part pour toute la liste : pas de jeton par
+            # destinataire, donc pas de lien personnalisé. La page de
+            # désabonnement demande l'adresse. Elle pointait auparavant vers
+            # l'inscription, une vue en POST seul qui répondait 405 : le lien
+            # « Se désabonner » de chaque newsletter menait à une erreur.
             unsubscribe_url = request.build_absolute_uri(
-                reverse('content:site_newsletter_subscribe', args=[site_slug])
-                if site_slug else reverse('content:newsletter_subscribe')
+                reverse('content:site_newsletter_desabonnement', args=[site_slug])
+                if site_slug else reverse('content:newsletter_desabonnement')
             )
             html_body = render_to_string('newsletter/email.html', {
                 'newsletter': newsletter,
@@ -204,10 +212,13 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
                         body=text_body,
                         from_email=None,
                         to=[list_email],
+                        reply_to=destinataire_de_reponse(),
                     )
-                    msg.extra_headers['List-Unsubscribe'] = (
-                        f'<mailto:{list_name}-unsubscribe@{ovh_domain}>'
-                    )
+                    # Uniquement l'URL : l'adresse « <liste>-unsubscribe@ »
+                    # annoncée jusqu'ici est une convention Mailman, non
+                    # vérifiée chez OVH. Un bouton « Se désabonner » qui échoue
+                    # en silence renvoie le lecteur vers « indésirable ».
+                    msg.extra_headers['List-Unsubscribe'] = f'<{unsubscribe_url}>'
                     msg.attach_alternative(html_body, 'text/html')
                     msg.send()
                     sent_lists.append(list_name)
@@ -267,7 +278,9 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
                     body=text_body,
                     from_email=None,
                     to=[subscriber.email],
+                    reply_to=destinataire_de_reponse(),
                 )
+                msg.extra_headers['List-Unsubscribe'] = f'<{unsubscribe_url}>'
                 msg.attach_alternative(html_body, 'text/html')
                 msg.send()
                 sent += 1

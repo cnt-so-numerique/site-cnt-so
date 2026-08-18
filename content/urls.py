@@ -52,6 +52,10 @@ urlpatterns = [
          name='newsletter_subscribe_verify'),
     path('newsletter/confirmer/<uuid:token>/', views.NewsletterConfirmView.as_view(), name='newsletter_confirm'),
     path('newsletter/desinscription/<uuid:token>/', views.NewsletterUnsubscribeView.as_view(), name='newsletter_unsubscribe'),
+    # Sortie sans jeton : la newsletter part en un message unique vers les
+    # listes OVH, il n'y a donc pas de lien personnalisé à mettre en pied.
+    path('newsletter/desabonnement/', views.NewsletterDesabonnementView.as_view(),
+         name='newsletter_desabonnement'),
 
     # Flux RSS
     path('feed/', LatestArticlesFeed(), name='rss_feed'),
@@ -88,6 +92,8 @@ urlpatterns = [
     path('<slug:site_slug>/newsletter/inscription/', views.NewsletterSubscribeView.as_view(), name='site_newsletter_subscribe'),
     path('<slug:site_slug>/newsletter/inscription/valider/', views.NewsletterSubscribeVerifyView.as_view(),
          name='site_newsletter_subscribe_verify'),
+    path('<slug:site_slug>/newsletter/desabonnement/', views.NewsletterDesabonnementView.as_view(),
+         name='site_newsletter_desabonnement'),
 
     # Sous-sites — pages fonctionnelles génériques
     path('<slug:site_slug>/rejoindre/', views.SiteRejoindreView.as_view(), name='site_rejoindre'),

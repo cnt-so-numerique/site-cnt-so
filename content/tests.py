@@ -3388,11 +3388,14 @@ class NewsletterSendOvhPostTest(TestCase):
 
     @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
     def test_send_sets_list_unsubscribe_header(self, mock_subs):
+        # L'en-tête annonçait « <liste>-unsubscribe@ », convention Mailman non
+        # vérifiée chez OVH ; il pointe désormais la page de désabonnement.
         from django.core import mail
         c = _chef_client(self.site)
         c.post(self.url, {'mode': 'send'})
         header = mail.outbox[0].extra_headers.get('List-Unsubscribe', '')
-        self.assertIn('actu-test-cntso-unsubscribe@cnt-so.info', header)
+        self.assertIn('/newsletter/desabonnement/', header)
+        self.assertTrue(header.startswith('<http'), header)
 
     @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
     @patch('django.core.mail.EmailMultiAlternatives.send')
@@ -3504,13 +3507,29 @@ class NewsletterMultiListTest(TestCase):
         self.assertEqual(self.newsletter.sent_count, 3)
 
     @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
-    def test_entete_desabonnement_propre_a_chaque_liste(self, mock_subs):
+    def test_entete_desabonnement_pointe_la_page_de_sortie(self, mock_subs):
+        """L'en-tête annonçait « <liste>-unsubscribe@ », une convention Mailman
+        jamais vérifiée chez OVH. Un bouton « Se désabonner » qui échoue en
+        silence renvoie le lecteur vers « indésirable » : on annonce désormais
+        une page dont on sait qu'elle répond."""
         from django.core import mail
         c = _chef_client(self.site)
         c.post(self.url, {'mode': 'send'})
         headers = {m.extra_headers.get('List-Unsubscribe', '') for m in mail.outbox}
-        self.assertIn('<mailto:liste-a-unsubscribe@cnt-so.info>', headers)
-        self.assertIn('<mailto:liste-b-unsubscribe@cnt-so.info>', headers)
+        self.assertEqual(headers, {'<http://testserver/nl-multi/newsletter/desabonnement/>'})
+        for m in mail.outbox:
+            self.assertIn('/nl-multi/newsletter/desabonnement/', m.body)
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
+    def test_le_pied_du_courriel_ne_mene_plus_a_une_erreur(self, mock_subs):
+        """Il pointait vers /newsletter/inscription/, une vue en POST seul :
+        le lien « Se désabonner » répondait 405 (constaté en production)."""
+        from django.core import mail
+        c = _chef_client(self.site)
+        c.post(self.url, {'mode': 'send'})
+        html = mail.outbox[0].alternatives[0][0]
+        self.assertIn('/nl-multi/newsletter/desabonnement/', html)
+        self.assertNotIn('/newsletter/inscription/', html)
 
     @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
     def test_echec_partiel_marque_quand_meme_envoyee(self, mock_subs):
@@ -6988,3 +7007,94 @@ class NewsletterReserveeALaConfTest(TestCase):
         self.assertIn("n&#x27;est pas activée", r.content.decode())
         nl.refresh_from_db()
         self.assertEqual(nl.status, 'draft')
+
+
+class NewsletterDelivrabiliteTest(TestCase):
+    """Ce qui envoyait la newsletter dans les indésirables.
+
+    Le 18/08/2026, un courriel de confirmation est arrivé en indésirable chez
+    Gmail alors que SPF, DKIM et DMARC passaient tous les trois. Restaient
+    trois défauts dans le message lui-même, plus une réputation d'envoi abîmée
+    par trois semaines de bombardement.
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='principal')
+        self.site.newsletter_active = True
+        self.site.save()
+        from django.core.cache import caches
+        caches['limites'].clear()
+
+    def test_le_message_id_porte_un_vrai_domaine(self):
+        """`@cnt-so` n'est pas un domaine : Django prenait le nom de la machine."""
+        from django.core import mail
+        with patch('hcaptcha.fields.hCaptchaField.validate', return_value=None):
+            self.client.post('/newsletter/inscription/valider/', {
+                'email': 'camarade@example.org', 'name': '',
+                'h-captcha-response': 'test',
+            })
+        self.assertEqual(len(mail.outbox), 1)
+        message_id = mail.outbox[0].message()['Message-ID']
+        self.assertTrue(message_id.endswith('@cnt-so.org>'), message_id)
+
+    def test_le_courriel_de_confirmation_a_une_adresse_de_reponse(self):
+        from django.core import mail
+        with patch('hcaptcha.fields.hCaptchaField.validate', return_value=None):
+            self.client.post('/newsletter/inscription/valider/', {
+                'email': 'camarade@example.org', 'name': '',
+                'h-captcha-response': 'test',
+            })
+        self.assertEqual(mail.outbox[0].reply_to, ['contact@cnt-so.org'])
+
+
+class NewsletterDesabonnementTest(TestCase):
+    """La sortie doit exister, et fonctionner.
+
+    Le lien « Se désabonner » du pied de chaque newsletter pointait vers
+    `/newsletter/inscription/`, une vue en POST seul : il répondait 405.
+    Sans porte de sortie, le seul geste restant est « signaler comme
+    indésirable » — le pire signal pour la délivrabilité.
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='principal')
+        from django.core.cache import caches
+        caches['limites'].clear()
+
+    def test_la_page_repond_en_get(self):
+        r = self.client.get('/newsletter/desabonnement/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Se désabonner')
+
+    @patch('content.ovh_sync.ovh_unsubscribe')
+    def test_le_desabonnement_retire_des_listes_ovh(self, retirer):
+        r = self.client.post('/newsletter/desabonnement/',
+                             {'email': 'Sortante@Example.org'})
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'sortante@example.org')
+        retirer.assert_called_once()
+        self.assertEqual(retirer.call_args[0][1], 'sortante@example.org')
+
+    @patch('content.ovh_sync.ovh_unsubscribe')
+    def test_le_desabonnement_desactive_la_ligne_locale(self, retirer):
+        abo = Subscriber.objects.create(site=self.site, email='sortante@example.org',
+                                        is_active=True)
+        self.client.post('/newsletter/desabonnement/', {'email': 'sortante@example.org'})
+        abo.refresh_from_db()
+        self.assertFalse(abo.is_active)
+
+    def test_adresse_invalide_reaffiche_le_formulaire(self):
+        r = self.client.post('/newsletter/desabonnement/', {'email': 'pas-une-adresse'})
+        self.assertEqual(r.status_code, 200)
+        self.assertNotContains(r, "C&#x27;est fait")
+
+    @patch('content.ovh_sync.ovh_unsubscribe')
+    def test_la_limite_le_dit_au_lieu_de_faire_semblant(self, retirer):
+        """Annoncer un retrait qui n'a pas eu lieu renverrait vers « indésirable »."""
+        from content.views import NEWSLETTER_MAX_DESABO_PAR_IP
+        for i in range(NEWSLETTER_MAX_DESABO_PAR_IP):
+            self.client.post('/newsletter/desabonnement/', {'email': f'a{i}@example.org'})
+        r = self.client.post('/newsletter/desabonnement/', {'email': 'tardive@example.org'})
+        self.assertContains(r, 'Trop de demandes')
+        self.assertNotIn('tardive@example.org',
+                         [c[0][1] for c in retirer.call_args_list])

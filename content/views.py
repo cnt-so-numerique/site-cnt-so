@@ -12,8 +12,9 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from .models import (Page, ContactMessage, FormulaireContact, Subscriber,
                      ExternalArticle)
+from .courriel import destinataire_de_reponse
 from .forms import (ContactForm, DynamicContactForm, NewsletterCaptchaForm,
-                    NewsletterSubscribeForm)
+                    NewsletterSubscribeForm, NewsletterUnsubscribeForm)
 from cms.models import ArticlePage, CmsCategory, SectionPage
 from taggit.models import Tag as TaggitTag
 
@@ -893,6 +894,11 @@ class PlanDuSiteView(TemplateView):
 NEWSLETTER_MAX_PAR_IP = 3
 NEWSLETTER_FENETRE = 3600
 
+#: Le désabonnement, lui, doit rester large : il ne coûte rien à personne, et
+#: chaque lecteur empêché de sortir se venge sur le bouton « indésirable ».
+#: La limite ne vise qu'un script qui viderait une liste adresse par adresse.
+NEWSLETTER_MAX_DESABO_PAR_IP = 20
+
 
 def _ip_du_visiteur(request):
     """L'IP réelle derrière le reverse proxy nginx."""
@@ -911,6 +917,18 @@ def _trop_de_demandes(request):
     cle = f'newsletter-inscription:{_ip_du_visiteur(request)}'
     essais = cache.get(cle, 0)
     if essais >= NEWSLETTER_MAX_PAR_IP:
+        return True
+    cache.set(cle, essais + 1, NEWSLETTER_FENETRE)
+    return False
+
+
+def _trop_de_desabonnements(request):
+    """Vrai si cette IP a épuisé son quota de désabonnements de l'heure."""
+    from django.core.cache import caches
+    cache = caches['limites']
+    cle = f'newsletter-desabonnement:{_ip_du_visiteur(request)}'
+    essais = cache.get(cle, 0)
+    if essais >= NEWSLETTER_MAX_DESABO_PAR_IP:
         return True
     cache.set(cle, essais + 1, NEWSLETTER_FENETRE)
     return False
@@ -1014,6 +1032,7 @@ class NewsletterSubscribeVerifyView(View):
                     body=text,
                     from_email=None,
                     to=[email],
+                    reply_to=destinataire_de_reponse(),
                 )
                 msg.attach_alternative(html, 'text/html')
                 msg.send()
@@ -1056,6 +1075,64 @@ class NewsletterUnsubscribeView(View):
         # (le signal post_save de cms/apps.py répercute le retrait des listes OVH)
         return render(request, 'content/newsletter_unsubscribe_done.html', {
             'site': subscriber.site,
+        })
+
+
+class NewsletterDesabonnementView(View):
+    """Désabonnement sans jeton, à partir de la seule adresse.
+
+    La newsletter part en un message unique vers les listes OVH : il n'y a donc
+    pas de jeton par destinataire à glisser dans le lien. Le pied de page
+    pointait faute de mieux vers `/newsletter/inscription/`, une vue en POST
+    seul — le lien « Se désabonner » renvoyait un 405 (constaté le 17/08/2026).
+    Sans porte de sortie, le seul geste qui restait au lecteur était « signaler
+    comme indésirable », le pire signal qui soit pour la délivrabilité.
+
+    Le retrait s'opère sur les listes OVH, où vivent les adresses, et sur la
+    ligne locale quand elle existe.
+    """
+
+    def _site(self, site_slug=None):
+        if site_slug:
+            return get_section_or_404(site_slug, live=True)
+        return get_object_or_404(SectionPage, slug='principal')
+
+    def get(self, request, site_slug=None):
+        site = self._site(site_slug)
+        return render(request, 'content/newsletter_desabonnement.html', {
+            'site': site,
+            'form': NewsletterUnsubscribeForm(initial={'email': request.GET.get('email', '')}),
+        })
+
+    def post(self, request, site_slug=None):
+        site = self._site(site_slug)
+        form = NewsletterUnsubscribeForm(request.POST)
+        if not form.is_valid():
+            return render(request, 'content/newsletter_desabonnement.html', {
+                'site': site, 'form': form,
+            })
+
+        email = form.cleaned_data['email'].strip().lower()
+
+        # Garde-fou contre un script qui viderait une liste entière. Le quota
+        # est large : mieux vaut un désabonnement de trop qu'un lecteur coincé.
+        # Et s'il est atteint, on le dit — annoncer un retrait qui n'a pas eu
+        # lieu renverrait la personne vers le bouton « indésirable ».
+        if _trop_de_desabonnements(request):
+            form.add_error(None, (
+                "Trop de demandes depuis cette connexion. Réessayez dans une "
+                "heure, ou écrivez à contact@cnt-so.org : nous vous retirerons "
+                "de la liste à la main."))
+            return render(request, 'content/newsletter_desabonnement.html', {
+                'site': site, 'form': form,
+            })
+
+        from .ovh_sync import ovh_unsubscribe
+        ovh_unsubscribe(_site_de_la_newsletter(site), email)
+        Subscriber.objects.filter(site=site, email=email).update(is_active=False)
+
+        return render(request, 'content/newsletter_desabonnement_done.html', {
+            'site': site, 'email': email,
         })
 
 

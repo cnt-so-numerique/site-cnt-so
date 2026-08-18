@@ -191,6 +191,15 @@ EMAIL_HOST_USER = ''
 EMAIL_HOST_PASSWORD = ''
 DEFAULT_FROM_EMAIL = 'CNT-SO <newsletter@cnt-so.org>'
 SERVER_EMAIL = 'newsletter@cnt-so.org'
+# Domaine du Message-ID des courriels sortants. Sans lui, Django prend le nom
+# d'hôte de la machine — « cnt-so » en production, qui n'est pas un domaine
+# valide et vaut un point de suspicion aux filtres antispam. Voir
+# content.apps._fixer_le_domaine_des_message_id.
+EMAIL_MESSAGE_ID_DOMAIN = _os.environ.get('EMAIL_MESSAGE_ID_DOMAIN', 'cnt-so.org')
+# Adresse de réponse des courriels de la newsletter : « newsletter@ » n'est
+# relevée par personne, et un expéditeur sans réponse possible est un signal
+# négatif de plus.
+NEWSLETTER_REPLY_TO = _os.environ.get('NEWSLETTER_REPLY_TO', 'contact@cnt-so.org')
 # Destinataire de secours des formulaires de contact sans e-mail configuré
 DEFAULT_CONTACT_EMAIL = 'contact@cnt-so.org'
 

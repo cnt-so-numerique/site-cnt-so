@@ -18,6 +18,32 @@ class ContentConfig(AppConfig):
     def ready(self):
         from django.db.models.signals import post_migrate
         post_migrate.connect(create_editorial_groups)
+        _fixer_le_domaine_des_message_id()
+
+
+def _fixer_le_domaine_des_message_id():
+    """Donner un vrai domaine au Message-ID des courriels sortants.
+
+    Django le fabrique à partir du nom d'hôte de la machine, et celui du
+    serveur de production n'est pas qualifié : les messages partaient avec
+    `Message-ID: <…@cnt-so>`. Un Message-ID sans domaine valide est un motif
+    de filtrage classique — relevé le 18/08/2026 dans un courriel de
+    confirmation classé en indésirable par Gmail, alors même que SPF, DKIM et
+    DMARC passaient tous les trois.
+
+    Le domaine d'envoi est une décision applicative ; le laisser dépendre du
+    nom de la machine, c'est le confier au hasard de l'hébergement.
+    """
+    from django.conf import settings
+    from django.core.mail.utils import DNS_NAME
+
+    domaine = getattr(settings, 'EMAIL_MESSAGE_ID_DOMAIN', '')
+    if domaine:
+        # `_fqdn` est le cache interne de CachedDnsName : le renseigner évite
+        # la résolution et impose notre domaine. On passe par là plutôt que de
+        # remplacer DNS_NAME, que django.core.mail.message a déjà importé par
+        # valeur — le remplacement n'aurait aucun effet.
+        DNS_NAME._fqdn = domaine
 
 
 def create_editorial_groups(sender, **kwargs):

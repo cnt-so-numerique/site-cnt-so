@@ -180,6 +180,17 @@ class NewsletterSubscribeForm(forms.Form):
         return ''
 
 
+class NewsletterUnsubscribeForm(forms.Form):
+    """Désabonnement : l'adresse, et rien d'autre.
+
+    Pas de captcha ici, à dessein. Chaque obstacle sur le chemin de la sortie
+    se paie en signalements « courrier indésirable », et un signalement coûte
+    bien plus cher à la délivrabilité qu'un désabonnement de trop.
+    """
+
+    email = forms.EmailField(label="Votre adresse e-mail")
+
+
 class NewsletterCaptchaForm(forms.Form):
     """Deuxième étape : prouver qu'on est humain.
 
