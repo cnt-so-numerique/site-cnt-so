@@ -132,6 +132,13 @@ une ligne.
 de tests seule. Regarder la page rendue — ici, un `curl | grep` sur une phrase
 du commentaire aurait suffi à le prouver en une seconde.
 
+**Récidive (18/08/2026), troisième fois.** Encore dans un template, encore un
+commentaire d'explication de deux lignes. `CommentaireDeGabaritTest` l'a
+attrapé — la garde tient, mais je continue de la déclencher. La règle à
+appliquer sans réfléchir : **dans un template, ne jamais écrire `{# #}`**.
+Toujours `{% comment %}`, même pour une ligne. Le choix entre les deux syntaxes
+n'apporte rien et coûte un aller-retour à chaque fois.
+
 ---
 
 ## 2026-08-16 — À spécificité égale, c'est l'ordre qui tranche

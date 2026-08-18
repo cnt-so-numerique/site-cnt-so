@@ -1017,6 +1017,7 @@ def panneaux_article():
             # du site, l'extrait est le texte qu'on lira sur les cartes.
             FieldPanel('featured_image'),
             FieldPanel('excerpt'),
+            FieldPanel('fiche_pratique'),
         ], heading='Contenu'),
         ObjectList([
             # Réservés aux chefs : imposés par `form_valid` pour les autres,
@@ -1158,6 +1159,14 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
         default=False,
         verbose_name="Mettre en avant sur la confédération",
         help_text="Affiche cet article dans la section vedette de la page d'accueil de la confédération (tous syndicats)",
+    )
+    fiche_pratique = models.BooleanField(
+        default=False,
+        verbose_name="Fiche pratique — téléchargeable en tract",
+        help_text="Ajoute sous l'article un bouton « Télécharger le tract » : "
+                  "une version A4 en couleur, prête à imprimer et à afficher "
+                  "au travail. Pour les articles qui servent d'outil — droits, "
+                  "procédures, mémentos — pas pour une actualité.",
     )
     author_name = models.CharField(max_length=200, blank=True, verbose_name="Auteur")
     publication_date = models.DateTimeField(

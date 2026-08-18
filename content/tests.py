@@ -7098,3 +7098,180 @@ class NewsletterDesabonnementTest(TestCase):
         self.assertContains(r, 'Trop de demandes')
         self.assertNotIn('tardive@example.org',
                          [c[0][1] for c in retirer.call_args_list])
+
+
+class FichePratiqueTractTest(TestCase):
+    """« Un format de fiche pratique que les gens peuvent aussi télécharger en
+    format tract pour afficher dans leur boîte » (Arnaud, 18/08/2026).
+
+    Le tract est la même fiche en A4 noir et blanc : c'est le navigateur qui en
+    fait un PDF, aucune bibliothèque n'ayant à être installée sur le serveur.
+    """
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='tract-site', name='Tract Site',
+                                         site_type='sectoral')
+        self.cat = make_cms_category(name='Nos droits', slug='droit-tract',
+                                     section_slug='tract-site')
+        self.fiche = make_article_page(
+            section_slug='tract-site', title='Forfait jours', slug='forfait-jours',
+            categories=[self.cat], excerpt='Un chapeau.', fiche_pratique=True)
+        self.breve = make_article_page(
+            section_slug='tract-site', title='Une brève', slug='une-breve',
+            categories=[self.cat])
+
+    def test_le_tract_repond_pour_une_fiche_pratique(self):
+        r = self.client.get('/tract-site/article/forfait-jours/tract/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Forfait jours')
+
+    def test_un_article_ordinaire_na_pas_de_tract(self):
+        """Sans cette garde, chaque brève aurait une adresse fantôme."""
+        r = self.client.get('/tract-site/article/une-breve/tract/')
+        self.assertEqual(r.status_code, 404)
+
+    def test_le_bouton_napparait_que_sur_une_fiche_pratique(self):
+        r = self.client.get('/tract-site/article/forfait-jours/')
+        self.assertContains(r, 'Télécharger le tract')
+        r2 = self.client.get('/tract-site/article/une-breve/')
+        self.assertNotContains(r2, 'Télécharger le tract')
+
+    def test_le_tract_est_calibre_a4_et_ne_simprime_pas_avec_sa_barre(self):
+        r = self.client.get('/tract-site/article/forfait-jours/tract/')
+        html = r.content.decode()
+        self.assertIn('size: A4', html)
+        self.assertIn('.barre { display: none', html)
+
+    def test_le_tract_porte_le_syndicat_et_son_contact(self):
+        self.site.contact_email = 'tract@cnt-so.org'
+        self.site.save()
+        r = self.client.get('/tract-site/article/forfait-jours/tract/')
+        self.assertContains(r, 'Tract Site')
+        self.assertContains(r, 'tract@cnt-so.org')
+
+    def test_le_tract_nest_pas_indexe(self):
+        """C'est la même fiche que l'article : deux adresses indexées se
+        feraient concurrence dans les moteurs."""
+        r = self.client.get('/tract-site/article/forfait-jours/tract/')
+        self.assertContains(r, 'name="robots" content="noindex"')
+
+    def test_un_article_dun_autre_syndicat_nest_pas_servi_ici(self):
+        autre = _ensure_section_page(slug='tract-autre', name='Autre',
+                                     site_type='sectoral')
+        r = self.client.get('/tract-autre/article/forfait-jours/tract/')
+        self.assertEqual(r.status_code, 404)
+
+
+class TractCouleurEtDeuxPagesTest(TestCase):
+    """Le tract sort en couleur, et tient en deux pages.
+
+    « Fais des tracts en couleur, si les gens veulent les imprimer en n&b ils
+    choisiront » puis « le tract ne peut pas faire 2,5 pages, ça n'a pas de
+    sens, 1 ou 2 pages max » (Arnaud, 18/08/2026).
+    """
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='tract-couleur', name='Tract Couleur',
+                                         site_type='sectoral')
+        self.cat = make_cms_category(name='Nos droits', slug='droit-couleur',
+                                     section_slug='tract-couleur')
+        self.fiche = make_article_page(
+            section_slug='tract-couleur', title='Fiche', slug='fiche-couleur',
+            categories=[self.cat], fiche_pratique=True)
+        self.url = '/tract-couleur/article/fiche-couleur/tract/'
+
+    def test_le_tract_sort_en_couleur(self):
+        html = self.client.get(self.url).content.decode()
+        # Le rouge de la charte, et l'instruction sans laquelle les navigateurs
+        # suppriment les aplats à l'impression.
+        self.assertIn('#E81C24', html)
+        self.assertIn('print-color-adjust: exact', html)
+
+    def test_le_noir_et_blanc_reste_au_choix_de_qui_imprime(self):
+        html = self.client.get(self.url).content.decode()
+        self.assertIn('noir et blanc', html)
+        self.assertNotIn('filter: grayscale', html)
+
+    def test_le_tract_est_borne_a_deux_pages(self):
+        html = self.client.get(self.url).content.decode()
+        self.assertIn('PAGES_MAX = 2', html)
+        self.assertIn('PT_PLANCHER', html)
+
+    def test_le_calage_se_fait_sur_la_geometrie_A4(self):
+        """Mesuré dans la mise en page mobile, il figerait une taille fausse
+        pour l'impression."""
+        html = self.client.get(self.url).content.decode()
+        self.assertIn(".feuille.mesure", html)
+        self.assertIn("classList.add('mesure')", html)
+        self.assertIn("width: 210mm !important", html)
+
+
+class TractAllegeTest(TestCase):
+    """« Fais une version allégée du tract, enlève les sources juridiques mais
+    rajoute le nom du syndicat et le contact » (Arnaud, 18/08/2026).
+
+    Quinze références de jurisprudence font la crédibilité de l'article en
+    ligne, pas celle d'une affiche : sur un panneau, elles ne servent qu'à
+    manger la place.
+    """
+
+    def setUp(self):
+        from wagtail.rich_text import RichText
+        self.site = _ensure_section_page(slug='tract-allege', name='Tract Allégé',
+                                         site_type='sectoral')
+        self.cat = make_cms_category(name='Nos droits', slug='droit-allege',
+                                     section_slug='tract-allege')
+        self.fiche = make_article_page(
+            section_slug='tract-allege', title='Fiche', slug='fiche-allegee',
+            categories=[self.cat], fiche_pratique=True,
+            body=[
+                ('rich_text', RichText('<h2>Quoi faire</h2><p>Garde tes preuves.</p>')),
+                ('rich_text', RichText('<h2>Sources</h2><p>Cass. soc. 11 mars 2025.</p>')),
+            ])
+        self.url_tract = '/tract-allege/article/fiche-allegee/tract/'
+        self.url_web = '/tract-allege/article/fiche-allegee/'
+
+    def test_le_tract_laisse_les_sources_de_cote(self):
+        html = self.client.get(self.url_tract).content.decode()
+        self.assertIn('Garde tes preuves', html)
+        self.assertNotIn('Cass. soc. 11 mars 2025', html)
+
+    def test_larticle_en_ligne_les_conserve(self):
+        html = self.client.get(self.url_web).content.decode()
+        self.assertIn('Cass. soc. 11 mars 2025', html)
+
+    def test_le_pied_porte_le_nom_du_syndicat(self):
+        html = self.client.get(self.url_tract).content.decode()
+        self.assertIn('Tract Allégé', html)
+
+    def test_le_pied_porte_le_contact_du_syndicat(self):
+        self.site.contact_email = 'numerique@cnt-so.org'
+        self.site.save()
+        html = self.client.get(self.url_tract).content.decode()
+        self.assertIn('numerique@cnt-so.org', html)
+
+    def test_sans_contact_propre_le_tract_donne_celui_de_la_conf(self):
+        """Un tract sans contact ne sert à rien : c'est par là qu'on rejoint."""
+        self.site.contact_email = ''
+        self.site.save()
+        html = self.client.get(self.url_tract).content.decode()
+        self.assertIn('contact@cnt-so.org', html)
+
+    def test_seuls_les_titres_de_references_sont_ecartes(self):
+        """« Six cas » et « Sourcing » ne doivent pas disparaître au passage."""
+        from content.views import ArticleTractView
+        from wagtail.rich_text import RichText
+        from cms.models import ArticlePage as AP
+        garde = make_article_page(
+            section_slug='tract-allege', title='Garde', slug='fiche-garde',
+            categories=[self.cat], fiche_pratique=True,
+            body=[
+                ('rich_text', RichText('<h2>Sourcing et recrutement</h2><p>A.</p>')),
+                ('rich_text', RichText('<h2>Références</h2><p>B.</p>')),
+                ('rich_text', RichText('<p>Sources : un paragraphe, pas un titre.</p>')),
+            ])
+        blocs = ArticleTractView._blocs_du_tract(AP.objects.get(pk=garde.pk))
+        rendu = ' '.join(str(b.value) for b in blocs)
+        self.assertIn('Sourcing et recrutement', rendu)
+        self.assertIn('pas un titre', rendu)
+        self.assertNotIn('<h2>Références</h2>', rendu)

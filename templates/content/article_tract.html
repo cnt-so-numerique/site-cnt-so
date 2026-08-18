@@ -1,0 +1,261 @@
+{% load wagtailcore_tags %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>{{ article.title }} — tract à afficher</title>
+<style>
+/* Un tract doit se voir sur un panneau : il sort en couleur, aux teintes de la
+   confédération. Qui veut économiser l'encre choisit le noir et blanc dans sa
+   fenêtre d'impression — c'est son choix, pas le nôtre.
+
+   Deux pages, jamais plus : au-delà, ce n'est plus un tract mais une brochure.
+   Toutes les tailles sont donc en `em`, relatives au corps de la feuille, et
+   un script réduit ce corps jusqu'à ce que la fiche tienne (cf. bas de page). */
+@page { size: A4; margin: 13mm 12mm 11mm; }
+
+:root {
+  --rouge: #E81C24;
+  --rouge-sombre: #A8121A;
+  --encre: #16130F;
+  --gris: #5A544A;
+  --filet: #C9C2B4;
+  --trame: #F4EFE6;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Sans cette instruction, les navigateurs suppriment les aplats à l'impression
+   et le tract sortirait blanc : c'est elle qui rend la couleur effective. */
+html, body, .feuille { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+body {
+  font-family: Georgia, 'Times New Roman', serif;
+  color: var(--encre);
+  background: #D9D9D9;
+  line-height: 1.42;
+}
+
+.barre {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--encre); color: #fff;
+  padding: .8rem 1.2rem;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+  font-family: system-ui, sans-serif; font-size: 14px;
+}
+.barre a, .barre button {
+  font-family: inherit; font-size: 14px; font-weight: 700;
+  padding: .55rem 1.1rem; border: none; border-radius: 4px;
+  text-decoration: none; cursor: pointer;
+}
+.barre .imprimer { background: var(--rouge); color: #fff; }
+.barre .retour { background: transparent; color: #CBD5E1; border: 1px solid #4B5563; }
+.barre .astuce { color: #9CA3AF; font-size: 12.5px; }
+.barre .trop-long { color: #FCA5A5; font-size: 12.5px; display: block; margin-top: .2rem; }
+
+/* La feuille reprend exactement la géométrie de la page imprimée : mêmes
+   marges, même largeur. C'est ce qui permet de compter les pages à l'écran. */
+.feuille {
+  width: 210mm; min-height: 297mm;
+  margin: 1.5rem auto; padding: 13mm 12mm 11mm;
+  background: #fff;
+  box-shadow: 0 2px 14px rgba(0,0,0,.25);
+  font-size: 10.4pt;
+}
+
+/* En-tête : le bandeau rouge est ce qui se voit de loin sur un panneau. */
+.entete {
+  background: var(--rouge); color: #fff;
+  padding: .4em .8em; margin-bottom: .75em;
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 1em; flex-wrap: wrap;
+}
+.sigle {
+  font-family: system-ui, sans-serif; font-weight: 800;
+  letter-spacing: .22em; text-transform: uppercase; font-size: 1.05em;
+}
+.syndicat {
+  font-family: system-ui, sans-serif; font-size: .82em;
+  letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.92);
+}
+
+h1 {
+  font-family: system-ui, sans-serif; font-weight: 800;
+  font-size: 2.35em; line-height: 1; text-transform: uppercase;
+  margin: .15em 0 .25em; letter-spacing: -.01em;
+}
+.chapeau {
+  font-size: 1.06em; font-style: italic; color: #3A342C;
+  border-left: 3px solid var(--rouge); padding-left: .6em;
+  margin-bottom: .8em; line-height: 1.35;
+}
+
+.corps h2 {
+  font-family: system-ui, sans-serif; font-weight: 800;
+  font-size: 1.2em; text-transform: uppercase; line-height: 1.1;
+  color: var(--rouge-sombre);
+  margin: .85em 0 .3em; padding-top: .25em;
+  border-top: 2px solid var(--rouge);
+  page-break-after: avoid; break-after: avoid;
+}
+.corps h3 {
+  font-family: system-ui, sans-serif; font-weight: 700;
+  font-size: 1.02em; margin: .6em 0 .2em;
+  page-break-after: avoid; break-after: avoid;
+}
+.corps p { margin-bottom: .42em; text-align: justify; }
+.corps ul, .corps ol { margin: .3em 0 .55em 1.15em; }
+.corps li { margin-bottom: .18em; }
+.corps li::marker { color: var(--rouge); font-weight: 700; }
+.corps a { color: var(--rouge-sombre); text-decoration: underline; }
+.corps b, .corps strong { font-weight: 700; }
+.corps sup { font-size: .72em; }
+
+.corps table {
+  width: 100%; border-collapse: collapse; font-size: .88em;
+  margin: .35em 0 .6em; page-break-inside: avoid; break-inside: avoid;
+}
+.corps th {
+  background: var(--encre); color: #fff; text-align: left;
+  padding: .25em .4em; font-family: system-ui, sans-serif;
+  font-size: .82em; text-transform: uppercase; letter-spacing: .04em;
+}
+.corps td { border-bottom: 1px solid var(--filet); padding: .25em .4em; vertical-align: top; }
+.corps tbody tr:nth-child(even) { background: var(--trame); }
+
+/* Les encadrés gardent la couleur choisie dans le CMS : c'est elle qui dit
+   « attention » ou « à retenir », et la perdre reviendrait à les aplatir. */
+.corps .bloc-encadre, .corps [class*="encadre"] {
+  page-break-inside: avoid; break-inside: avoid;
+}
+
+.corps img { max-width: 100%; height: auto; }
+
+/* Le pied est la raison d'être du tract : c'est par lui qu'on nous joint.
+   Il porte donc le nom du syndicat et son adresse, en aplat rouge, lisibles
+   d'un coup d'œil sur un panneau. */
+.pied {
+  margin-top: .9em;
+  background: var(--rouge); color: #fff;
+  padding: .55em .8em;
+  display: flex; gap: 1em; align-items: center; justify-content: space-between;
+  flex-wrap: wrap;
+  font-family: system-ui, sans-serif;
+  page-break-inside: avoid; break-inside: avoid;
+}
+.pied .pied-identite { min-width: 60mm; }
+.pied .qui { font-weight: 800; font-size: 1.25em; text-transform: uppercase; line-height: 1.05; }
+.pied .ou { font-size: .9em; margin-top: .15em; display: flex; gap: .8em; flex-wrap: wrap; }
+.pied .ou .contact { font-weight: 700; }
+.pied .ou .web { color: rgba(255,255,255,.88); }
+.pied .appel { font-size: .85em; max-width: 82mm; text-align: right; line-height: 1.3; color: rgba(255,255,255,.95); }
+
+@media print {
+  body { background: #fff; }
+  .barre { display: none !important; }
+  .feuille { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
+}
+
+@media (max-width: 230mm) {
+  .feuille { width: auto; max-width: 100%; margin: 1rem .6rem; padding: 1.2rem; }
+}
+
+/* Le calage doit se faire sur la géométrie de la page imprimée, jamais sur
+   celle de l'écran : mesuré sur un téléphone, il figerait une taille fausse
+   pour l'impression. Cette classe n'est posée que le temps du calcul. */
+.feuille.mesure {
+  width: 210mm !important; max-width: none !important;
+  padding: 13mm 12mm 11mm !important;
+}
+</style>
+</head>
+<body>
+
+<div class="barre">
+  <span>
+    Version tract — A4 couleur, prête à afficher.
+    <span class="astuce">Pour économiser l'encre, choisissez « noir et blanc » dans la fenêtre d'impression.</span>
+    <span class="trop-long" id="trop-long" hidden></span>
+  </span>
+  <span>
+    <a class="retour" href="{{ article.get_absolute_url }}">← Revenir à l'article</a>
+    <button class="imprimer" onclick="window.print()">Imprimer / Enregistrer en PDF</button>
+  </span>
+</div>
+
+<div class="feuille" id="feuille">
+  <div class="entete">
+    <span class="sigle">CNT-SO</span>
+    <span class="syndicat">{{ site.title }}</span>
+  </div>
+
+  <h1>{{ article.title }}</h1>
+  {% if article.excerpt %}<p class="chapeau">{{ article.excerpt }}</p>{% endif %}
+
+  <div class="corps">
+    {% for bloc in blocs %}{% include_block bloc %}{% endfor %}
+  </div>
+
+  <div class="pied">
+    <div class="pied-identite">
+      <div class="qui">{{ site.title }}</div>
+      <div class="ou">
+        <span class="contact">{{ contact_email }}</span>
+        {% if site.custom_domain %}<span class="web">{{ site.custom_domain }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="appel">
+      Syndicat interprofessionnel, anarcho-syndicaliste et autogestionnaire.
+      Une question sur ta situation&nbsp;? <b>Écris-nous</b> : tu n'es pas seul·e.
+    </div>
+  </div>
+</div>
+
+<script>
+/* Deux pages, jamais plus. Le corps du texte est réduit par paliers jusqu'à ce
+   que la fiche tienne — toutes les tailles étant en `em`, un seul réglage
+   suffit. Plancher à 7,5 pt : en dessous, ce n'est plus lisible sur un
+   panneau, et il vaut mieux prévenir la rédaction que servir un tract illisible. */
+(function () {
+  var PAGES_MAX = 2;
+  var PT_DEPART = 10.4, PT_PLANCHER = 7.5, PAS = 0.2;
+  var MM = 96 / 25.4;
+  var HAUTEUR_UTILE = (297 - 13 - 11) * MM;   // page A4 moins les marges @page
+
+  var feuille = document.getElementById('feuille');
+  var entete = feuille.querySelector('.entete');
+  var pied = feuille.querySelector('.pied');
+  if (!feuille || !entete || !pied) return;
+
+  function pages() {
+    var h = pied.getBoundingClientRect().bottom - entete.getBoundingClientRect().top;
+    return h / HAUTEUR_UTILE;
+  }
+
+  feuille.classList.add('mesure');
+
+  var pt = PT_DEPART;
+  feuille.style.fontSize = pt + 'pt';
+  while (pages() > PAGES_MAX && pt > PT_PLANCHER) {
+    pt = Math.round((pt - PAS) * 100) / 100;
+    feuille.style.fontSize = pt + 'pt';
+  }
+  var pagesFinales = pages();
+  feuille.classList.remove('mesure');
+
+  if (pagesFinales > PAGES_MAX) {
+    var avis = document.getElementById('trop-long');
+    avis.hidden = false;
+    avis.textContent =
+      'Cette fiche est trop longue pour tenir en deux pages : le tract en fait '
+      + pagesFinales.toFixed(1) + '. Raccourcissez le texte dans /cms/ — le bloc '
+      + '« Sources » est souvent le premier à pouvoir partir.';
+  }
+})();
+</script>
+
+</body>
+</html>

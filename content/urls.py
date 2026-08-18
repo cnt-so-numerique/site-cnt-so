@@ -86,6 +86,8 @@ urlpatterns = [
 
     # Articles et pages du site principal
     path('article/<slug:slug>/', views.ArticleDetailView.as_view(), name='article_detail'),
+    # Version affichable d'une fiche pratique : page A4, prête à imprimer.
+    path('article/<slug:slug>/tract/', views.ArticleTractView.as_view(), name='article_tract'),
     path('page/<slug:slug>/', views.PageDetailView.as_view(), name='page_detail'),
 
     # Sous-sites newsletter
@@ -105,6 +107,7 @@ urlpatterns = [
     path('<slug:site_slug>/plan-du-site/', views.PlanDuSiteView.as_view(), name='site_plan_du_site'),
     path('<section_slug:site_slug>/', views.SiteHomeView.as_view(), name='site_home'),
     path('<slug:site_slug>/article/<slug:slug>/', views.SiteArticleDetailView.as_view(), name='site_article_detail'),
+    path('<slug:site_slug>/article/<slug:slug>/tract/', views.ArticleTractView.as_view(), name='site_article_tract'),
     path('<slug:site_slug>/page/<slug:slug>/', views.SitePageDetailView.as_view(), name='site_page_detail'),
 
     # Redirections anciennes URLs WordPress (format: /2024/01/slug/)

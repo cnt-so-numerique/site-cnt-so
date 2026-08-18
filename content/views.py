@@ -15,7 +15,7 @@ from .models import (Page, ContactMessage, FormulaireContact, Subscriber,
 from .courriel import destinataire_de_reponse
 from .forms import (ContactForm, DynamicContactForm, NewsletterCaptchaForm,
                     NewsletterSubscribeForm, NewsletterUnsubscribeForm)
-from cms.models import ArticlePage, CmsCategory, SectionPage
+from cms.models import ArticlePage, CmsCategory, SectionPage, _cle_de_nom
 from taggit.models import Tag as TaggitTag
 
 
@@ -408,6 +408,74 @@ class SiteArticleDetailView(ArticleDetailView):
         if site and site.section_type in ('sectoral', 'regional'):
             context.update(_sectoral_sidebar_context(site))
         return context
+
+
+class ArticleTractView(View):
+    """La version affichable d'une fiche pratique : une page A4, prête à imprimer.
+
+    Demandé par Arnaud le 18/08/2026 : « il faut fabriquer un format d'article
+    de fiche pratique que les gens peuvent aussi télécharger en format tract
+    pour afficher dans leur boîte ».
+
+    Aucune bibliothèque PDF n'est installée, et en ajouter une ferait entrer
+    des dépendances système (cairo, pango) sur le serveur pour un seul usage.
+    On sert donc une page calibrée A4, dont le navigateur fait un vrai PDF par
+    « Enregistrer au format PDF » — la fonction est native partout, et le
+    fichier obtenu est un PDF comme un autre.
+    """
+
+    #: Sections retirées du tract. Sur un panneau syndical, personne ne lit
+    #: quinze références de jurisprudence : elles font la crédibilité de
+    #: l'article en ligne, pas celle de l'affiche. Elles restent sur la page web.
+    TITRES_EXCLUS = ('sources', 'sourcesjuridiques', 'references', 'referencesjuridiques',
+                     'mentionslegales', 'bibliographie')
+
+    def get(self, request, slug, site_slug=None):
+        site = get_section_or_404(site_slug) if site_slug else \
+            SectionPage.objects.filter(slug='principal').first()
+        section_slug = site.slug if site else 'principal'
+        article = get_object_or_404(
+            ArticlePage.objects.live().select_related('featured_image'),
+            slug=slug, section_slug=section_slug,
+        )
+        if not article.fiche_pratique:
+            # Le tract n'existe que pour les articles marqués comme fiches
+            # pratiques : sinon chaque brève aurait une adresse fantôme.
+            raise Http404("Cet article n'est pas une fiche pratique.")
+        return render(request, 'content/article_tract.html', {
+            'article': article,
+            'site': site,
+            'blocs': self._blocs_du_tract(article),
+            'contact_email': self._contact(site),
+        })
+
+    @classmethod
+    def _blocs_du_tract(cls, article):
+        """Le corps de l'article, allégé des sections de références."""
+        return [bloc for bloc in article.body if not cls._est_une_section_exclue(bloc)]
+
+    @classmethod
+    def _est_une_section_exclue(cls, bloc):
+        """Vrai si le bloc s'ouvre sur un titre du genre « Sources »."""
+        from bs4 import BeautifulSoup
+        if bloc.block_type != 'rich_text':
+            return False
+        soupe = BeautifulSoup(str(bloc.value), 'html.parser')
+        titre = soupe.find(['h2', 'h3', 'h4'])
+        if titre is None:
+            return False
+        cle = ''.join(c for c in _cle_de_nom(titre.get_text()) if c.isalnum())
+        return cle in cls.TITRES_EXCLUS
+
+    @staticmethod
+    def _contact(site):
+        """L'adresse à donner sur le tract : celle du syndicat, sinon la conf.
+
+        Un tract sans contact ne sert à rien : c'est par là qu'on rejoint.
+        """
+        from django.conf import settings
+        return (getattr(site, 'contact_email', '') or '').strip() \
+            or getattr(settings, 'DEFAULT_CONTACT_EMAIL', 'contact@cnt-so.org')
 
 
 class PageDetailView(View):
