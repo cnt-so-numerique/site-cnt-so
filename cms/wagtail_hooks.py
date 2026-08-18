@@ -708,6 +708,18 @@ def add_syndicats_menu_item():
 
 
 @hooks.register('register_admin_menu_item')
+def add_pages_syndicat_menu_item():
+    # Juste après « Rédaction » (100) : c'est là qu'on cherche une page.
+    return SyndicatMenuItem(
+        'Pages du syndicat',
+        '/cms/pages-du-syndicat/',
+        name='pages-du-syndicat',
+        icon_name='doc-empty',
+        order=105,
+    )
+
+
+@hooks.register('register_admin_menu_item')
 def add_mailing_lists_menu_item():
     # Autonomie des syndicats : chaque rédacteur gère la liste OVH de son
     # syndicat (_allowed_mailing_lists le borne à celle-ci).
@@ -919,6 +931,126 @@ def _can_access_list(request, list_name):
     return list_name in allowed
 
 
+class PagesDuSyndicatView(View):
+    """Les pages d'un syndicat, et où l'on modifie chacune.
+
+    Arnaud, 18/08/2026 : « je vais dans rédaction pages et c'est vide », puis
+    « là je ne le trouve pas ». Le contact et l'adhésion ne sont pas des pages
+    du CMS — le site les fabrique pour les quatorze syndicats à partir d'un
+    seul gabarit, ce qui garantit qu'un syndicat nouvellement créé les a
+    aussitôt. Mais leurs réglages sont dispersés entre la fiche du syndicat et
+    la configuration du formulaire, deux endroits où personne ne pense à
+    chercher « une page ». Cet écran part de ce que le rédacteur cherche — une
+    page — et le mène au bon réglage.
+    """
+
+    def get(self, request):
+        from django.http import HttpResponse, HttpResponseForbidden
+
+        site = get_current_site(request)
+        if site is None:
+            site = SectionPage.objects.filter(slug='principal').first()
+        if site is None:
+            return HttpResponseForbidden(
+                "Aucun syndicat n'est rattaché à votre compte.")
+
+        fiche_url = reverse('wagtailsnippets_cms_sectionpage:edit', args=[site.pk])
+        base = site.base_url
+        slug = site.slug
+
+        def publique(nom_de_route, **kwargs):
+            """URL publique de la page, ou None si la route n'existe pas ici."""
+            from django.urls import NoReverseMatch
+            try:
+                if slug == 'principal':
+                    return reverse(f'content:{nom_de_route}')
+                return reverse(f'content:site_{nom_de_route}',
+                               kwargs={'site_slug': slug, **kwargs})
+            except NoReverseMatch:
+                return None
+
+        def absolue(chemin):
+            """Préfixe le domaine autonome, sauf si l'URL l'a déjà.
+
+            `get_absolute_url` et `get_rejoindre_url` s'en chargent seuls, les
+            `reverse` non : sans cette garde, un syndicat à domaine autonome
+            recevait « https://stucs.cnt-so.orghttps://stucs.cnt-so.org/ ».
+            """
+            if not chemin or chemin.startswith('http'):
+                return chemin
+            if not base:
+                return chemin
+            # Sur un domaine autonome, le slug est porté par le domaine : le
+            # laisser dans le chemin donnerait /stucs/contact/ sur
+            # stucs.cnt-so.org, servi au prix d'une redirection.
+            if chemin.startswith(f'/{slug}/'):
+                chemin = chemin[len(slug) + 1:]
+            return f'{base}{chemin}'
+
+        from content.models import FormulaireContact
+        formulaire = FormulaireContact.objects.filter(site=site).first()
+        contact_edition = (
+            reverse('wagtailsnippets_content_formulairecontact:edit', args=[formulaire.pk])
+            if formulaire else
+            reverse('wagtailsnippets_content_formulairecontact:add')
+        )
+
+        pages = [
+            {
+                'titre': "Accueil du syndicat",
+                'quoi': "L'accroche, la présentation et les revendications.",
+                'ou': "Fiche du syndicat, champ « Présentation + revendications »",
+                'edition': fiche_url,
+                'vue': absolue(site.get_absolute_url()),
+            },
+            {
+                'titre': "Nous rejoindre",
+                'quoi': "Le bandeau d'adhésion et le corps de la page.",
+                'ou': "Fiche du syndicat, panneau « Page Nous rejoindre »",
+                'edition': fiche_url,
+                'vue': absolue(site.get_rejoindre_url()),
+            },
+            {
+                'titre': "Contact",
+                'quoi': "Le destinataire, le texte d'introduction et les champs du formulaire.",
+                'ou': "Contact › Config formulaire",
+                'edition': contact_edition,
+                'vue': absolue(publique('contact')),
+                'alerte': None if formulaire else (
+                    "Aucun formulaire n'est configuré : les messages n'ont pas "
+                    "de destinataire."),
+            },
+            {
+                'titre': "Agenda",
+                'quoi': "Le texte d'introduction, et les événements un par un.",
+                'ou': "Fiche du syndicat, champ « Agenda » — et menu « Agenda »",
+                'edition': fiche_url,
+                'edition_bis': (reverse('wagtailsnippets_cms_event:list'), "Les événements"),
+                'vue': absolue(publique('agenda')),
+            },
+            {
+                'titre': "Ressources",
+                'quoi': "Rien à régler : la page liste les articles du syndicat, "
+                        "rangés par catégorie.",
+                'ou': None,
+                'edition': None,
+                'vue': absolue(publique('ressources')),
+            },
+        ]
+
+        # La confédération n'a ni « Ressources » ni « Agenda » sous ces routes :
+        # une entrée qui ne mène ni à un réglage ni à une page n'a rien à faire
+        # dans une liste censée servir de point de départ.
+        pages = [p for p in pages if p['edition'] or p['vue']]
+
+        html = render_to_string('cms/pages_syndicat.html', {
+            'site': site,
+            'pages': pages,
+            'request': request,
+        }, request=request)
+        return HttpResponse(html)
+
+
 class MailingListIndexView(View):
     def get(self, request):
         from django.http import HttpResponse, HttpResponseForbidden
@@ -1066,6 +1198,7 @@ def register_site_admin_urls():
         path('select-site/', SelectSiteView.as_view(), name='cms_select_site'),
         path('current-site-fragment/', CurrentSiteFragmentView.as_view(), name='cms_current_site_fragment'),
         path('syndicats/', SyndicatManageView.as_view(), name='cms_syndicats'),
+        path('pages-du-syndicat/', PagesDuSyndicatView.as_view(), name='cms_pages_syndicat'),
         path('menus/', MenuTreeView.as_view(), name='cms_menus'),
         path('menus/move/', MoveMenuItemView.as_view(), name='cms_menu_move'),
         path('menus/reorder/', ReorderMenuItemsView.as_view(), name='cms_menu_reorder'),

@@ -4054,3 +4054,65 @@ class ArticleSansCategorieTest(TestCase):
         art = make_article_page(section_slug='principal', title='Import sans catégorie',
                                 slug='import-sans-categorie')
         self.assertTrue(ArticlePage.objects.filter(pk=art.pk).exists())
+
+
+class PagesDuSyndicatTest(TestCase):
+    """« Je vais dans rédaction pages et c'est vide » (Arnaud, 18/08/2026).
+
+    Le contact et l'adhésion ne sont pas des pages du CMS : le site les
+    fabrique pour tous les syndicats. Leurs réglages restaient dispersés entre
+    la fiche du syndicat et la configuration du formulaire — deux endroits où
+    personne ne pense à chercher « une page ».
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.stucs = make_stucs_section()
+        self.user = make_superuser()
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['cms_current_site_id'] = self.stucs.pk
+        session.save()
+
+    def _page(self):
+        return self.client.get('/cms/pages-du-syndicat/')
+
+    def test_la_page_repond(self):
+        r = self._page()
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, f'Les pages de {self.stucs.title}')
+
+    def test_elle_mene_a_la_fiche_pour_nous_rejoindre(self):
+        r = self._page()
+        self.assertContains(r, 'Nous rejoindre')
+        self.assertContains(r, f'/cms/snippets/cms/sectionpage/edit/{self.stucs.pk}/')
+
+    def test_elle_mene_a_la_config_du_formulaire_pour_le_contact(self):
+        r = self._page()
+        self.assertContains(r, '/cms/snippets/content/formulairecontact/')
+
+    def test_elle_montre_les_pages_publiques(self):
+        r = self._page()
+        for chemin in ('/stucs/rejoindre/', '/stucs/contact/', '/stucs/ressources/'):
+            self.assertContains(r, chemin)
+
+    def test_elle_signale_un_contact_sans_destinataire(self):
+        from content.models import FormulaireContact
+        FormulaireContact.objects.filter(site=self.stucs).delete()
+        r = self._page()
+        self.assertContains(r, "n&#x27;est configuré")
+
+    def test_domaine_autonome_ne_double_pas_le_slug(self):
+        """Sans garde, on obtenait https://stucs.cnt-so.org/stucs/contact/ —
+        servi au prix d'une redirection — voire le domaine écrit deux fois."""
+        self.stucs.custom_domain = 'stucs.cnt-so.org'
+        self.stucs.save(update_fields=['custom_domain'])
+        r = self._page()
+        html = r.content.decode()
+        self.assertIn('https://stucs.cnt-so.org/contact/', html)
+        self.assertNotIn('https://stucs.cnt-so.org/stucs/', html)
+        self.assertNotIn('cnt-so.orghttps://', html)
+
+    def test_entree_de_menu_presente(self):
+        r = self.client.get('/cms/')
+        self.assertContains(r, '/cms/pages-du-syndicat/')
