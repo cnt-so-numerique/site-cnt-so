@@ -1934,7 +1934,7 @@
                 <div class="footer-brand-name">{{ site.name }}</div>
                 {% if site.description %}<p class="footer-brand-desc">{{ site.description }}</p>{% endif %}
                 <div class="footer-brand-links">
-                    {% if site.contact_email %}<a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>{% endif %}
+                    {# L'adresse en clair doublonnait le lien juste en dessous — et elle exposait la boîte du syndicat aux moissonneurs. #}
                     <a href="{% section_url 'content:site_contact' site %}">Formulaire de contact</a>
                     <a href="{{ main_site_url }}" class="footer-confed-link">← Retour au site confédéral</a>
                 </div>
@@ -1942,7 +1942,6 @@
                 <div class="footer-brand-name">CNT-SO</div>
                 <p class="footer-brand-desc">Confédération Nationale du Travail — Solidarité Ouvrière.<br>Syndicat interprofessionnel, anarcho-syndicaliste, autogestionnaire.</p>
                 <div class="footer-brand-links">
-                    <a href="mailto:contact@cnt-so.org">contact@cnt-so.org</a>
                     <a href="{% url 'content:contact' %}">Formulaire de contact</a>
                 </div>
             {% endif %}
