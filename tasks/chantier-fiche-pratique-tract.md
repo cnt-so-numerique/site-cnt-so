@@ -35,11 +35,29 @@ ils choisiront »). Bandeau rouge en tête, titres de section en rouge sombre,
 pied en aplat rouge. `print-color-adjust: exact` est indispensable : sans lui,
 les navigateurs suppriment les aplats et le tract sort blanc.
 
-**Deux pages maximum**, jamais plus — « au-delà ce n'est plus un tract mais une
-brochure ». Toutes les tailles sont en `em`, relatives au corps de la feuille,
-et un script réduit ce corps par paliers de 0,2 pt jusqu'à ce que la fiche
-tienne. Plancher à 7,5 pt : en dessous, la rédaction est prévenue dans la barre
-d'outils plutôt que de recevoir un tract illisible.
+**Une page pleine, ou deux — jamais d'entre-deux.** Première version : le
+script se contentait de rétrécir le texte jusqu'à ce qu'il tienne, et sortait
+« 1,77 page », c'est-à-dire une seconde feuille aux trois quarts vide. Arnaud :
+« ça n'existe pas, il faut un fichier de 2 pages A4 aéré ».
+
+Le calage se fait donc en trois temps :
+
+1. **le plus petit nombre de pages** où le texte tient (1 puis 2), **au plus
+   gros corps** encore raisonnable — entre 8 et 12,6 pt. Le texte grossit donc
+   pour remplir, au lieu de rétrécir pour tenir ;
+2. **l'espace qui reste est réparti entre les blocs**, plafonné à 1,6 em —
+   au-delà ce n'est plus de l'air mais du vide ;
+3. **un cale-pied** (`#cale`) pousse le pied au bas de la dernière page, pour
+   que le fichier ait exactement la forme annoncée.
+
+⚠️ Poser ce cale décolle une marge qui se fondait dans une autre : la feuille
+dépassait alors de quatre pixels — assez pour une troisième page presque vide.
+Une passe de rattrapage corrige. Résultat pour « Forfait jours » : **2 pages
+pleines à 11,2 pt**, remplissage 1,989, coupure dans un paragraphe et non sur
+un titre.
+
+Si même à 8 pt la fiche déborde de deux pages, la rédaction est prévenue dans
+la barre d'outils plutôt que de recevoir un tract illisible.
 
 ⚠️ **Le calage se mesure sur la géométrie A4 forcée** (classe `.feuille.mesure`),
 jamais sur celle de l'écran : mesuré dans la mise en page mobile, il figeait une
@@ -51,10 +69,12 @@ restent sur l'article en ligne : elles font sa crédibilité, pas celle d'une
 affiche. La comparaison porte sur le titre seul, normalisé — « Sourcing et
 recrutement » n'est pas écarté, ni un paragraphe qui commence par « Sources : ».
 
-**Le pied nomme le syndicat et donne le contact** : `contact_email` du syndicat,
-à défaut celui de la confédération. Un tract sans contact ne sert à rien.
-
-Résultat pour la fiche « Forfait jours » : **1,77 page**, sans réduction.
+**Une seule adresse à chaque endroit.** Le pied affichait
+« numerique@cnt-so.org numerique.cnt-so.org » côte à côte — deux chaînes
+presque identiques — et le nom du syndicat figurait déjà en tête. Désormais :
+le **domaine en en-tête**, à droite de « CNT-SO » ; le **nom du syndicat et son
+courriel en pied**, une fois chacun. Le courriel est celui du syndicat, à
+défaut celui de la confédération : un tract sans contact ne sert à rien.
 
 ## Le « téléchargement »
 

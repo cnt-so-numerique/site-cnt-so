@@ -7192,10 +7192,14 @@ class TractCouleurEtDeuxPagesTest(TestCase):
         self.assertIn('noir et blanc', html)
         self.assertNotIn('filter: grayscale', html)
 
-    def test_le_tract_est_borne_a_deux_pages(self):
+    def test_le_tract_fait_une_page_ou_deux_jamais_un_entre_deux(self):
+        """« Il ne peut pas faire 1,7 page, ça n'existe pas » (Arnaud). Le
+        tract est un fichier : une page pleine, ou deux."""
         html = self.client.get(self.url).content.decode()
-        self.assertIn('PAGES_MAX = 2', html)
-        self.assertIn('PT_PLANCHER', html)
+        self.assertIn('PAGES_POSSIBLES = [1, 2]', html)
+        self.assertIn('PT_MIN', html)
+        # Le cale-pied, qui pousse le pied au bas de la dernière page.
+        self.assertIn('id="cale"', html)
 
     def test_le_calage_se_fait_sur_la_geometrie_A4(self):
         """Mesuré dans la mise en page mobile, il figerait une taille fausse
@@ -7311,3 +7315,45 @@ class TractUrlSurLeBonDomaineTest(TestCase):
         html = self.client.get('/tract-domaine/article/fiche-domaine/').content.decode()
         self.assertIn(self.article.get_tract_url(), html)
         self.assertIn('Télécharger le tract', html)
+
+
+class TractSansAdresseEnDoubleTest(TestCase):
+    """« Ne pas mettre l'adresse du syndicat plusieurs fois à côté » (Arnaud).
+
+    Le pied affichait « numerique@cnt-so.org numerique.cnt-so.org » côte à
+    côte — deux chaînes presque identiques — et le nom du syndicat figurait
+    déjà dans l'en-tête.
+    """
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='tract-double', name='Tract Double',
+                                         site_type='sectoral')
+        self.site.contact_email = 'double@cnt-so.org'
+        self.site.custom_domain = 'double.cnt-so.org'
+        self.site.save()
+        self.cat = make_cms_category(name='Nos droits', slug='droit-double',
+                                     section_slug='tract-double')
+        make_article_page(section_slug='tract-double', title='Fiche',
+                          slug='fiche-double', categories=[self.cat],
+                          fiche_pratique=True)
+
+    def _html(self):
+        # Sur un domaine autonome, le chemin ne porte pas le slug : le demander
+        # depuis testserver ne renverrait qu'une redirection.
+        with override_settings(ALLOWED_HOSTS=['*']):
+            r = self.client.get('/article/fiche-double/tract/',
+                                SERVER_NAME='double.cnt-so.org')
+        self.assertEqual(r.status_code, 200)
+        return r.content.decode()
+
+    def test_le_nom_du_syndicat_napparait_quune_fois(self):
+        self.assertEqual(self._html().count('Tract Double'), 1)
+
+    def test_ladresse_e_mail_napparait_quune_fois(self):
+        self.assertEqual(self._html().count('double@cnt-so.org'), 1)
+
+    def test_le_domaine_nest_pas_colle_a_l_e_mail(self):
+        """Ils sont séparés : le domaine en tête, le courriel en pied."""
+        html = self._html()
+        self.assertEqual(html.count('>double.cnt-so.org<'), 1)
+        self.assertLess(html.index('>double.cnt-so.org<'), html.index('double@cnt-so.org'))

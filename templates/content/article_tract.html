@@ -77,9 +77,9 @@ body {
   font-family: system-ui, sans-serif; font-weight: 800;
   letter-spacing: .22em; text-transform: uppercase; font-size: 1.05em;
 }
-.syndicat {
+.entete .web {
   font-family: system-ui, sans-serif; font-size: .82em;
-  letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.92);
+  letter-spacing: .06em; color: rgba(255,255,255,.92);
 }
 
 h1 {
@@ -150,7 +150,11 @@ h1 {
 .pied .qui { font-weight: 800; font-size: 1.25em; text-transform: uppercase; line-height: 1.05; }
 .pied .ou { font-size: .9em; margin-top: .15em; display: flex; gap: .8em; flex-wrap: wrap; }
 .pied .ou .contact { font-weight: 700; }
-.pied .ou .web { color: rgba(255,255,255,.88); }
+
+/* Espace calculé qui pousse le pied au bas de la dernière page : sans lui, le
+   tract se terminait au milieu d'une feuille et le fichier n'avait pas de
+   forme — « 1,77 page », ça n'existe pas. */
+.cale { height: 0; }
 .pied .appel { font-size: .85em; max-width: 82mm; text-align: right; line-height: 1.3; color: rgba(255,255,255,.95); }
 
 @media print {
@@ -189,7 +193,7 @@ h1 {
 <div class="feuille" id="feuille">
   <div class="entete">
     <span class="sigle">CNT-SO</span>
-    <span class="syndicat">{{ site.title }}</span>
+    {% if site.custom_domain %}<span class="web">{{ site.custom_domain }}</span>{% endif %}
   </div>
 
   <h1>{{ article.title }}</h1>
@@ -199,13 +203,12 @@ h1 {
     {% for bloc in blocs %}{% include_block bloc %}{% endfor %}
   </div>
 
+  <div class="cale" id="cale" aria-hidden="true"></div>
+
   <div class="pied">
     <div class="pied-identite">
       <div class="qui">{{ site.title }}</div>
-      <div class="ou">
-        <span class="contact">{{ contact_email }}</span>
-        {% if site.custom_domain %}<span class="web">{{ site.custom_domain }}</span>{% endif %}
-      </div>
+      <div class="ou"><span class="contact">{{ contact_email }}</span></div>
     </div>
     <div class="appel">
       Syndicat interprofessionnel, anarcho-syndicaliste et autogestionnaire.
@@ -215,45 +218,101 @@ h1 {
 </div>
 
 <script>
-/* Deux pages, jamais plus. Le corps du texte est réduit par paliers jusqu'à ce
-   que la fiche tienne — toutes les tailles étant en `em`, un seul réglage
-   suffit. Plancher à 7,5 pt : en dessous, ce n'est plus lisible sur un
-   panneau, et il vaut mieux prévenir la rédaction que servir un tract illisible. */
+/* Un tract est un FICHIER : une page A4 pleine, ou deux. Pas « 1,77 page » —
+   ça n'existe pas, et ça donnait une seconde feuille aux trois quarts vide.
+
+   Trois temps :
+     1. on cherche le plus petit nombre de pages où le texte tient, au plus
+        gros corps encore raisonnable ;
+     2. on répartit l'espace qui reste entre les blocs, pour aérer plutôt que
+        de tout tasser en haut ;
+     3. on pousse le pied au bas de la dernière page, pour que le fichier ait
+        exactement la forme annoncée.
+
+   Le tout est mesuré sur une géométrie A4 forcée : mesuré dans la mise en page
+   mobile, le calage figerait une taille fausse pour l'impression. */
 (function () {
-  var PAGES_MAX = 2;
-  var PT_DEPART = 10.4, PT_PLANCHER = 7.5, PAS = 0.2;
+  var PAGES_POSSIBLES = [1, 2];
+  var PT_MIN = 8, PT_MAX = 12.6, PAS = 0.1;
+  var AIR_MAX_EM = 1.6;          // au-delà, les blocs flottent au lieu d'aérer
+  var MARGE_SECU = 4;            // px : évite qu'un arrondi ne crée une page de plus
   var MM = 96 / 25.4;
-  var HAUTEUR_UTILE = (297 - 13 - 11) * MM;   // page A4 moins les marges @page
+  var HAUTEUR_PAGE = (297 - 13 - 11) * MM;
 
   var feuille = document.getElementById('feuille');
+  var cale = document.getElementById('cale');
+  if (!feuille || !cale) return;
   var entete = feuille.querySelector('.entete');
   var pied = feuille.querySelector('.pied');
-  if (!feuille || !entete || !pied) return;
+  var corps = feuille.querySelector('.corps');
+  if (!entete || !pied || !corps) return;
 
-  function pages() {
-    var h = pied.getBoundingClientRect().bottom - entete.getBoundingClientRect().top;
-    return h / HAUTEUR_UTILE;
+  var blocs = Array.prototype.slice.call(corps.children);
+
+  function hauteur() {
+    return pied.getBoundingClientRect().bottom - entete.getBoundingClientRect().top;
+  }
+  function poserAir(em) {
+    blocs.forEach(function (b) { b.style.marginBottom = em ? em + 'em' : ''; });
   }
 
   feuille.classList.add('mesure');
+  cale.style.height = '0px';
+  poserAir(0);
 
-  var pt = PT_DEPART;
-  feuille.style.fontSize = pt + 'pt';
-  while (pages() > PAGES_MAX && pt > PT_PLANCHER) {
-    pt = Math.round((pt - PAS) * 100) / 100;
-    feuille.style.fontSize = pt + 'pt';
+  // 1. Le plus petit nombre de pages, au plus gros corps qui y tienne.
+  var pages = null, pt = PT_MIN;
+  for (var i = 0; i < PAGES_POSSIBLES.length && pages === null; i++) {
+    var n = PAGES_POSSIBLES[i];
+    var essai = PT_MAX;
+    feuille.style.fontSize = essai + 'pt';
+    while (hauteur() > n * HAUTEUR_PAGE - MARGE_SECU && essai > PT_MIN) {
+      essai = Math.round((essai - PAS) * 10) / 10;
+      feuille.style.fontSize = essai + 'pt';
+    }
+    if (hauteur() <= n * HAUTEUR_PAGE - MARGE_SECU) { pages = n; pt = essai; }
   }
-  var pagesFinales = pages();
-  feuille.classList.remove('mesure');
 
-  if (pagesFinales > PAGES_MAX) {
+  if (pages === null) {
+    // Même au plus petit corps, ça déborde : on le dit plutôt que de servir
+    // un tract illisible ou une troisième feuille orpheline.
+    pages = PAGES_POSSIBLES[PAGES_POSSIBLES.length - 1];
+    feuille.style.fontSize = PT_MIN + 'pt';
     var avis = document.getElementById('trop-long');
     avis.hidden = false;
     avis.textContent =
-      'Cette fiche est trop longue pour tenir en deux pages : le tract en fait '
-      + pagesFinales.toFixed(1) + '. Raccourcissez le texte dans /cms/ — le bloc '
-      + '« Sources » est souvent le premier à pouvoir partir.';
+      'Cette fiche est trop longue pour un tract de deux pages : elle en fait '
+      + (hauteur() / HAUTEUR_PAGE).toFixed(1) + '. Raccourcissez-la dans /cms/.';
+    feuille.classList.remove('mesure');
+    feuille.style.minHeight = (pages * HAUTEUR_PAGE) + 'px';
+    return;
   }
+
+  // 2. Aérer : le blanc qui reste se répartit entre les blocs, dans la limite
+  //    au-delà de laquelle ce n'est plus de l'air mais du vide.
+  var restant = pages * HAUTEUR_PAGE - MARGE_SECU - hauteur();
+  var intervalles = Math.max(blocs.length - 1, 1);
+  var airPx = restant / intervalles;
+  var pxParEm = pt * (96 / 72);
+  var airEm = Math.min(airPx / pxParEm, AIR_MAX_EM);
+  if (airEm > 0.05) poserAir(Math.round(airEm * 100) / 100);
+
+  // 3. Le pied descend au bas de la dernière page.
+  var plafond = pages * HAUTEUR_PAGE - MARGE_SECU;
+  cale.style.height = Math.max(plafond - hauteur(), 0) + 'px';
+
+  // Poser le cale décolle une marge qui se fondait jusque-là dans une autre :
+  // la feuille dépassait alors de quelques pixels, ce qui suffit à créer une
+  // troisième page presque vide. On rattrape.
+  for (var k = 0; k < 4; k++) {
+    var trop = hauteur() - plafond;
+    if (trop <= 0.5) break;
+    cale.style.height = Math.max(parseFloat(cale.style.height) - trop, 0) + 'px';
+  }
+
+  feuille.classList.remove('mesure');
+  feuille.style.minHeight = (pages * HAUTEUR_PAGE) + 'px';
+  feuille.setAttribute('data-pages', pages);
 })();
 </script>
 
