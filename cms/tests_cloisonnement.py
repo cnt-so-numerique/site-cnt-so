@@ -230,10 +230,12 @@ class CloisonnementBackOfficeTest(TestCase):
         return self.client.post(
             reverse(Newsletter.snippet_viewset.get_url_name('add')), {
                 'site': site_pk, 'title': titre, 'intro': '.', 'status': 'draft',
-                'newsletter_articles-TOTAL_FORMS': '0',
-                'newsletter_articles-INITIAL_FORMS': '0',
-                'newsletter_articles-MIN_NUM_FORMS': '0',
-                'newsletter_articles-MAX_NUM_FORMS': '1000',
+                # Le sommaire est passé de « une ligne par article » à
+                # « une rubrique, et ses articles dessous » (18/08/2026).
+                'rubriques-TOTAL_FORMS': '0',
+                'rubriques-INITIAL_FORMS': '0',
+                'rubriques-MIN_NUM_FORMS': '0',
+                'rubriques-MAX_NUM_FORMS': '1000',
             })
 
     def test_creer_pour_son_propre_syndicat_fonctionne(self):

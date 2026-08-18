@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 from modelcluster.fields import ParentalKey
 from modelcluster.models import ClusterableModel
+from wagtail.models import Orderable
 
 
 
@@ -653,10 +654,9 @@ class Newsletter(ClusterableModel, models.Model):
     )
     title = models.CharField(max_length=300, verbose_name="Sujet de l'e-mail")
     intro = models.TextField(verbose_name="Texte d'introduction")
-    articles = models.ManyToManyField(
-        'cms.ArticlePage', through='NewsletterArticle', blank=True,
-        verbose_name='Articles sélectionnés'
-    )
+    # Le raccourci `articles` (ManyToMany à travers NewsletterArticle) est
+    # tombé le 18/08/2026 : les articles pendent désormais à une rubrique, pas
+    # à la lettre. Personne ne s'en servait — `articles_a_plat()` le remplace.
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     created_at = models.DateTimeField(auto_now_add=True)
     sent_at = models.DateTimeField(null=True, blank=True)
@@ -674,14 +674,26 @@ class Newsletter(ClusterableModel, models.Model):
     def __str__(self):
         return self.title
 
+    def articles_a_plat(self):
+        """Tous les articles de la lettre, rubrique après rubrique.
+
+        La vue d'envoi annote chaque ligne d'URLs absolues avant le rendu :
+        elle a besoin d'une liste plate, que `par_rubrique` regroupe ensuite.
+        """
+        return [
+            na
+            for bloc in self.rubriques.all().prefetch_related('articles__article')
+            for na in bloc.articles.all()
+        ]
+
     def par_rubrique(self, articles=None):
         """Les articles groupés par rubrique, prêts à composer le sommaire.
 
-        Renvoie une liste de `(libellé, [articles])` : d'abord les articles
-        sans rubrique — en tête, sans titre de section — puis chaque rubrique
-        DANS L'ORDRE DE `RUBRIQUES_NEWSLETTER`, en sautant celles que le
-        rédacteur n'a pas garnies. Choisir les articles suffit donc à composer
-        l'e-mail : il n'y a aucune section à cocher ni à décocher.
+        Renvoie une liste de `(libellé, [articles])`, **dans l'ordre où le
+        rédacteur a rangé ses rubriques** — cet ordre était figé dans le code
+        jusqu'au 18/08/2026, où la rubrique est devenue un bloc à part entière
+        portant ses articles. Une rubrique vide est sautée : choisir les
+        articles suffit à composer l'e-mail, il n'y a aucune section à cocher.
 
         `articles` permet de passer la liste déjà annotée d'URLs d'images par
         la vue d'envoi, plutôt que de relire la base. L'aperçu, l'envoi HTML et
@@ -689,17 +701,15 @@ class Newsletter(ClusterableModel, models.Model):
         divergeraient sinon.
         """
         if articles is None:
-            articles = list(
-                self.newsletter_articles.select_related('article').order_by('order')
-            )
+            articles = self.articles_a_plat()
+        par_bloc = {}
+        for na in articles:
+            par_bloc.setdefault(na.bloc_id, []).append(na)
         groupes = []
-        sans_rubrique = [na for na in articles if not na.rubrique]
-        if sans_rubrique:
-            groupes.append(('', sans_rubrique))
-        for code, libelle in RUBRIQUES_NEWSLETTER:
-            dedans = [na for na in articles if na.rubrique == code]
+        for bloc in self.rubriques.all():
+            dedans = par_bloc.get(bloc.pk)
             if dedans:
-                groupes.append((libelle, dedans))
+                groupes.append((bloc.libelle, dedans))
         return groupes
 
 
@@ -716,28 +726,60 @@ RUBRIQUES_NEWSLETTER = [
 ]
 
 
-class NewsletterArticle(models.Model):
-    """Article inclus dans une newsletter, avec ordre d'affichage."""
+class NewsletterRubrique(ClusterableModel, Orderable):
+    """Une section de la lettre, et les articles qu'elle contient.
+
+    Jusqu'au 18/08/2026, chaque article portait le nom de sa rubrique : mettre
+    cinq articles en « Campagnes » obligeait à choisir « Campagnes » cinq fois,
+    et rien ne montrait le sommaire tel qu'il serait lu. Arnaud : « possible de
+    simplement choisir une catégorie et en dessous plusieurs articles ? ».
+
+    L'ordre des rubriques devient du même coup celui du rédacteur, alors qu'il
+    était figé dans `RUBRIQUES_NEWSLETTER`.
+    """
+
     newsletter = ParentalKey(
-        Newsletter, on_delete=models.CASCADE, related_name='newsletter_articles'
+        Newsletter, on_delete=models.CASCADE, related_name='rubriques',
+    )
+    rubrique = models.CharField(
+        max_length=30, blank=True,
+        # Le choix vide est nommé : sans lui, Django affiche « --------- »,
+        # et personne ne devine qu'une section peut n'avoir aucun titre.
+        choices=[('', 'Sans titre de section')] + RUBRIQUES_NEWSLETTER,
+        verbose_name='Rubrique',
+        help_text="Le titre de section affiché dans l'e-mail. Sans titre, les "
+                  "articles ouvrent la lettre, avant toute section.",
+    )
+
+    class Meta(Orderable.Meta):
+        verbose_name = 'Rubrique de la newsletter'
+        verbose_name_plural = 'Rubriques de la newsletter'
+
+    @property
+    def libelle(self):
+        return dict(RUBRIQUES_NEWSLETTER).get(self.rubrique, '')
+
+    def __str__(self):
+        return self.libelle or 'Sans titre'
+
+
+class NewsletterArticle(Orderable):
+    """Un article dans une rubrique. L'ordre des blocs est celui de la lettre."""
+
+    bloc = ParentalKey(
+        NewsletterRubrique, on_delete=models.CASCADE, related_name='articles',
     )
     article = models.ForeignKey(
         'cms.ArticlePage', on_delete=models.CASCADE,
-        related_name='+', verbose_name='Article'
+        related_name='+', verbose_name='Article',
     )
-    rubrique = models.CharField(
-        max_length=30, blank=True, choices=RUBRIQUES_NEWSLETTER,
-        verbose_name='Rubrique',
-        help_text="La section de la newsletter où ranger cet article. "
-                  "Laisser vide place l'article en tête, sans titre de "
-                  "section — ce que font les syndicats, qui n'ont pas de "
-                  "rubriques.",
-    )
-    order = models.PositiveIntegerField(default=0)
 
-    class Meta:
-        ordering = ['order']
-        unique_together = [['newsletter', 'article']]
+    class Meta(Orderable.Meta):
+        verbose_name = 'Article de la newsletter'
+        verbose_name_plural = 'Articles de la newsletter'
+
+    def __str__(self):
+        return self.article.title if self.article_id else ''
 
 
 class Permanence(models.Model):

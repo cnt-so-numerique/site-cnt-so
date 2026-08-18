@@ -129,9 +129,9 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
             return refus
 
         mode = request.POST.get('mode', 'send')
-        articles = list(
-            newsletter.newsletter_articles.select_related('article__featured_image').order_by('order')
-        )
+        # Les articles pendent désormais à une rubrique : on remet la liste à
+        # plat pour l'annoter d'URLs absolues, `par_rubrique` la regroupe après.
+        articles = newsletter.articles_a_plat()
         site_url = request.build_absolute_uri('/')
         _annotate_image_urls(articles, site_url)
 
@@ -153,7 +153,6 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
             )
             html_body = render_to_string('newsletter/email.html', {
                 'newsletter': newsletter,
-                'newsletter_articles': articles,
                 'groupes': newsletter.par_rubrique(articles),
                 'site_url': site_url,
                 'unsubscribe_url': unsubscribe_url,
@@ -194,7 +193,6 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
             )
             html_body = render_to_string('newsletter/email.html', {
                 'newsletter': newsletter,
-                'newsletter_articles': articles,
                 'groupes': newsletter.par_rubrique(articles),
                 'site_url': site_url,
                 'unsubscribe_url': unsubscribe_url,
@@ -264,7 +262,6 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
             )
             html_body = render_to_string('newsletter/email.html', {
                 'newsletter': newsletter,
-                'newsletter_articles': articles,
                 'groupes': newsletter.par_rubrique(articles),
                 'site_url': site_url,
                 'unsubscribe_url': unsubscribe_url,

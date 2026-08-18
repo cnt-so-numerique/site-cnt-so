@@ -181,6 +181,11 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# ── Tests ─────────────────────────────────────────────────────────────────────
+# Parallèle par défaut : la suite passe d'environ cinq minutes à une (mesuré le
+# 18/08/2026). `--parallel 1` reste possible pour déboguer.
+TEST_RUNNER = 'cntso.test_runner.RunnerParallele'
+
 # ── Envoi d'e-mails ────────────────────────────────────────────────────────────
 # Par défaut en développement : affiche les e-mails dans la console
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

@@ -25,6 +25,7 @@ from .models import (
 
 
 from cms.cloisonnement import ViewSetCloisonne
+from cms.models import COULEUR_CHARTE
 
 
 def _scope_by_site(qs, request):
@@ -98,14 +99,23 @@ class NewsletterViewSet(ViewSetCloisonne, SnippetViewSet):
         ], heading='Informations'),
         FieldPanel('intro'),
         InlinePanel(
-            'newsletter_articles',
-            label="Article",
-            heading="Articles sélectionnés (dans l'ordre)",
+            'rubriques',
+            label="Rubrique",
+            heading="Le sommaire de la lettre",
+            help_text="Une rubrique, puis les articles qu'elle contient. "
+                      "Ajoutez autant d'articles que voulu sous une même "
+                      "rubrique ; une rubrique laissée vide ne s'affiche pas. "
+                      "Les blocs se déplacent par glisser-déposer : leur ordre "
+                      "est celui de l'e-mail.",
             panels=[
-                FieldPanel('article'),
-                FieldPanel('rubrique'),
-                FieldPanel('order'),
-            ]
+                FieldPanel('rubrique', classname='nl-rubrique'),
+                InlinePanel(
+                    'articles',
+                    label="Article",
+                    heading="Les articles de cette rubrique",
+                    panels=[FieldPanel('article', classname='nl-article')],
+                ),
+            ],
         ),
     ]
 
@@ -526,3 +536,56 @@ def add_newsletter_send_button(model, **kwargs):
             return instance and instance.pk and instance.status == 'draft'
 
     return SendNewsletterMenuItem(order=100)
+
+
+@hooks.register('insert_global_admin_css')
+def insert_sommaire_newsletter_css():
+    """Rendre lisible le sommaire d'une newsletter.
+
+    Arnaud, 18/08/2026 : « c'est bien le choix des rubriques, mais comment je
+    fais pour choisir les articles que je mets dedans ? » — il a fini par
+    trouver, ce qui est le symptôme : les trois champs d'un bloc avaient le
+    même poids, et le geste central, choisir l'article, se lisait comme un
+    lien secondaire coincé entre deux réglages.
+
+    La rubrique passe en tête et sert d'intitulé au bloc ; le choix de
+    l'article prend la taille de ce qu'il est.
+    """
+    return format_html('''<style>
+        /* La rubrique : un bandeau qui coiffe le bloc. */
+        .nl-rubrique select {{
+            font-size: 1.05rem;
+            font-weight: 700;
+            padding: .55rem .8rem;
+        }}
+        /* Le choix de l'article : le geste principal. */
+        .nl-article {{
+            border-left: 4px solid {rouge};
+            padding-left: 1rem;
+            margin-top: .4rem;
+        }}
+        .nl-article label,
+        .nl-article .w-field__label {{
+            font-size: 1.05rem;
+            font-weight: 700;
+        }}
+        .nl-article .chooser__title,
+        .nl-article .chooser__choice {{
+            font-size: 1.15rem;
+            font-weight: 700;
+        }}
+        .nl-article button.chooser__choose-button,
+        .nl-article .chooser__chosen button,
+        .nl-article a.action-choose {{
+            font-size: 1rem;
+            font-weight: 700;
+            padding: .6rem 1.1rem;
+        }}
+        /* L'ordre : un réglage, pas une décision. */
+        .nl-ordre {{
+            max-width: 16rem;
+        }}
+        .nl-ordre input {{
+            font-size: .95rem;
+        }}
+    </style>''', rouge=COULEUR_CHARTE)

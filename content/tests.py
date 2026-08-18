@@ -75,6 +75,23 @@ def _get_article_parent():
     return home
 
 
+def ajoute_a_la_newsletter(newsletter, article, rubrique='', order=None):
+    """Range un article dans une rubrique de la lettre, en la créant au besoin.
+
+    Depuis le 18/08/2026, la rubrique est un bloc qui porte ses articles : on
+    ne la répète plus sur chaque ligne.
+    """
+    from content.models import NewsletterArticle, NewsletterRubrique
+    bloc = newsletter.rubriques.filter(rubrique=rubrique).first()
+    if bloc is None:
+        bloc = NewsletterRubrique.objects.create(
+            newsletter=newsletter, rubrique=rubrique,
+            sort_order=newsletter.rubriques.count())
+    if order is None:
+        order = bloc.articles.count()
+    return NewsletterArticle.objects.create(bloc=bloc, article=article, sort_order=order)
+
+
 def make_article_page(section_slug='principal', title='Article test', slug=None,
                       live=True, is_featured=False, categories=None, **kwargs):
     parent = _get_article_parent()
@@ -3386,6 +3403,21 @@ class NewsletterSendOvhPostTest(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('actu-test-cntso@cnt-so.info', mail.outbox[0].to)
 
+    @override_settings(NEWSLETTER_SEND_DELAY=18)
+    @patch('content.newsletter_views.time.sleep')
+    def test_lenvoi_direct_respecte_le_plafond_ovh(self, dormir):
+        """OVH n'accepte qu'environ 200 courriels par heure : l'envoi direct
+        marque une pause entre chacun. On compte les pauses plutôt que de les
+        attendre."""
+        self.site.ovh_mailing_list = ''
+        self.site.newsletter_active = True
+        self.site.save(update_fields=['ovh_mailing_list', 'newsletter_active'])
+        Subscriber.objects.create(site=self.site, email='p1@example.com', is_active=True)
+        Subscriber.objects.create(site=self.site, email='p2@example.com', is_active=True)
+        _chef_client(self.site).post(self.url, {'mode': 'send'})
+        self.assertEqual(dormir.call_count, 2)
+        self.assertEqual(dormir.call_args[0][0], 18)
+
     @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
     def test_send_sets_list_unsubscribe_header(self, mock_subs):
         # L'en-tête annonçait « <liste>-unsubscribe@ », convention Mailman non
@@ -3413,8 +3445,15 @@ class NewsletterSendOvhPostTest(TestCase):
         self.newsletter.refresh_from_db()
         self.assertEqual(self.newsletter.sent_count, 2)
 
+    @override_settings(NEWSLETTER_SEND_DELAY=0)
     def test_send_direct_fallback_when_no_ovh_list(self):
-        """Sans liste OVH, l'envoi direct email-par-email est utilisé."""
+        """Sans liste OVH, l'envoi direct email-par-email est utilisé.
+
+        Le délai est neutralisé : l'envoi direct respecte le plafond OVH de
+        18 s entre deux courriels, et ce test dormait donc 36 secondes — à lui
+        seul 12 % de la suite. Le plafond est vérifié par le test suivant, qui
+        compte les pauses au lieu de les subir.
+        """
         from django.core import mail
         self.site.ovh_mailing_list = ''
         # Ces tests exercent l'envoi : le syndicat doit donc proposer une
@@ -3455,8 +3494,7 @@ class NewsletterArticlePageTest(TestCase):
         self.newsletter = _make_newsletter(self.site)
         self.article = make_article_page(
             title='Un article Wagtail dans la newsletter', section_slug='nl-artpage')
-        NewsletterArticle.objects.create(
-            newsletter=self.newsletter, article=self.article, order=0)
+        ajoute_a_la_newsletter(self.newsletter, self.article)
         self.url = f'/cms/newsletter/{self.newsletter.pk}/envoyer/'
 
     @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
@@ -5489,8 +5527,7 @@ class ParcoursNewsletterCompletTest(TestCase):
         newsletter = Newsletter.objects.create(
             site=self.site, title='Nouvelles du mois', intro='Au sommaire.',
             status='draft')
-        NewsletterArticle.objects.create(newsletter=newsletter,
-                                         article=self.article, order=0)
+        ajoute_a_la_newsletter(newsletter, self.article)
         chef = _chef_client(self.site)
         chef.post(f'/cms/newsletter/{newsletter.pk}/envoyer/', {'mode': 'send'})
 
@@ -6742,15 +6779,16 @@ class NewsletterRubriquesTest(TestCase):
         self.rang += 1
         art = make_article_page(section_slug='principal', title=titre,
                                 slug=titre.lower().replace(' ', '-').replace("'", ''))
-        return NewsletterArticle.objects.create(
-            newsletter=self.nl, article=art, rubrique=rubrique, order=self.rang)
+        return ajoute_a_la_newsletter(self.nl, art, rubrique=rubrique)
 
-    def test_les_rubriques_sortent_dans_lordre_prevu(self):
+    def test_les_rubriques_sortent_dans_lordre_du_redacteur(self):
+        """Cet ordre était figé dans le code jusqu'au 18/08/2026 : c'est
+        désormais celui des blocs, que le rédacteur déplace."""
         self._article('Solidarité internationale', 'international')
         self._article('Grève au nettoyage', 'actu-syndicale')
         self._article('Campagne sans-papiers', 'campagne')
         libelles = [libelle for libelle, _ in self.nl.par_rubrique()]
-        self.assertEqual(libelles, ['Campagnes', 'Actu syndicale', 'International'])
+        self.assertEqual(libelles, ['International', 'Actu syndicale', 'Campagnes'])
 
     def test_une_rubrique_sans_article_nexiste_pas(self):
         self._article('Campagne sans-papiers', 'campagne')
@@ -6758,14 +6796,15 @@ class NewsletterRubriquesTest(TestCase):
         self.assertEqual(libelles, ['Campagnes'])
         self.assertNotIn('Nos droits', libelles)
 
-    def test_les_articles_sans_rubrique_passent_en_tete(self):
+    def test_une_rubrique_sans_titre_sert_de_liste_a_plat(self):
         """Ce que produisent les newsletters des syndicats, qui n'ont pas de
-        rubriques : une liste à plat, sans titre de section."""
-        self._article('Campagne sans-papiers', 'campagne')
+        rubriques : une liste sans titre de section."""
         self._article('Un mot du syndicat')
+        self._article('Campagne sans-papiers', 'campagne')
         groupes = self.nl.par_rubrique()
         self.assertEqual(groupes[0][0], '')
         self.assertEqual(groupes[0][1][0].article.title, 'Un mot du syndicat')
+        self.assertEqual(groupes[1][0], 'Campagnes')
 
     def test_lordre_est_respecte_dans_une_rubrique(self):
         self._article('Première grève', 'actu-syndicale')
@@ -6783,7 +6822,7 @@ class NewsletterRubriquesTest(TestCase):
         self._article('Grève au nettoyage', 'actu-syndicale')
         html = render_to_string('newsletter/email.html', {
             'newsletter': self.nl,
-            'newsletter_articles': list(self.nl.newsletter_articles.all()),
+            'newsletter_articles': list(self.nl.articles_a_plat()),
             'groupes': self.nl.par_rubrique(),
             'site_url': 'https://cnt-so.org/',
             'unsubscribe_url': 'https://cnt-so.org/desabo/',
@@ -6799,7 +6838,7 @@ class NewsletterRubriquesTest(TestCase):
         liste à plat qui perdrait le sens des sections."""
         from content.newsletter_views import _corps_texte
         self._article('Campagne sans-papiers', 'campagne')
-        articles = list(self.nl.newsletter_articles.select_related('article'))
+        articles = self.nl.articles_a_plat()
         for na in articles:
             na.link_url = 'https://cnt-so.org/article/x/'
         texte = _corps_texte(self.nl, articles, 'https://cnt-so.org/desabo/')
@@ -6819,7 +6858,7 @@ class NewsletterRubriquesTest(TestCase):
         def rendu():
             return render_to_string('newsletter/email.html', {
                 'newsletter': self.nl,
-                'newsletter_articles': list(self.nl.newsletter_articles.all()),
+                'newsletter_articles': list(self.nl.articles_a_plat()),
                 'groupes': self.nl.par_rubrique(),
                 'site_url': 'https://cnt-so.org/',
                 'unsubscribe_url': 'https://cnt-so.org/desabo/',
@@ -6828,9 +6867,10 @@ class NewsletterRubriquesTest(TestCase):
 
         self.assertNotIn('Orientations', rendu())
 
-        # Sans rubrique, l'étiquette reste : c'est le rendu des syndicats.
-        na.rubrique = ''
-        na.save()
+        # Sans titre de section, l'étiquette reste : c'est le rendu des
+        # syndicats, qui n'ont pas de rubriques.
+        na.bloc.rubrique = ''
+        na.bloc.save()
         self.assertIn('Orientations', rendu())
 
 
@@ -7194,20 +7234,24 @@ class TractCouleurEtDeuxPagesTest(TestCase):
 
     def test_le_tract_fait_une_page_ou_deux_jamais_un_entre_deux(self):
         """« Il ne peut pas faire 1,7 page, ça n'existe pas » (Arnaud). Le
-        tract est un fichier : une page pleine, ou deux."""
+        texte est réparti dans de vraies pages A4 fermées, pas laissé couler."""
         html = self.client.get(self.url).content.decode()
-        self.assertIn('PAGES_POSSIBLES = [1, 2]', html)
+        self.assertIn('PAGES_VISEES = [1, 2]', html)
         self.assertIn('PT_MIN', html)
-        # Le cale-pied, qui pousse le pied au bas de la dernière page.
-        self.assertIn('id="cale"', html)
+        # Des pages closes, et un pied poussé en bas par le flux.
+        self.assertIn('.zone { flex: 1 1 auto; overflow: hidden; }', html)
+        self.assertIn('break-after: page', html)
 
-    def test_le_calage_se_fait_sur_la_geometrie_A4(self):
-        """Mesuré dans la mise en page mobile, il figerait une taille fausse
-        pour l'impression."""
+    def test_la_feuille_reste_A4_meme_sur_un_petit_ecran(self):
+        """Une mise en page « mobile » changerait les hauteurs, et la
+        pagination se calculerait sur une géométrie qui n'est pas celle de la
+        feuille imprimée : c'est ce qui sortait un PDF de trois pages."""
         html = self.client.get(self.url).content.decode()
-        self.assertIn(".feuille.mesure", html)
-        self.assertIn("classList.add('mesure')", html)
-        self.assertIn("width: 210mm !important", html)
+        self.assertIn('width: 210mm; height: 297mm;', html)
+        # C'est l'affichage qu'on réduit, pas la feuille.
+        self.assertIn("tract.style.transform = 'scale(", html)
+        # …et cette réduction ne doit pas survivre à l'impression.
+        self.assertIn('transform: none !important; height: auto !important;', html)
 
 
 class TractAllegeTest(TestCase):
@@ -7357,3 +7401,66 @@ class TractSansAdresseEnDoubleTest(TestCase):
         html = self._html()
         self.assertEqual(html.count('>double.cnt-so.org<'), 1)
         self.assertLess(html.index('>double.cnt-so.org<'), html.index('double@cnt-so.org'))
+
+
+class SommaireNewsletterLisibleTest(TestCase):
+    """« Comment je fais pour choisir les articles que je mets dedans ? »
+
+    Arnaud a fini par trouver, ce qui est le symptôme : les trois champs d'un
+    bloc avaient le même poids, et le geste central — choisir l'article — se
+    lisait comme un réglage secondaire coincé entre deux autres.
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='principal')
+        self.user = make_superuser()
+        self.client.force_login(self.user)
+        self.nl = Newsletter.objects.create(site=self.site, title='Lettre',
+                                            intro='Bonjour')
+        self.url = f'/cms/snippets/content/newsletter/edit/{self.nl.pk}/'
+
+    def test_la_rubrique_vient_avant_larticle(self):
+        html = self.client.get(self.url).content.decode()
+        self.assertLess(html.index('nl-rubrique'), html.index('nl-article'))
+
+    def test_le_choix_sans_rubrique_est_nomme(self):
+        """Django affichait « --------- » : personne ne devinait qu'un article
+        pouvait n'appartenir à aucune rubrique."""
+        html = self.client.get(self.url).content.decode()
+        self.assertIn('Sans titre de section', html)
+
+    def test_on_lit_quune_rubrique_porte_plusieurs_articles(self):
+        html = self.client.get(self.url).content.decode()
+        self.assertIn("autant d&#x27;articles que voulu", html)
+
+    def test_plusieurs_articles_tiennent_dans_une_meme_rubrique(self):
+        """La question de fond : c'était déjà possible, ça ne se voyait pas."""
+        from content.models import NewsletterArticle
+        cat = make_cms_category(name='C', slug='c-nl', section_slug='principal')
+        a1 = make_article_page(section_slug='principal', title='Un', slug='nl-un',
+                               categories=[cat])
+        a2 = make_article_page(section_slug='principal', title='Deux', slug='nl-deux',
+                               categories=[cat])
+        ajoute_a_la_newsletter(self.nl, a1, rubrique='campagne')
+        ajoute_a_la_newsletter(self.nl, a2, rubrique='campagne')
+        groupes = self.nl.par_rubrique()
+        self.assertEqual(len(groupes), 1)
+        libelle, articles = groupes[0]
+        self.assertEqual(libelle, 'Campagnes')
+        self.assertEqual([na.article.title for na in articles], ['Un', 'Deux'])
+
+    def test_un_article_sans_rubrique_passe_en_tete(self):
+        """Réponse à « peut-on choisir un article sans le mettre dans une
+        rubrique ? » — oui, et il ouvre la lettre."""
+        from content.models import NewsletterArticle
+        cat = make_cms_category(name='C', slug='c-nl2', section_slug='principal')
+        seul = make_article_page(section_slug='principal', title='Seul',
+                                 slug='nl-seul', categories=[cat])
+        range_ = make_article_page(section_slug='principal', title='Rangé',
+                                   slug='nl-range', categories=[cat])
+        ajoute_a_la_newsletter(self.nl, seul, rubrique='')
+        ajoute_a_la_newsletter(self.nl, range_, rubrique='droits')
+        groupes = self.nl.par_rubrique()
+        self.assertEqual(groupes[0][0], '')
+        self.assertEqual(groupes[0][1][0].article.title, 'Seul')
+        self.assertEqual(groupes[1][0], 'Nos droits')
