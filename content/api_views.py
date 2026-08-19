@@ -75,12 +75,18 @@ class NewsletterSyncView(View):
     Header: X-Webhook-Secret: <hmac-sha256 du body>
     Body JSON: {
         "email": "...",
-        "newsletter_conf": true,
-        "newsletter_synd": false,
+        "newsletter_conf": true,      // facultatif
+        "newsletter_synd": false,     // facultatif
         "syndicat_slug": "paris"
     }
 
     L'adhésion vaut consentement — pas de double opt-in pour ces abonnés.
+
+    **Une clé absente laisse la liste correspondante inchangée.** Elle valait
+    auparavant « désabonne » : cnt-adhesion, qui pousse ses préférences à
+    chaque encaissement, réinscrivait donc à la lettre confédérale ceux qui
+    s'en étaient retirés par le lien de désinscription — leur sortie tenait
+    jusqu'au prélèvement suivant.
     """
 
     def post(self, request):
@@ -96,20 +102,26 @@ class NewsletterSyncView(View):
         if not email:
             return JsonResponse({'error': 'email manquant'}, status=400)
 
-        newsletter_conf = bool(data.get('newsletter_conf', False))
-        newsletter_synd = bool(data.get('newsletter_synd', False))
+        newsletter_conf = data.get('newsletter_conf')
+        newsletter_synd = data.get('newsletter_synd')
         syndicat_slug = data.get('syndicat_slug', '')
 
         result = {}
-        result['conf'] = _sync_sub(email, site=None, actif=newsletter_conf)
+        if newsletter_conf is None:
+            result['conf'] = 'inchangé'
+        else:
+            result['conf'] = _sync_sub(email, site=None, actif=bool(newsletter_conf))
 
         if syndicat_slug:
             section = _get_section_page(syndicat_slug)
-            if section:
-                result['synd'] = _sync_sub(email, site=section, actif=newsletter_synd)
-            else:
+            if section is None:
                 result['synd'] = f'section introuvable: {syndicat_slug}'
                 logger.warning("SectionPage introuvable pour slug '%s'", syndicat_slug)
+            elif newsletter_synd is None:
+                result['synd'] = 'inchangé'
+            else:
+                result['synd'] = _sync_sub(email, site=section,
+                                           actif=bool(newsletter_synd))
 
         logger.info("Sync newsletter adhesion %s : %s", email, result)
         return JsonResponse({'ok': True, 'result': result})

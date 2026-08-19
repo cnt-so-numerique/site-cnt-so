@@ -3645,6 +3645,40 @@ class OvhSyncSubscriptionTest(TestCase):
 
     @patch('cms.ovh_client.add_subscriber')
     @patch('cms.ovh_client.remove_subscriber')
+    def test_webhook_adhesion_sans_cle_laisse_la_liste_intacte(self, mock_remove, mock_add):
+        """Une clé absente ne vaut pas « désabonne ».
+
+        cnt-adhesion pousse les préférences de l'adhérent à chaque
+        encaissement. Tant qu'une clé absente valait « false », une sortie
+        faite par le lien de désinscription tenait jusqu'au prélèvement
+        suivant, puis l'adhérent était réinscrit sans rien demander.
+        """
+        import hashlib as _hashlib
+        import hmac as _hmac
+        import json as _json
+        from django.test import override_settings
+
+        principal = _ensure_section_page(slug='principal', name='CNT-SO')
+        sorti = Subscriber.objects.create(
+            site=None, email='sorti@example.org', is_active=False)
+
+        body = _json.dumps({'email': 'sorti@example.org',
+                            'newsletter_synd': False,
+                            'syndicat_slug': 'principal'}).encode()
+        with override_settings(ADHESION_WEBHOOK_SECRET='s3cret'):
+            sig = _hmac.new(b's3cret', body, _hashlib.sha256).hexdigest()
+            r = self.client.post('/api/newsletter/sync/', body,
+                                 content_type='application/json',
+                                 HTTP_X_WEBHOOK_SECRET=sig)
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()['result']['conf'], 'inchangé')
+        sorti.refresh_from_db()
+        self.assertFalse(sorti.is_active)
+        mock_add.assert_not_called()
+
+    @patch('cms.ovh_client.add_subscriber')
+    @patch('cms.ovh_client.remove_subscriber')
     def test_desabonnement_retire_de_toutes_les_listes(self, mock_remove, mock_add):
         sub = self._make_subscriber(active=True)
         r = self.client.post(f'/newsletter/desinscription/{sub.token}/')
