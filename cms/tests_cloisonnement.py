@@ -384,3 +384,52 @@ class CloisonnementBackOfficeTest(TestCase):
                 self.assertTrue(
                     modele._default_manager.filter(pk=voisin.pk).exists(),
                     f"{modele._meta.label} du voisin détruit par « tout sélectionner »")
+
+
+class PagesDuSyndicatCloisonneTest(TestCase):
+    """L'écran « Pages du syndicat » part du syndicat courant, pas de la session.
+
+    Il a été ajouté le 18/08/2026 sans test de cloisonnement : c'est le seul
+    écran de ce fichier à ne pas passer par un SnippetViewSet, donc le seul que
+    le balayage ne couvre pas. Or il expose des liens d'édition — la fiche du
+    syndicat, la configuration du formulaire de contact — et il choisit sa
+    cible lui-même.
+
+    Le garde-fou est dans `get_current_site` : pour un rédacteur rattaché à un
+    groupe de syndicat, il renvoie SON syndicat et ignore la session. Ce test
+    le prouve en forgeant une session pointant sur le voisin.
+    """
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        self.mien = _ensure_section_page(slug='pages-a', name='Syndicat Pages A')
+        self.voisin = _ensure_section_page(slug='pages-b', name='Syndicat Pages B')
+        groupe, _ = Group.objects.get_or_create(name='redacteur_pages-a')
+        redacteur = User.objects.create_user('redac-pages', password='pass')
+        redacteur.groups.add(groupe)
+        redacteur.user_permissions.set(Permission.objects.all())
+        self.client.force_login(User.objects.get(pk=redacteur.pk))
+
+    def _page(self):
+        return self.client.get('/cms/pages-du-syndicat/')
+
+    def test_le_redacteur_voit_son_syndicat(self):
+        r = self._page()
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, self.mien.title)
+
+    def test_une_session_forgee_ne_lui_ouvre_pas_le_voisin(self):
+        session = self.client.session
+        session['cms_current_site_id'] = self.voisin.pk
+        session.save()
+        r = self._page()
+        self.assertContains(r, self.mien.title)
+        self.assertNotContains(r, self.voisin.title)
+        self.assertNotContains(
+            r, f'/cms/snippets/cms/sectionpage/edit/{self.voisin.pk}/',
+            msg_prefix="lien d'édition vers la fiche du voisin")
+
+    def test_un_visiteur_non_connecte_est_ecarte(self):
+        self.client.logout()
+        r = self._page()
+        self.assertIn(r.status_code, (302, 403))
