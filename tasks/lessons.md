@@ -196,3 +196,35 @@ d'accuser le code.
 **Corollaire :** je l'avais annoncé comme « grave » avant de vérifier. Une
 hypothèse alarmante se qualifie d'abord, se communique ensuite — sinon on fait
 courir l'utilisateur après un bug qui n'existe pas.
+
+## Un test qui cherche une chaîne dans le gabarit ne teste rien (26/08/2026)
+
+`assertIn('PAGES_VISEES = [1, 2]', html)` a été écrit pour couvrir l'exigence
+« le tract fait 1 ou 2 pages, jamais entre les deux ». Il ne la couvre pas : il
+vérifie qu'un littéral figure dans le fichier. Il reste vert si la pagination
+sort trois pages, et devient rouge si quelqu'un ajoute une espace. Même chose
+pour `assertIn('.zone { flex: 1 1 auto; overflow: hidden; }', html)`, qui
+épingle un espacement de CSS.
+
+**Règle** : quand l'exigence porte sur un résultat observable, le test doit
+observer le résultat. Pour du JavaScript, cela veut dire un vrai navigateur
+(`_pages_du_tract` dans `content/tests.py` : Chrome sans interface, `--dump-dom`,
+lecture de `data-pages`), sauté proprement là où il n'y en a pas. Un test sauté
+et annoncé vaut mieux qu'un test vert qui ne mesure rien.
+
+**Et toujours vérifier par mutation** : casser volontairement le code et
+regarder le test rougir. Les trois correctifs de cet audit ont été validés
+ainsi ; sans ça je n'aurais pas su lesquels de mes tests étaient tautologiques.
+
+## Vérifier qu'une fonction s'exécute avant de croire ce qu'elle dit (26/08/2026)
+
+`aerer()` répartissait le blanc restant en bas de chaque page du tract. Elle le
+mesurait par `zone.clientHeight - zone.scrollHeight`. Sur un conteneur qui ne
+déborde pas, ces deux valeurs sont égales **par définition** : le « restant »
+valait toujours 0 et la fonction sortait à la première ligne. Vingt lignes de
+code, un commentaire explicatif, zéro effet — et personne ne l'a vu parce que
+le résultat sans aération est simplement… du texte en haut de page.
+
+**Règle** : une fonction dont l'effet est invisible à l'œil doit être vérifiée
+par la mesure, pas par la relecture. Ici : compter les marges réellement posées
+dans le DOM (`grep -c 'style="margin-bottom'`).
