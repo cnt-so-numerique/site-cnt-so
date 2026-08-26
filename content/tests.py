@@ -7133,6 +7133,84 @@ class NewsletterDelivrabiliteTest(TestCase):
         self.assertEqual(mail.outbox[0].reply_to, ['contact@cnt-so.org'])
 
 
+class SlugHeriteServiParLesVuesTest(TestCase):
+    """Le sitemap listait des adresses que les vues renvoyaient en 404.
+
+    `SectionPage.slugs_contenu` existe parce que quelques syndicats ont un slug
+    WordPress hérité différent du slug Wagtail (Numérique « stnum »,
+    Éducation « fter ») et que leurs contenus anciens portent celui-là. Sa
+    docstring affirme « tout filtre `section_slug` passe désormais par ici ».
+
+    C'était faux : les flux et les trois sitemaps l'utilisaient, les vues
+    publiques filtraient sur le seul slug Wagtail. Un article hérité était donc
+    annoncé aux moteurs de recherche et introuvable quand on suivait le lien —
+    les deux ne pouvaient pas avoir raison en même temps (audit du 26/08/2026).
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='numerique', name='CNT-SO Numérique',
+                              site_type='sectoral')
+        self.site.legacy_site_slug = 'stnum'
+        self.site.save()
+        self.ancien = make_article_page(section_slug='stnum', title='Article hérité',
+                                        slug='article-herite')
+
+    def test_le_sitemap_et_la_vue_sont_daccord(self):
+        from content.sitemaps import SectionArticleSitemap
+        annonces = {a.slug for a in SectionArticleSitemap(self.site).items()}
+        self.assertIn('article-herite', annonces)
+        r = self.client.get('/numerique/article/article-herite/')
+        self.assertEqual(r.status_code, 200,
+                         "le sitemap l'annonce, la vue doit le servir")
+
+    def test_larticle_herite_apparait_dans_la_liste_du_syndicat(self):
+        r = self.client.get('/numerique/')
+        self.assertContains(r, 'Article hérité')
+
+    def test_une_categorie_heritee_est_servie(self):
+        make_cms_category(name='Droits', slug='droits-h', section_slug='stnum')
+        r = self.client.get('/numerique/categorie/droits-h/')
+        self.assertEqual(r.status_code, 200)
+
+    def test_le_contenu_du_voisin_reste_hors_de_portee(self):
+        """Élargir le périmètre ne doit pas ouvrir celui d'à côté."""
+        make_site(slug='marseille', name='CNT-SO 13', site_type='regional')
+        make_article_page(section_slug='marseille', title='Chez le voisin',
+                          slug='chez-le-voisin')
+        self.assertEqual(
+            self.client.get('/numerique/article/chez-le-voisin/').status_code, 404)
+
+
+class SlugHeriteSansCollisionTest(TestCase):
+    """Un slug hérité ne peut pas être le slug Wagtail d'un autre syndicat.
+
+    `slugs_contenu` sert de périmètre à tous les filtres publics depuis
+    l'harmonisation : si le slug hérité de A était le slug de B, A servirait le
+    contenu de B sous sa propre adresse. Le cas n'existe pas — seul
+    « numerique » a un slug hérité — et il ne doit pas pouvoir être créé.
+    """
+
+    def test_la_collision_est_refusee(self):
+        from django.core.exceptions import ValidationError
+        make_site(slug='marseille', name='CNT-SO 13', site_type='regional')
+        autre = make_site(slug='paris', name='CNT-SO Paris', site_type='regional')
+        autre.legacy_site_slug = 'marseille'
+        with self.assertRaises(ValidationError) as leve:
+            autre.clean()
+        self.assertIn('legacy_site_slug', leve.exception.message_dict)
+
+    def test_un_slug_herite_libre_passe(self):
+        site = make_site(slug='numerique', name='CNT-SO Numérique',
+                         site_type='sectoral')
+        site.legacy_site_slug = 'stnum'
+        site.clean()   # ne doit rien lever
+
+    def test_le_slug_herite_egal_au_sien_passe(self):
+        site = make_site(slug='marseille', name='CNT-SO 13', site_type='regional')
+        site.legacy_site_slug = 'marseille'
+        site.clean()
+
+
 class ContactNonRemisTest(TestCase):
     """Un message de contact qui ne part pas doit laisser une trace.
 

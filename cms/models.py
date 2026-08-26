@@ -935,6 +935,19 @@ class SectionPage(SeoMixin, Page):
                     f"Ce domaine est déjà utilisé par « {clash.first().title} »"})
             self.custom_domain = domain
 
+        if self.legacy_site_slug and self.legacy_site_slug != self.slug:
+            # `slugs_contenu` sert de périmètre à tous les filtres publics :
+            # un slug hérité qui serait le slug Wagtail d'un AUTRE syndicat
+            # ferait servir le contenu du voisin sous cette adresse. Le cas
+            # n'existe pas aujourd'hui (seul « numerique » a un slug hérité,
+            # « stnum »), et il ne doit pas pouvoir être créé.
+            voisin = SectionPage.objects.filter(
+                slug=self.legacy_site_slug).exclude(pk=self.pk).first()
+            if voisin:
+                from django.core.exceptions import ValidationError
+                raise ValidationError({'legacy_site_slug':
+                    f"« {self.legacy_site_slug} » est déjà le slug de "
+                    f"« {voisin.title} » : ce syndicat servirait son contenu."})
 
     @property
     def slugs_contenu(self):
