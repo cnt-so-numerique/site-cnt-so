@@ -11,6 +11,12 @@ classe de test, et les plus grosses classes bornent le temps total.
 
 `--parallel 1` reste possible pour déboguer : le parallélisme brouille l'ordre
 des sorties et empêche `pdb`.
+
+⚠️ **`tblib` est indispensable** (requirements.txt). Sans lui, Django ne sait
+pas rapatrier la trace d'un échec depuis un processus fils : la suite entière
+s'arrête sur un `TypeError: cannot pickle 'traceback' object` qui ne nomme
+même pas le test fautif. Un seul test rouge devenait ainsi indéboguable sans
+repasser cinq minutes en séquentiel — constaté le 26/08/2026.
 """
 
 import os
