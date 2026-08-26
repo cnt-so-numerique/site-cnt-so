@@ -153,7 +153,10 @@ h1 {
 .pied .ou { font-size: .9em; margin-top: .15em; font-weight: 700; }
 .pied .appel { font-size: .85em; max-width: 82mm; text-align: right; line-height: 1.3; color: rgba(255,255,255,.95); }
 
-/* Le modèle : il sert à fabriquer les pages, il ne s'affiche jamais. */
+/* Le modèle : il sert à fabriquer les pages, il ne s'affiche jamais.
+   Le masquage reste en CSS — le poser depuis le script laisserait le
+   texte brut clignoter avant la mise en pages. Sans JavaScript, c'est
+   le <noscript> qui prend le relais, pas le modèle. */
 #modele { display: none; }
 
 @media print {
@@ -193,6 +196,16 @@ h1 {
 </div>
 
 <div id="tract"></div>
+
+<noscript>
+  <p style="max-width:60ch;margin:2rem auto;padding:1rem 1.2rem;background:#fff;
+            font-family:system-ui,sans-serif;line-height:1.5;">
+    Ce tract est mis en pages par votre navigateur, et JavaScript est
+    désactivé&nbsp;: la mise en pages A4 ne peut pas se faire. Le texte
+    complet reste lisible sur
+    <a href="{{ article.get_absolute_url }}">la page de l'article</a>.
+  </p>
+</noscript>
 
 <div id="modele">
   <div data-part="entete" class="entete">
@@ -310,13 +323,23 @@ h1 {
   }
 
   /* Aérer : le blanc qui reste au bas de chaque page se répartit entre ses
-     morceaux, dans la limite au-delà de laquelle ils flotteraient. */
+     morceaux, dans la limite au-delà de laquelle ils flotteraient.
+
+     La mesure passe par la position réelle du dernier morceau, et non par
+     `scrollHeight` : sur un conteneur qui ne déborde pas, `scrollHeight` vaut
+     exactement `clientHeight` — vérifié dans Chrome le 26/08/2026 — donc le
+     « restant » calculé ainsi était toujours nul et cette fonction ne faisait
+     rien depuis qu'elle existait. Aucune marge n'était posée sur le tract. */
   function aerer(pt) {
     var pxParEm = pt * (96 / 72);
     Array.prototype.forEach.call(tract.querySelectorAll('.zone'), function (zone) {
       var enfants = zone.children;
       if (enfants.length < 2) return;
-      var restant = zone.clientHeight - zone.scrollHeight;
+      var bas = zone.getBoundingClientRect().bottom;
+      var finDuTexte = enfants[enfants.length - 1].getBoundingClientRect().bottom;
+      // Deux pixels de garde : distribuer le blanc au pixel près ferait
+      // dépasser le dernier morceau, que `overflow: hidden` couperait.
+      var restant = bas - finDuTexte - 2;
       if (restant <= 0) return;
       var air = Math.min(restant / (enfants.length - 1) / pxParEm, AIR_MAX_EM);
       if (air < 0.05) return;
