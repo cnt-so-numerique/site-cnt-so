@@ -3,6 +3,7 @@ Vues pour l'envoi de newsletter et la gestion des abonnés.
 Anciennement dans redaction/views.py — maintenant exposées via Wagtail admin URLs.
 """
 import csv
+import logging
 import time
 
 from django.contrib import messages
@@ -21,6 +22,8 @@ from content.models import Newsletter, Subscriber
 
 
 from content.ovh_sync import lists_for_site as _ovh_list_names
+
+logger = logging.getLogger(__name__)
 
 
 def _annotate_image_urls(articles, site_url):
@@ -232,8 +235,13 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
                 try:
                     from cms.ovh_client import get_subscribers
                     sent_count += len(get_subscribers(list_name))
-                except Exception:
-                    pass
+                except Exception as e:
+                    # Sans trace, la lettre s'archivait avec « 0 abonné » et
+                    # le message de succès l'annonçait tel quel : on croyait
+                    # à un envoi dans le vide alors que le courriel était bien
+                    # parti (le compte, lui, n'avait pas pu être relu).
+                    logger.warning("Comptage de la liste OVH %s impossible "
+                                   "après envoi : %s", list_name, e)
 
             newsletter.status = 'sent'
             newsletter.sent_at = timezone.now()

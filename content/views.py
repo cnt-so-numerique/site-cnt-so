@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone as dt_timezone
 from itertools import chain
 
@@ -18,6 +19,8 @@ from .forms import (ContactForm, DynamicContactForm, NewsletterCaptchaForm,
 from cms.models import (ArticlePage, CmsCategory, SectionPage, _cle_de_nom,
                         section_base_url)
 from taggit.models import Tag as TaggitTag
+
+logger = logging.getLogger(__name__)
 
 
 def get_section_or_404(slug, inclure_depublies=False, **extra):
@@ -745,7 +748,14 @@ def _send_contact_email(site, message_obj):
     if not recipient:
         recipient = getattr(settings, 'DEFAULT_CONTACT_EMAIL', settings.DEFAULT_FROM_EMAIL)
     if not recipient:
-        return
+        # Aucun destinataire, même de secours : le message n'ira nulle part.
+        # C'est le seul cas où rien ne part du tout, il mérite d'être crié.
+        logger.error(
+            "Message de contact n° %s SANS DESTINATAIRE (site %s) — ni le "
+            "formulaire, ni la fiche du syndicat, ni DEFAULT_CONTACT_EMAIL "
+            "n'en donnent un.", message_obj.pk, getattr(site, 'name', '?'),
+        )
+        return False
 
     site_name = site.name if site else 'CNT-SO'
     subject = f'{prefix or f"[Contact {site_name}]"}'
@@ -779,10 +789,24 @@ def _send_contact_email(site, message_obj):
         to=[recipient],
         reply_to=[message_obj.email],
     )
+    # `fail_silently=True` est voulu : le message est déjà enregistré en base
+    # et visible dans /cms/, il ne faut pas répondre une 500 à quelqu'un dont
+    # la demande est bien arrivée. Mais l'échec doit laisser une trace — sans
+    # elle, un formulaire dont le serveur SMTP refuse les envois affiche
+    # « message envoyé » à tout le monde pendant des mois, et le syndicat ne
+    # reçoit rien sans jamais savoir pourquoi (audit du 26/08/2026 : ni
+    # journal, ni compteur, ni indice).
     try:
-        email.send(fail_silently=True)
+        partis = email.send(fail_silently=True)
     except Exception:
-        pass
+        partis = 0
+    if not partis:
+        logger.error(
+            "Message de contact n° %s NON REMIS à %s (site %s) — il reste "
+            "lisible dans /cms/, mais personne n'en sera averti.",
+            message_obj.pk, recipient, site_name,
+        )
+    return bool(partis)
 
 
 class ContactFormMixin:
@@ -1105,8 +1129,17 @@ class NewsletterSubscribeVerifyView(View):
                 )
                 msg.attach_alternative(html, 'text/html')
                 msg.send()
-            except Exception:
-                pass  # Ne pas bloquer l'utilisateur si l'e-mail échoue
+            except Exception as e:
+                # Ne pas bloquer le visiteur, mais ne pas se taire non plus :
+                # sans ce courriel il n'a aucun moyen de confirmer, et la page
+                # suivante lui annonce pourtant de regarder sa boîte. L'échec
+                # muet donnait une inscription qui n'aboutissait jamais, sans
+                # que rien nulle part n'en garde trace (audit du 26/08/2026).
+                logger.error(
+                    "Courriel de confirmation d'inscription NON REMIS à %s "
+                    "(syndicat %s) : %s — la personne attend un lien qui ne "
+                    "viendra pas.", email, getattr(site, 'name', '?'), e,
+                )
 
         return render(request, 'content/newsletter_subscribe_done.html', {
             'site': site, 'email': email, 'already_active': subscriber.is_active,

@@ -4728,24 +4728,34 @@ class ViewsAdditionalCoverageTest(TestCase):
             site=site, name='Test', email='t@t.fr', message='m'
         )
         with override_settings(DEFAULT_CONTACT_EMAIL='', DEFAULT_FROM_EMAIL=''):
-            result = _send_contact_email(site, msg)
-        self.assertIsNone(result)
+            with self.assertLogs('content.views', level='ERROR') as journal:
+                result = _send_contact_email(site, msg)
+        self.assertFalse(result)
+        self.assertIn('SANS DESTINATAIRE', '\n'.join(journal.output))
 
     @patch('django.core.mail.EmailMultiAlternatives.send', side_effect=Exception('SMTP error'))
-    def test_send_contact_email_exception_silencieuse(self, mock_send):
-        """_send_contact_email lines 558-559 — exception ignorée."""
+    def test_send_contact_email_signale_lechec_sans_le_propager(self, mock_send):
+        """Ce test s'appelait « exception silencieuse » et vérifiait que
+        `_send_contact_email` ne renvoyait rien — écrit pour la couverture,
+        docstring « exception ignorée » à l'appui. Il épinglait donc le défaut
+        comme spécification : quiconque réparait le silence le voyait rougir.
+
+        Ce qui compte vraiment tient en deux points, et les voici : l'échec ne
+        remonte pas au visiteur — sa demande est enregistrée, lui répondre une
+        500 serait faux — et il ne disparaît pas pour autant.
+        """
         from content.views import _send_contact_email
         from content.models import ContactMessage
-        from django.test import override_settings
         site = _ensure_section_page(slug='exc-email-site', name='Exc Email Site')
         site.contact_email = 'contact@exc.fr'
         site.save(update_fields=['contact_email'])
         msg = ContactMessage.objects.create(
             site=site, name='Test', email='t@t.fr', message='m'
         )
-        with override_settings(CONTACT_EMAIL='contact@exc.fr'):
-            result = _send_contact_email(site, msg)
-        self.assertIsNone(result)
+        with self.assertLogs('content.views', level='ERROR') as journal:
+            remis = _send_contact_email(site, msg)
+        self.assertFalse(remis)
+        self.assertIn('contact@exc.fr', '\n'.join(journal.output))
 
 
 class PlanDuSiteCategoryGroupingTest(TestCase):
@@ -7121,6 +7131,81 @@ class NewsletterDelivrabiliteTest(TestCase):
                 'h-captcha-response': 'test',
             })
         self.assertEqual(mail.outbox[0].reply_to, ['contact@cnt-so.org'])
+
+
+class ContactNonRemisTest(TestCase):
+    """Un message de contact qui ne part pas doit laisser une trace.
+
+    `_send_contact_email` appelait `send(fail_silently=True)` dans un
+    `try/except Exception: pass`. Les deux ensemble : l'échec ne levait rien,
+    ne journalisait rien, ne comptait rien. Un serveur SMTP qui refuse les
+    envois affichait donc « message envoyé » à tous les visiteurs pendant des
+    mois, sans que le syndicat reçoive quoi que ce soit ni sache pourquoi.
+
+    Le `fail_silently` reste voulu : le message est enregistré en base et
+    lisible dans /cms/, il ne faut pas répondre une 500 à quelqu'un dont la
+    demande est bien arrivée. C'est le silence côté journal qui était fautif.
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='principal', name='CNT-SO')
+        self.site.contact_email = 'syndicat@example.org'
+        self.site.save()
+        self.message = ContactMessage.objects.create(
+            site=self.site, name='Dupont', first_name='Camille',
+            email='camille@example.org', message='Question sur mon contrat.')
+
+    def _envoyer(self):
+        from content.views import _send_contact_email
+        return _send_contact_email(self.site, self.message)
+
+    def test_un_envoi_reussi_est_annonce_comme_tel(self):
+        from django.core import mail
+        self.assertTrue(self._envoyer())
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_un_echec_est_journalise_avec_le_destinataire(self):
+        with patch('content.views.EmailMultiAlternatives.send', return_value=0):
+            with self.assertLogs('content.views', level='ERROR') as journal:
+                remis = self._envoyer()
+        self.assertFalse(remis)
+        trace = '\n'.join(journal.output)
+        self.assertIn('syndicat@example.org', trace)
+        self.assertIn(str(self.message.pk), trace,
+                      "le numéro du message manque : impossible de le retrouver "
+                      "dans /cms/ à partir du journal")
+
+    def test_une_exception_ne_remonte_pas_au_visiteur(self):
+        """Sa demande est enregistrée : lui répondre une 500 serait faux."""
+        with patch('content.views.EmailMultiAlternatives.send',
+                   side_effect=OSError('SMTP injoignable')):
+            with self.assertLogs('content.views', level='ERROR'):
+                self.assertFalse(self._envoyer())
+
+
+class ConfirmationNonRemiseTest(TestCase):
+    """Une inscription dont le courriel de confirmation échoue.
+
+    La page suivante annonce « regardez votre boîte » ; sans le lien, la
+    personne ne confirme jamais et reste inactive. L'échec était avalé par un
+    `except Exception: pass`, donc invisible des deux côtés.
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='principal', name='CNT-SO')
+        from django.core.cache import caches
+        caches['limites'].clear()
+
+    @patch('hcaptcha.fields.hCaptchaField.validate', return_value=True)
+    def test_lechec_est_journalise_avec_ladresse(self, _captcha):
+        with patch('content.views.EmailMultiAlternatives.send',
+                   side_effect=OSError('SMTP injoignable')):
+            with self.assertLogs('content.views', level='ERROR') as journal:
+                r = self.client.post('/newsletter/inscription/valider/', {
+                    'email': 'perdue@example.org', 'name': '',
+                    'h-captcha-response': 'x'})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('perdue@example.org', '\n'.join(journal.output))
 
 
 class AbonneConfederalTest(TestCase):
