@@ -581,11 +581,4 @@ def insert_sommaire_newsletter_css():
             font-weight: 700;
             padding: .6rem 1.1rem;
         }}
-        /* L'ordre : un réglage, pas une décision. */
-        .nl-ordre {{
-            max-width: 16rem;
-        }}
-        .nl-ordre input {{
-            font-size: .95rem;
-        }}
     </style>''', rouge=COULEUR_CHARTE)

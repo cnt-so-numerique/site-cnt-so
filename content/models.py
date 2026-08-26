@@ -687,7 +687,11 @@ class Newsletter(ClusterableModel, models.Model):
         """
         return [
             na
-            for bloc in self.rubriques.all().prefetch_related('articles__article')
+            for bloc in self.rubriques.all().prefetch_related(
+                # `featured_image` compris : la vue d'envoi lit l'image de
+                # chaque article pour en faire une URL absolue, et sans elle
+                # on repayait une requête par ligne du sommaire.
+                'articles__article__featured_image')
             for na in bloc.articles.all()
         ]
 
