@@ -88,6 +88,15 @@ un autre serveur, toujours en ligne). Le site Django/Wagtail n'est public que su
 
 Le jour de la bascule (faire AVANT de changer le DNS) :
 
+0. **Destinataires des formulaires de contact.** Quatre syndicats n'en ont
+   aucun et retombent sur `contact@cnt-so.org` : Marseille, Auvergne,
+   Poitiers, Rhône-Alpes. Tant que le site n'est pas public, personne ne s'en
+   aperçoit ; après la bascule, leurs messages arrivent à la confédération.
+   Détail et liens directs : `tasks/todo.md`. Vérification :
+   ```bash
+   grep 'SANS DESTINATAIRE' /var/www/cntso/logs/django.log
+   ```
+
 1. **ALLOWED_HOSTS prod** — le `local_settings.py` du serveur rejette actuellement
    le Host `cnt-so.org` (erreur 400). Ajouter dans
    `/var/www/cntso/cntso/local_settings.py` :

@@ -1,3 +1,58 @@
+# À FAIRE AVANT LA BASCULE DNS
+
+## Quatre syndicats sans destinataire de contact
+
+Relevé sur la production le 26/08/2026. Ces quatre formulaires n'ont ni
+adresse propre ni adresse sur la fiche du syndicat : leurs messages partent
+vers `contact@cnt-so.org` par repli.
+
+Sans conséquence aujourd'hui — aucune personne réelle n'a jamais écrit par le
+formulaire, le site n'étant public que sur `newsite.cnt-so.org` (les 6 messages
+en base datent tous du 30/05 et sont des essais). **Mais le jour où
+`cnt-so.org` pointera ici, les messages de ces quatre syndicats arriveront à
+la confédération, et personne ne s'en apercevra.**
+
+- [ ] **CNT-SO 13 (Marseille)** — /cms/snippets/content/formulairecontact/edit/1/
+- [ ] **CNT-SO Auvergne** — /cms/snippets/content/formulairecontact/edit/2/
+- [ ] **CNT-SO Rhône-Alpes** — /cms/snippets/content/formulairecontact/edit/4/
+- [ ] **CNT-SO Poitiers** — /cms/snippets/content/formulairecontact/edit/6/
+
+Deux façons de faire, au choix pour chacun :
+
+1. renseigner **« E-mail de destination »** sur le formulaire lui-même ;
+2. ou renseigner **« E-mail de contact »** sur la fiche du syndicat — le
+   formulaire s'en sert quand il n'a pas d'adresse propre, et l'adresse sert
+   aussi ailleurs (tract, pied de page).
+
+La seconde est préférable : une seule adresse à tenir par syndicat.
+
+### Vérifier après coup
+
+```bash
+ssh debian@51.91.242.64
+cd /var/www/cntso && venv/bin/python -c "
+import os,django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE','cntso.settings'); django.setup()
+from content.models import FormulaireContact
+sans = [f.site.title for f in FormulaireContact.objects.select_related('site')
+        if not f.get_email_destination()]
+print('sans destinataire :', sans or 'aucun')
+"
+```
+
+Et, depuis le 26/08/2026, un message qui ne trouve aucun destinataire laisse
+une trace : `grep 'SANS DESTINATAIRE' logs/django.log`.
+
+### Le reste de la bascule
+
+La procédure complète est dans `!DEPLOIEMENT.md`, section « Bascule DNS ».
+Rappel du point encore ouvert : **educ** — le DNS pointe toujours sur l'ancien
+serveur et le domaine est absent du certificat.
+
+---
+
+# Terminé
+
 # Chantier — la page « Nous rejoindre » des sous-sites
 
 Demandé par Arnaud le 17/08/2026, à partir de https://stucs.cnt-so.org/rejoindre/ :
