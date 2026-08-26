@@ -38,11 +38,23 @@ ssh debian@51.91.242.64
 Une fois connecté au serveur :
 ```bash
 cd /var/www/cntso
-git pull
+sudo -u postgres pg_dump cntso | gzip > ~/cntso-$(date +%Y%m%d-%H%M).sql.gz
+git pull --ff-only
 source venv/bin/activate
 python manage.py migrate
 python manage.py collectstatic --noinput
+python manage.py fix_cms_sessions --dry-run   # puis sans --dry-run si besoin
 sudo supervisorctl restart cntso
+```
+
+⚠️ **La sauvegarde doit passer par `sudo -u postgres`.** La base appartient au
+rôle `cntso` ; un `pg_dump cntso` lancé tel quel par l'utilisateur `debian`
+échoue avec « role "debian" does not exist » — et si la sortie est redirigée
+vers un `gzip`, l'échec est **silencieux** : on obtient un fichier de 20 octets
+qui ressemble à une sauvegarde et n'en est pas (constaté le 26/08/2026).
+Toujours vérifier la taille : un dump complet pèse une dizaine de Mo.
+```bash
+ls -lh ~/cntso-*.sql.gz | tail -1     # ~10 Mo attendu, pas 20 octets
 ```
 
 ### 4. Vérifier que le site répond
