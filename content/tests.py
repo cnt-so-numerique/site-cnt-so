@@ -7162,6 +7162,21 @@ class NewsletterDesabonnementTest(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Se désabonner')
 
+    def test_elle_nest_pas_indexee(self):
+        """Elle est liée depuis chaque newsletter, et n'a rien à faire dans un
+        moteur de recherche — comme le tract, qui portait déjà son noindex."""
+        r = self.client.get('/newsletter/desabonnement/')
+        self.assertContains(r, 'name="robots" content="noindex')
+
+    def test_le_get_ne_desabonne_personne(self):
+        """Les filtres antispam préchargent les liens du header
+        `List-Unsubscribe` : un GET qui agirait viderait la liste tout seul."""
+        abo = Subscriber.objects.create(site=self.site, email='intacte@example.org',
+                                        is_active=True)
+        self.client.get('/newsletter/desabonnement/?email=intacte@example.org')
+        abo.refresh_from_db()
+        self.assertTrue(abo.is_active)
+
     @patch('content.ovh_sync.ovh_unsubscribe')
     def test_le_desabonnement_retire_des_listes_ovh(self, retirer):
         r = self.client.post('/newsletter/desabonnement/',

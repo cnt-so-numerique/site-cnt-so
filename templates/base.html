@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CNT-SO{% endblock %}</title>
     <meta name="description" content="{% block meta_description %}Confédération Nationale du Travail — Solidarité Ouvrière. Syndicat anarcho-syndicaliste.{% endblock %}">
+    {% comment %}
+    Les pages de service — désabonnement, confirmations — se remplissent ici.
+    Le tract portait déjà son « noindex » en propre ; les pages liées depuis
+    chaque newsletter n'en avaient pas, et n'ont rien à faire dans un moteur.
+    {% endcomment %}
+    {% block meta_robots %}{% endblock %}
     <meta property="og:title" content="{% block og_title %}CNT-SO{% endblock %}">
     <meta property="og:description" content="{% block og_description %}Confédération Nationale du Travail — Solidarité Ouvrière.{% endblock %}">
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
