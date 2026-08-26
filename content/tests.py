@@ -7211,6 +7211,88 @@ class SlugHeriteSansCollisionTest(TestCase):
         site.clean()
 
 
+class VerifieAbonnesOvhTest(TestCase):
+    """Détecter les abonnés que le site croit inscrits et qu'OVH ne connaît pas.
+
+    La newsletter part vers les listes OVH : une personne absente des listes
+    ne reçoit rien, même si le site lui a affiché « inscription confirmée ».
+    Rien ne permettait de repérer ce cas — `ovh_subscribe` échoue en rendant
+    `None`, la ligne locale reste active, et personne ne le sait.
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='principal', name='CNT-SO')
+        self.site.ovh_mailing_list = 'news3'
+        self.site.save()
+
+    def _lancer(self, chez_ovh, **options):
+        from django.core.management import call_command
+        sortie = StringIO()
+        with patch('cms.ovh_client.get_subscribers', return_value=chez_ovh):
+            call_command('verifie_abonnes_ovh', stdout=sortie,
+                         stderr=StringIO(), **options)
+        return sortie.getvalue()
+
+    def test_un_abonne_absent_des_listes_est_denonce(self):
+        Subscriber.objects.create(site=self.site, email='oubliee@example.org',
+                                  is_active=True)
+        rapport = self._lancer(chez_ovh=[])
+        self.assertIn('oubliee@example.org', rapport)
+        self.assertIn('jamais posé', rapport)
+        self.assertIn('ne reçoivent RIEN', rapport)
+
+    def test_un_abonne_present_ne_lest_pas(self):
+        Subscriber.objects.create(site=self.site, email='presente@example.org',
+                                  is_active=True)
+        rapport = self._lancer(chez_ovh=['Presente@Example.org'])
+        self.assertNotIn('presente@example.org', rapport)
+        self.assertIn('Aucun abonné manquant', rapport)
+
+    def test_labonne_confederal_du_webhook_est_compte(self):
+        """Il porte `site=None` : l'oublier laisserait la moitié des abonnés
+        de la confédération hors de la vérification."""
+        Subscriber.objects.create(site=None, email='adherente@example.org',
+                                  is_active=True)
+        rapport = self._lancer(chez_ovh=[])
+        self.assertIn('adherente@example.org', rapport)
+
+    def test_un_abonne_inactif_nest_pas_attendu_chez_ovh(self):
+        Subscriber.objects.create(site=self.site, email='sortie@example.org',
+                                  is_active=False)
+        rapport = self._lancer(chez_ovh=[])
+        self.assertNotIn('sortie@example.org', rapport)
+
+    def test_une_liste_illisible_ne_denonce_personne(self):
+        """Sans la liste, tout paraîtrait manquant : dénoncer des absents qui
+        n'en sont pas ferait réinscrire tout le monde en double."""
+        Subscriber.objects.create(site=self.site, email='inconnue@example.org',
+                                  is_active=True)
+        from django.core.management import call_command
+        sortie, erreurs = StringIO(), StringIO()
+        with patch('cms.ovh_client.get_subscribers', side_effect=OSError('API HS')):
+            call_command('verifie_abonnes_ovh', stdout=sortie, stderr=erreurs)
+        self.assertNotIn('inconnue@example.org', sortie.getvalue())
+        self.assertIn('listes illisibles', erreurs.getvalue())
+
+    def test_reparer_reinscrit_et_note_la_liste(self):
+        abo = Subscriber.objects.create(site=self.site, email='a@example.org',
+                                        is_active=True)
+        with patch('content.ovh_sync.ovh_subscribe', return_value='news3') as poser:
+            self._lancer(chez_ovh=[], reparer=True)
+        poser.assert_called_once()
+        abo.refresh_from_db()
+        self.assertEqual(abo.ovh_list, 'news3')
+
+    def test_sans_reparer_rien_nest_touche(self):
+        abo = Subscriber.objects.create(site=self.site, email='b@example.org',
+                                        is_active=True)
+        with patch('content.ovh_sync.ovh_subscribe') as poser:
+            self._lancer(chez_ovh=[])
+        poser.assert_not_called()
+        abo.refresh_from_db()
+        self.assertEqual(abo.ovh_list, '')
+
+
 class ContactNonRemisTest(TestCase):
     """Un message de contact qui ne part pas doit laisser une trace.
 
