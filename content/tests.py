@@ -7164,6 +7164,42 @@ class NewsletterDesabonnementTest(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Se désabonner')
 
+    def test_elle_renvoie_au_formulaire_et_pas_a_une_adresse(self):
+        """Décision d'Arnaud du 26/08/2026, dans la ligne du pied de page :
+        l'adresse en clair exposait la boîte aux moissonneurs, et elle était
+        écrite en dur — un adhérent du STUCS y lisait celle de la conf."""
+        r = self.client.get('/newsletter/desabonnement/')
+        self.assertNotContains(r, 'mailto:')
+        self.assertContains(r, 'formulaire de contact')
+        self.assertContains(r, 'href="/contact/"')
+
+    def test_sur_un_syndicat_le_lien_mene_a_son_formulaire(self):
+        make_site(slug='marseille', name='CNT-SO 13', site_type='regional')
+        r = self.client.get('/marseille/newsletter/desabonnement/')
+        self.assertContains(r, '/marseille/contact/')
+        self.assertNotContains(r, 'mailto:')
+
+    def test_sur_un_domaine_autonome_le_slug_ne_se_repete_pas(self):
+        """Même piège que le bouton du tract et l'écran « Pages du syndicat » :
+        bâti par un simple `reverse`, le lien porte le slug en préfixe et un
+        syndicat à domaine autonome renvoie son lecteur chez la conf."""
+        from content.views import NewsletterDesabonnementView
+        site = make_site(slug='stucs', name='CNT-SO STUCS', site_type='sectoral')
+        site.custom_domain = 'stucs.cnt-so.org'
+        site.save()
+        url = NewsletterDesabonnementView._url_contact(site)
+        self.assertEqual(url, 'https://stucs.cnt-so.org/contact/')
+        self.assertNotIn('/stucs/contact', url)
+
+    def test_le_message_de_quota_ne_donne_plus_dadresse(self):
+        from content.views import NEWSLETTER_MAX_DESABO_PAR_IP
+        with patch('content.ovh_sync.ovh_unsubscribe'):
+            for i in range(NEWSLETTER_MAX_DESABO_PAR_IP):
+                self.client.post('/newsletter/desabonnement/', {'email': f'a{i}@example.org'})
+            r = self.client.post('/newsletter/desabonnement/', {'email': 'tardive@example.org'})
+        self.assertContains(r, 'Trop de demandes')
+        self.assertNotContains(r, 'contact@cnt-so.org')
+
     def test_elle_nest_pas_indexee(self):
         """Elle est liée depuis chaque newsletter, et n'a rien à faire dans un
         moteur de recherche — comme le tract, qui portait déjà son noindex."""

@@ -15,7 +15,8 @@ from .models import (Page, ContactMessage, FormulaireContact, Subscriber,
 from .courriel import destinataire_de_reponse
 from .forms import (ContactForm, DynamicContactForm, NewsletterCaptchaForm,
                     NewsletterSubscribeForm, NewsletterUnsubscribeForm)
-from cms.models import ArticlePage, CmsCategory, SectionPage, _cle_de_nom
+from cms.models import (ArticlePage, CmsCategory, SectionPage, _cle_de_nom,
+                        section_base_url)
 from taggit.models import Tag as TaggitTag
 
 
@@ -1165,20 +1166,41 @@ class NewsletterDesabonnementView(View):
             return get_section_or_404(site_slug, live=True)
         return get_object_or_404(SectionPage, slug='principal')
 
+    @staticmethod
+    def _url_contact(site):
+        """Le formulaire de contact du syndicat, ou celui de la confédération.
+
+        Calculé ici plutôt que dans le gabarit : `section_url` impose un
+        `site_slug` et rendrait « /principal/contact/ », qui n'existe pas.
+        Le pied de page duplique cette condition, on ne l'ajoute pas une
+        troisième fois.
+        """
+        from django.urls import NoReverseMatch, reverse
+        try:
+            if site and site.slug != 'principal':
+                base = section_base_url(site.slug)
+                chemin = reverse('content:site_contact', kwargs={'site_slug': site.slug})
+                if base:
+                    return f'{base}{chemin[len(site.slug) + 1:]}'
+                return chemin
+            return reverse('content:contact')
+        except NoReverseMatch:
+            return ''
+
+    def _contexte(self, site, form):
+        return {'site': site, 'form': form, 'url_contact': self._url_contact(site)}
+
     def get(self, request, site_slug=None):
         site = self._site(site_slug)
-        return render(request, 'content/newsletter_desabonnement.html', {
-            'site': site,
-            'form': NewsletterUnsubscribeForm(initial={'email': request.GET.get('email', '')}),
-        })
+        return render(request, 'content/newsletter_desabonnement.html', self._contexte(
+            site, NewsletterUnsubscribeForm(initial={'email': request.GET.get('email', '')})))
 
     def post(self, request, site_slug=None):
         site = self._site(site_slug)
         form = NewsletterUnsubscribeForm(request.POST)
         if not form.is_valid():
-            return render(request, 'content/newsletter_desabonnement.html', {
-                'site': site, 'form': form,
-            })
+            return render(request, 'content/newsletter_desabonnement.html',
+                          self._contexte(site, form))
 
         email = form.cleaned_data['email'].strip().lower()
 
@@ -1187,13 +1209,15 @@ class NewsletterDesabonnementView(View):
         # Et s'il est atteint, on le dit — annoncer un retrait qui n'a pas eu
         # lieu renverrait la personne vers le bouton « indésirable ».
         if _trop_de_desabonnements(request):
+            # Pas d'adresse en clair ici : le message est échappé par le
+            # gabarit, donc un lien n'y tiendrait pas — et le formulaire de
+            # contact figure juste dessous.
             form.add_error(None, (
                 "Trop de demandes depuis cette connexion. Réessayez dans une "
-                "heure, ou écrivez à contact@cnt-so.org : nous vous retirerons "
-                "de la liste à la main."))
-            return render(request, 'content/newsletter_desabonnement.html', {
-                'site': site, 'form': form,
-            })
+                "heure, ou passez par le formulaire de contact ci-dessous : "
+                "nous vous retirerons de la liste à la main."))
+            return render(request, 'content/newsletter_desabonnement.html',
+                          self._contexte(site, form))
 
         from .ovh_sync import ovh_unsubscribe
         ovh_unsubscribe(_site_de_la_newsletter(site), email)
