@@ -9,7 +9,7 @@ cloisonnement fasse échouer la suite au lieu de rouvrir le trou en silence.
 """
 from datetime import date
 
-from django.contrib.auth.models import Permission, User
+from django.contrib.auth.models import Group, Permission, User
 from django.test import TestCase
 from django.urls import reverse
 
@@ -433,3 +433,75 @@ class PagesDuSyndicatCloisonneTest(TestCase):
         self.client.logout()
         r = self._page()
         self.assertIn(r.status_code, (302, 403))
+
+
+class ApiAdminPagesCloisonneeTest(TestCase):
+    """L'API interne de Wagtail échappait au balayage de ce fichier.
+
+    Tout ce qui précède porte sur les SnippetViewSets, parce que le
+    cloisonnement est posé dans `ViewSet.construct_view`. Or Wagtail monte
+    aussi `/cms/api/main/pages/`, qui ne passe par aucun viewset.
+
+    Reproduit le 26/08/2026 sous Wagtail 7.4.2, avec les seules permissions
+    que `setup_cms_permissions` accorde à un rédacteur — donc des droits
+    d'arbre bornés à son syndicat :
+
+        listing → 200, toutes les pages de tous les syndicats
+        page du voisin par sa clé → 200, contenu complet
+
+    C'est `CVE-2026-55468` : « l'API Pages interne renvoie des champs de page
+    sans contrôle d'accès ». Corrigé par la 7.4.3, où le listing se limite au
+    périmètre du compte et l'accès direct rend un 404.
+
+    Ce test existe pour que la fuite ne revienne pas par une rétrogradation de
+    version ou une régression amont — c'est le seul écran du back-office que
+    rien d'autre ne surveille.
+    """
+
+    def setUp(self):
+        from django.core.management import call_command
+        from io import StringIO
+        self.mien = _ensure_section_page(slug='api-a', name='Syndicat API A')
+        self.voisin = _ensure_section_page(slug='api-b', name='Syndicat API B')
+        self.chez_moi = make_article_page(section_slug='api-a', title='Chez moi',
+                                          slug='api-chez-moi')
+        self.chez_le_voisin = make_article_page(
+            section_slug='api-b', title='Secret du voisin', slug='api-secret')
+        call_command('setup_cms_permissions', verbosity=0, stdout=StringIO())
+        redacteur = User.objects.create_user('redac-api', password='pass')
+        redacteur.groups.add(Group.objects.get(name='redacteur_api-a'))
+        self.client.force_login(User.objects.get(pk=redacteur.pk))
+
+    def _titres_du_listing(self):
+        import json
+        reponse = self.client.get('/cms/api/main/pages/')
+        self.assertEqual(reponse.status_code, 200)
+        return [item['title'] for item in json.loads(reponse.content)['items']]
+
+    def test_le_listing_ne_montre_pas_le_syndicat_voisin(self):
+        titres = self._titres_du_listing()
+        self.assertNotIn('Syndicat API B', titres)
+        self.assertNotIn('Secret du voisin', titres)
+
+    def test_la_page_du_voisin_nest_pas_lisible_par_sa_cle(self):
+        reponse = self.client.get(f'/cms/api/main/pages/{self.chez_le_voisin.pk}/')
+        self.assertEqual(
+            reponse.status_code, 404,
+            "l'API interne sert la page d'un autre syndicat — vérifier la "
+            "version de Wagtail (CVE-2026-55468, corrigée en 7.4.3)")
+
+
+class VersionDeWagtailSansFailleConnueTest(TestCase):
+    """Wagtail 7.4.2 laissait un rédacteur lire les pages du voisin.
+
+    Le test ci-dessus attrape la fuite elle-même ; celui-ci dit pourquoi, pour
+    que personne ne rétrograde sans comprendre ce qu'il rouvre.
+    """
+
+    def test_la_version_installee_corrige_la_fuite_de_lapi(self):
+        import wagtail
+        version = tuple(int(n) for n in wagtail.__version__.split('.')[:3])
+        self.assertGreaterEqual(
+            version, (7, 4, 3),
+            f"Wagtail {wagtail.__version__} : l'API interne /cms/api/main/pages/ "
+            "renvoie les pages de tous les syndicats (CVE-2026-55468).")

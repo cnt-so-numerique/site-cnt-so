@@ -5,7 +5,7 @@ certifi==2026.6.17
 charset-normalizer==3.4.6
 coverage==7.14.1
 defusedxml==0.7.1
-Django==6.0.7
+Django==6.0.8
 django-filter==25.2
 django-hCaptcha==0.2.0
 django-modelcluster==6.5
@@ -22,7 +22,7 @@ feedparser==6.0.14
 feedparser-sgmllib==2.1.0
 filetype==1.2.0
 greenlet==3.5.1
-idna==3.11
+idna==3.15
 laces==0.1.2
 modelsearch==1.3.1
 oauthlib==3.3.1
@@ -37,12 +37,12 @@ qrcode==8.2
 requests==2.34.2
 requests-oauthlib==2.0.0
 six==1.17.0
-soupsieve==2.8.3
-sqlparse==0.5.5
+soupsieve==2.8.4
+sqlparse==0.6.0
 telepath==0.3.1
 typing_extensions==4.15.0
 urllib3==2.7.0
-wagtail==7.4.2
+wagtail==7.4.3
 wagtail-2fa==1.8.0
 wagtail-cache==3.0.0
 wagtail-seo==3.1.1
