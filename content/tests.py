@@ -1,3 +1,5 @@
+import os
+import re
 import uuid
 from datetime import timedelta
 from io import StringIO
@@ -7249,6 +7251,66 @@ class NewsletterDesabonnementTest(TestCase):
                          [c[0][1] for c in retirer.call_args_list])
 
 
+def _navigateur():
+    """Le binaire Chrome/Chromium de cette machine, ou None.
+
+    Le tract est mis en pages par du JavaScript : sa seule vérification
+    honnête passe par un navigateur. Là où il n'y en a pas — un serveur
+    d'intégration nu —, les tests concernés sont sautés plutôt que rendus
+    faux : mieux vaut un test annoncé absent qu'un test vert qui ne mesure
+    rien. C'était le défaut des assertions précédentes, qui cherchaient des
+    littéraux dans le gabarit.
+    """
+    import glob
+    import shutil
+    for nom in ('chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable'):
+        chemin = shutil.which(nom)
+        if chemin:
+            return chemin
+    trouves = sorted(glob.glob(
+        os.path.expanduser('~/.cache/puppeteer/chrome/*/chrome-linux64/chrome')))
+    return trouves[-1] if trouves else None
+
+
+def _pages_du_tract(test, url):
+    """Le nombre de pages A4 que le tract produit réellement.
+
+    On rend la page, on la confie à Chrome sans interface, et on lit
+    l'attribut `data-pages` que le script pose une fois la répartition faite.
+    """
+    import subprocess
+    import tempfile
+
+    chrome = _navigateur()
+    if not chrome:
+        test.skipTest("Aucun Chrome/Chromium : la mise en pages du tract ne "
+                      "peut pas être mesurée sur cette machine.")
+    html = test.client.get(url).content
+    with tempfile.TemporaryDirectory() as dossier:
+        fichier = os.path.join(dossier, 'tract.html')
+        with open(fichier, 'wb') as f:
+            f.write(html)
+        # Pas de `--user-data-dir` : ce Chrome (150) reste pendu indéfiniment
+        # quand on lui en impose un, profil pré-créé ou non — mesuré le
+        # 26/08/2026. Le profil par défaut convient, `--dump-dom` n'écrit rien.
+        try:
+            sortie = subprocess.run(
+                [chrome, '--headless', '--disable-gpu', '--no-sandbox',
+                 '--virtual-time-budget=5000', '--dump-dom', f'file://{fichier}'],
+                capture_output=True, text=True, timeout=60,
+            ).stdout
+        except subprocess.TimeoutExpired:
+            # Ne pas transformer ça en test sauté : une mise en pages qui ne
+            # rend jamais la main est précisément le défaut à attraper.
+            test.fail("Le navigateur n'a pas rendu la main en 60 s : la mise "
+                      "en pages du tract ne termine pas.")
+    trouve = re.search(r'data-pages="(\d+)"', sortie)
+    test.assertIsNotNone(
+        trouve, "Le script du tract n'a pas fini sa mise en pages : aucun "
+                "`data-pages` sur le <body>.")
+    return int(trouve.group(1))
+
+
 class FichePratiqueTractTest(TestCase):
     """« Un format de fiche pratique que les gens peuvent aussi télécharger en
     format tract pour afficher dans leur boîte » (Arnaud, 18/08/2026).
@@ -7342,14 +7404,47 @@ class TractCouleurEtDeuxPagesTest(TestCase):
         self.assertNotIn('filter: grayscale', html)
 
     def test_le_tract_fait_une_page_ou_deux_jamais_un_entre_deux(self):
-        """« Il ne peut pas faire 1,7 page, ça n'existe pas » (Arnaud). Le
-        texte est réparti dans de vraies pages A4 fermées, pas laissé couler."""
+        """« Il ne peut pas faire 1,7 page, ça n'existe pas » (Arnaud).
+
+        Mesuré dans un vrai navigateur, pas cherché dans la source. Ce test
+        vérifiait auparavant que la chaîne « PAGES_VISEES = [1, 2] » figurait
+        dans le gabarit : il serait resté vert avec une pagination cassée, et
+        rouge sur un simple changement d'espacement.
+        """
+        pages = _pages_du_tract(self, self.url)
+        self.assertIn(pages, (1, 2),
+                      f'Le tract sort en {pages} pages : ni une, ni deux.')
+
+    def test_une_fiche_longue_est_comprimee_a_deux_pages(self):
+        """L'exigence, c'est le cas long : une fiche courte tient de toute
+        façon sur une page, et un test qui n'utilise qu'elle resterait vert
+        avec la pagination cassée. Ici le texte déborde largement une A4 : le
+        script doit réduire le corps jusqu'à le faire tenir en deux, pas
+        ouvrir une troisième feuille.
+        """
+        from wagtail.blocks.stream_block import StreamValue
+        paragraphe = (
+            "<h2>Ce que dit la loi</h2><p>" + ("Le forfait jours n'est licite "
+            "qu'encadré par un accord collectif qui fixe le suivi de la charge "
+            "de travail. ") * 12 + "</p>"
+        )
+        self.fiche.body = StreamValue(
+            self.fiche.body.stream_block,
+            [('rich_text', paragraphe) for _ in range(9)], is_lazy=False)
+        self.fiche.save_revision().publish()
+
+        pages = _pages_du_tract(self, self.url)
+        self.assertLessEqual(
+            pages, 2,
+            f"Une fiche longue sort en {pages} pages : le corps devait être "
+            "réduit pour tenir en deux.")
+
+    def test_le_tract_ferme_ses_pages(self):
+        """Des feuilles closes, et un saut de page entre elles — sans quoi le
+        PDF sort en bande continue (« j'ai encore une bande continue »)."""
         html = self.client.get(self.url).content.decode()
-        self.assertIn('PAGES_VISEES = [1, 2]', html)
-        self.assertIn('PT_MIN', html)
-        # Des pages closes, et un pied poussé en bas par le flux.
-        self.assertIn('.zone { flex: 1 1 auto; overflow: hidden; }', html)
         self.assertIn('break-after: page', html)
+        self.assertRegex(html, r'\.zone\s*\{[^}]*overflow:\s*hidden')
 
     def test_la_feuille_reste_A4_meme_sur_un_petit_ecran(self):
         """Une mise en page « mobile » changerait les hauteurs, et la
