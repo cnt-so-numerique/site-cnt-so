@@ -638,7 +638,12 @@ class Subscriber(models.Model):
         unique_together = [['site', 'email']]
 
     def __str__(self):
-        return f'{self.email} ({self.site.name})'
+        # `site` est nul pour les abonnés confédéraux : c'est ainsi que le
+        # webhook cnt-adhesion les enregistre, et `cms/apps.py` les renvoie
+        # vers les listes du site principal. Sans ce garde-fou, afficher un
+        # tel abonné — liste des snippets, journal, page de suppression —
+        # lève une AttributeError et rend une 500.
+        return f'{self.email} ({self.site.name if self.site else "Confédération"})'
 
 
 class Newsletter(ClusterableModel, models.Model):

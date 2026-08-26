@@ -7121,6 +7121,28 @@ class NewsletterDelivrabiliteTest(TestCase):
         self.assertEqual(mail.outbox[0].reply_to, ['contact@cnt-so.org'])
 
 
+class AbonneConfederalTest(TestCase):
+    """`site` est nul pour les abonnés venus de cnt-adhesion.
+
+    C'est la convention du webhook (`_sync_sub(email, site=None, …)`), que
+    `cms/apps.py` traduit en « listes du site principal ». Le `__str__` du
+    modèle lisait pourtant `self.site.name` sans garde : afficher un tel
+    abonné — liste des snippets, journal, page de suppression — levait une
+    AttributeError et rendait une 500.
+    """
+
+    def test_son_nom_saffiche_sans_planter(self):
+        abo = Subscriber(email='adherente@example.org', site=None)
+        self.assertIn('adherente@example.org', str(abo))
+
+    def test_il_est_annonce_comme_confederal(self):
+        self.assertIn('Confédération', str(Subscriber(email='x@y.fr', site=None)))
+
+    def test_labonne_dun_syndicat_porte_toujours_son_nom(self):
+        site = make_site(slug='marseille', name='CNT-SO 13', site_type='regional')
+        self.assertIn('CNT-SO 13', str(Subscriber(email='x@y.fr', site=site)))
+
+
 class NewsletterDesabonnementTest(TestCase):
     """La sortie doit exister, et fonctionner.
 
@@ -7156,6 +7178,44 @@ class NewsletterDesabonnementTest(TestCase):
         self.client.post('/newsletter/desabonnement/', {'email': 'sortante@example.org'})
         abo.refresh_from_db()
         self.assertFalse(abo.is_active)
+
+    @patch('content.ovh_sync.ovh_unsubscribe')
+    def test_il_eteint_aussi_labonne_venu_de_ladhesion(self, retirer):
+        """Un abonné confédéral existe sous deux formes, et la sortie doit
+        éteindre les deux.
+
+        Le formulaire du site enregistre `site=<principal>` ; le webhook
+        cnt-adhesion, lui, `site=None` — convention que `cms/apps.py` traduit
+        en « listes du principal ». Ne filtrer que sur la première laissait la
+        seconde active : cnt-adhesion repousse les préférences à chaque
+        encaissement et réinscrivait la personne au prélèvement suivant. Sa
+        sortie ne tenait qu'un mois.
+        """
+        adhesion = Subscriber.objects.create(site=None, email='adherente@example.org',
+                                             is_active=True)
+        self.client.post('/newsletter/desabonnement/', {'email': 'adherente@example.org'})
+        adhesion.refresh_from_db()
+        self.assertFalse(adhesion.is_active)
+
+    @patch('content.ovh_sync.ovh_unsubscribe')
+    def test_la_casse_de_ladresse_nempeche_pas_la_sortie(self, retirer):
+        """Le webhook n'abaisse pas la casse, cette vue si : une ligne
+        « Jean.Dupont@… » n'était jamais retrouvée."""
+        abo = Subscriber.objects.create(site=self.site, email='Jean.Dupont@Example.org',
+                                        is_active=True)
+        self.client.post('/newsletter/desabonnement/', {'email': 'jean.dupont@example.org'})
+        abo.refresh_from_db()
+        self.assertFalse(abo.is_active)
+
+    @patch('content.ovh_sync.ovh_unsubscribe')
+    def test_il_ne_touche_pas_a_labonne_dun_autre_syndicat(self, retirer):
+        """Le repêchage de `site=None` ne doit pas devenir un « tout éteindre »."""
+        autre = make_site(slug='marseille', name='CNT-SO 13', site_type='regional')
+        ailleurs = Subscriber.objects.create(site=autre, email='partagee@example.org',
+                                             is_active=True)
+        self.client.post('/newsletter/desabonnement/', {'email': 'partagee@example.org'})
+        ailleurs.refresh_from_db()
+        self.assertTrue(ailleurs.is_active)
 
     def test_adresse_invalide_reaffiche_le_formulaire(self):
         r = self.client.post('/newsletter/desabonnement/', {'email': 'pas-une-adresse'})

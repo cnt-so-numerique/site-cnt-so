@@ -1197,11 +1197,38 @@ class NewsletterDesabonnementView(View):
 
         from .ovh_sync import ovh_unsubscribe
         ovh_unsubscribe(_site_de_la_newsletter(site), email)
-        Subscriber.objects.filter(site=site, email=email).update(is_active=False)
+        self._eteindre_les_lignes_locales(site, email)
 
         return render(request, 'content/newsletter_desabonnement_done.html', {
             'site': site, 'email': email,
         })
+
+    @staticmethod
+    def _eteindre_les_lignes_locales(site, email):
+        """Couper le consentement partout où il est inscrit pour cette adresse.
+
+        Deux choses seulement peuvent tromper ici, et elles se sont trompées :
+
+        1. Un abonné de la confédération existe sous deux formes. Le formulaire
+           du site l'enregistre avec `site=<principal>` ; le webhook adhésion,
+           lui, avec `site=None` (`_sync_sub(email, site=None, …)`) — c'est la
+           convention que `cms/apps.py` traduit en « listes du principal ».
+           Ne filtrer que sur le premier laissait la ligne du second active :
+           cnt-adhesion, qui repousse les préférences à chaque encaissement,
+           réinscrivait alors la personne au prélèvement suivant. Sa sortie ne
+           tenait qu'un mois.
+
+        2. Le webhook n'abaisse pas la casse de l'adresse, cette vue si. Une
+           ligne « Jean.Dupont@… » n'était donc jamais retrouvée.
+        """
+        from django.db.models import Q
+        cible = Q(email__iexact=email)
+        principal = SectionPage.objects.filter(slug='principal').first()
+        if principal and site.pk == principal.pk:
+            cible &= Q(site=site) | Q(site__isnull=True)
+        else:
+            cible &= Q(site=site)
+        Subscriber.objects.filter(cible).update(is_active=False)
 
 
 class SOrganiserView(TemplateView):
