@@ -72,7 +72,6 @@ INSTALLED_APPS = [
     'django_otp.plugins.otp_totp',
     'django_otp.plugins.otp_static',
     'hcaptcha',
-    'wagtailcache',
     # Django
     'django.contrib.admin',
     'django.contrib.auth',
@@ -269,9 +268,25 @@ CACHES = {
     },
 }
 
-# ── wagtail-cache ─────────────────────────────────────────────────────────────
-WAGTAILCACHE_CACHE = 'default'
-WAGTAILCACHE_TIMEOUT = 3600
+# ── Pas de cache de pages, et c'est délibéré ──────────────────────────────────
+# `wagtail-cache` était installé et réglé (`WAGTAILCACHE_CACHE`,
+# `WAGTAILCACHE_TIMEOUT = 3600`) mais ses middlewares n'ont jamais été branchés :
+# aucune page n'a jamais été mise en cache. Les réglages et la documentation
+# décrivaient un dispositif inexistant (audit du 27/08/2026).
+#
+# Le brancher tel quel aurait été pire que de s'en passer. La production fait
+# tourner **trois workers gunicorn** et le cache visé était `LocMemCache`, qui
+# vit dans le processus : trois caches indépendants, donc un « vider le cache »
+# depuis /cms/ ne purgerait qu'un worker sur trois. Un rédacteur corrigerait un
+# article, purgerait, rechargerait, et verrait l'ancienne version deux fois sur
+# trois pendant une heure. Rien ne ruine plus vite la confiance dans un CMS.
+#
+# Et il n'y a rien à gagner : 615 requêtes par jour, pages rendues en 30 à 70 ms.
+#
+# Le jour où il en faudrait un, la base est déjà là : le cache `limites`
+# ci-dessous utilise `DatabaseCache`, partagé entre workers et sans service
+# supplémentaire à installer. La clé de Django inclut l'hôte
+# (`build_absolute_uri`), donc les domaines autonomes ne se mélangeraient pas.
 
 # Recherche Wagtail — PostgreSQL FTS en prod, base de données SQLite en dev
 WAGTAILSEARCH_BACKENDS = {

@@ -60,7 +60,8 @@ Editorial groups (`redacteur`, `redacteur_en_chef`) are created on `post_migrate
 ### Key integrations
 
 - **hCaptcha** on public forms (test keys by default; mock `hcaptcha.fields.hCaptchaField.validate` in tests).
-- **wagtail-cache** (`WAGTAILCACHE_*`), **wagtail-2fa** (`WAGTAIL_2FA_REQUIRED = False` for now), **wagtailseo**.
+- **wagtail-2fa** (`WAGTAIL_2FA_REQUIRED = False` for now), **wagtailseo**.
+- **Pas de cache de pages** : `wagtail-cache` était réglé mais jamais branché (aucun middleware), donc inerte — retiré le 27/08/2026. La prod tourne à trois workers gunicorn : un cache mémoire ne serait purgé que sur l'un d'eux. Voir le commentaire dans `settings.py` avant d'en rajouter un.
 - **OVH** : newsletter sending throttled (`NEWSLETTER_SEND_DELAY`), mailing-list API via env keys (`OVH_*`). Guide: `docs/newsletter-ovh-guide.md`.
 - **cnt-adhesion** (separate app at `/home/arnaud/PycharmProjects/cnt-adhesion`) : `ADHESION_WEBHOOK_SECRET`, `ADHESION_BASE_URL`.
 - `local_settings.py` (gitignored) overrides credentials/DEBUG in dev; prod uses env vars. A hardening block at the end of `settings.py` refuses to start in prod with the fallback insecure `SECRET_KEY` and enables secure cookies + HSTS.

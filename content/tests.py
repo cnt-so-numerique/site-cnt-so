@@ -7133,6 +7133,40 @@ class NewsletterDelivrabiliteTest(TestCase):
         self.assertEqual(mail.outbox[0].reply_to, ['contact@cnt-so.org'])
 
 
+class ReglagesSansDecorTest(TestCase):
+    """Une application réglée mais jamais branchée fait croire à un dispositif.
+
+    `wagtail-cache` a vécu ainsi : présent dans `INSTALLED_APPS`, réglé
+    (`WAGTAILCACHE_CACHE`, `WAGTAILCACHE_TIMEOUT = 3600`), cité dans CLAUDE.md
+    comme intégration clé — et ses middlewares absents de `MIDDLEWARE`. Aucune
+    page n'a jamais été mise en cache, et la production le confirmait : pas un
+    en-tête `X-Wagtail-Cache` (audit du 27/08/2026).
+
+    Ce test ne réclame pas de cache. Il exige seulement que les réglages et le
+    branchement disent la même chose, dans un sens comme dans l'autre.
+    """
+
+    def test_le_cache_de_pages_est_soit_branche_soit_absent(self):
+        from django.conf import settings
+        declare = 'wagtailcache' in settings.INSTALLED_APPS
+        branche = any('wagtailcache' in m for m in settings.MIDDLEWARE)
+        self.assertEqual(
+            declare, branche,
+            "wagtail-cache est déclaré sans être branché (ou l'inverse) : "
+            "soit ajouter ses middlewares Update/FetchFromCache, soit le "
+            "retirer d'INSTALLED_APPS. Attention, la production tourne à trois "
+            "workers : un cache mémoire ne serait purgé que sur l'un d'eux.")
+
+    def test_aucun_reglage_ne_survit_a_lapplication_retiree(self):
+        from django.conf import settings
+        if 'wagtailcache' in settings.INSTALLED_APPS:
+            self.skipTest("wagtail-cache est de retour : ce test ne s'applique plus.")
+        orphelins = [c for c in dir(settings) if c.startswith('WAGTAILCACHE')]
+        self.assertEqual(
+            orphelins, [],
+            f"réglages sans application pour les porter : {orphelins}")
+
+
 class SlugHeriteServiParLesVuesTest(TestCase):
     """Le sitemap listait des adresses que les vues renvoyaient en 404.
 

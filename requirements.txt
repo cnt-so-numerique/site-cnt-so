@@ -44,7 +44,6 @@ typing_extensions==4.15.0
 urllib3==2.7.0
 wagtail==7.4.3
 wagtail-2fa==1.8.0
-wagtail-cache==3.0.0
 wagtail-seo==3.1.1
 wagtailmedia==0.17.2
 whitenoise==6.12.0
