@@ -2535,115 +2535,12 @@ class Phase6SectionSlugEnforcementTest(TestCase):
 # TESTS DE SÉCURITÉ
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class XSSContentTagsTest(TestCase):
-    """Vérifie que _render_block échappe correctement les entrées utilisateur."""
-
-    def _block(self, btype, data):
-        from content.templatetags.content_tags import _render_block
-        return _render_block({'type': btype, 'data': data})
-
-    def test_paragraph_escapes_text(self):
-        html = self._block('paragraph', {'text': '<script>alert(1)</script>'})
-        self.assertNotIn('<script>', html)
-        self.assertIn('&lt;script&gt;', html)
-
-    def test_header_escapes_text(self):
-        html = self._block('header', {'level': 2, 'text': '<img src=x onerror=alert(1)>'})
-        # La balise <img> ne doit pas être rendue, mais échappée
-        self.assertNotIn('<img', html)
-        self.assertIn('&lt;img', html)
-
-    def test_header_level_clamped(self):
-        html = self._block('header', {'level': 99, 'text': 'Test'})
-        self.assertIn('<h6>', html)
-        html2 = self._block('header', {'level': -1, 'text': 'Test'})
-        self.assertIn('<h1>', html2)
-
-    def test_header_level_injection_blocked(self):
-        # Tente d'injecter un attribut via le niveau
-        html = self._block('header', {'level': '2 onmouseover="alert(1)"', 'text': 'T'})
-        self.assertNotIn('onmouseover', html)
-
-    def test_list_escapes_items(self):
-        html = self._block('list', {'style': 'unordered', 'items': ['<b>ok</b>', '<script>x</script>']})
-        self.assertNotIn('<b>', html)
-        self.assertNotIn('<script>', html)
-
-    def test_quote_escapes_text_and_caption(self):
-        html = self._block('quote', {'text': '<script>x</script>', 'caption': '" onload="evil()'})
-        # <script> ne doit pas être présent tel quel (doit être échappé)
-        self.assertNotIn('<script>', html)
-        self.assertIn('&lt;script&gt;', html)
-        # La quote doit être échappée (pas de bris d'attribut possible)
-        self.assertNotIn('" onload="', html)
-        self.assertIn('&quot;', html)
-
-    def test_image_rejects_javascript_url(self):
-        html = self._block('image', {'file': {'url': 'javascript:alert(1)'}, 'caption': ''})
-        self.assertEqual(html, '')
-
-    def test_image_rejects_data_url(self):
-        html = self._block('image', {'file': {'url': 'data:text/html,<script>evil</script>'}, 'caption': ''})
-        self.assertEqual(html, '')
-
-    def test_image_escapes_caption(self):
-        html = self._block('image', {
-            'file': {'url': 'https://example.com/img.jpg'},
-            'caption': '" onerror="alert(1)',
-        })
-        # L'attribut alt ne doit pas contenir de quote non échappée qui briserait l'attribut
-        self.assertNotIn('alt="" onerror', html)
-        self.assertNotIn('alt="" onerror', html)
-        # La quote doit être échappée en &quot;
-        self.assertIn('&quot;', html)
-
-    def test_embed_rejects_javascript_url(self):
-        html = self._block('embed', {'embed': 'javascript:alert(1)', 'caption': ''})
-        self.assertEqual(html, '')
-
-    def test_embed_rejects_data_url(self):
-        html = self._block('embed', {'embed': 'data:text/html,evil', 'caption': ''})
-        self.assertEqual(html, '')
-
-    def test_table_escapes_cells(self):
-        html = self._block('table', {'content': [['<script>x</script>', 'safe']]})
-        self.assertNotIn('<script>', html)
-        self.assertIn('&lt;script&gt;', html)
-
-    def test_file_rejects_javascript_url(self):
-        html = self._block('file', {'url': 'javascript:evil()', 'title': 'Doc', 'name': 'doc.pdf'})
-        self.assertEqual(html, '')
-
-    def test_file_escapes_title(self):
-        html = self._block('file', {
-            'url': 'https://example.com/doc.pdf',
-            'title': '<script>evil()</script>',
-            'name': 'doc',
-        })
-        self.assertNotIn('<script>', html)
-
-    def test_gallery_rejects_javascript_url(self):
-        html = self._block('gallery', {
-            'images': [{'url': 'javascript:evil()', 'caption': ''}],
-            'columns': 3,
-        })
-        self.assertNotIn('javascript:', html)
-
-    def test_safe_url_accepts_https(self):
-        from content.templatetags.content_tags import _safe_url
-        self.assertEqual(_safe_url('https://example.com/img.jpg'), 'https://example.com/img.jpg')
-
-    def test_safe_url_accepts_relative(self):
-        from content.templatetags.content_tags import _safe_url
-        self.assertEqual(_safe_url('/media/img.jpg'), '/media/img.jpg')
-
-    def test_safe_url_rejects_javascript(self):
-        from content.templatetags.content_tags import _safe_url
-        self.assertEqual(_safe_url('javascript:alert(1)'), '')
-
-    def test_safe_url_rejects_data(self):
-        from content.templatetags.content_tags import _safe_url
-        self.assertEqual(_safe_url('data:text/html,evil'), '')
+# `XSSContentTagsTest`, `RenderContentFilterTest` et `GalleryInvalidColumnsTest`
+# ont disparu avec le code qu'ils couvraient : `_render_block`, `render_content`
+# et `_safe_url`, retirés le 27/08/2026. Ils en étaient devenus les derniers
+# appelants — aucun gabarit ne s'en servait plus. Leur objet, l'échappement du
+# contenu legacy, n'a plus de sujet : les 1 701 articles et 63 pages hérités
+# sont tous repris en Wagtail, dont les StreamField échappent d'eux-mêmes.
 
 
 class OpenRedirectTest(TestCase):
@@ -4238,121 +4135,6 @@ class DynamicContactFormFieldsTest(TestCase):
 
 
 # ════════════════════════════════════════════════════════════════════════════════
-# TEMPLATETAGS — render_content filter
-# ════════════════════════════════════════════════════════════════════════════════
-
-class RenderContentFilterTest(TestCase):
-
-    def _render(self, content):
-        from content.templatetags.content_tags import render_content
-        return str(render_content(content))
-
-    def test_none_retourne_vide(self):
-        self.assertEqual(self._render(None), '')
-
-    def test_vide_retourne_vide(self):
-        self.assertEqual(self._render(''), '')
-
-    def test_html_brut_retourne_tel_quel(self):
-        html = '<p>Bonjour <b>monde</b></p>'
-        result = self._render(html)
-        self.assertIn('<p>Bonjour', result)
-
-    def test_json_invalide_retourne_echappe(self):
-        result = self._render('{pas du json valide')
-        self.assertIn('{pas du json valide', result)
-
-    def test_json_paragraphe(self):
-        content = json_module.dumps({'blocks': [{'type': 'paragraph', 'data': {'text': 'Hello'}}]})
-        result = self._render(content)
-        self.assertIn('<p>Hello</p>', result)
-
-    def test_json_header(self):
-        content = json_module.dumps({'blocks': [{'type': 'header', 'data': {'text': 'Titre', 'level': 2}}]})
-        result = self._render(content)
-        self.assertIn('<h2>Titre</h2>', result)
-
-    def test_json_quote_avec_caption(self):
-        content = json_module.dumps({'blocks': [{'type': 'quote', 'data': {'text': 'Proverbe', 'caption': 'Auteur'}}]})
-        result = self._render(content)
-        self.assertIn('<blockquote>', result)
-        self.assertIn('<cite>', result)
-        self.assertIn('Auteur', result)
-
-    def test_json_code(self):
-        content = json_module.dumps({'blocks': [{'type': 'code', 'data': {'code': 'print("ok")'}}]})
-        result = self._render(content)
-        self.assertIn('<pre><code>', result)
-        self.assertIn('print', result)
-
-    def test_json_delimiter(self):
-        content = json_module.dumps({'blocks': [{'type': 'delimiter', 'data': {}}]})
-        result = self._render(content)
-        self.assertIn('<hr>', result)
-
-    def test_json_image_avec_url(self):
-        content = json_module.dumps({'blocks': [{'type': 'image', 'data': {
-            'file': {'url': 'https://example.com/img.jpg'},
-            'caption': 'Photo',
-            'stretched': True,
-        }}]})
-        result = self._render(content)
-        self.assertIn('<figure', result)
-        self.assertIn('alignfull', result)
-
-    def test_json_image_with_background(self):
-        content = json_module.dumps({'blocks': [{'type': 'image', 'data': {
-            'file': {'url': 'https://example.com/img.jpg'},
-            'withBackground': True,
-        }}]})
-        result = self._render(content)
-        self.assertIn('with-background', result)
-
-    def test_json_image_sans_url_retourne_vide(self):
-        content = json_module.dumps({'blocks': [{'type': 'image', 'data': {'file': {'url': ''}}}]})
-        result = self._render(content)
-        self.assertNotIn('<figure', result)
-
-    def test_json_gallery(self):
-        content = json_module.dumps({'blocks': [{'type': 'gallery', 'data': {
-            'images': [
-                {'url': 'https://example.com/a.jpg', 'caption': 'A'},
-                {'url': '', 'caption': 'skip'},
-            ],
-            'columns': 2,
-        }}]})
-        result = self._render(content)
-        self.assertIn('blocks-gallery-grid', result)
-        self.assertIn('columns-2', result)
-        self.assertNotIn('skip', result)
-
-    def test_json_embed_sans_url_retourne_vide(self):
-        content = json_module.dumps({'blocks': [{'type': 'embed', 'data': {'embed': ''}}]})
-        result = self._render(content)
-        self.assertNotIn('<iframe', result)
-
-    def test_json_embed_avec_url(self):
-        content = json_module.dumps({'blocks': [{'type': 'embed', 'data': {'embed': 'https://example.com/video'}}]})
-        result = self._render(content)
-        self.assertIn('<iframe', result)
-
-    def test_json_table(self):
-        content = json_module.dumps({'blocks': [{'type': 'table', 'data': {
-            'content': [['H1', 'H2'], ['A', 'B'], 'invalid-row'],
-            'withHeadings': True,
-        }}]})
-        result = self._render(content)
-        self.assertIn('<table>', result)
-        self.assertIn('<th>', result)
-        self.assertIn('<td>', result)
-
-    def test_json_bloc_inconnu_retourne_vide(self):
-        content = json_module.dumps({'blocks': [{'type': 'unknown_block_xyz', 'data': {}}]})
-        result = self._render(content)
-        self.assertNotIn('unknown_block_xyz', result)
-
-
-# ════════════════════════════════════════════════════════════════════════════════
 # VIEWS — SiteRejoindreView, SiteRessourcesView
 # ════════════════════════════════════════════════════════════════════════════════
 
@@ -4624,19 +4406,6 @@ class MenuItemGetUrlExtraTest(TestCase):
         )
         url = item.get_url()
         self.assertEqual(url, 'https://direct.example.com')
-
-
-class GalleryInvalidColumnsTest(TestCase):
-    """content_tags lines 83-84 : columns invalide → fallback 3."""
-
-    def test_gallery_colonnes_invalides(self):
-        from content.templatetags.content_tags import render_content
-        content = json_module.dumps({'blocks': [{'type': 'gallery', 'data': {
-            'images': [{'url': 'https://example.com/img.jpg', 'caption': ''}],
-            'columns': 'invalide',
-        }}]})
-        result = str(render_content(content))
-        self.assertIn('columns-3', result)
 
 
 class ViewsAdditionalCoverageTest(TestCase):
