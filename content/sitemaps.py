@@ -2,6 +2,28 @@ from django.contrib.sitemaps import Sitemap
 from cms.models import ArticlePage, CmsCategory, ContentPage, SectionPage
 
 
+def _chemin(url):
+    """Ramène une URL à un chemin nu, pour Django qui la préfixe lui-même.
+
+    `Sitemap.location()` doit rendre un CHEMIN : le cadriciel y colle
+    `protocole://hôte`. Or `get_absolute_url()` rend une URL absolue dès qu'une
+    section a son propre domaine, et pour le site principal depuis qu'il passe
+    par `url_site_principal()`. Résultat, servi en production le 27/08/2026 :
+
+        https://newsite.cnt-so.orghttps://newsite.cnt-so.org/article/…
+
+    **725 des 866 adresses du sitemap étaient malformées — 83 %.** Personne ne
+    l'avait vu parce qu'un sitemap ne se lit pas à l'œil et qu'aucun test ne
+    regardait ce qu'il contenait vraiment. Les sitemaps par domaine, écrits plus
+    tard, faisaient déjà ce découpage chacun de leur côté : c'est la même
+    normalisation, désormais à un seul endroit.
+    """
+    if url and url.startswith(('http://', 'https://')):
+        reste = url.split('/', 3)
+        return '/' + (reste[3] if len(reste) > 3 else '')
+    return url or '/'
+
+
 class ArticleSitemap(Sitemap):
     """Sitemap pour les articles"""
     changefreq = "weekly"
@@ -14,7 +36,7 @@ class ArticleSitemap(Sitemap):
         return obj.last_published_at or obj.publication_date or obj.first_published_at
 
     def location(self, obj):
-        return obj.get_absolute_url()
+        return _chemin(obj.get_absolute_url())
 
 
 class PageSitemap(Sitemap):
@@ -29,7 +51,7 @@ class PageSitemap(Sitemap):
         return obj.last_published_at or obj.first_published_at
 
     def location(self, obj):
-        return obj.get_absolute_url()
+        return _chemin(obj.get_absolute_url())
 
 
 class CategorySitemap(Sitemap):
@@ -41,7 +63,7 @@ class CategorySitemap(Sitemap):
         return CmsCategory.objects.all()
 
     def location(self, obj):
-        return obj.get_absolute_url()
+        return _chemin(obj.get_absolute_url())
 
 
 class SiteSitemap(Sitemap):
@@ -58,7 +80,7 @@ class SiteSitemap(Sitemap):
         return SectionPage.objects.filter(live=True).filter(external_url='')
 
     def location(self, obj):
-        return obj.get_absolute_url()
+        return _chemin(obj.get_absolute_url())
 
 
 # ── Multi-domaines ────────────────────────────────────────────────────────────
@@ -66,10 +88,23 @@ class SiteSitemap(Sitemap):
 # (il vit sur son propre sitemap) ; sur un domaine de fédération, le sitemap ne
 # liste que le contenu de la section, en chemins nus (Django préfixe par l'hôte).
 
-def _domain_section_slugs():
-    """Slugs (et legacy) des sections servies sur leur propre domaine."""
+def _slugs_hors_sitemap_principal():
+    """Slugs dont le contenu n'a rien à faire dans le sitemap du site principal.
+
+    Deux cas, et le second manquait :
+
+    1. **Section à domaine autonome** — son contenu vit sur son propre sitemap.
+    2. **Section dépubliée** — `get_section_or_404` ferme le site d'un syndicat
+       dépublié, mais le sitemap principal continuait d'annoncer ses articles.
+       Le filtre `live=True` d'ici ne servait qu'à décider qui « possède » un
+       domaine ; il avait pour effet de **réintroduire** le contenu des sections
+       dépubliées dans le sitemap principal. Rhône-Alpes, dépublié, y plaçait
+       encore 32 articles le 27/08/2026.
+    """
     slugs = set()
-    for s in SectionPage.objects.exclude(custom_domain='').filter(live=True):
+    concernees = SectionPage.objects.exclude(custom_domain='') | \
+        SectionPage.objects.filter(live=False)
+    for s in concernees.distinct():
         slugs.add(s.slug)
         if s.legacy_site_slug:
             slugs.add(s.legacy_site_slug)
@@ -78,17 +113,17 @@ def _domain_section_slugs():
 
 class MainArticleSitemap(ArticleSitemap):
     def items(self):
-        return super().items().exclude(section_slug__in=_domain_section_slugs())
+        return super().items().exclude(section_slug__in=_slugs_hors_sitemap_principal())
 
 
 class MainPageSitemap(PageSitemap):
     def items(self):
-        return super().items().exclude(section_slug__in=_domain_section_slugs())
+        return super().items().exclude(section_slug__in=_slugs_hors_sitemap_principal())
 
 
 class MainCategorySitemap(CategorySitemap):
     def items(self):
-        return super().items().exclude(section_slug__in=_domain_section_slugs())
+        return super().items().exclude(section_slug__in=_slugs_hors_sitemap_principal())
 
 
 class MainSiteSitemap(SiteSitemap):
@@ -129,12 +164,9 @@ class SectionPageSitemap(Sitemap):
         return obj.last_published_at or obj.first_published_at
 
     def location(self, obj):
-        # URL canonique de la page Wagtail (l'ancienne forme /page/<slug>/
-        # 301 vers elle) ; ramenée en chemin si le domaine autonome l'absolutise
-        url = obj.get_absolute_url()
-        if url.startswith('https://'):
-            url = '/' + url.split('/', 3)[3]
-        return url
+        # URL canonique de la page Wagtail — l'ancienne forme /page/<slug>/
+        # 301 vers elle. `_chemin` la ramène au chemin nu.
+        return _chemin(obj.get_absolute_url())
 
 
 class SectionCategorySitemap(Sitemap):

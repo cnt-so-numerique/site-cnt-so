@@ -1409,10 +1409,18 @@ class ArticleSitemapTest(TestCase):
         sitemap = ArticleSitemap()
         self.assertEqual(sitemap.lastmod(self.art), dt_pub)
 
-    def test_location_returns_get_absolute_url(self):
+    def test_location_rend_un_chemin_et_non_une_url_absolue(self):
+        """Ce test exigeait l'inverse — `location() == get_absolute_url()` — et
+        figeait ainsi le défaut : Django préfixe `location()` par
+        `protocole://hôte`, si bien qu'une URL absolue en sortait doublée.
+        83 % du sitemap de production était dans ce cas le 27/08/2026."""
         from content.sitemaps import ArticleSitemap
-        sitemap = ArticleSitemap()
-        self.assertEqual(sitemap.location(self.art), self.art.get_absolute_url())
+        chemin = ArticleSitemap().location(self.art)
+        self.assertTrue(chemin.startswith('/'),
+                        f"chemin nu attendu, reçu : {chemin!r}")
+        self.assertNotIn('://', chemin)
+        self.assertTrue(chemin.endswith(f'/article/{self.art.slug}/'),
+                        f"le chemin doit mener à l'article : {chemin!r}")
 
     def test_sitemap_xml_returns_200(self):
         response = self.client.get('/sitemap.xml')
@@ -6900,6 +6908,65 @@ class NewsletterDelivrabiliteTest(TestCase):
                 'h-captcha-response': 'test',
             })
         self.assertEqual(mail.outbox[0].reply_to, ['contact@cnt-so.org'])
+
+
+class SitemapAdressesValidesTest(TestCase):
+    """83 % du sitemap servi en production était malformé.
+
+    `Sitemap.location()` doit rendre un CHEMIN — Django y colle
+    `protocole://hôte`. Or `get_absolute_url()` rend une URL absolue dès qu'une
+    section a son propre domaine, et pour le principal depuis qu'il passe par
+    `url_site_principal()`. D'où, relevé le 27/08/2026 sur
+    https://newsite.cnt-so.org/sitemap.xml :
+
+        https://newsite.cnt-so.orghttps://newsite.cnt-so.org/article/…
+
+    725 adresses sur 866. Aucun test ne regardait le contenu du sitemap : on
+    vérifiait qu'il répondait 200, pas ce qu'il annonçait. Or c'est le fichier
+    par lequel les moteurs découvriront le site à la bascule DNS.
+    """
+
+    def setUp(self):
+        self.principal = make_site(slug='principal', name='CNT-SO')
+        self.article = make_article_page(section_slug='principal',
+                                         title='Un article', slug='un-article')
+        make_content_page(section_slug='principal', title='Une page',
+                          slug='une-page')
+        make_cms_category(name='Luttes', slug='luttes', section_slug='principal')
+
+    def _adresses(self):
+        reponse = self.client.get('/sitemap.xml')
+        self.assertEqual(reponse.status_code, 200)
+        return re.findall(r'<loc>([^<]+)</loc>',
+                          reponse.content.decode('utf-8', 'replace'))
+
+    def test_aucune_adresse_ne_porte_deux_fois_un_protocole(self):
+        doublees = [u for u in self._adresses() if u.count('http') > 1]
+        self.assertEqual(
+            doublees, [],
+            f"le domaine est collé à une URL déjà absolue : {doublees[:3]}")
+
+    def test_chaque_adresse_annoncee_est_servie(self):
+        """Le sitemap ne doit pas promettre ce que les vues refusent — c'est le
+        défaut qu'on avait déjà entre `slugs_contenu` et les vues publiques."""
+        from urllib.parse import urlparse
+        for adresse in self._adresses():
+            chemin = urlparse(adresse).path
+            with self.subTest(chemin=chemin):
+                self.assertEqual(
+                    self.client.get(chemin).status_code, 200,
+                    f"annoncée au sitemap mais non servie : {chemin}")
+
+    def test_le_contenu_dun_syndicat_depublie_nest_pas_annonce(self):
+        """Dépublier ferme le site du syndicat ; le sitemap principal
+        continuait pourtant d'annoncer ses articles (Rhône-Alpes, 32 articles
+        le 27/08/2026)."""
+        ferme = make_site(slug='ferme', name='CNT-SO Fermé', site_type='regional')
+        make_article_page(section_slug='ferme', title='Article fermé',
+                          slug='article-ferme')
+        ferme.live = False
+        ferme.save()
+        self.assertNotIn('article-ferme', ' '.join(self._adresses()))
 
 
 class ChampsDeSaisieNommesTest(TestCase):
