@@ -57,6 +57,46 @@ Toujours vérifier la taille : un dump complet pèse une dizaine de Mo.
 ls -lh ~/cntso-*.sql.gz | tail -1     # ~10 Mo attendu, pas 20 octets
 ```
 
+### Vérifier qu'une sauvegarde se restaure vraiment
+
+Une sauvegarde jamais restaurée n'est pas une sauvegarde. La vérification se
+fait sur une base jetable, sans jamais toucher `cntso`. Faite le 27/08/2026 :
+88 tables des deux côtés, les 13 tables essentielles au nombre de lignes près,
+et Django tourne dessus sans écart de schéma.
+
+```bash
+sudo -u postgres createdb cntso_verif
+zcat ~/cntso-AAAAMMJJ-HHMM.sql.gz | sudo -u postgres psql -q cntso_verif
+
+# Comparer quelques tables entre la vivante et la restaurée
+for t in cms_articlepage cms_sectionpage wagtailcore_page auth_user; do
+  echo "$t : $(sudo -u postgres psql -tAc "SELECT count(*) FROM $t;" cntso)" \
+       "vs $(sudo -u postgres psql -tAc "SELECT count(*) FROM $t;" cntso_verif)"
+done
+
+# Preuve de bout en bout : Django lit-il vraiment cette base ?
+sudo -u postgres psql -q -c "GRANT ALL ON DATABASE cntso_verif TO cntso;"
+sudo -u postgres psql -q cntso_verif -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO cntso; GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO cntso;"
+cd /var/www/cntso && venv/bin/python - <<'EOF'
+import os, django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cntso.settings')
+django.setup()
+from django.db import connections
+connections.databases['default']['NAME'] = 'cntso_verif'   # jamais la vivante
+from django.core.management import call_command
+call_command('migrate', '--check', verbosity=0)
+from cms.models import ArticlePage
+a = ArticlePage.objects.live().first()
+print('OK :', a.title[:40], '—', len([b for b in a.body]), 'blocs')
+EOF
+
+sudo -u postgres dropdb cntso_verif      # NE PAS OUBLIER
+```
+
+⚠️ La restauration ne pèse pas la même taille que la base vivante (49 Mo
+contre 75 le 27/08) : c'est normal, un rechargement à neuf n'a ni tuples morts
+ni index fragmentés. **Comparer les nombres de lignes, pas les tailles.**
+
 ### 4. Vérifier que le site répond
 ```bash
 sudo supervisorctl status cntso
