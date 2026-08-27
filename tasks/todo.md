@@ -43,6 +43,25 @@ print('sans destinataire :', sans or 'aucun')
 Et, depuis le 26/08/2026, un message qui ne trouve aucun destinataire laisse
 une trace : `grep 'SANS DESTINATAIRE' logs/django.log`.
 
+## Le webhook cnt-adhesion est muet
+
+`ADHESION_WEBHOOK_SECRET` est **vide en production** (vérifié le 27/08/2026),
+alors que `ADHESION_BASE_URL` pointe bien vers `https://adhesion.cnt-so.org`.
+Sans secret partagé, `_verify_adhesion_signature` refuse **tout** appel : les
+préférences newsletter des adhérents ne remontent pas au site.
+
+Sans conséquence aujourd'hui : le journal ne montre aucun appel refusé sur les
+sept derniers jours, donc cnt-adhesion n'émet pas encore. Mais le jour où les
+adhésions passeront par là, la synchronisation échouera en silence.
+
+- [ ] Définir le même secret des deux côtés : `ADHESION_WEBHOOK_SECRET` dans
+      `/var/www/cntso/cntso/local_settings.py` **et** côté cnt-adhesion.
+- [ ] Vérifier ensuite qu'un appel passe :
+      `grep 'Sync newsletter adhesion' /var/www/cntso/logs/django.log`
+
+⚠️ Ne rien déployer côté cnt-adhesion depuis une session « site cnt » : c'est
+un dépôt autonome. Le secret se choisit une fois et se pose des deux côtés.
+
 ### Le reste de la bascule
 
 La procédure complète est dans `!DEPLOIEMENT.md`, section « Bascule DNS ».
