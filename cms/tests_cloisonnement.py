@@ -505,3 +505,112 @@ class VersionDeWagtailSansFailleConnueTest(TestCase):
             version, (7, 4, 3),
             f"Wagtail {wagtail.__version__} : l'API interne /cms/api/main/pages/ "
             "renvoie les pages de tous les syndicats (CVE-2026-55468).")
+
+
+class BalayageInterfaceInterneTest(TestCase):
+    """Parcourt TOUTE l'interface /cms/, pas seulement les snippets.
+
+    Le reste de ce fichier balaie les SnippetViewSets. Restaient hors champ les
+    écrans propres à Wagtail — explorateur de pages, images, documents, comptes,
+    groupes, collections — et les écrans maison. Soit environ 200 URL qu'aucun
+    test n'ouvrait, dans l'interface où quatorze syndicats travaillent côte à
+    côte.
+
+    Balayage du 27/08/2026 : aucune erreur serveur, et le périmètre d'un
+    rédacteur est bien borné. Ce test fige les deux.
+    """
+
+    #: L'URL de test d'erreur de Wagtail, qui lève une exception exprès.
+    IGNOREES = ('/cms/failwhale/',)
+
+    def setUp(self):
+        from django.core.management import call_command
+        from io import StringIO
+        self.mien = _ensure_section_page(slug='balayage-a', name='Syndicat Balayage A')
+        self.voisin = _ensure_section_page(slug='balayage-b', name='Syndicat Balayage B')
+        self.chez_le_voisin = make_article_page(
+            section_slug='balayage-b', title='Article du voisin',
+            slug='balayage-voisin')
+        make_article_page(section_slug='balayage-a', title='Le mien',
+                          slug='balayage-mien')
+        call_command('setup_cms_permissions', verbosity=0, stdout=StringIO())
+        self.redacteur = User.objects.create_user('balayage-redac', password='pass')
+        self.redacteur.groups.add(Group.objects.get(name='redacteur_balayage-a'))
+        self.client.force_login(User.objects.get(pk=self.redacteur.pk))
+
+    def _urls_sans_argument(self):
+        """Les URL d'administration qu'on peut ouvrir sans clé primaire."""
+        from django.urls import get_resolver
+        trouvees = []
+
+        def marche(motifs, prefixe=''):
+            for m in motifs:
+                if hasattr(m, 'url_patterns'):
+                    marche(m.url_patterns, prefixe + str(m.pattern))
+                else:
+                    chemin = prefixe + str(m.pattern)
+                    if (chemin.startswith('cms/') and '<' not in chemin
+                            and '(?P' not in chemin and '^' not in chemin
+                            and not chemin.endswith('$')):
+                        trouvees.append('/' + chemin)
+
+        marche(get_resolver().url_patterns)
+        return sorted(set(trouvees) - set(self.IGNOREES))
+
+    def test_aucun_ecran_ne_rend_une_erreur_serveur(self):
+        """Un 500 dans /cms/ arrête net le travail d'un syndicat."""
+        casses = []
+        for url in self._urls_sans_argument():
+            try:
+                code = self.client.get(url).status_code
+            except Exception as e:
+                casses.append(f'{url} → {type(e).__name__}: {e}')
+                continue
+            if code >= 500:
+                casses.append(f'{url} → {code}')
+        self.assertEqual(casses, [], f"écran(s) en erreur : {casses}")
+
+    def test_les_ecrans_reserves_restent_fermes(self):
+        """Un rédacteur n'administre ni les comptes, ni les groupes, ni les
+        syndicats. Le refus sort en 302 vers /cms/ et non en 403 : une
+        `PermissionDenied` levée dans une vue de `register_admin_urls` est
+        convertie en redirection par Wagtail."""
+        for url in ('/cms/syndicats/', '/cms/users/', '/cms/groups/',
+                    '/cms/collections/', '/cms/workflows/list/'):
+            with self.subTest(url=url):
+                code = self.client.get(url, follow=False).status_code
+                self.assertNotEqual(code, 200, f"{url} est ouvert au rédacteur")
+
+    def test_les_pages_du_voisin_restent_hors_datteinte(self):
+        """L'explorateur de Wagtail ne passe par aucun viewset : le
+        cloisonnement des snippets ne l'atteint pas."""
+        pk = self.chez_le_voisin.pk
+        for chemin in (f'/cms/pages/{pk}/', f'/cms/pages/{pk}/edit/',
+                       f'/cms/pages/{pk}/delete/'):
+            with self.subTest(chemin=chemin):
+                self.assertNotEqual(
+                    self.client.get(chemin, follow=False).status_code, 200,
+                    f"{chemin} est ouvert au rédacteur du syndicat voisin")
+
+    def test_la_bibliotheque_dimages_est_bornee_a_sa_collection(self):
+        """Les collections de médias sont provisionnées par syndicat : la
+        bibliothèque ne doit montrer que la sienne."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from wagtail.images.models import Image
+        from wagtail.models import Collection
+        png = (b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00'
+               b'\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\n'
+               b'IDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00'
+               b'\x00IEND\xaeB`\x82')
+        collection = (Collection.objects.filter(name=self.voisin.title).first()
+                      or Collection.get_first_root_node())
+        chez_le_voisin = Image.objects.create(
+            title='Photo du voisin', collection=collection,
+            file=SimpleUploadedFile('voisin.png', png, 'image/png'))
+
+        listing = self.client.get('/cms/images/')
+        self.assertNotContains(listing, 'Photo du voisin')
+        self.assertNotEqual(
+            self.client.get(f'/cms/images/{chez_le_voisin.pk}/',
+                            follow=False).status_code, 200,
+            "l'image du syndicat voisin est modifiable")
