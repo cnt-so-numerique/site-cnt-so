@@ -6902,6 +6902,63 @@ class NewsletterDelivrabiliteTest(TestCase):
         self.assertEqual(mail.outbox[0].reply_to, ['contact@cnt-so.org'])
 
 
+class ChampsDeSaisieNommesTest(TestCase):
+    """Tout champ de saisie doit avoir un nom lisible par un lecteur d'écran.
+
+    Le cartouche d'inscription à la newsletter existe en cinq exemplaires —
+    `_sidebar`, `_sidebar_cta`, `_sectoral_sidebar`, `_newsletter`,
+    `qui_sommes_nous`. Trois portaient `aria-label`, deux l'avaient perdu à la
+    recopie (relevé le 27/08/2026) : sur la page d'un article, le champ
+    n'annonçait que « votre@email.fr ». Un `placeholder` n'est pas une
+    étiquette — il disparaît à la saisie, et les lecteurs d'écran ne le
+    traitent pas uniformément.
+
+    Le test balaie le HTML rendu plutôt que les gabarits : c'est ce que le
+    visiteur reçoit qui compte, et un sixième cartouche ajouté demain sans
+    étiquette échouera ici.
+    """
+
+    #: Champs légitimement sans étiquette : le piège à robots est masqué aux
+    #: technologies d'assistance (`aria-hidden`, `tabindex="-1"`), lui en
+    #: donner une le rendrait visible à ceux-là mêmes qu'il protège.
+    EXEMPTS = ('site_web',)
+
+    def setUp(self):
+        self.site = make_site(slug='principal', name='CNT-SO')
+        make_article_page(section_slug='principal', title='Un article',
+                          slug='un-article')
+
+    def _sans_nom(self, url):
+        html = self.client.get(url).content.decode('utf-8', 'replace')
+        muets = []
+        for m in re.finditer(r'<(input|select|textarea)\b([^>]*)>', html, re.I):
+            attrs = m.group(2)
+            if re.search(r'type\s*=\s*["\'](hidden|submit|button|image)', attrs, re.I):
+                continue
+            if re.search(r'\baria-hidden\s*=\s*["\']true', attrs, re.I):
+                continue
+            nom = re.search(r'\bname\s*=\s*["\']([^"\']+)', attrs)
+            if nom and nom.group(1) in self.EXEMPTS:
+                continue
+            if re.search(r'\b(aria-label|aria-labelledby|title)\s*=', attrs, re.I):
+                continue
+            ident = re.search(r'\bid\s*=\s*["\']([^"\']+)', attrs)
+            if ident and f'for="{ident.group(1)}"' in html:
+                continue
+            muets.append(re.sub(r'\s+', ' ', m.group(0))[:80])
+        return muets
+
+    def test_les_pages_publiques_nont_aucun_champ_muet(self):
+        for url in ('/', '/article/un-article/', '/contact/',
+                    '/newsletter/desabonnement/'):
+            with self.subTest(url=url):
+                muets = self._sans_nom(url)
+                self.assertEqual(
+                    muets, [],
+                    f"champ(s) sans nom accessible sur {url} — un placeholder "
+                    f"n'est pas une étiquette : {muets}")
+
+
 class ReglagesSansDecorTest(TestCase):
     """Une application réglée mais jamais branchée fait croire à un dispositif.
 
