@@ -45,6 +45,7 @@ class Command(BaseCommand):
         from cms.models import SectionPage
         from content.models import Subscriber
         from content.ovh_sync import lists_for_site, ovh_subscribe
+        from content.views import _site_de_la_newsletter
 
         cible = options['syndicat'].strip()
         reparer = options['reparer']
@@ -59,7 +60,15 @@ class Command(BaseCommand):
 
         total_manquants = 0
         for site in sites:
-            listes = lists_for_site(site)
+            # Un syndicat sans liste OVH n'envoie pas dans le vide : ses
+            # inscrits vont sur les listes de la confédération, c'est la règle
+            # de `_site_de_la_newsletter` depuis le 17/08/2026. Sauter ces
+            # syndicats — ce que faisait cette commande à sa première version —
+            # revenait à ignorer précisément là où les orphelins s'accumulent :
+            # deux inscrits de Marseille de mars 2026 n'étaient sur AUCUNE
+            # liste, et le rapport annonçait « aucun abonné manquant ».
+            destination = _site_de_la_newsletter(site)
+            listes = lists_for_site(destination)
             if not listes:
                 continue
 
@@ -96,9 +105,10 @@ class Command(BaseCommand):
             manquants = [a for cle, a in sorted(adresses.items()) if cle not in chez_ovh]
             total_manquants += len(manquants)
 
+            vers = '' if destination.pk == site.pk else f" → listes de {destination.title}"
             self.stdout.write(
                 f"{site.title} : {len(adresses)} abonné(s) actif(s), "
-                f"{len(chez_ovh)} chez OVH ({', '.join(listes)}) — "
+                f"{len(chez_ovh)} chez OVH ({', '.join(listes)}){vers} — "
                 f"{len(manquants)} absent(s) des listes")
 
             for abonne in manquants:
@@ -109,7 +119,7 @@ class Command(BaseCommand):
                 a_traiter = manquants[:limite] if limite else manquants
                 repares = 0
                 for abonne in a_traiter:
-                    choisie = ovh_subscribe(site, abonne.email)
+                    choisie = ovh_subscribe(destination, abonne.email)
                     if choisie:
                         Subscriber.objects.filter(pk=abonne.pk).update(ovh_list=choisie)
                         repares += 1

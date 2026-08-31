@@ -7201,6 +7201,25 @@ class VerifieAbonnesOvhTest(TestCase):
         self.assertNotIn('inconnue@example.org', sortie.getvalue())
         self.assertIn('listes illisibles', erreurs.getvalue())
 
+    def test_labonne_dun_syndicat_sans_liste_est_verifie_aussi(self):
+        """C'est là que les orphelins s'accumulent, pas ailleurs.
+
+        Un syndicat sans liste OVH n'envoie pas dans le vide : ses inscrits
+        vont sur les listes de la confédération (`_site_de_la_newsletter`).
+        La première version de cette commande sautait ces syndicats — et
+        annonçait donc « aucun abonné manquant » alors que deux inscrits de
+        Marseille, de mars 2026, n'étaient sur AUCUNE liste (constaté en
+        production le 27/08/2026).
+        """
+        marseille = make_site(slug='13', name='CNT-SO 13', site_type='regional')
+        self.assertEqual(marseille.ovh_mailing_list, '',
+                         "ce test n'a de sens que sur un syndicat sans liste")
+        Subscriber.objects.create(site=marseille, email='oubliee-13@example.org',
+                                  is_active=True)
+        rapport = self._lancer(chez_ovh=[])
+        self.assertIn('oubliee-13@example.org', rapport)
+        self.assertIn('CNT-SO 13', rapport)
+
     def test_reparer_reinscrit_et_note_la_liste(self):
         abo = Subscriber.objects.create(site=self.site, email='a@example.org',
                                         is_active=True)
