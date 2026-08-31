@@ -193,12 +193,30 @@
     padding: 0.2rem 0.5rem;
 }
 
+/* Une étiquette de catégorie, une seule typographie.
+   Il en existait quatre traitements pour la même fonction : 600 sans casse
+   forcée sur les cartes du réseau, 600 en capitales sans interlettrage sur la
+   une, 700 en capitales à 0,8 px sur les cartes manchette, 700 à 0,5 px sur le
+   badge de syndicat. « Les catégories et autres tags à uniformiser […] faire un
+   choix et le décliner partout » (audit d'ergonomie du 01/06/2026, § 2.1).
+
+   Le choix retenu est le plus répandu et le plus lisible à cette taille :
+   capitales, graisse 700, 0,5 px d'interlettrage. Il vit ICI et nulle part
+   ailleurs. Couleurs, fonds et espacements internes restent propres à chaque
+   cartouche : c'est la typographie qu'on unifie, pas l'apparence. */
+.hp-badge-cat,
+.hp-card-cat,
+.hp-mcard-cat,
+.hp-badge-site {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+
 .hp-badge-cat {
     background: var(--bg-light);
     color: var(--text-color);
     font-size: 15px;
-    font-weight: 600;
-    text-transform: uppercase;
     padding: 0.2rem 0.5rem;
 }
 
@@ -377,7 +395,6 @@
 .hp-card-cat {
     font-size: 15px;
     color: var(--text-muted);
-    font-weight: 600;
 }
 
 /* ----------------------------------------------------------
@@ -545,10 +562,7 @@
 
 .hp-mcard-cat {
     font-size: 15px;
-    font-weight: 700;
-    text-transform: uppercase;
     color: var(--primary-color);
-    letter-spacing: .8px;
     display: block;
     margin-bottom: .3rem;
 }
@@ -570,10 +584,7 @@
     background: var(--dark-bg);
     color: rgba(255,255,255,.8);
     font-size: 15px;
-    font-weight: 700;
-    text-transform: uppercase;
     padding: .2rem .5rem;
-    letter-spacing: .5px;
 }
 
 /* ----------------------------------------------------------

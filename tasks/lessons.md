@@ -246,3 +246,16 @@ PID=$(pgrep -f "manage\.py runserver 8978" | grep -v "^$$\$" | head -1)
 
 Le plus simple reste de ne pas mélanger : arrêter le serveur dans une commande,
 lancer les tests dans une autre.
+
+## `runserver --noreload` garde les gabarits en mémoire (31/08/2026)
+
+En vérifiant l'unification des étiquettes de catégorie, trois mesures
+successives ont montré des valeurs inchangées alors que le fichier était
+correct. Le serveur de développement avait été lancé AVANT l'édition, avec
+`--noreload` : il servait la version compilée en mémoire. `curl | grep` a
+tranché — 1 occurrence dans le fichier, 0 dans la page servie.
+
+**Règle :** après avoir modifié un gabarit, redémarrer le serveur de
+développement, ou ne pas utiliser `--noreload`. Et quand une mesure contredit
+le fichier, comparer d'abord **ce que le serveur sert** à **ce que le fichier
+contient**, avant de soupçonner le CSS ou la spécificité.
