@@ -228,3 +228,21 @@ le résultat sans aération est simplement… du texte en haut de page.
 **Règle** : une fonction dont l'effet est invisible à l'œil doit être vérifiée
 par la mesure, pas par la relecture. Ici : compter les marges réellement posées
 dans le DOM (`grep -c 'style="margin-bottom'`).
+
+## `pkill -f` / `pgrep -f` se retournent contre mon propre shell (31/08/2026)
+
+Trois fois dans la même session, `pkill -f "runserver 8978"` a tué la commande
+en cours au lieu du serveur : la ligne de commande de mon propre shell contient
+le motif recherché, puisque c'est moi qui viens de l'écrire. Résultat, la suite
+de tests lancée juste après mourait avec un code 144 avant d'avoir rien produit,
+et j'ai perdu trois passages à chercher pourquoi.
+
+**Règle :** ne jamais chercher un processus par un motif que ma propre commande
+contient. Soit lancer le serveur en notant son PID, soit filtrer explicitement :
+
+```bash
+PID=$(pgrep -f "manage\.py runserver 8978" | grep -v "^$$\$" | head -1)
+```
+
+Le plus simple reste de ne pas mélanger : arrêter le serveur dans une commande,
+lancer les tests dans une autre.

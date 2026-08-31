@@ -88,11 +88,49 @@
     <div class="article-featured-image">
         <img src="{{ article.any_image_url }}" alt="{{ article.title }}">
     </div>
+    {% if is_gallery %}
+    {% comment %}
+    Rien n'indiquait qu'on pouvait récupérer un visuel de la banque : il fallait
+    savoir qu'un clic droit puis « enregistrer l'image sous… » fonctionne
+    (audit d'ergonomie du 01/06/2026). La banque existe pourtant pour ça — elle
+    est « à disposition des militant·es et structures de la CNT-SO ».
+
+    `is_gallery` était calculé dans la vue depuis le début et n'était lu par
+    aucun gabarit : la plomberie attendait qu'on la branche.
+    {% endcomment %}
+    <p class="telecharger-visuel">
+        <a href="{{ article.any_image_url }}" download
+           title="Enregistrer ce visuel sur votre appareil">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                 stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Télécharger ce visuel
+        </a>
+    </p>
+    {% endif %}
     {% endif %}
 
     <div class="article-content">
         {{ article.body }}
     </div>
+
+    <style>
+      .telecharger-visuel { margin: .75rem 0 0; }
+      .telecharger-visuel a {
+        display: inline-flex; align-items: center; gap: .5rem;
+        padding: .55rem 1rem;
+        border: 1px solid var(--border-color);
+        color: var(--text-color); font-size: 15px; font-weight: 700;
+        text-decoration: none;
+      }
+      .telecharger-visuel a:hover {
+        background: var(--primary-color); color: #fff;
+        border-color: var(--primary-color);
+      }
+    </style>
 
     {% if article.fiche_pratique %}
     {% comment %}

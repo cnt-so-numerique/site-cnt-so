@@ -6910,6 +6910,57 @@ class NewsletterDelivrabiliteTest(TestCase):
         self.assertEqual(mail.outbox[0].reply_to, ['contact@cnt-so.org'])
 
 
+class TelechargementVisuelBanqueTest(TestCase):
+    """La banque d'image existe pour être utilisée, encore faut-il le dire.
+
+    Audit d'ergonomie du 01/06/2026 : « en l'état le téléchargement d'une image
+    n'est pas évident […] rien dans la page ne nous dit que cette action est
+    possible ». La page annonce pourtant des visuels « à disposition des
+    militant·es et structures de la CNT-SO ».
+
+    `is_gallery` était calculé dans `ArticleDetailView` depuis le début et lu
+    par aucun gabarit : la plomberie attendait qu'on la branche.
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='principal', name='CNT-SO')
+        self.banque = make_cms_category(name="Banque d'image", slug='banque-dimage',
+                                        section_slug='principal')
+        self.autre = make_cms_category(name='Luttes banque', slug='luttes-banque-test',
+                                       section_slug='principal')
+
+    def _article(self, slug, categories):
+        from wagtail.images.models import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        png = (b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00'
+               b'\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00'
+               b'\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00'
+               b'\x00\x00\x00IEND\xaeB`\x82')
+        image = Image.objects.create(
+            title=f'Visuel {slug}',
+            file=SimpleUploadedFile(f'{slug}.png', png, 'image/png'))
+        return make_article_page(section_slug='principal', title=slug, slug=slug,
+                                 categories=categories, featured_image=image)
+
+    def test_un_visuel_de_la_banque_se_telecharge(self):
+        self._article('visuel-covid', [self.banque])
+        r = self.client.get('/article/visuel-covid/')
+        self.assertContains(r, 'Télécharger ce visuel')
+        self.assertContains(r, 'download')
+
+    def test_un_article_ordinaire_na_pas_ce_lien(self):
+        """Le lien n'a de sens que sur la banque : ailleurs, l'image illustre."""
+        self._article('article-ordinaire', [self.autre])
+        r = self.client.get('/article/article-ordinaire/')
+        self.assertNotContains(r, 'Télécharger ce visuel')
+
+    def test_sans_image_aucun_lien(self):
+        make_article_page(section_slug='principal', title='Sans image',
+                          slug='sans-image', categories=[self.banque])
+        r = self.client.get('/article/sans-image/')
+        self.assertNotContains(r, 'Télécharger ce visuel')
+
+
 class RechercheMultiMotsTest(TestCase):
     """Audit d'ergonomie du 31/08/2026 : « la recherche ne permet pas plusieurs
     mots ». Mesuré en production, c'est faux — elle les accepte, en exigeant
