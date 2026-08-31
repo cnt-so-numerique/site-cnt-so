@@ -3,6 +3,12 @@
 {% block title %}Recherche : {{ query }} - CNT-SO{% endblock %}
 
 {% block content %}
+<style>
+  .recherche-vide { max-width: 62ch; line-height: 1.6; }
+  .recherche-vide-titre { font-weight: 700; margin-bottom: .75rem; }
+  .recherche-vide p { margin-bottom: .75rem; color: var(--text-secondary); }
+  .recherche-vide a { color: var(--primary-color); font-weight: 700; }
+</style>
 <h1 class="section-title">Recherche : "{{ query }}"</h1>
 
 {% if query %}
@@ -32,7 +38,26 @@
         </div>
     </article>
     {% empty %}
-    <p>Aucun résultat pour "{{ query }}".</p>
+    {% comment %}
+    L'écran vide ne disait rien d'autre que « aucun résultat » : le lecteur ne
+    pouvait pas savoir que le moteur exige TOUS les mots, ni où s'adresser
+    ensuite (audit d'ergonomie, 31/08/2026).
+    {% endcomment %}
+    <div class="recherche-vide">
+      <p class="recherche-vide-titre">Aucun résultat pour «&nbsp;{{ query }}&nbsp;».</p>
+      {% if plusieurs_mots %}
+      <p>La recherche ne retient que les articles contenant <strong>tous les
+         mots</strong> demandés. Avec plusieurs mots, elle devient donc très
+         étroite&nbsp;: essayez avec <strong>un seul mot</strong>, ou un terme
+         plus général.</p>
+      {% else %}
+      <p>Essayez un autre mot, ou une forme plus générale — la recherche ne
+         devine ni les synonymes ni les fautes de frappe.</p>
+      {% endif %}
+      <p>Vous ne trouvez pas ce que vous cherchez&nbsp;?
+         <a href="{% url 'content:contact' %}">Écrivez-nous</a>, nous vous
+         répondrons.</p>
+    </div>
     {% endfor %}
 </div>
 

@@ -6910,6 +6910,59 @@ class NewsletterDelivrabiliteTest(TestCase):
         self.assertEqual(mail.outbox[0].reply_to, ['contact@cnt-so.org'])
 
 
+class RechercheMultiMotsTest(TestCase):
+    """Audit d'ergonomie du 31/08/2026 : « la recherche ne permet pas plusieurs
+    mots ». Mesuré en production, c'est faux — elle les accepte, en exigeant
+    que TOUS figurent dans l'article :
+
+        « nettoyage »        272 résultats
+        « grève »            607
+        « grève nettoyage »  127   ← moins que chacun : c'est bien un ET
+        « grève, nettoyage » 127   ← la virgule ne gêne pas
+
+    Ce qui était vrai en revanche : **« ou » ne donne pas un OU** — il compte
+    comme un mot de plus et restreint encore (60 résultats). Et l'écran vide ne
+    disait rien : ni comment la recherche fonctionne, ni où s'adresser ensuite.
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='principal', name='CNT-SO')
+
+    def test_la_virgule_separe_les_mots(self):
+        from content.views import SearchView
+        self.assertEqual(SearchView._termes('grève, nettoyage'),
+                         ['grève', 'nettoyage'])
+
+    def test_les_liaisons_ne_sont_pas_cherchees(self):
+        """« ou » restreignait au lieu d'élargir : autant l'effacer."""
+        from content.views import SearchView
+        self.assertEqual(SearchView._termes('grève ou nettoyage'),
+                         ['grève', 'nettoyage'])
+        self.assertEqual(SearchView._termes('grève et nettoyage'),
+                         ['grève', 'nettoyage'])
+
+    def test_une_recherche_faite_que_de_liaisons_reste_intacte(self):
+        """Sinon on chercherait le vide."""
+        from content.views import SearchView
+        self.assertEqual(SearchView._termes('et ou'), ['et', 'ou'])
+
+    def test_lecran_vide_explique_et_oriente(self):
+        r = self.client.get('/recherche/', {'q': 'zzzqqqxxx'})
+        self.assertContains(r, 'Aucun résultat')
+        self.assertContains(r, 'Écrivez-nous')
+        self.assertContains(r, '/contact/')
+
+    def test_avec_plusieurs_mots_il_dit_pourquoi_cest_etroit(self):
+        r = self.client.get('/recherche/', {'q': 'zzzqqq xxxwww'})
+        self.assertContains(r, 'tous les')
+        self.assertTrue(r.context['plusieurs_mots'])
+
+    def test_avec_un_seul_mot_il_ne_parle_pas_de_plusieurs(self):
+        r = self.client.get('/recherche/', {'q': 'zzzqqqxxx'})
+        self.assertFalse(r.context['plusieurs_mots'])
+        self.assertNotContains(r, 'tous les mots')
+
+
 class SitemapAdressesValidesTest(TestCase):
     """83 % du sitemap servi en production était malformé.
 

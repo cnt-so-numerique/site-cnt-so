@@ -688,23 +688,44 @@ class SearchView(ListView):
     context_object_name = 'articles'
     paginate_by = 10
 
+    #: Mots de liaison qu'un lecteur écrit naturellement et que le moteur
+    #: prendrait pour des termes à chercher. « et » est presque sans effet
+    #: (mot vide côté PostgreSQL), mais « ou » NE donne PAS un OU logique :
+    #: il restreint encore. Mesuré en production le 31/08/2026 —
+    #: « grève nettoyage » : 127 résultats ; « grève ou nettoyage » : 60.
+    #: Quelqu'un qui écrit « ou » en espérant élargir obtient l'inverse.
+    LIAISONS = {'et', 'ou', 'and', 'or'}
+
+    @classmethod
+    def _termes(cls, requete):
+        """Les mots à chercher : la virgule sépare, les liaisons s'effacent."""
+        mots = requete.replace(',', ' ').replace(';', ' ').split()
+        gardes = [m for m in mots if m.lower() not in cls.LIAISONS]
+        # Une recherche qui ne serait QUE des liaisons garde ce qu'on a tapé,
+        # plutôt que de chercher le vide.
+        return gardes or mots
+
     def get_queryset(self):
         from wagtail.search.backends import get_search_backend
         query = self.request.GET.get('q', '').strip()
         if not query:
             return ArticlePage.objects.none()
         backend = get_search_backend()
-        results = backend.search(
-            query,
+        return backend.search(
+            ' '.join(self._termes(query)),
             ArticlePage.objects.live().select_related('featured_image').prefetch_related('cms_categories'),
             order_by_relevance=True,
         )
-        return results
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['query'] = self.request.GET.get('q', '')
+        query = self.request.GET.get('q', '')
+        context['query'] = query
         context['site'] = SectionPage.objects.filter(slug='principal').first()
+        # Le moteur exige que TOUS les mots figurent dans l'article. Sans le
+        # dire, une recherche à trois mots qui ne donne rien laisse croire que
+        # le sujet n'est pas traité (audit d'ergonomie, 31/08/2026).
+        context['plusieurs_mots'] = len(self._termes(query)) > 1 if query else False
         return context
 
 
