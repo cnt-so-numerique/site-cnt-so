@@ -423,6 +423,29 @@
             border-bottom: 1px solid var(--bg-lighter);
         }
 
+        /* Prévenir AVANT le clic qu'on quitte le site : « prévoir une
+           indication visuelle qui permet aux utilisateurs de comprendre avant
+           de cliquer qu'ils vont sortir du site » (audit d'ergonomie du
+           01/06/2026, § 1.3). Deux syndicats sont hébergés ailleurs — le STAA
+           et le TAS — et s'ouvraient déjà dans un onglet neuf, mais sans que
+           rien ne l'annonce. */
+        /* Texte réservé aux lecteurs d'écran : le picto est décoratif
+           (`aria-hidden`), l'information doit donc exister sous forme de mots
+           pour qui ne le voit pas. */
+        .sr-only {
+            position: absolute; width: 1px; height: 1px;
+            padding: 0; margin: -1px; overflow: hidden;
+            clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+        }
+
+        .lien-externe {
+            display: inline-block;
+            vertical-align: -1px;
+            margin-left: .35em;
+            opacity: .65;
+        }
+        a:hover > .lien-externe { opacity: 1; }
+
         .dropdown a:hover {
             background: var(--bg-light);
             color: var(--primary-color);
@@ -1950,15 +1973,15 @@
                         {% with grandchildren=child.children.all %}
                         {% if grandchildren %}
                         <div class="dropdown-item">
-                            <a href="{{ child.get_url }}"{% if child.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ child.title }}</a>
+                            <a href="{{ child.get_url }}"{% if child.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ child.title }}{% if child.should_open_new_tab %}<svg class="lien-externe" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg><span class="sr-only"> (ouvre un autre site dans un nouvel onglet)</span>{% endif %}</a>
                             <div class="sub-dropdown">
                                 {% for gc in grandchildren %}{% if gc.is_active and not gc.est_impasse %}
-                                <a href="{{ gc.get_url }}"{% if gc.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ gc.title }}</a>
+                                <a href="{{ gc.get_url }}"{% if gc.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ gc.title }}{% if gc.should_open_new_tab %}<svg class="lien-externe" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg><span class="sr-only"> (ouvre un autre site dans un nouvel onglet)</span>{% endif %}</a>
                                 {% endif %}{% endfor %}
                             </div>
                         </div>
                         {% elif not child.est_impasse %}
-                        <a href="{{ child.get_url }}"{% if child.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ child.title }}</a>
+                        <a href="{{ child.get_url }}"{% if child.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ child.title }}{% if child.should_open_new_tab %}<svg class="lien-externe" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg><span class="sr-only"> (ouvre un autre site dans un nouvel onglet)</span>{% endif %}</a>
                         {% endif %}
                         {% endwith %}
                         {% endif %}
