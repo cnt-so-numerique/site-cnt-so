@@ -37,7 +37,7 @@
 .sitemap-section ul li {
     padding: .35rem 0;
     border-bottom: 1px solid var(--bg-lighter);
-    font-size: 15px;
+    font-size: var(--texte-courant);
 }
 .sitemap-section ul li:last-child { border-bottom: none; }
 .sitemap-section ul li a {
@@ -47,7 +47,7 @@
 .sitemap-section ul li a:hover { color: var(--primary-color); }
 .sitemap-section ul li.sub {
     padding-left: 1rem;
-    font-size: 15px;
+    font-size: var(--texte-courant);
 }
 .sitemap-section ul li.sub a { color: var(--text-muted); }
 .sitemap-section ul li.sub a:hover { color: var(--primary-color); }
@@ -108,7 +108,7 @@
     <ul>
       {% for s in unions_regionales %}
       <li><a href="{{ s.get_absolute_url }}">{{ s.name }}</a>
-          <span style="color:var(--text-muted);font-size:15px;"> — <a href="{% section_url 'content:site_plan_du_site' s %}">plan</a></span>
+          <span style="color:var(--text-muted);font-size: var(--texte-courant);"> — <a href="{% section_url 'content:site_plan_du_site' s %}">plan</a></span>
       </li>
       {% endfor %}
     </ul>
@@ -122,7 +122,7 @@
     <ul>
       {% for s in syndicats_sectoriels %}
       <li><a href="{{ s.get_absolute_url }}">{{ s.name }}</a>
-          <span style="color:var(--text-muted);font-size:15px;"> — <a href="{% section_url 'content:site_plan_du_site' s %}">plan</a></span>
+          <span style="color:var(--text-muted);font-size: var(--texte-courant);"> — <a href="{% section_url 'content:site_plan_du_site' s %}">plan</a></span>
       </li>
       {% endfor %}
     </ul>

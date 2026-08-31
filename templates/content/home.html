@@ -187,7 +187,7 @@
 .hp-badge-type {
     background: var(--primary-color);
     color: #fff;
-    font-size: 15px;
+    font-size: var(--texte-courant);
     font-weight: 700;
     text-transform: uppercase;
     padding: 0.2rem 0.5rem;
@@ -216,7 +216,7 @@
 .hp-badge-cat {
     background: var(--bg-light);
     color: var(--text-color);
-    font-size: 15px;
+    font-size: var(--texte-courant);
     padding: 0.2rem 0.5rem;
 }
 
@@ -288,7 +288,7 @@
 
 .hp-mini-card-title {
     font-family: var(--font-heading);
-    font-size: 15px;
+    font-size: var(--texte-courant);
     line-height: 1.3;
 }
 
@@ -321,7 +321,7 @@
    la répétait en travers. */
 .hp-vert-label {
     align-self: flex-start;
-    font-size: 15px;
+    font-size: var(--texte-courant);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 2px;
@@ -385,7 +385,7 @@
 
 .hp-card-title {
     font-family: var(--font-heading);
-    font-size: 15px;
+    font-size: var(--texte-courant);
     line-height: 1.3;
 }
 
@@ -393,7 +393,7 @@
 .hp-card-title a:hover { color: var(--primary-color); }
 
 .hp-card-cat {
-    font-size: 15px;
+    font-size: var(--texte-courant);
     color: var(--text-muted);
 }
 
@@ -463,7 +463,7 @@
 
 .hp-text-card-title {
     font-family: var(--font-heading);
-    font-size: 15px;
+    font-size: var(--texte-courant);
     line-height: 1.3;
 }
 
@@ -561,7 +561,7 @@
 }
 
 .hp-mcard-cat {
-    font-size: 15px;
+    font-size: var(--texte-courant);
     color: var(--primary-color);
     display: block;
     margin-bottom: .3rem;
@@ -583,7 +583,7 @@
 .hp-badge-site {
     background: var(--dark-bg);
     color: rgba(255,255,255,.8);
-    font-size: 15px;
+    font-size: var(--texte-courant);
     padding: .2rem .5rem;
 }
 
@@ -708,7 +708,7 @@
 .hp-col-article-title a:hover { color: var(--primary-color); }
 
 .hp-col-article-cat {
-    font-size: 15px;
+    font-size: var(--texte-courant);
     color: var(--text-muted);
 }
 
@@ -779,7 +779,7 @@
 
 .hp-qui-arrow {
     display: inline-block;
-    font-size: 15px;
+    font-size: var(--texte-courant);
     font-weight: 700;
     color: var(--primary-color);
     margin-bottom: 0.6rem;
@@ -788,7 +788,7 @@
 }
 
 .hp-qui-desc {
-    font-size: 15px;
+    font-size: var(--texte-courant);
     color: var(--text-secondary);
     line-height: 1.6;
 }
@@ -837,7 +837,7 @@
     padding: 0.7rem 1rem;
     border: none;
     font-family: var(--font-body);
-    font-size: 15px;
+    font-size: var(--texte-courant);
     background: #fff;
 }
 
@@ -852,7 +852,7 @@
     border: none;
     cursor: pointer;
     font-weight: 600;
-    font-size: 15px;
+    font-size: var(--texte-courant);
     font-family: var(--font-body);
 }
 
@@ -874,7 +874,7 @@
     .hp-col-article-cat,
     .hp-card-cat,
     .hp-reseau-meta .hp-badge-site,
-    .hp-reseau-meta .hp-card-cat { font-size: 15px; }
+    .hp-reseau-meta .hp-card-cat { font-size: var(--texte-courant); }
     .hp-hero-title { font-size: 26px; }
     .hp-col-title { font-size: 18px; }
     /* La règle groupée ci-dessus ramenait les titres de la sélection à 16 px,
@@ -1032,7 +1032,7 @@
                                 </div>
                             </div>
                             {% empty %}
-                            <p style="font-size:15px;color:var(--text-muted);">Aucun article.</p>
+                            <p style="font-size: var(--texte-courant);color:var(--text-muted);">Aucun article.</p>
                             {% endfor %}
                         </div>
                     </div>
@@ -1053,7 +1053,7 @@
                                 </div>
                             </div>
                             {% empty %}
-                            <p style="font-size:15px;color:var(--text-muted);">Aucun article.</p>
+                            <p style="font-size: var(--texte-courant);color:var(--text-muted);">Aucun article.</p>
                             {% endfor %}
                         </div>
                     </div>
