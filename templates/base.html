@@ -395,6 +395,20 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             z-index: 1000;
             border-top: 3px solid var(--primary-color);
+            /* Le menu « Syndicats » compte vingt entrées : déployé, il mesurait
+               1048 px et débordait de 373 px sur un portable 17 pouces (900 px
+               de haut). Sept syndicats — de « Livreurs & Plateformes » à
+               « Intérim » — étaient donc hors écran, et défiler pour les
+               atteindre sortait la souris du menu, qui se refermait aussitôt.
+               Ils n'étaient accessibles par aucun geste (audit d'ergonomie du
+               01/06/2026, seul point qualifié de bloquant ; mesuré à nouveau
+               le 31/08).
+               Le menu se borne donc à la hauteur disponible et défile en
+               lui-même ; `overscroll-behavior` empêche le défilement de fuir
+               vers la page une fois le bas atteint. */
+            max-height: calc(100vh - 15rem);
+            overflow-y: auto;
+            overscroll-behavior: contain;
         }
 
         .nav-item:hover .dropdown {
@@ -482,6 +496,9 @@
                 position: static;
                 box-shadow: none;
                 border-top: none;
+                /* En flux, le menu pousse la page : rien à borner. */
+                max-height: none;
+                overflow-y: visible;
             }
             .nav-item:hover .dropdown {
                 display: none;
