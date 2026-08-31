@@ -45,7 +45,7 @@ class Command(BaseCommand):
         from cms.models import SectionPage
         from content.models import Subscriber
         from content.ovh_sync import lists_for_site, ovh_subscribe
-        from content.views import _site_de_la_newsletter
+        from content.ovh_sync import site_de_diffusion
 
         cible = options['syndicat'].strip()
         reparer = options['reparer']
@@ -62,12 +62,12 @@ class Command(BaseCommand):
         for site in sites:
             # Un syndicat sans liste OVH n'envoie pas dans le vide : ses
             # inscrits vont sur les listes de la confédération, c'est la règle
-            # de `_site_de_la_newsletter` depuis le 17/08/2026. Sauter ces
+            # de `site_de_diffusion` depuis le 17/08/2026. Sauter ces
             # syndicats — ce que faisait cette commande à sa première version —
             # revenait à ignorer précisément là où les orphelins s'accumulent :
             # deux inscrits de Marseille de mars 2026 n'étaient sur AUCUNE
             # liste, et le rapport annonçait « aucun abonné manquant ».
-            destination = _site_de_la_newsletter(site)
+            destination = site_de_diffusion(site)
             listes = lists_for_site(destination)
             if not listes:
                 continue

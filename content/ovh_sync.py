@@ -91,6 +91,25 @@ def pick_list(site):
     return lists[-1]
 
 
+def site_de_diffusion(site):
+    """Le syndicat dont la liste recevra cette inscription.
+
+    Seule la confédération diffuse une newsletter : les autres listes OVH sont
+    des listes de travail internes, réservées aux adhérent·es et non
+    destinées à la diffusion publique (arbitrage d'Arnaud, 17/08/2026).
+
+    La règle suit les données plutôt qu'un nom écrit en dur : un syndicat qui
+    a une liste garde ses inscrits, les autres envoient vers la conf. Rendre
+    sa liste à un syndicat suffirait donc à lui rendre sa newsletter, sans
+    toucher au code. Et surtout, personne n'atterrit plus dans une base que
+    nul n'utilise.
+    """
+    if lists_for_site(site):
+        return site
+    from cms.models import SectionPage
+    return SectionPage.objects.filter(slug='principal').first() or site
+
+
 def ovh_subscribe(site, email):
     """Inscrit l'email sur la première liste non pleine. Retourne le nom de
     la liste utilisée, ou None en cas d'échec/absence de liste."""

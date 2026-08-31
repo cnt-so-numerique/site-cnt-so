@@ -14,6 +14,7 @@ from django.utils import timezone
 from .models import (Page, ContactMessage, FormulaireContact, Subscriber,
                      ExternalArticle)
 from .courriel import destinataire_de_reponse
+from .ovh_sync import site_de_diffusion
 from .forms import (ContactForm, DynamicContactForm, NewsletterCaptchaForm,
                     NewsletterSubscribeForm, NewsletterUnsubscribeForm)
 from cms.models import (ArticlePage, CmsCategory, SectionPage, _cle_de_nom,
@@ -1031,25 +1032,6 @@ def _trop_de_desabonnements(request):
     return False
 
 
-def _site_de_la_newsletter(site):
-    """Le syndicat dont la liste recevra cette inscription.
-
-    Seule la confédération diffuse une newsletter : les autres listes OVH sont
-    des listes de travail internes, réservées aux adhérent·es et non
-    destinées à la diffusion publique (arbitrage d'Arnaud, 17/08/2026).
-
-    La règle suit les données plutôt qu'un nom écrit en dur : un syndicat qui
-    a une liste garde ses inscrits, les autres envoient vers la conf. Rendre
-    sa liste à un syndicat suffirait donc à lui rendre sa newsletter, sans
-    toucher au code. Et surtout, personne n'atterrit plus dans une base que
-    nul n'utilise.
-    """
-    from .ovh_sync import lists_for_site
-    if lists_for_site(site):
-        return site
-    return SectionPage.objects.filter(slug='principal').first() or site
-
-
 class NewsletterSubscribeView(View):
     """Première étape de l'inscription : recueillir l'adresse.
 
@@ -1073,7 +1055,7 @@ class NewsletterSubscribeView(View):
             return redirect(request.META.get('HTTP_REFERER', '/'))
 
         return render(request, 'content/newsletter_subscribe_verify.html', {
-            'site': _site_de_la_newsletter(site),
+            'site': site_de_diffusion(site),
             'form': NewsletterCaptchaForm(initial={
                 'email': form.cleaned_data['email'],
                 'name': form.cleaned_data.get('name', ''),
@@ -1095,7 +1077,7 @@ class NewsletterSubscribeVerifyView(View):
         return get_object_or_404(SectionPage, slug='principal')
 
     def post(self, request, site_slug=None):
-        site = _site_de_la_newsletter(self._get_site(site_slug))
+        site = site_de_diffusion(self._get_site(site_slug))
         form = NewsletterCaptchaForm(request.POST)
         if not form.is_valid():
             return render(request, 'content/newsletter_subscribe_verify.html', {
@@ -1257,7 +1239,7 @@ class NewsletterDesabonnementView(View):
                           self._contexte(site, form))
 
         from .ovh_sync import ovh_unsubscribe
-        ovh_unsubscribe(_site_de_la_newsletter(site), email)
+        ovh_unsubscribe(site_de_diffusion(site), email)
         self._eteindre_les_lignes_locales(site, email)
 
         return render(request, 'content/newsletter_desabonnement_done.html', {

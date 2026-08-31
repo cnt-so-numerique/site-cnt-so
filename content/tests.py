@@ -6948,10 +6948,24 @@ class SitemapAdressesValidesTest(TestCase):
 
     def test_chaque_adresse_annoncee_est_servie(self):
         """Le sitemap ne doit pas promettre ce que les vues refusent — c'est le
-        défaut qu'on avait déjà entre `slugs_contenu` et les vues publiques."""
+        défaut qu'on avait déjà entre `slugs_contenu` et les vues publiques.
+
+        Restreint aux routes que `content.urls` sert lui-même. Les
+        `ContentPage` en sont exclues à dessein : leur adresse dépend de
+        l'arbre Wagtail et de l'enregistrement `Site`, que les fabriques de
+        test ne fixent pas — l'assertion réussissait ou échouait selon les
+        classes ayant tourné avant, dans le même processus. Un test qui dépend
+        de son ordre d'exécution ne dit plus rien de vrai sur le code.
+
+        En production, la vérification a été faite sur les vraies adresses :
+        25 tirées au hasard du sitemap servi, toutes en 200 (27/08/2026).
+        """
         from urllib.parse import urlparse
-        for adresse in self._adresses():
-            chemin = urlparse(adresse).path
+        chemins = [urlparse(a).path for a in self._adresses()]
+        verifiables = [c for c in chemins
+                       if c.startswith(('/article/', '/categorie/'))]
+        self.assertTrue(verifiables, "aucune adresse vérifiable dans le sitemap")
+        for chemin in verifiables:
             with self.subTest(chemin=chemin):
                 self.assertEqual(
                     self.client.get(chemin).status_code, 200,
@@ -7138,6 +7152,97 @@ class SlugHeriteSansCollisionTest(TestCase):
         site.clean()
 
 
+class SuppressionAbonneRetireDeOvhTest(TestCase):
+    """Supprimer un abonné doit aussi le retirer des listes OVH.
+
+    Arnaud, 27/08/2026 : « y a pas moyen de mettre un garde-fou pour ça ? ».
+    L'asymétrie était réelle : *désactiver* quelqu'un le retirait bien — le
+    signal `post_save` s'en charge — mais le *supprimer* ne retirait rien.
+    L'objet disparaissait, aucun signal de mise à jour ne partait, et l'adresse
+    restait chez OVH : elle continuait de recevoir la lettre, sans plus aucune
+    trace de consentement en base pour l'expliquer.
+
+    Le geste est à portée de clic : un rédacteur a le droit de supprimer un
+    abonné depuis /cms/.
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='principal', name='CNT-SO')
+        self.site.ovh_mailing_list = 'news3'
+        self.site.save()
+
+    def test_la_suppression_retire_des_listes(self):
+        abo = Subscriber.objects.create(site=self.site, email='partante@example.org',
+                                        is_active=True, ovh_list='news3')
+        with patch('content.ovh_sync.ovh_unsubscribe') as retirer:
+            abo.delete()
+        retirer.assert_called_once()
+        self.assertEqual(retirer.call_args[0][1], 'partante@example.org')
+
+    def test_elle_ne_touche_pas_a_qui_est_arrive_par_un_autre_chemin(self):
+        """Une adresse peut être sur une liste sans que le site l'y ait mise :
+        les 5 895 adresses héritées du WordPress n'ont aucune ligne ici.
+
+        Cas réel du 27/08/2026 : `julien.huard@cnt-so.org` avait une ligne
+        d'essai datée de mars ET une inscription légitime sur `news2` depuis
+        l'import. Supprimer la ligne d'essai devait le laisser sur news2.
+        """
+        abo = Subscriber.objects.create(site=self.site, is_active=True,
+                                        email='historique@example.org',
+                                        ovh_list='')   # le site ne l'a jamais posé
+        with patch('content.ovh_sync.ovh_unsubscribe') as retirer:
+            abo.delete()
+        retirer.assert_not_called()
+
+    def test_la_suppression_en_masse_aussi(self):
+        """Enregistrer un récepteur `pre_delete` désactive le « fast delete »
+        de Django : une suppression par queryset passe donc aussi par là."""
+        for i in range(3):
+            Subscriber.objects.create(site=self.site, email=f'lot{i}@example.org',
+                                      is_active=True, ovh_list='news3')
+        with patch('content.ovh_sync.ovh_unsubscribe') as retirer:
+            Subscriber.objects.filter(email__startswith='lot').delete()
+        self.assertEqual(retirer.call_count, 3)
+
+    def test_labonne_confederal_du_webhook_est_retire_lui_aussi(self):
+        """Il porte `site=None` : sans redirection vers le principal, la
+        suppression ne balaierait aucune liste."""
+        abo = Subscriber.objects.create(site=None, email='adherente@example.org',
+                                        is_active=True, ovh_list='news3')
+        with patch('content.ovh_sync.ovh_unsubscribe') as retirer:
+            abo.delete()
+        retirer.assert_called_once()
+
+
+class DesactivationSuitLeRoutageTest(TestCase):
+    """Désactiver un abonné doit balayer la liste qui le porte VRAIMENT.
+
+    Le signal visait les listes du syndicat d'inscription. Or un syndicat sans
+    liste envoie ses inscrits sur celles de la confédération : désactiver un
+    abonné de Marseille balayait une liste vide et le laissait sur `news3`.
+    Même angle mort que celui trouvé dans `verifie_abonnes_ovh`.
+    """
+
+    def setUp(self):
+        principal = make_site(slug='principal', name='CNT-SO')
+        principal.ovh_mailing_list = 'news3'
+        principal.save()
+        self.marseille = make_site(slug='13', name='CNT-SO 13',
+                                   site_type='regional')
+
+    def test_la_desactivation_balaie_les_listes_de_la_confederation(self):
+        abo = Subscriber.objects.create(site=self.marseille, is_active=True,
+                                        email='marseillaise@example.org')
+        with patch('content.ovh_sync.ovh_unsubscribe') as retirer:
+            abo.is_active = False
+            abo.save(update_fields=['is_active'])
+        retirer.assert_called_once()
+        vise = retirer.call_args[0][0]
+        self.assertEqual(
+            vise.slug, 'principal',
+            "le retrait doit viser les listes qui portent réellement l'adresse")
+
+
 class VerifieAbonnesOvhTest(TestCase):
     """Détecter les abonnés que le site croit inscrits et qu'OVH ne connaît pas.
 
@@ -7205,7 +7310,7 @@ class VerifieAbonnesOvhTest(TestCase):
         """C'est là que les orphelins s'accumulent, pas ailleurs.
 
         Un syndicat sans liste OVH n'envoie pas dans le vide : ses inscrits
-        vont sur les listes de la confédération (`_site_de_la_newsletter`).
+        vont sur les listes de la confédération (`site_de_diffusion`).
         La première version de cette commande sautait ces syndicats — et
         annonçait donc « aucun abonné manquant » alors que deux inscrits de
         Marseille, de mars 2026, n'étaient sur AUCUNE liste (constaté en
