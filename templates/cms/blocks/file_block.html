@@ -1,10 +1,34 @@
-<p class="article-file">
-  {% if value.document %}
-    <a href="{{ value.document.url }}" download class="btn-download">
-      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:.4rem">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+{% comment %}
+Le bloc n'était qu'un lien en ligne : picto « fichier » (une page cornée, pas
+un téléchargement), suivi du nom brut du document — souvent illisible, du genre
+« com cntso sudcommerce 09 01 2026 ». `.btn-download` n'avait par ailleurs
+aucun style : rien ne distinguait ce bloc du texte courant.
+
+« Il n'est pas évident de comprendre qu'on peut télécharger le document […]
+préférer un picto plus parlant et mettre un intitulé explicite » (audit
+d'ergonomie du 01/06/2026, § 6.2).
+
+Le verbe est désormais dit — « Télécharger » —, le picto est une flèche qui
+descend, le format et le poids sont annoncés pour qu'on sache ce qu'on prend,
+et le bloc est détaché du reste par un encadré.
+{% endcomment %}
+{% if value.document %}
+<div class="bloc-document">
+  <a href="{{ value.document.url }}" download class="bloc-document-lien">
+    <span class="bloc-document-picto" aria-hidden="true">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
       </svg>
-      {{ value.title|default:value.document.title }}
-    </a>
-  {% endif %}
-</p>
+    </span>
+    <span class="bloc-document-texte">
+      <span class="bloc-document-action">Télécharger</span>
+      <span class="bloc-document-titre">{{ value.title|default:value.document.title }}</span>
+      <span class="bloc-document-detail">
+        {{ value.document.file_extension|upper }}{% if value.document.file.size %} — {{ value.document.file.size|filesizeformat }}{% endif %}
+      </span>
+    </span>
+  </a>
+</div>
+{% endif %}

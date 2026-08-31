@@ -6910,6 +6910,63 @@ class NewsletterDelivrabiliteTest(TestCase):
         self.assertEqual(mail.outbox[0].reply_to, ['contact@cnt-so.org'])
 
 
+class BlocDocumentTelechargeableTest(TestCase):
+    """« Il n'est pas évident de comprendre qu'on peut télécharger le document »
+    (audit d'ergonomie du 01/06/2026, § 6.2).
+
+    Le bloc n'était qu'un lien en ligne : picto « fichier » — une page cornée,
+    pas un téléchargement — suivi du nom brut du document, souvent illisible
+    (« com cntso sudcommerce 09 01 2026 »). Et `.btn-download` n'avait aucun
+    style : rien ne le distinguait du texte courant.
+    """
+
+    def setUp(self):
+        from wagtail.documents.models import Document
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from wagtail.blocks.stream_block import StreamValue
+        self.site = make_site(slug='principal', name='CNT-SO')
+        self.doc = Document.objects.create(
+            title='Appel à la lutte du 9 janvier',
+            file=SimpleUploadedFile('appel.pdf', b'%PDF-1.4 essai', 'application/pdf'))
+        self.article = make_article_page(section_slug='principal',
+                                         title='Avec document', slug='avec-document')
+        self.article.body = StreamValue(
+            self.article.body.stream_block,
+            [('file', {'document': self.doc, 'title': ''})], is_lazy=False)
+        self.article.save_revision().publish()
+
+    def _bloc(self):
+        """Le bloc RENDU, isolé du reste de la page.
+
+        Les premières versions de ces tests cherchaient « Télécharger » et
+        « bloc-document-lien » dans la page entière — or ces deux chaînes
+        figurent aussi dans la feuille de style de `base.html`. Ils passaient
+        donc même en supprimant le bloc, ce qu'une mutation a montré. On
+        n'inspecte plus que le fragment produit par le gabarit.
+        """
+        html = self.client.get('/article/avec-document/').content.decode()
+        debut = html.find('<div class="bloc-document">')
+        self.assertNotEqual(debut, -1, "le bloc document n'est pas rendu du tout")
+        return html[debut:html.find('</div>', html.find('</a>', debut))]
+
+    def test_laction_est_dite(self):
+        """Le verbe manquait : rien n'annonçait qu'un clic téléchargeait."""
+        self.assertIn('Télécharger', self._bloc())
+
+    def test_le_titre_du_document_est_affiche(self):
+        self.assertIn('Appel à la lutte du 9 janvier', self._bloc())
+
+    def test_le_format_et_le_poids_sont_annonces(self):
+        """On doit savoir ce qu'on prend avant de le prendre."""
+        bloc = self._bloc()
+        self.assertIn('PDF', bloc)
+        self.assertRegex(bloc, r'\d+([.,]\d+)?\s*(o|octet|Ko|Mo)')
+
+    def test_le_lien_declenche_bien_un_telechargement(self):
+        """`download` distingue « enregistrer » de « ouvrir dans l'onglet »."""
+        self.assertRegex(self._bloc(), r'<a[^>]+href="[^"]+\.pdf"[^>]*\sdownload')
+
+
 class TelechargementVisuelBanqueTest(TestCase):
     """La banque d'image existe pour être utilisée, encore faut-il le dire.
 
