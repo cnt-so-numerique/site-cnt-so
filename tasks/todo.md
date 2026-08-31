@@ -12,10 +12,22 @@ en base datent tous du 30/05 et sont des essais). **Mais le jour où
 `cnt-so.org` pointera ici, les messages de ces quatre syndicats arriveront à
 la confédération, et personne ne s'en apercevra.**
 
-- [ ] **CNT-SO 13 (Marseille)** — /cms/snippets/content/formulairecontact/edit/1/
-- [ ] **CNT-SO Auvergne** — /cms/snippets/content/formulairecontact/edit/2/
-- [ ] **CNT-SO Rhône-Alpes** — /cms/snippets/content/formulairecontact/edit/4/
-- [ ] **CNT-SO Poitiers** — /cms/snippets/content/formulairecontact/edit/6/
+- [x] **CNT-SO 13 (Marseille)** → `contact13@cnt-so.org`
+- [x] **CNT-SO Auvergne** → `auvergne@cnt-so.org`
+- [x] **CNT-SO Rhône-Alpes** → `ur-ra@cnt-so.org`
+- [x] **CNT-SO Poitiers** → `poitoucharentes@cnt-so.org`
+
+**Fait le 27/08/2026.** Adresses renseignées sur la *fiche du syndicat*
+(`contact_email`), pas sur le formulaire : une seule adresse à tenir, qui sert
+aussi au pied du tract. Les quatre boîtes existent réellement — choisies parmi
+les 98 comptes du domaine `cnt-so.org` chez OVH, pas inventées : la convention
+n'est pas dérivable du slug (`stucs` → `spectacle@`, `education` →
+`fede.education.public@`). La révision Wagtail a été publiée en même temps que
+la ligne, sans quoi l'éditeur aurait ouvert un champ vide et l'aurait effacé.
+
+Vérifié : les quatre `/contact/` répondent 200 sur leur domaine, `aucun`
+formulaire ne reste sans destinataire, et l'adresse n'apparaît pas en clair
+dans la page.
 
 Deux façons de faire, au choix pour chacun :
 
@@ -54,10 +66,20 @@ Sans conséquence aujourd'hui : le journal ne montre aucun appel refusé sur les
 sept derniers jours, donc cnt-adhesion n'émet pas encore. Mais le jour où les
 adhésions passeront par là, la synchronisation échouera en silence.
 
-- [ ] Définir le même secret des deux côtés : `ADHESION_WEBHOOK_SECRET` dans
-      `/var/www/cntso/cntso/local_settings.py` **et** côté cnt-adhesion.
-- [ ] Vérifier ensuite qu'un appel passe :
-      `grep 'Sync newsletter adhesion' /var/www/cntso/logs/django.log`
+- [x] Secret aligné des deux côtés.
+
+**Fait le 27/08/2026.** Le secret existait déjà côté cnt-adhesion
+(`SITE_PRINCIPAL_WEBHOOK_SECRET`, 64 caractères) : il ne manquait que côté
+site. Sa valeur a été recopiée dans `local_settings.py` — **rien n'a été
+touché sur cnt-adhesion**, dépôt autonome. Sauvegarde du fichier avant
+modification : `local_settings.py.bak-20260827-*`.
+
+Vérifié par un appel réellement signé, sans effet de bord (sans les clés
+`newsletter_*`, la vue répond « inchangé » et ne crée aucune ligne) :
+
+    signature valide  → 200  {"ok": true, "result": {"conf": "inchangé"}}
+    signature fausse  → 403
+    abonnés : 1 avant, 1 après
 
 ⚠️ Ne rien déployer côté cnt-adhesion depuis une session « site cnt » : c'est
 un dépôt autonome. Le secret se choisit une fois et se pose des deux côtés.
