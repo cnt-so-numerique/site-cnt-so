@@ -76,7 +76,12 @@
 }
 .share-buttons { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .5rem; }
 .si-linkedin  { background: #0A66C2; }
-.si-whatsapp  { background: #25D366; }
+/* Les teintes de marque de WhatsApp et Telegram sont trop claires pour une
+   icône blanche : mesuré le 31/08/2026, le contraste tombait à 1,98 et 2,78
+   là où un élément graphique porteur de sens en demande 3 (WCAG 1.4.11).
+   On prend la variante sombre officielle de chaque marque — reconnaissable,
+   et lisible. */
+.si-whatsapp  { background: #128C7E; }
 .si-mail      { background: #6b7280; }
 .si-share     { background: #374151; }
 </style>

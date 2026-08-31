@@ -883,6 +883,21 @@
 
         .gallery-grid img:hover { opacity: .85; }
 
+        /* Un lien signalé par la seule couleur échappe à qui distingue mal le
+           rouge du noir — et le contraste rouge sur blanc (4,54) ne laisse
+           aucune marge. Le soulignement est le seul repère qui ne dépende pas
+           de la vision des couleurs (WCAG 1.4.1, audit d'ergonomie du
+           01/06/2026). Décalé sous la ligne de base pour ne pas hacher les
+           jambages. */
+        .article-content a,
+        .qsn-db-content a {
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            text-decoration-thickness: 1px;
+        }
+        .article-content a:hover,
+        .qsn-db-content a:hover { text-decoration-thickness: 2px; }
+
         .article-content p {
             margin-bottom: 1.5rem;
         }
@@ -1601,7 +1616,10 @@
         .si-facebook  { background: #1877F2; }
         .si-instagram { background: linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); }
         .si-youtube   { background: #FF0000; }
-        .si-telegram  { background: #2CA5E0; }
+        /* Teinte sombre officielle : le #2CA5E0 de marque ne donnait que 2,78
+           de contraste avec l'icône blanche, sous le minimum de 3 exigé pour
+           un élément graphique porteur de sens (mesuré le 31/08/2026). */
+        .si-telegram  { background: #0088CC; }
         .si-discord   { background: #5865F2; }
         .si-linkedin  { background: #0A66C2; }
         .hp-bloc-campagnes {
