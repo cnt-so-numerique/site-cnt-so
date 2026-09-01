@@ -162,6 +162,10 @@ poitiers (16), rhone-alpes (8), stucs (7), staa (7).
   publiquement** sur `/staa/…`, sitemap compris, alors que le STAA a son propre
   site. Dont `/staa/site-en-cours-de-fabrication/` et `/staa/post-201/`
   intitulé « (Sans titre) ». Décision de contenu.
-- **`Debug A`, `Debug B`, `test`** figurent encore dans le sélecteur de
-  syndicat (0 article chacun). À vérifier en production avant toute suppression
-  — la base de dev est désynchronisée.
+- ~~**`Debug A`, `Debug B`, `test`** dans le sélecteur~~ — **RÉGLÉ le
+  01/09/2026.** Vérifié en production : **aucun des trois n'y existe**. C'étaient
+  des résidus de ma seule base de développement. `test` supprimé en dev (cascade :
+  1 formulaire de contact, 2 abonnés d'essai ; aucun appel OVH possible, les clés
+  sont vides en dev). Le sélecteur en production sert **8 syndicats** — les huit
+  vrais —, STAA et TAS écartés comme sites externes, 4 fiches non publiées déjà
+  invisibles.
