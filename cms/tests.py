@@ -4572,3 +4572,111 @@ class RangeCategoriesConfTest(TestCase):
         sortie = self._lancer(appliquer=True)
         self.assertEqual(CmsCategory.objects.count(), apres_un)
         self.assertIn('déjà rangé', sortie)
+
+
+class HarmoniseEcritureInclusiveTest(TestCase):
+    """Une seule graphie inclusive, et rien d'autre ne bouge.
+
+    Six graphies cohabitaient en production pour le même mot (relevé le
+    01/09/2026). Arbitrage d'Arnaud : le point médian partout.
+
+    Deux garanties tiennent tout le reste : **les slugs ne changent pas** —
+    sinon toutes les adresses de catégorie casseraient — et **les mots ne
+    changent pas** : « Livreurs » reste au masculin, « Auteur.e.s » devient
+    « Auteur·es » et non « auteur·ices ». Passer d'un mot à un autre serait un
+    choix éditorial distinct, qui n'a pas été fait.
+    """
+
+    def setUp(self):
+        _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        _ensure_section_page(slug='auvergne', name='CNT-SO Auvergne')
+
+    def _lancer(self, appliquer=False):
+        from django.core.management import call_command
+        from io import StringIO
+        sortie = StringIO()
+        args = ['harmonise_ecriture_inclusive'] + (['--appliquer'] if appliquer else [])
+        call_command(*args, stdout=sortie)
+        return sortie.getvalue()
+
+    def test_a_blanc_rien_n_est_ecrit(self):
+        cat = make_cms_category(name='Travailleurs.euses sans-papiers',
+                                slug='sans-papiers', section_slug='principal')
+        self._lancer()
+        cat.refresh_from_db()
+        self.assertEqual(cat.name, 'Travailleurs.euses sans-papiers')
+
+    def test_les_points_deviennent_des_points_medians(self):
+        cat = make_cms_category(name='Travailleurs.euses sans-papiers',
+                                slug='sans-papiers', section_slug='principal')
+        self._lancer(appliquer=True)
+        cat.refresh_from_db()
+        self.assertEqual(cat.name, 'Travailleur·euses sans-papiers')
+
+    def test_le_trait_d_union_aussi(self):
+        cat = make_cms_category(name='Travailleur-euses de la terre',
+                                slug='terre', section_slug='principal')
+        self._lancer(appliquer=True)
+        cat.refresh_from_db()
+        self.assertEqual(cat.name, 'Travailleur·euses de la terre')
+
+    def test_le_slug_ne_bouge_jamais(self):
+        """C'est la garantie qui protège toutes les adresses de catégorie."""
+        cat = make_cms_category(name='Étudiant-es', slug='etudiant-es',
+                                section_slug='principal')
+        self._lancer(appliquer=True)
+        cat.refresh_from_db()
+        self.assertEqual(cat.slug, 'etudiant-es')
+        self.assertEqual(cat.name, 'Étudiant·es')
+
+    def test_les_mots_masculins_sont_laisses_tels_quels(self):
+        """« Livreurs » n'est pas féminisé : ce serait un autre arbitrage."""
+        cat = make_cms_category(
+            name='Livreurs & travailleurs.euses des plateformes',
+            slug='plateformes', section_slug='principal')
+        self._lancer(appliquer=True)
+        cat.refresh_from_db()
+        self.assertEqual(cat.name,
+                         'Livreurs & travailleur·euses des plateformes')
+        self.assertTrue(cat.name.startswith('Livreurs '))
+
+    def test_auteur_reste_auteur(self):
+        cat = make_cms_category(name='Artistes et Auteur.e.s', slug='auteurs',
+                                section_slug='auvergne')
+        self._lancer(appliquer=True)
+        cat.refresh_from_db()
+        self.assertEqual(cat.name, 'Artistes et Auteur·es')
+        self.assertNotIn('ices', cat.name)
+
+    def test_une_categorie_hors_table_est_signalee_pas_modifiee(self):
+        """Une catégorie créée depuis mon relevé ne doit pas être touchée en
+        silence : la commande la nomme et passe son chemin."""
+        cat = make_cms_category(name='Adhérent.e.s inconnus', slug='adherents',
+                                section_slug='principal')
+        sortie = self._lancer(appliquer=True)
+        cat.refresh_from_db()
+        self.assertEqual(cat.name, 'Adhérent.e.s inconnus')
+        self.assertIn('hors table', sortie)
+
+    def test_un_nom_attendu_mais_absent_est_signale(self):
+        sortie = self._lancer()
+        self.assertIn('introuvable', sortie)
+
+    def test_relancee_elle_ne_fait_rien_de_plus(self):
+        cat = make_cms_category(name='Travailleurs.euses sans-papiers',
+                                slug='sans-papiers', section_slug='principal')
+        self._lancer(appliquer=True)
+        sortie = self._lancer(appliquer=True)
+        cat.refresh_from_db()
+        self.assertEqual(cat.name, 'Travailleur·euses sans-papiers')
+        self.assertIn('déjà au point médian', sortie)
+
+    def test_aucun_article_n_est_touche(self):
+        cat = make_cms_category(name='Travailleurs.euses sans-papiers',
+                                slug='sans-papiers', section_slug='principal')
+        art = make_article_page(section_slug='principal', title='Un article',
+                                slug='un-article', categories=[cat])
+        self._lancer(appliquer=True)
+        art.refresh_from_db()
+        self.assertEqual(art.title, 'Un article')
+        self.assertEqual(art.cms_categories.count(), 1)

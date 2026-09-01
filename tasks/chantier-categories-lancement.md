@@ -146,7 +146,7 @@ python manage.py range_categories_conf --appliquer
 Filet : la commande refuse d'écrire si un article se retrouve sans aucune
 catégorie, et vérifie que la fusion réunit bien l'union des deux.
 
-## 3. Naming — EN ATTENTE D'ARBITRAGE
+## 3. Écriture inclusive — TRANCHÉ le 01/09/2026 : le point médian
 
 Corrections à ma note précédente : **« Popuplaire » et « Etudiant-es » sans
 accent n'existent pas en production** — c'était ma base de dev. En ligne, c'est
@@ -164,9 +164,27 @@ Travailleur-euses   trait d'union  principal (de la terre)
 Auteur.e            points         auvergne
 ```
 
-Sept graphies. Choix d'Arnaud — ce sont les mots du syndicat.
+Six graphies pour le même mot. **Arbitrage d'Arnaud : le point médian
+partout**, celui que le STUCS emploie pour se nommer lui-même.
 
-## 4. 14 catégories vides — EN ATTENTE D'ARBITRAGE
+Commande `harmonise_ecriture_inclusive` (constat seul par défaut) :
+
+```bash
+python manage.py harmonise_ecriture_inclusive
+python manage.py harmonise_ecriture_inclusive --appliquer
+```
+
+**Portée volontairement étroite : seul le séparateur change.** « Livreurs » et
+« Artistes » restent au masculin, « Auteur.e.s » devient « Auteur·es » et non
+« auteur·ices » — passer d'un mot à un autre est un arbitrage distinct, qui n'a
+pas été fait. **Aucun slug ne bouge**, donc aucune adresse ne casse ; un test le
+vérifie et la commande refuse d'écrire si un slug changeait.
+
+Table explicite de huit noms plutôt qu'une expression régulière : la commande
+signale toute catégorie porteuse d'une graphie concurrente qu'elle ne connaît
+pas, au lieu de la renommer au jugé.
+
+## 4. 14 catégories vides — TRANCHÉ le 01/09/2026 : on les garde toutes
 
 ```
 stucs        Banque d'images · Communiqués · Fanzine · Revue de presse
@@ -179,8 +197,10 @@ numerique    Banque d'images
 rhone-alpes  TPE - salariés du particuliers   (syndicat dépublié)
 ```
 
-Celles du STUCS ressemblent à des rubriques préparées pour un syndicat jeune :
-à garder, sans doute. Les autres, à trancher.
+Arnaud : « tu as bien deviné, c'est des trucs à remplir ». **On garde tout.**
+Ce ne sont pas des restes mais des rubriques préparées, en attente de contenu.
+Rien à supprimer ici — et la remarque vaut pour la suite : une catégorie vide
+n'est pas un déchet.
 
 ## 5. 166 catégories d'autres syndicats servies sous l'adresse de la conf
 
