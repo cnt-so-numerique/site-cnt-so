@@ -92,53 +92,95 @@ Deux obstacles, dans cet ordre :
   exactement le même nom. Afficher famille **et** parent demande donc un
   **widget maison** avec son propre gabarit, pas un réglage.
 
-## 2. Le dédoublonnage
+## 2. « Dédoublonnage » — LA NOTE ÉTAIT FAUSSE, corrigée le 01/09/2026
 
-247 catégories, 183 noms distincts → **64 recopies**. 21 noms présents sur
-plusieurs syndicats.
+J'avais écrit « 247 catégories, 64 recopies à dédoublonner ». **Deux erreurs**,
+toutes deux dues à une analyse faite sur ma base de développement et non sur la
+production :
 
-```
-Non classé            × 6   13, auvergne, numerique, poitiers, principal, rhone-alpes
-Nettoyage             × 4   13(10), auvergne(20), principal(93), rhone-alpes(11)
-Santé & social        × 4
-CNT-SO                × 3   auvergne(90), principal(27), rhone-alpes(1)
-```
+- la production compte **218** catégories, pas 247 ;
+- surtout, les « recopies » n'en sont pas.
 
-Et sur le **seul site 13**, sept rubriques « actualités », une par secteur :
+Un même nom sur deux syndicats différents (« Nettoyage » au 13, en Auvergne, à
+la conf…) n'est PAS un doublon : c'est le modèle multisite. Chaque syndicat a sa
+catégorie et ses articles. Les fusionner casserait le cloisonnement.
 
-```
-Education - Recherche › Actualités - luttes   133 art
-Nettoyage             › Actualités - luttes    85
-Interpro              › Actualités - luttes    20
-BTP                   › Actualités - luttes     5
-Transports            › Actualités - luttes     3
-Santé & social        › Actualité et luttes     6
-Restauration          › Actualité - luttes      3
-```
-
-## 3. Nommage à normaliser
-
-Cinq graphies inclusives pour le même mot : `travailleur·euses` (point médian),
-`Travailleur.euse.s`, `Travailleurs.euses`, `Travailleur-euses`,
-`travailleurs.euses`. Proposition : **le point médian partout**, celui que le
-STUCS emploie pour lui-même.
-
-Défauts francs, corrigeables sans arbitrage si Arnaud le dit :
-- faute de frappe **« Animation & Education Popuplaire »** (6 articles) ;
-- **deux « Gard »** — l'un sous *CNT-SO Occitanie* (1 art), l'autre sous
-  *Syndicalisme* (4 art).
-
-## 4. Deux imbrications qui n'ont pas de sens
+Même nom **dans le même syndicat**, en production : **6 cas seulement**.
 
 ```
-Syndicalisme › Syndicat national des transports…  0 article  ← niveau vide
-                 └─ Transport - logistique         4 articles
-Syndicalisme › …culture et du spectacle (STUCS)   32 articles
-                 └─ …Artistes-Auteurs (STAA)        6 articles  ← deux syndicats distincts
+13         « Vos droits »              ×6   un par secteur
+13         « Revendiquons ! »          ×7   un par secteur
+13         « Actualités - luttes »     ×5   un par secteur
+13         « Se syndiquer »            ×2
+13         « CNT-Solidarité Ouvrière » ×2
+principal  « Gard »                    ×2   ← le seul vrai doublon
 ```
 
-Ce sont elles qui produisent les derniers en-têtes à une seule entrée dans
-l'écran de rédaction : corriger la donnée corrige l'affichage.
+Les cinq du 13 sont sa **taxonomie par secteur**, héritée de WordPress :
+chaque rubrique appartient à un secteur, porte son propre slug et ses propres
+articles. **Les fusionner détruirait l'organisation du plus gros syndicat du
+réseau** (532 articles). `cms.tests.RangeCategoriesConfTest` contient un test
+qui échoue si une fusion générique est un jour ajoutée.
+
+### Ce qui reste réellement à ranger — commande `range_categories_conf`
+
+Trois défauts francs, tous confédéraux, tous vérifiés en production :
+
+1. **Deux « Gard »** — pk 76 (slug `gard`, parent Syndicalisme, 4 articles) et
+   pk 77 (slug `gard-cnt-so-occitanie`, parent CNT-SO Occitanie, 1 article).
+   On garde le premier, on lui reverse l'article du second, on le range sous
+   « CNT-SO Occitanie » : le Gard est un département, pas un secteur.
+2. **Un niveau vide** — « Syndicat national des transports et de l'aménagement
+   du territoire », 0 article, dont l'unique rôle est de porter
+   « Transport - logistique » (4 articles). Un nom de syndicat au milieu de
+   noms de métiers. L'enfant remonte sous « Syndicalisme ».
+3. **STAA sous STUCS** — « …Artistes-Auteurs (STAA) » (6 art) est enfant de
+   « …culture et du spectacle (STUCS) » (32 art). Deux syndicats distincts ; le
+   STAA a même son propre site. Il remonte sous « Syndicalisme ».
+
+```bash
+python manage.py range_categories_conf              # constat seul
+python manage.py range_categories_conf --appliquer
+```
+
+Filet : la commande refuse d'écrire si un article se retrouve sans aucune
+catégorie, et vérifie que la fusion réunit bien l'union des deux.
+
+## 3. Naming — EN ATTENTE D'ARBITRAGE
+
+Corrections à ma note précédente : **« Popuplaire » et « Etudiant-es » sans
+accent n'existent pas en production** — c'était ma base de dev. En ligne, c'est
+« Animation & Éducation Populaire » et « Étudiant-es », correctement écrits.
+
+En revanche l'écriture inclusive est bien hétérogène, vérifié en ligne :
+
+```
+travailleur·euses   point médian   principal (STUCS)
+uni·es              point médian   principal
+Travailleur.euse    points         principal (STAA)
+Travailleurs.euses  points         principal (sans-papiers)
+travailleurs.euses  points         principal, auvergne (plateformes)
+Travailleur-euses   trait d'union  principal (de la terre)
+Auteur.e            points         auvergne
+```
+
+Sept graphies. Choix d'Arnaud — ce sont les mots du syndicat.
+
+## 4. 14 catégories vides — EN ATTENTE D'ARBITRAGE
+
+```
+stucs        Banque d'images · Communiqués · Fanzine · Revue de presse
+             · Visuels à télécharger          ← rubriques prévues ?
+13           Commerce et services · Permanences syndicales · Transports
+             · Web - Liens
+principal    « actions à venir » · « communiqué de presse » (en minuscules)
+             · Syndicat national des transports (traité en 2. ci-dessus)
+numerique    Banque d'images
+rhone-alpes  TPE - salariés du particuliers   (syndicat dépublié)
+```
+
+Celles du STUCS ressemblent à des rubriques préparées pour un syndicat jeune :
+à garder, sans doute. Les autres, à trancher.
 
 ## 5. 166 catégories d'autres syndicats servies sous l'adresse de la conf
 

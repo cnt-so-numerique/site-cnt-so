@@ -4411,3 +4411,164 @@ class SitesOuLonEcritTest(TestCase):
         req.session = {}
         slugs = set(get_available_sites(req).values_list('slug', flat=True))
         self.assertNotIn('staa', slugs)
+
+
+class RangeCategoriesConfTest(TestCase):
+    """Trois défauts francs de l'arbre confédéral, et rien d'autre.
+
+    La note de chantier annonçait « 64 recopies à dédoublonner ». Vérification
+    faite sur les données de production le 01/09/2026, c'était faux : les cinq
+    groupes homonymes du 13 (« Vos droits » ×6, « Revendiquons ! » ×7…) sont sa
+    taxonomie par secteur, pas des doublons. Les fusionner aurait détruit
+    l'organisation du plus gros syndicat du réseau. La commande n'y touche pas,
+    et un test le vérifie.
+    """
+
+    def setUp(self):
+        _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        self.syndicalisme = make_cms_category(name='Syndicalisme',
+                                              slug='syndicalisme')
+        self.occitanie = make_cms_category(name='CNT-SO Occitanie',
+                                           slug='cnt-so-occitanie')
+
+    def _cat(self, **kw):
+        return make_cms_category(section_slug='principal', **kw)
+
+    def _articles(self, categorie, n, prefixe):
+        return [make_article_page(section_slug='principal', title=f'{prefixe}{i}',
+                                  slug=f'{prefixe}-{i}', categories=[categorie])
+                for i in range(n)]
+
+    def _lancer(self, appliquer=False):
+        from django.core.management import call_command
+        from io import StringIO
+        sortie = StringIO()
+        args = ['range_categories_conf'] + (['--appliquer'] if appliquer else [])
+        call_command(*args, stdout=sortie)
+        return sortie.getvalue()
+
+    # ── 1. les deux Gard ─────────────────────────────────────────────────────
+
+    def _poser_les_deux_gard(self):
+        gros = self._cat(name='Gard', slug='gard', parent=self.syndicalisme)
+        petit = self._cat(name='Gard', slug='gard-cnt-so-occitanie',
+                          parent=self.occitanie)
+        self._articles(gros, 4, 'g')
+        self._articles(petit, 1, 'p')
+        return gros, petit
+
+    def test_a_blanc_la_commande_n_ecrit_rien(self):
+        from cms.models import CmsCategory
+        self._poser_les_deux_gard()
+        avant = CmsCategory.objects.count()
+        sortie = self._lancer()
+        self.assertIn('constat seul', sortie)
+        self.assertEqual(CmsCategory.objects.count(), avant)
+
+    def test_les_deux_gard_fusionnent_sans_perdre_d_article(self):
+        from cms.models import CmsCategory
+        gros, petit = self._poser_les_deux_gard()
+        liens_avant = CmsCategory.articles.through.objects.count()
+        self._lancer(appliquer=True)
+        self.assertFalse(CmsCategory.objects.filter(pk=petit.pk).exists())
+        gros.refresh_from_db()
+        self.assertEqual(gros.articles.count(), 5, "un article a été perdu")
+        self.assertEqual(CmsCategory.articles.through.objects.count(), liens_avant)
+
+    def test_le_gard_survivant_passe_sous_occitanie(self):
+        """Le Gard est un département, pas un secteur d'activité."""
+        gros, _ = self._poser_les_deux_gard()
+        self._lancer(appliquer=True)
+        gros.refresh_from_db()
+        self.assertEqual(gros.parent_id, self.occitanie.pk)
+
+    def test_un_article_rattache_aux_deux_ne_produit_pas_de_doublon(self):
+        """La contrainte d'unicité de la table de liaison refuserait la ligne."""
+        from cms.models import CmsCategory
+        gros, petit = self._poser_les_deux_gard()
+        commun = make_article_page(section_slug='principal', title='Les deux',
+                                   slug='les-deux', categories=[gros, petit])
+        self._lancer(appliquer=True)
+        self.assertEqual(
+            CmsCategory.articles.through.objects.filter(
+                articlepage_id=commun.pk, cmscategory_id=gros.pk).count(), 1)
+
+    # ── 2. le niveau vide des transports ─────────────────────────────────────
+
+    def test_le_niveau_vide_disparait_et_son_enfant_remonte(self):
+        from cms.models import CmsCategory
+        niveau = self._cat(name="Syndicat national des transports et de l'aménagement",
+                           slug='snt', parent=self.syndicalisme)
+        enfant = self._cat(name='Transport - logistique', slug='transport-log',
+                           parent=niveau)
+        self._articles(enfant, 4, 't')
+        self._lancer(appliquer=True)
+        self.assertFalse(CmsCategory.objects.filter(pk=niveau.pk).exists())
+        enfant.refresh_from_db()
+        self.assertEqual(enfant.parent_id, self.syndicalisme.pk)
+        self.assertEqual(enfant.articles.count(), 4)
+
+    def test_un_niveau_qui_porte_des_articles_n_est_pas_supprime(self):
+        """Garde-fou : on ne retire qu'un niveau réellement vide."""
+        from cms.models import CmsCategory
+        niveau = self._cat(name="Syndicat national des transports et de l'aménagement",
+                           slug='snt', parent=self.syndicalisme)
+        self._articles(niveau, 2, 'x')
+        sortie = self._lancer(appliquer=True)
+        self.assertTrue(CmsCategory.objects.filter(pk=niveau.pk).exists())
+        self.assertIn('porte des articles', sortie)
+
+    # ── 3. le STAA sous le STUCS ─────────────────────────────────────────────
+
+    def test_le_staa_sort_de_sous_le_stucs(self):
+        stucs = self._cat(name='Syndicat des travailleur·euses uni·es (STUCS)',
+                          slug='stucs-cat', parent=self.syndicalisme)
+        staa = self._cat(name='Syndicat des Travailleur.euse.s Artistes-Auteurs (STAA)',
+                         slug='staa-cat', parent=stucs)
+        self._lancer(appliquer=True)
+        staa.refresh_from_db()
+        self.assertEqual(staa.parent_id, self.syndicalisme.pk)
+
+    # ── ce à quoi la commande ne doit PAS toucher ────────────────────────────
+
+    def test_la_commande_ne_touche_a_aucun_autre_syndicat(self):
+        """Elle est confédérale, et doit le rester.
+
+        « Vos droits » existe six fois sur le 13, une par secteur : ce ne sont
+        pas des doublons mais sa taxonomie, et une fusion générique la
+        détruirait. On pose en plus DEUX « Gard » sur le 13 — le motif même que
+        la commande recherche — pour que le test morde si elle élargissait un
+        jour sa portée : la première version se contentait de compter les
+        catégories du 13 et passait même en retirant le filtre
+        `section_slug='principal'`.
+        """
+        from cms.models import CmsCategory
+        _ensure_section_page(slug='13', name='CNT-SO 13')
+        secteurs = [make_cms_category(name=n, slug=n.lower(), section_slug='13')
+                    for n in ('Nettoyage', 'BTP', 'Interpro')]
+        for s in secteurs:
+            make_cms_category(name='Vos droits', slug=f'vos-droits-{s.slug}',
+                              section_slug='13', parent=s)
+        make_cms_category(name='Gard', slug='gard-13', section_slug='13',
+                          parent=secteurs[0])
+        make_cms_category(name='Gard', slug='gard-13-bis', section_slug='13',
+                          parent=secteurs[1])
+        self._poser_les_deux_gard()   # le vrai défaut, sur la conf
+
+        def empreinte():
+            return sorted(CmsCategory.objects.exclude(section_slug='principal')
+                          .values_list('pk', 'name', 'slug', 'parent_id'))
+
+        avant = empreinte()
+        self._lancer(appliquer=True)
+        self.assertEqual(empreinte(), avant,
+                         "la commande a modifié un syndicat qui n'est pas la conf")
+
+    def test_relancee_deux_fois_elle_ne_fait_rien_de_plus(self):
+        from cms.models import CmsCategory
+        self._poser_les_deux_gard()
+        self._lancer(appliquer=True)
+        apres_un = CmsCategory.objects.count()
+        sortie = self._lancer(appliquer=True)
+        self.assertEqual(CmsCategory.objects.count(), apres_un)
+        self.assertIn('déjà rangé', sortie)
