@@ -587,13 +587,36 @@ class CategoryDetailView(ListView):
     context_object_name = 'articles'
     paginate_by = 10
 
+    def get(self, request, *args, **kwargs):
+        """Une adresse de la conf ne sert que les catégories de la conf.
+
+        Le repli servait jusqu'ici n'importe quelle catégorie homonyme, d'où
+        qu'elle vienne : `/categorie/service-a-la-personne/` sur cnt-so.org
+        rendait celle de l'Auvergne, sous l'identité de la confédération —
+        `context['site']` prenant même la fiche du syndicat d'à côté. Mesuré
+        dans les journaux : **1562 requêtes sur 2618**, soit 60 % du trafic de
+        catégorie (01/09/2026).
+
+        Redirection plutôt que 404 : ces adresses viennent de l'ancien
+        WordPress et sont visitées. On les renvoie chez leur syndicat.
+
+        **302 et non 301** : le chantier des catégories va rebattre les cartes
+        — certaines remonteront peut-être à la conf. Un 301 resterait gravé
+        dans les navigateurs et empêcherait le retour.
+        """
+        slug = kwargs['slug']
+        self.category = CmsCategory.objects.filter(
+            slug=slug, section_slug='principal').first()
+        if self.category is None:
+            ailleurs = CmsCategory.dun_syndicat_publie(slug)
+            if ailleurs is None:
+                raise Http404(f"Aucune catégorie « {slug} » à la confédération")
+            return redirect(ailleurs.get_absolute_url())
+        return super().get(request, *args, **kwargs)
+
     def get_queryset(self):
-        slug = self.kwargs['slug']
-        self.category = CmsCategory.objects.filter(slug=slug, section_slug='principal').first()
-        if not self.category:
-            self.category = CmsCategory.objects.filter(slug=slug).first()
-            if not self.category:
-                raise Http404
+        if getattr(self, 'category', None) is None:
+            raise Http404
         return (ArticlePage.objects.live()
                 .filter(cms_categories=self.category)
                 .select_related('featured_image')

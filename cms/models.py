@@ -131,6 +131,39 @@ class CmsCategory(models.Model):
             return f'{self.parent.name} › {self.name}'
         return self.name
 
+    @staticmethod
+    def dun_syndicat_publie(slug):
+        """La catégorie d'un AUTRE syndicat portant ce slug, la mieux fournie.
+
+        Sert le repli des adresses confédérales `/categorie/<slug>/` : la
+        confédération servait n'importe quelle catégorie homonyme, d'où qu'elle
+        vienne — **1562 des 2618 requêtes de catégorie** relevées dans les
+        journaux de production, soit 60 %, rendaient le contenu d'un autre
+        syndicat sous l'identité de la conf (Arnaud, 31/08/2026 : « ça n'a pas
+        de sens »).
+
+        Trois garde-fous :
+          - `live=True` sur le syndicat : rediriger vers un site dépublié
+            mènerait à un 404 ;
+          - le mieux fourni d'abord — sept slugs sont portés par deux syndicats
+            (« actualites-luttes » l'est par le 13 et par l'Éducation), et le
+            `.first()` sans tri rendait un résultat au hasard de la base ;
+          - `section_slug` en second critère, pour que le choix reste le même
+            d'une requête à l'autre.
+        """
+        from django.db.models import Count
+        from django.db.models import Q as _Q
+        publies = set()
+        for section in SectionPage.objects.filter(live=True):
+            publies.update(section.slugs_contenu)
+        conf = SectionPage.objects.filter(slug='principal').first()
+        slugs_conf = set(conf.slugs_contenu) if conf else {'principal'}
+        return (CmsCategory.objects
+                .filter(slug=slug, section_slug__in=publies - slugs_conf)
+                .annotate(nb=Count('articles', filter=_Q(articles__live=True)))
+                .order_by('-nb', 'section_slug')
+                .first())
+
     def get_absolute_url(self):
         from django.urls import reverse, NoReverseMatch
         try:

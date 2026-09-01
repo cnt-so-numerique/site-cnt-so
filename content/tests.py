@@ -832,14 +832,15 @@ class CategoryDetailViewTest(TestCase):
         response = self.client.get(url)
         self.assertNotIn(art, response.context['articles'])
 
-    def test_fallback_to_any_section_when_not_on_principal(self):
-        """Si la catégorie n'existe pas sur principal, on prend la première trouvée."""
-        other = make_site('other', wp_blog_id=2, site_type='regional', name='Other')
+    def test_une_categorie_dun_autre_syndicat_est_renvoyee_chez_lui(self):
+        """L'adresse de la conf servait la catégorie du voisin sous l'identité
+        de la conf. Elle redirige désormais (01/09/2026)."""
+        make_site('other', wp_blog_id=2, site_type='regional', name='Other')
         subcat = make_cms_category(name='SubOnly', slug='sub-only', section_slug='other')
         url = reverse('content:category_detail', kwargs={'slug': 'sub-only'})
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['category'], subcat)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], subcat.get_absolute_url())
 
 
 class SiteCategoryDetailViewTest(TestCase):
@@ -4850,18 +4851,92 @@ class ChampContactSlugVideTest(TestCase):
         self.assertEqual(r.status_code, 302)
 
 
-class CategoryFeedNonPrincipalTest(TestCase):
-    """feeds.py line 76 — catégorie hors section 'principal' → get_object_or_404."""
+class CategorieDuVoisinSousLaConfTest(TestCase):
+    """L'adresse `/categorie/<slug>/` de la conf ne sert que la conf.
 
-    def test_category_autre_section(self):
-        from cms.models import CmsCategory
-        CmsCategory.objects.get_or_create(
-            slug='cat-non-principal', section_slug='autre-section',
-            defaults={'name': 'Cat non principale'}
-        )
-        r = self.client.get('/categorie/cat-non-principal/feed/')
-        # 200 si trouvée, 404 si pas de section_slug=principal mais trouvée par slug
-        self.assertIn(r.status_code, [200, 400])
+    Relevé le 01/09/2026 dans les journaux nginx de production : sur
+    **2618 requêtes** de catégorie, **1562 — 60 %** — rendaient la catégorie
+    d'un autre syndicat sous l'identité de la confédération, `context['site']`
+    prenant même la fiche du voisin. La plus demandée,
+    `/categorie/service-a-la-personne/` (252 requêtes), servait l'Auvergne.
+
+    Et sept slugs sont portés par deux syndicats : sur ceux-là,
+    `get_object_or_404(CmsCategory, slug=slug)` levait
+    `MultipleObjectsReturned`, donc un **500** sur le flux — vérifié en ligne
+    sur cinq d'entre eux.
+    """
+
+    def setUp(self):
+        self.conf = make_site(slug='principal')
+        self.voisin = make_site('voisin', wp_blog_id=2, site_type='regional',
+                                name='Voisin')
+
+    def test_une_categorie_de_la_conf_est_servie_normalement(self):
+        make_cms_category(name='Droit', slug='droit', section_slug='principal')
+        r = self.client.get('/categorie/droit/')
+        self.assertEqual(r.status_code, 200)
+
+    def test_le_flux_dune_categorie_du_voisin_redirige_vers_son_site(self):
+        cat = make_cms_category(name='Locales', slug='locales',
+                                section_slug='voisin')
+        r = self.client.get('/categorie/locales/feed/')
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r['Location'], f'{cat.get_absolute_url()}feed/')
+
+    def test_un_slug_porte_par_deux_syndicats_ne_leve_plus_500(self):
+        """C'était une erreur serveur en production, pas une hypothèse."""
+        autre = make_site('autre', wp_blog_id=3, site_type='regional',
+                          name='Autre')
+        make_cms_category(name='Luttes', slug='luttes', section_slug='voisin')
+        make_cms_category(name='Luttes', slug='luttes', section_slug='autre')
+        for url in ('/categorie/luttes/', '/categorie/luttes/feed/'):
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 302)
+
+    def test_le_syndicat_le_mieux_fourni_est_choisi(self):
+        """Sans tri, `.first()` rendait un résultat au hasard de la base : la
+        même adresse pouvait mener à deux syndicats différents."""
+        make_site('autre', wp_blog_id=3, site_type='regional', name='Autre')
+        maigre = make_cms_category(name='Luttes', slug='luttes',
+                                   section_slug='autre')
+        fournie = make_cms_category(name='Luttes', slug='luttes',
+                                    section_slug='voisin')
+        for i in range(3):
+            # `categories=` et non `.add()` : sur un ParentalManyToManyField,
+            # `.add()` ne touche la base qu'au `save()` de l'article.
+            make_article_page(section_slug='voisin', title=f'L{i}',
+                              slug=f'l-{i}', categories=[fournie])
+        r = self.client.get('/categorie/luttes/')
+        self.assertEqual(r['Location'], fournie.get_absolute_url())
+        self.assertNotEqual(r['Location'], maigre.get_absolute_url())
+
+    def test_un_syndicat_depublie_ne_sert_pas_de_destination(self):
+        """Rediriger vers un site fermé mènerait à un 404 : autant le rendre
+        tout de suite, et sur la bonne adresse."""
+        ferme = _ensure_section_page(slug='ferme', name='Fermé', live=False)
+        make_cms_category(name='Cachée', slug='cachee', section_slug='ferme')
+        self.assertEqual(self.client.get('/categorie/cachee/').status_code, 404)
+        self.assertEqual(
+            self.client.get('/categorie/cachee/feed/').status_code, 404)
+
+    def test_un_slug_inconnu_reste_un_404(self):
+        self.assertEqual(self.client.get('/categorie/nexiste-pas/').status_code, 404)
+
+    def test_le_flux_par_categorie_dun_syndicat_existe(self):
+        """La redirection a besoin d'une destination : ce flux n'existait pas."""
+        cat = make_cms_category(name='Locales', slug='locales',
+                                section_slug='voisin')
+        make_article_page(section_slug='voisin', title='Une locale',
+                          slug='une-locale', categories=[cat])
+        r = self.client.get('/voisin/categorie/locales/feed/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('Une locale', r.content.decode())
+
+    def test_ce_flux_se_ferme_avec_son_syndicat(self):
+        ferme = _ensure_section_page(slug='ferme2', name='Fermé', live=False)
+        make_cms_category(name='Cachée', slug='cachee2', section_slug='ferme2')
+        self.assertEqual(
+            self.client.get('/ferme2/categorie/cachee2/feed/').status_code, 404)
 
 
 class LegacySiteSlugRoutingTest(TestCase):

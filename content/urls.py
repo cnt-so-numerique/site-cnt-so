@@ -2,7 +2,7 @@ from django.urls import path, re_path, register_converter
 from django.views.generic import RedirectView
 from . import views
 from . import api_views
-from .feeds import LatestArticlesFeed, SiteArticlesFeed, CategoryFeed
+from .feeds import LatestArticlesFeed, SiteArticlesFeed, CategoryFeed, SiteCategoryFeed
 
 
 class SectionSlugConverter:
@@ -101,6 +101,9 @@ urlpatterns = [
     path('<slug:site_slug>/rejoindre/', views.SiteRejoindreView.as_view(), name='site_rejoindre'),
     path('<slug:site_slug>/ressources/', views.SiteRessourcesView.as_view(), name='site_ressources'),
     path('<slug:site_slug>/agenda/', views.SiteAgendaView.as_view(), name='site_agenda'),
+    # Le flux doit précéder la page : sans lui, `<slug:slug>` avalerait
+    # « feed » comme s'il s'agissait d'une catégorie.
+    path('<slug:site_slug>/categorie/<slug:slug>/feed/', SiteCategoryFeed(), name='site_category_rss_feed'),
     path('<slug:site_slug>/categorie/<slug:slug>/', views.SiteCategoryDetailView.as_view(), name='site_category_detail'),
     path('<slug:site_slug>/contact/', views.SiteContactView.as_view(), name='site_contact'),
     path('<slug:site_slug>/contact/merci/', views.site_contact_success, name='site_contact_success'),
