@@ -3081,15 +3081,37 @@ class UneSeuleDefinitionDePanneauxTest(TestCase):
         for p in ArticlePageViewSet.panels:
             du_viewset |= self._champs(p)
         onglets = {c.heading: c for c in ArticlePage.edit_handler.children}
-        du_modele = self._champs(onglets['Contenu']) | self._champs(onglets['Métadonnées'])
-        self.assertEqual(du_viewset, du_modele)
+        self.assertEqual(du_viewset, self._champs(onglets['Contenu']))
 
     def test_le_contenu_vient_en_premier(self):
         """L'ordre n'est pas cosmétique : c'est là qu'un rédacteur commence."""
         self.assertEqual(ArticlePage.edit_handler.children[0].heading, 'Contenu')
         from cms.wagtail_hooks import ArticlePageViewSet
-        onglets = ArticlePageViewSet.panels[1]
-        self.assertEqual(onglets.children[0].heading, 'Contenu')
+        ordre = [getattr(p, 'field_name', None) for p in ArticlePageViewSet.panels]
+        self.assertLess(ordre.index('title'), ordre.index('body'))
+        self.assertLess(ordre.index('body'), ordre.index('cms_categories'))
+
+    def test_plus_d_onglet_metadonnees(self):
+        """Les catégories y étaient cachées alors que `clean()` les exige :
+        on écrivait, on enregistrait, et le refus portait sur un champ d'un
+        onglet qu'aucun rédacteur n'ouvre (31/08/2026)."""
+        titres = [c.heading for c in ArticlePage.edit_handler.children]
+        self.assertNotIn('Métadonnées', titres)
+        self.assertEqual(titres[0], 'Contenu')
+
+    def test_les_categories_sont_sur_la_page_de_redaction(self):
+        onglets = {c.heading: c for c in ArticlePage.edit_handler.children}
+        champs = self._champs(onglets['Contenu'])
+        for champ in ('body', 'excerpt', 'cms_categories'):
+            self.assertIn(champ, champs)
+
+    def test_les_classes_de_mise_en_page_sont_posees(self):
+        """La grille CSS s'appuie dessus : sans elles, tout retombe en une
+        colonne sans que rien ne le signale."""
+        from cms.models import panneaux_article
+        classes = {getattr(p, 'classname', '') for p in panneaux_article()}
+        self.assertIn('cnt-reglages', classes)
+        self.assertIn('cnt-categories', classes)
 
     def test_pas_d_onglet_dans_l_onglet(self):
         from wagtail.admin.panels import TabbedInterface
@@ -3104,7 +3126,7 @@ class UneSeuleDefinitionDePanneauxTest(TestCase):
         """Deux cases déclarées avec leur aide, mais absentes de l'écran Pages :
         un rédacteur ne pouvait pas savoir qu'elles existaient."""
         onglets = {c.heading: c for c in ArticlePage.edit_handler.children}
-        champs = self._champs(onglets['Métadonnées'])
+        champs = self._champs(onglets['Contenu'])
         self.assertIn('in_carousel', champs)
         self.assertIn('featured_on_conf', champs)
 
@@ -3738,10 +3760,16 @@ class PrevisualisationRetablieTest(TestCase):
 
 
 class CaseMiseEnAvantHonneteTest(TestCase):
-    """`is_featured` annonçait « Mis en avant sur l'accueil du syndicat » alors
-    qu'il n'est lu qu'à un seul endroit : la vedette de l'accueil confédéral,
-    et seulement pour `section_slug='principal'`. Sur un article de syndicat,
-    la cocher ne produisait rien, nulle part (relevé par Arnaud, 15/08/2026)."""
+    """Une case doit dire de quel accueil elle parle.
+
+    Il y en avait TROIS, dont deux qui alimentaient la même une par un OU :
+    « Mis en avant sur l'accueil de la confédération » (`is_featured`) et
+    « Mettre en avant sur la confédération » (`featured_on_conf`). Sur un
+    article de la conf, cocher l'une ou l'autre donnait rigoureusement le même
+    résultat — Arnaud, 31/08/2026 : « c'est quoi la différence entre le 1 et
+    le 3 ? ». Aucune, et `is_featured` échappait en plus au verrou qui réserve
+    la une aux chefs. Champ supprimé : 0 article sur 1710 le portait.
+    """
 
     def setUp(self):
         from django.contrib.auth.models import User
@@ -3749,31 +3777,41 @@ class CaseMiseEnAvantHonneteTest(TestCase):
         self.user = User.objects.create_superuser('chef-vedette', 'v@x.fr', 'x')
         self.client.force_login(self.user)
 
-    def test_le_libelle_ne_parle_plus_du_syndicat(self):
-        champ = ArticlePage._meta.get_field('is_featured')
-        self.assertIn('confédération', str(champ.verbose_name))
-        self.assertNotIn("l'accueil du syndicat", str(champ.verbose_name))
+    def test_le_champ_en_double_a_disparu(self):
+        champs = {f.name for f in ArticlePage._meta.get_fields()}
+        self.assertNotIn('is_featured', champs)
 
-    def test_l_aide_renvoie_vers_le_bon_reglage(self):
-        """Corriger le libellé sans dire où aller laisserait le rédacteur sans
-        solution : c'est `in_carousel` qu'il cherche."""
-        champ = ArticlePage._meta.get_field('is_featured')
-        self.assertIn('carrousel', champ.help_text)
-
-    def test_la_case_disparait_sur_un_article_de_syndicat(self):
-        art = make_article_page(section_slug='13', title='Au 13', slug='au-13')
-        html = self.client.get(
-            f'/cms/snippets/cms/articlepage/edit/{art.pk}/').content.decode()
-        self.assertNotIn('id_is_featured', html)
-
-    def test_la_case_reste_sur_un_article_confederal(self):
-        """Contrôle positif : la masquer partout supprimerait une fonction qui
-        marche pour la confédération."""
+    def test_il_ne_reste_qu_une_case_pour_la_une_confederale(self):
         art = make_article_page(section_slug='principal', title='Conf',
                                 slug='au-principal')
         html = self.client.get(
             f'/cms/snippets/cms/articlepage/edit/{art.pk}/').content.decode()
-        self.assertIn('id_is_featured', html)
+        self.assertNotIn('id_is_featured', html)
+        self.assertIn('id_featured_on_conf', html)
+
+    def test_chaque_case_nomme_son_accueil(self):
+        """C'était toute la confusion : deux libellés parlant de « la
+        confédération » sans dire lequel faisait quoi."""
+        conf = ArticlePage._meta.get_field('featured_on_conf')
+        mien = ArticlePage._meta.get_field('in_carousel')
+        self.assertIn('confédération', str(conf.verbose_name))
+        self.assertIn('syndicat', str(mien.verbose_name))
+        self.assertNotEqual(str(conf.verbose_name), str(mien.verbose_name))
+
+    def test_la_une_confederale_reste_reservee_aux_chefs(self):
+        """Le verrou existait sur `featured_on_conf` seul : `is_featured`, lui,
+        était offert à tout rédacteur de la conf et menait au même endroit."""
+        from content.tests import make_redacteur, _setup_editorial_groups
+        _setup_editorial_groups()
+        conf = _ensure_section_page(slug='principal', name='CNT-SO',
+                                    site_type='main')
+        redac = make_redacteur(username='redac-une', site=conf)
+        art = make_article_page(section_slug='principal', title='Par un rédacteur',
+                                slug='par-un-redacteur')
+        self.client.force_login(redac)
+        html = self.client.get(
+            f'/cms/snippets/cms/articlepage/edit/{art.pk}/').content.decode()
+        self.assertNotIn('id_is_featured', html)
 
 
 class CarrouselCompleteTest(TestCase):
@@ -4116,3 +4154,260 @@ class PagesDuSyndicatTest(TestCase):
     def test_entree_de_menu_presente(self):
         r = self.client.get('/cms/')
         self.assertContains(r, '/cms/pages-du-syndicat/')
+
+
+class EcranDeRedactionTest(TestCase):
+    """L'écran où l'on écrit un article — refonte du 31/08/2026.
+
+    Arnaud : « l'interface de création des articles est catastrophique […]
+    l'article lui-même est noyé sous les autres infos ». Mesuré au navigateur
+    sur `/cms/snippets/cms/articlepage/add/` en 1440×900 : la zone d'écriture
+    était un bouton « + » de trente pixels, sous une étiquette « Body », à
+    513 px du haut, derrière 79 px de barre syndicat, une minimap et
+    32 bulles de commentaire pour zéro commentaire en base.
+    """
+
+    def setUp(self):
+        self.section = _ensure_section_page(slug='principal', name='CNT-SO',
+                                            site_type='main')
+
+    # ── Le champ s'annonce en français ────────────────────────────────────────
+
+    def test_le_champ_du_corps_porte_un_nom_lisible(self):
+        champ = ArticlePage._meta.get_field('body')
+        self.assertEqual(str(champ.verbose_name), "L'article")
+        self.assertIn('bouton +', str(champ.help_text))
+
+    def test_le_corps_dune_page_aussi(self):
+        self.assertEqual(str(ContentPage._meta.get_field('body').verbose_name),
+                         "La page")
+
+    def test_le_corps_dune_page_vient_en_premier(self):
+        """Il arrivait quatrième, après l'extrait, l'image et l'auteur."""
+        champs = [p.field_name for p in ContentPage.content_panels
+                  if hasattr(p, 'field_name')]
+        self.assertLess(champs.index('body'), champs.index('excerpt'))
+        self.assertLess(champs.index('body'), champs.index('featured_image'))
+
+    # ── Un cadre de saisie ouvert d'office ────────────────────────────────────
+
+    @staticmethod
+    def _classe_de_formulaire():
+        """`ArticlePageForm` est une base sans Meta.model : la classe concrète
+        est fabriquée par Wagtail à partir des panneaux."""
+        return ArticlePage.get_edit_handler().get_form_class()
+
+    def _form(self, **kwargs):
+        return self._classe_de_formulaire()(instance=ArticlePage(), **kwargs)
+
+    def test_un_article_neuf_souvre_sur_un_bloc_de_texte(self):
+        corps = self._form().initial.get('body')
+        self.assertIsNotNone(corps, "aucun bloc : l'écran s'ouvrirait sur un « + »")
+        self.assertEqual([b.block_type for b in corps], ['rich_text'])
+
+    def test_un_article_existant_nest_pas_touche(self):
+        article = make_article_page(section_slug='principal', title='Déjà écrit',
+                                    slug='deja-ecrit')
+        form = self._classe_de_formulaire()(instance=article)
+        self.assertEqual([b.block_type for b in (form.initial.get('body') or [])],
+                         [b.block_type for b in article.body])
+
+    # ── …et refermé si personne n'y écrit ─────────────────────────────────────
+
+    @staticmethod
+    def _saisie_riche(texte):
+        """Ce que l'éditeur Draftail envoie réellement : du contentstate JSON,
+        et non du HTML. Un cadre resté vide arrive avec un texte vide."""
+        import json
+        return json.dumps({
+            'blocks': [{'key': 'aaaaa', 'text': texte, 'type': 'unstyled',
+                        'depth': 0, 'inlineStyleRanges': [], 'entityRanges': []}],
+            'entityMap': {},
+        })
+
+    def _poste(self, blocs, titre='Essai'):
+        """Soumet le formulaire comme le fait le navigateur et rend le corps
+        retenu. `blocs` : une liste de (type, {suffixe: valeur})."""
+        categorie = make_cms_category(name='Actions', slug='actions-essai',
+                                      section_slug='principal')
+        donnees = {
+            'title': titre,
+            'slug': 'essai-corps',
+            'cms_categories': [categorie.pk],
+            'body-count': str(len(blocs)),
+        }
+        for i, (typ, champs) in enumerate(blocs):
+            donnees[f'body-{i}-type'] = typ
+            donnees[f'body-{i}-id'] = f'bloc{i}'
+            donnees[f'body-{i}-order'] = str(i)
+            donnees[f'body-{i}-deleted'] = ''
+            for suffixe, valeur in champs.items():
+                donnees[f'body-{i}-value{suffixe}'] = valeur
+        form = self._classe_de_formulaire()(data=donnees, instance=ArticlePage())
+        self.assertTrue(form.is_valid(), form.errors.as_text())
+        return form.cleaned_data.get('body')
+
+    def test_un_bloc_de_texte_laisse_vide_ne_senregistre_pas(self):
+        """Sinon chaque article créé porterait un <div class="rich-text"></div>
+        et un extrait faussé, `save()` reprenant l'extrait du début du corps."""
+        corps = self._poste([('rich_text', {'': self._saisie_riche('')})])
+        self.assertEqual(list(corps or []), [])
+
+    def test_un_paragraphe_reduit_a_un_retour_ligne_compte_pour_vide(self):
+        """Ce que l'ancien contenu WordPress porte parfois en base : <p><br/></p>.
+        Testé sur le crible lui-même — Draftail, lui, n'envoie que du vide."""
+        from cms.models import ArticlePageForm
+        bloc = ArticlePage._meta.get_field('body').to_python(
+            [{'type': 'rich_text', 'value': '<p><br/></p>', 'id': 'x'}])[0]
+        self.assertTrue(ArticlePageForm._bloc_de_texte_vide(bloc))
+
+    def test_un_espace_insecable_seul_compte_pour_vide(self):
+        from cms.models import ArticlePageForm
+        bloc = ArticlePage._meta.get_field('body').to_python(
+            [{'type': 'rich_text', 'value': '<p>&nbsp;</p>', 'id': 'x'}])[0]
+        self.assertTrue(ArticlePageForm._bloc_de_texte_vide(bloc))
+
+    def test_un_bloc_de_texte_rempli_est_conserve(self):
+        corps = self._poste([('rich_text',
+                              {'': self._saisie_riche('Grève au nettoyage')})])
+        self.assertEqual([b.block_type for b in corps], ['rich_text'])
+        self.assertIn('Grève', str(corps[0].value))
+
+    def test_seuls_les_blocs_de_texte_sont_nettoyes(self):
+        """Un séparateur ne porte aucun texte : il ne doit pas passer pour vide."""
+        corps = self._poste([
+            ('separateur', {'-type': 'filet', '-couleur': ''}),
+            ('rich_text', {'': self._saisie_riche('')}),
+        ])
+        self.assertEqual([b.block_type for b in corps], ['separateur'])
+
+
+class DecorDeLecranDeRedactionTest(TestCase):
+    """Ce que l'écran d'édition ne doit plus afficher.
+
+    Test de gabarit : on vérifie que les règles partent bien dans la page —
+    la preuve visuelle (0 ancre, 0 bulle, minimap masquée) a été relevée au
+    navigateur, ces assertions gardent le CSS de disparaître par mégarde.
+    """
+
+    def setUp(self):
+        _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        self.article = make_article_page(section_slug='principal',
+                                         title='À relire', slug='a-relire')
+        self.client.force_login(make_superuser('decor-admin'))
+
+    def _html(self):
+        return self.client.get(f'/cms/pages/{self.article.pk}/edit/').content.decode()
+
+    def test_la_minimap_et_son_bouton_tout_replier_sont_retires(self):
+        # « Tout replier » est rendu PAR la minimap : masquer le conteneur
+        # retire les deux (vérifié dans le DOM le 31/08/2026).
+        self.assertIn('[data-minimap-container] { display: none; }', self._html())
+
+    def test_les_ancres_de_panneau_sont_retirees(self):
+        self.assertIn('[data-panel-anchor] { display: none !important; }', self._html())
+
+    def test_le_panneau_de_commentaires_a_disparu(self):
+        """0 commentaire en base pour 1710 articles : le réglage Wagtail retire
+        les bulles ET le panneau latéral."""
+        self.assertNotIn('data-side-panel="comments"', self._html())
+
+
+class RegroupementDesCategoriesTest(TestCase):
+    """Un groupe ne se justifie que s'il distingue quelque chose.
+
+    Arnaud, 31/08/2026 : « tu mets des titres avec une seule catégorie en
+    dessous, ça fait doublon et n'a pas de sens ». Douze des quinze en-têtes de
+    la confédération étaient dans ce cas.
+
+    Mais le regroupement reste indispensable là où il porte du sens : le 13 a
+    sept catégories « Actualités - luttes », une par secteur, dont cinq portent
+    exactement le même nom. Les deux besoins tiennent dans une seule règle.
+    """
+
+    def setUp(self):
+        _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+
+    def _choix(self, categories_du_champ):
+        from django import forms
+        from cms.models import CmsCategory
+        from cms.wagtail_hooks import IterateurCategoriesGroupees
+        champ = forms.ModelMultipleChoiceField(queryset=categories_du_champ)
+        champ.iterator = IterateurCategoriesGroupees
+        champ.queryset = categories_du_champ  # c'est l'affectation qui recharge
+        return list(champ.choices)
+
+    def test_une_categorie_sans_enfant_n_a_pas_de_titre(self):
+        make_cms_category(name='Culture', slug='culture')
+        make_cms_category(name='Droit', slug='droit')
+        from cms.models import CmsCategory
+        choix = self._choix(CmsCategory.objects.all())
+        titres = [nom for nom, _ in choix if nom]
+        self.assertEqual(titres, [], f"titres en doublon : {titres}")
+
+    def test_un_parent_avec_plusieurs_enfants_garde_son_titre(self):
+        from cms.models import CmsCategory
+        parent = make_cms_category(name='Syndicalisme', slug='syndicalisme')
+        make_cms_category(name='Nettoyage', slug='nettoyage', parent=parent)
+        make_cms_category(name='Commerce', slug='commerce', parent=parent)
+        choix = self._choix(CmsCategory.objects.all())
+        titres = [nom for nom, _ in choix if nom]
+        self.assertEqual(titres, ['Syndicalisme'])
+
+    def test_des_homonymes_restent_discernables_par_leur_parent(self):
+        """Le cas du 13 : sans le groupe, deux cases identiques côte à côte."""
+        from cms.models import CmsCategory
+        educ = make_cms_category(name='Education', slug='educ')
+        net = make_cms_category(name='Nettoyage', slug='net')
+        for parent, slug in ((educ, 'al-educ'), (net, 'al-net')):
+            make_cms_category(name='Actualités - luttes', slug=slug, parent=parent)
+            make_cms_category(name='Brèves', slug=f'br-{slug}', parent=parent)
+        choix = self._choix(CmsCategory.objects.all())
+        titres = [nom for nom, _ in choix if nom]
+        self.assertEqual(sorted(titres), ['Education', 'Nettoyage'])
+
+    def test_les_categories_seules_viennent_avant_les_arbres(self):
+        from cms.models import CmsCategory
+        parent = make_cms_category(name='Syndicalisme', slug='syndicalisme')
+        make_cms_category(name='Nettoyage', slug='nettoyage', parent=parent)
+        make_cms_category(name='Commerce', slug='commerce', parent=parent)
+        make_cms_category(name='Droit', slug='droit')
+        choix = self._choix(CmsCategory.objects.all())
+        self.assertEqual(choix[0][0], '', "les catégories simples ne sont pas en tête")
+
+
+class SitesOuLonEcritTest(TestCase):
+    """STAA et TAS ont leur propre site : on ne rédige pas chez eux.
+
+    Leur fiche doit rester — elle porte l'`external_url` qui alimente le menu
+    et le cartouche « réseau ». Seul le sélecteur de syndicat les écarte.
+    """
+
+    def setUp(self):
+        self.conf = _ensure_section_page(slug='principal', name='CNT-SO',
+                                         site_type='main')
+        self.staa = _ensure_section_page(slug='staa', name='STAA')
+        self.staa.external_url = 'https://staa-cnt-so.org/'
+        self.staa.save(update_fields=['external_url'])
+
+    def test_un_site_externe_n_est_pas_proposé_a_la_redaction(self):
+        from cms.site_context import sites_de_redaction
+        slugs = set(sites_de_redaction().values_list('slug', flat=True))
+        self.assertIn('principal', slugs)
+        self.assertNotIn('staa', slugs)
+
+    def test_la_fiche_du_site_externe_survit(self):
+        """Le menu et le flux réseau en dépendent : on cache, on ne supprime pas."""
+        from cms.models import SectionPage
+        self.assertTrue(SectionPage.objects.filter(slug='staa').exists())
+        self.assertEqual(SectionPage.objects.get(slug='staa').external_url,
+                         'https://staa-cnt-so.org/')
+
+    def test_le_selecteur_du_chef_les_ecarte_aussi(self):
+        from django.test import RequestFactory
+        from cms.site_context import get_available_sites
+        req = RequestFactory().get('/')
+        req.user = make_superuser('selecteur-admin')
+        req.session = {}
+        slugs = set(get_available_sites(req).values_list('slug', flat=True))
+        self.assertNotIn('staa', slugs)

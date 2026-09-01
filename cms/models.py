@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 from django.db import models
 from cms.widgets import OVHMailingListWidget
@@ -616,27 +618,20 @@ class HomePage(Page):
             .select_related('featured_image')
             .prefetch_related('cms_categories')
         )
-        # Articles vedettes : conf sticky OU promus depuis n'importe quel syndicat
-        sticky = list(
-            ArticlePage.objects.live()
-            .filter(
-                models.Q(section_slug='principal', is_featured=True)
-                | models.Q(featured_on_conf=True)
-            )
-            .order_by('-publication_date', '-first_published_at')
-            .select_related('featured_image')
-            .prefetch_related('cms_categories')
-            [:4]
-        )
-        featured = sticky[0] if sticky else base_qs.first()
-        context['featured_article'] = featured
-
-        excl = [featured.pk] if featured else []
-        mini = sticky[1:4]
-        if len(mini) < 3:
-            mini += list(base_qs.exclude(pk__in=excl + [a.pk for a in mini])[:3 - len(mini)])
-        context['hero_mini_cards'] = mini
-        excl += [a.pk for a in mini]
+        # Il y avait ici une « une » — `featured_article` et `hero_mini_cards` —
+        # alimentée par `is_featured` et `featured_on_conf`. Trois raisons de la
+        # retirer le 31/08/2026 :
+        #
+        #  - AUCUN gabarit ne lit ces deux variables (vérifié sur tout
+        #    `templates/`), depuis la refonte de l'accueil du 16/08 ;
+        #  - `/` est servi par `content.views.HomeView`, pas par cette page :
+        #    `content.urls` est inclus avant `wagtail_urls` ;
+        #  - donc cocher « à la une de la confédération » ne produisait rien,
+        #    nulle part, et 0 article sur 1710 la portait.
+        #
+        # `featured_on_conf` est désormais appliqué là où l'accueil se fabrique
+        # vraiment : le carrousel de `HomeView`.
+        excl = []
 
         context['sidebar_article'] = base_qs.exclude(pk__in=excl).first()
         flux = list(base_qs.exclude(pk__in=excl)[:3])
@@ -1006,7 +1001,7 @@ class SectionPage(SeoMixin, Page):
 
 
 def panneaux_article():
-    """Les onglets d'édition d'un article — **source unique**.
+    """Les panneaux d'édition d'un article — **source unique**.
 
     `ArticlePage` est une Page Wagtail ET un snippet : deux écrans savent
     l'éditer, `/cms/snippets/cms/articlepage/edit/<pk>/` et
@@ -1017,64 +1012,50 @@ def panneaux_article():
 
     C'est le même remède que pour la famille `legacy_site_slug` en passe 7 :
     une définition unique plutôt qu'une recopie. Une **fonction** et non une
-    constante, parce qu'un `ObjectList` se lie à un modèle et garde cet état :
+    constante, parce qu'un panneau se lie à un modèle et garde cet état :
     partager l'instance entre deux écrans les ferait interférer.
 
-    ⚠️ L'ordre compte : le Contenu d'abord, c'est là qu'un rédacteur commence.
+    ── Une seule page, trois zones (31/08/2026) ──────────────────────────────
+
+    Il y avait deux onglets, « Contenu » et « Métadonnées ». Le second cachait
+    les **catégories**, que `ArticlePageForm.clean()` rend obligatoires : on
+    écrivait son article, on enregistrait, et le refus portait sur un champ
+    situé dans un onglet qu'aucun rédacteur n'a de raison d'ouvrir.
+
+    Arnaud, 31/08/2026 : « garder titre, extrait et l'article ensemble et
+    basculer le reste, métadonnées comprises, dans une colonne à droite ».
+
+    L'ordre ci-dessous EST la mise en page — la grille CSS
+    (`insert_ecran_redaction_css`) s'appuie sur les classes posées ici :
+
+        colonne gauche   body, excerpt        ce qu'on rédige
+        colonne droite   .cnt-reglages        ce qu'on décide
+        pleine largeur   .cnt-categories      il en faut jusqu'à 62, en 3 colonnes
+
+    Les catégories restent en pleine largeur et non dans la colonne étroite :
+    « il faut toutes les catégories visibles sinon c'est le bordel » — pas de
+    cadre à défilement qui en cacherait la moitié.
     """
-    return TabbedInterface([
-        ObjectList([
-            FieldPanel('body'),
-            # L'image et l'extrait sont des éléments de rédaction, pas des
-            # réglages : l'image commande le rang de l'article dans les listes
-            # du site, l'extrait est le texte qu'on lira sur les cartes.
+    return [
+        FieldPanel('body'),
+        FieldPanel('excerpt'),
+        MultiFieldPanel([
+            # L'image commande le rang de l'article dans les listes du site,
+            # d'où sa place en tête des réglages plutôt qu'au milieu.
             FieldPanel('featured_image'),
-            FieldPanel('excerpt'),
-            FieldPanel('fiche_pratique'),
-        ], heading='Contenu'),
-        ObjectList([
+            FieldPanel('publication_date'),
+            FieldPanel('author_name'),
+            FieldPanel('cms_tags'),
+            FieldPanel('in_carousel'),
             # Réservés aux chefs : imposés par `form_valid` pour les autres,
             # et leur panneau disparaît au lieu de laisser une étiquette vide.
+            PanneauChefSeulement('featured_on_conf'),
+            FieldPanel('fiche_pratique'),
             PanneauChefSeulement('section_slug'),
-            MultiFieldPanel([
-                FieldPanel('publication_date'),
-                PanneauSitePrincipal('is_featured'),
-                FieldPanel('in_carousel'),
-                PanneauChefSeulement('featured_on_conf'),
-                FieldPanel('author_name'),
-            ], heading="Publication"),
-            FieldPanel('cms_categories', widget=forms.CheckboxSelectMultiple),
-            FieldPanel('cms_tags'),
-        ], heading='Métadonnées'),
-    ])
-
-
-class PanneauSitePrincipal(FieldPanel):
-    """Champ visible uniquement sur un article du site confédéral.
-
-    `is_featured` n'est lu qu'à un seul endroit — la vedette de l'accueil
-    confédéral, et seulement pour `section_slug='principal'` (voir
-    `HomePage.get_context`). Sur un article de syndicat, cocher la case ne
-    produisait **rien, nulle part**, alors que son libellé annonçait « Mis en
-    avant sur l'accueil du syndicat » (relevé par Arnaud, 15/08/2026).
-
-    Le libellé est corrigé ; le panneau disparaît là où il ne peut rien faire,
-    plutôt que de proposer un geste sans effet.
-    """
-
-    class BoundPanel(FieldPanel.BoundPanel):
-        def is_shown(self):
-            if not super().is_shown():
-                return False
-            instance = getattr(self, 'instance', None)
-            # À la création, la section n'est pas encore fixée : on se rabat
-            # sur le syndicat sélectionné dans le back-office.
-            slug = getattr(instance, 'section_slug', '') or ''
-            if not slug:
-                from .site_context import get_current_site
-                courant = get_current_site(self.request)
-                slug = getattr(courant, 'slug', '') or ''
-            return slug == 'principal'
+        ], heading="Réglages", classname='cnt-reglages'),
+        FieldPanel('cms_categories', widget=forms.CheckboxSelectMultiple,
+                   classname='cnt-categories'),
+    ]
 
 
 class PanneauChefSeulement(FieldPanel):
@@ -1113,8 +1094,62 @@ class ArticlePageForm(WagtailAdminPageForm):
     d'abord et lui attachent ses catégories ensuite.
     """
 
+    def __init__(self, *args, **kwargs):
+        """Ouvre un cadre de saisie sur un article neuf.
+
+        Sur l'écran de création, la zone d'écriture était un bouton « + » vert
+        de trente pixels : rien ne disait où taper le texte, et c'était
+        l'élément le moins visible de l'écran (Arnaud, 31/08/2026). On pose
+        donc un bloc de texte riche vide, prêt à recevoir la frappe.
+
+        Ici et non en `default=` sur le modèle : `ArticlePage.objects.create()`
+        sert aux imports WordPress et aux commandes de maintenance, qui
+        renseignent `body` eux-mêmes et hériteraient sinon d'un bloc fantôme.
+        Le formulaire, lui, n'est emprunté que par un humain devant l'écran.
+
+        Rien n'est écrasé : un formulaire lié (`self.data` après une erreur de
+        validation) ignore `initial`, et un article existant a déjà un corps.
+        """
+        super().__init__(*args, **kwargs)
+        champ = self.fields.get('body')
+        if champ is None or self.instance.pk or self.initial.get('body'):
+            return
+        from wagtail.blocks.stream_block import StreamValue
+        bloc = champ.block
+        self.initial['body'] = StreamValue(
+            bloc, [('rich_text', bloc.child_blocks['rich_text'].to_python(''))]
+        )
+
+    @staticmethod
+    def _bloc_de_texte_vide(bloc):
+        """Un bloc de texte riche qui ne contient aucun mot.
+
+        `<p></p>` et `<p><br/></p>` comptent pour vides : l'éditeur les produit
+        dès qu'on clique dans le cadre et qu'on en ressort.
+        """
+        if bloc.block_type != 'rich_text':
+            return False
+        source = getattr(bloc.value, 'source', None)
+        if source is None:
+            source = str(bloc.value)
+        texte = re.sub(r'<[^>]+>', '', source)
+        return not texte.replace('&nbsp;', ' ').replace('\xa0', ' ').strip()
+
     def clean(self):
         donnees = super().clean()
+
+        # Le cadre de saisie ouvert d'office par `__init__` ne doit pas laisser
+        # un bloc vide dans le corps de qui n'écrit rien dedans : il produirait
+        # un `<div class="rich-text"></div>` sur la page publique et fausserait
+        # l'extrait, que `save()` reprend du début du corps.
+        corps = donnees.get('body')
+        if corps is not None:
+            gardes = [(b.block_type, b.value, b.id)
+                      for b in corps if not self._bloc_de_texte_vide(b)]
+            if len(gardes) != len(corps):
+                from wagtail.blocks.stream_block import StreamValue
+                donnees['body'] = StreamValue(corps.stream_block, gardes)
+
         if not donnees.get('cms_categories'):
             self.add_error('cms_categories', (
                 "Choisissez au moins une catégorie : sans elle, l'article "
@@ -1138,6 +1173,11 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
         CorpsBlock(ARTICLE_BODY_BLOCKS),
         blank=True,
         use_json_field=True,
+        # « Body » — le champ où l'on écrit l'article s'annonçait en anglais,
+        # avec un simple bouton « + » vert pour toute invite (31/08/2026).
+        verbose_name="L'article",
+        help_text="Le texte de l'article. Le bouton + insère une image, un "
+                  "encadré, une citation, un document à télécharger…",
     )
     excerpt = models.TextField(
         blank=True, verbose_name="Extrait",
@@ -1155,23 +1195,30 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
                   "du site classent les articles illustrés d'abord. Un article "
                   "publié aujourd'hui sans image arrive en bas de page.",
     )
-    is_featured = models.BooleanField(
-        default=False,
-        verbose_name="Mis en avant sur l'accueil de la confédération",
-        help_text="Réservé aux articles du site confédéral : place l'article en "
-                  "position vedette sur cnt-so.org. Pour mettre un article en "
-                  "avant sur l'accueil de VOTRE syndicat, utilisez « Dans le "
-                  "carrousel de l'accueil ».",
-    )
+    # Deux cases, deux accueils distincts — et plus trois.
+    #
+    # « Mis en avant sur l'accueil de la confédération » (`is_featured`) et
+    # « Mettre en avant sur la confédération » (`featured_on_conf`) alimentaient
+    # la même une, par un OU. Personne ne pouvait les distinguer, et pour cause :
+    # sur un article de la conf elles étaient interchangeables. Supprimé le
+    # 31/08/2026 (Arnaud : « c'est quoi la différence entre le 1 et le 3 ? »).
+    #
+    # Les libellés disent maintenant DE QUEL accueil il s'agit — c'était toute
+    # la confusion.
     in_carousel = models.BooleanField(
         default=False,
-        verbose_name="Dans le carrousel de l'accueil",
-        help_text="Ajoute cet article au carrousel mis en avant (syndicats sectoriels uniquement, 5 max)",
+        verbose_name="À la une de mon syndicat",
+        help_text="Place l'article EN TÊTE du diaporama de VOTRE accueil et l'y "
+                  "maintient. Vos articles récents illustrés y passent déjà "
+                  "tout seuls : cochez surtout pour y ramener un article plus "
+                  "ancien. 5 au maximum. Décoché, l'article n'est pas perdu — "
+                  "il redescend dans la page.",
     )
     featured_on_conf = models.BooleanField(
         default=False,
-        verbose_name="Mettre en avant sur la confédération",
-        help_text="Affiche cet article dans la section vedette de la page d'accueil de la confédération (tous syndicats)",
+        verbose_name="À la une de la confédération",
+        help_text="Place l'article dans le diaporama d'accueil de cnt-so.org, "
+                  "quel que soit le syndicat qui l'a écrit. Réservé aux chefs.",
     )
     fiche_pratique = models.BooleanField(
         default=False,
@@ -1210,7 +1257,6 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
         index.SearchField('excerpt'),
         index.FilterField('section_slug'),
         index.FilterField('publication_date'),
-        index.FilterField('is_featured'),
     ]
 
     promote_panels = SeoMixin.seo_panels + Page.promote_panels + [
@@ -1221,12 +1267,14 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
     # `edit_handler` et non `content_panels` : le `TabbedInterface` doit être la
     # racine de l'écran. Imbriqué dans `content_panels`, il produisait un onglet
     # « Contenu » à l'intérieur de l'onglet « Contenu » (audit du 15/08/2026).
-    # Les onglets viennent de `panneaux_article()`, partagé avec le viewset —
+    # Les panneaux viennent de `panneaux_article()`, partagé avec le viewset —
     # c'est ce qui empêche les deux écrans d'édition de diverger à nouveau.
+    #
+    # Plus d'onglet « Métadonnées » : tout ce qui conditionne la publication est
+    # sur la même page que l'article (voir `panneaux_article`). Restent
+    # « Promotion » et « Paramètres », qui sont de vrais rayons à part.
     edit_handler = TabbedInterface([
-        ObjectList([FieldPanel('title')] + panneaux_article().children[0].children,
-                   heading='Contenu'),
-        panneaux_article().children[1],
+        ObjectList([FieldPanel('title')] + panneaux_article(), heading='Contenu'),
         ObjectList(promote_panels, heading='Promotion'),
         ObjectList(Page.settings_panels, heading='Paramètres'),
     ])
@@ -1272,12 +1320,19 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
                 else:
                     self.section_slug = 'principal'
         super().save(*args, **kwargs)
-        # Sync in_carousel with CarouselArticle (sectoral and regional)
+        # Sync in_carousel ↔ CarouselArticle, sur TOUS les sites.
+        #
+        # Le filtre valait `section_type__in=['sectoral', 'regional']` : la
+        # confédération est `main`, si bien que cocher la case sur un article
+        # confédéral ne produisait rien — alors que l'accueil de cnt-so.org a
+        # bien un carrousel, qu'on ne pouvait remplir que depuis la fiche du
+        # syndicat, écran où personne ne pense à aller. Arnaud, 31/08/2026 :
+        # « il faut bien pouvoir remplir le carrousel et la une depuis la
+        # création d'article ».
         if self.pk and self.section_slug:
             from django.db.models import Q
             section = SectionPage.objects.filter(
                 Q(slug=self.section_slug) | Q(legacy_site_slug=self.section_slug),
-                section_type__in=['sectoral', 'regional'],
             ).first()
             if section:
                 already_in = CarouselArticle.objects.filter(page=section, article=self).exists()
@@ -1414,6 +1469,9 @@ class ContentPage(ContenuDeSyndicatMixin, Page):
         CorpsBlock(ARTICLE_BODY_BLOCKS),
         blank=True,
         use_json_field=True,
+        verbose_name="La page",
+        help_text="Le texte de la page. Le bouton + insère une image, un "
+                  "encadré, une citation, un document à télécharger…",
     )
     excerpt = models.TextField(blank=True)
     featured_image = models.ForeignKey(
@@ -1426,11 +1484,14 @@ class ContentPage(ContenuDeSyndicatMixin, Page):
     section_slug = models.SlugField(max_length=100, blank=True, db_index=True)
     legacy_page_id = models.IntegerField(null=True, blank=True, db_index=True)
 
+    # Le corps d'abord : il arrivait en quatrième position, après l'extrait,
+    # l'image et l'auteur — c'est pourtant le seul champ pour lequel on ouvre
+    # une page. Même correction que sur l'article (31/08/2026).
     content_panels = Page.content_panels + [
-        FieldPanel('excerpt'),
-        FieldPanel('featured_image'),
-        FieldPanel('author_name'),
         FieldPanel('body'),
+        FieldPanel('featured_image'),
+        FieldPanel('excerpt'),
+        FieldPanel('author_name'),
     ]
     promote_panels = Page.promote_panels + [
         FieldPanel('section_slug'),

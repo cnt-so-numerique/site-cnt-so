@@ -243,6 +243,19 @@ WAGTAIL_2FA_REQUIRED = False  # True = obligatoire pour tous les rédacteurs
 # par défaut « Moderators approval » envoyait les soumissions dans le vide.
 WAGTAIL_WORKFLOW_ENABLED = False
 
+# Pas d'annotation en marge des articles.
+#
+# Wagtail pose une bulle « commentaire » sur CHAQUE champ et CHAQUE bloc :
+# 32 sur un écran d'article ordinaire, plus un panneau latéral. Ce décor
+# vaudrait son prix si quelqu'un s'en servait — la base en compte 0 pour
+# 1710 articles, et il n'y a pas de circuit d'approbation
+# (WAGTAIL_WORKFLOW_ENABLED ci-dessus) où un modérateur annoterait une
+# relecture. On paie donc l'encombrement sans la fonction (Arnaud, 31/08/2026).
+#
+# Le jour où un circuit de relecture entre syndicats se met en place, remettre
+# cette ligne à True suffit : rien d'autre n'en dépend.
+WAGTAILADMIN_COMMENTS_ENABLED = False
+
 # ── hCaptcha ──────────────────────────────────────────────────────────────────
 # Clés de test (toujours valides en dev — remplacer en prod via local_settings.py)
 # Créer un compte sur https://dashboard.hcaptcha.com/

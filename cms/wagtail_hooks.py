@@ -138,11 +138,37 @@ class IterateurCategoriesGroupees:
         for obj in self.queryset:
             cle = obj.parent.name if obj.parent_id else obj.name
             groupes.setdefault(cle, []).append(obj)
-        for nom, objets in groupes.items():
+
+        def choix(objets):
             # Le parent d'abord s'il est lui-même sélectionnable, puis ses
             # enfants par ordre alphabétique.
             objets.sort(key=lambda o: (o.parent_id is not None, o.name))
-            yield (nom, [(self.field.prepare_value(o), o.name) for o in objets])
+            return [(self.field.prepare_value(o), o.name) for o in objets]
+
+        # Un groupe ne se justifie que s'il distingue quelque chose. Une
+        # catégorie SANS enfant formait un groupe qui ne contenait qu'elle-même :
+        # le titre répétait la case, mot pour mot. Douze des quinze en-têtes de
+        # la confédération étaient dans ce cas (Arnaud, 31/08/2026).
+        #
+        # Le regroupement reste indispensable là où il porte du sens : le 13 a
+        # SEPT catégories « Actualités - luttes », une par secteur, cinq portant
+        # exactement le même nom. Sans leur parent elles sont indiscernables.
+        #
+        # Un groupe sans nom (`''`) est rendu à plat par Django : c'est le
+        # `{% if group %}` du gabarit `multiple_input.html` qui décide.
+        seules, vrais_groupes = [], []
+        for nom, objets in groupes.items():
+            if len(objets) == 1 and objets[0].parent_id is None:
+                seules.extend(objets)
+            else:
+                vrais_groupes.append((nom, objets))
+
+        # Les catégories simples d'abord — elles sont la majorité et le geste
+        # courant —, les arbres ensuite, par ordre alphabétique.
+        if seules:
+            yield ('', choix(seules))
+        for nom, objets in sorted(vrais_groupes, key=lambda g: g[0]):
+            yield (nom, choix(objets))
 
     def __len__(self):
         return sum(1 for _ in self)
@@ -332,7 +358,7 @@ class FiltreArticles(WagtailFilterSet):
 
     class Meta:
         model = ArticlePage
-        fields = ['live', 'section_slug', 'is_featured', 'cms_categories']
+        fields = ['live', 'section_slug', 'featured_on_conf', 'cms_categories']
 
 
 class IndexArticles(SnippetIndexView):
@@ -355,11 +381,13 @@ class ArticlePageViewSet(ViewSetCloisonne, SnippetViewSet):
     icon = 'doc-full'
     menu_label = 'Articles'
     menu_order = 100
-    list_display = ['title', 'section_slug', 'publication_date', 'live', 'is_featured']
+    list_display = ['title', 'section_slug', 'publication_date', 'live', 'featured_on_conf']
     filterset_class = FiltreArticles
     search_fields = ['title', 'excerpt']
     ordering = ['-publication_date', '-first_published_at']
-    panels = [FieldPanel('title'), panneaux_article()]
+    # `panneaux_article()` rend une LISTE de panneaux, dépliée ici : c'est ce
+    # qui garantit que l'écran snippet et l'écran page montrent la même chose.
+    panels = [FieldPanel('title'), *panneaux_article()]
 
     index_view_class = IndexArticles
     add_view_class = _make_scoped_article_page_view(SnippetCreateView)
@@ -774,6 +802,14 @@ def insert_categories_css():
     page-break-inside: avoid;
     margin-bottom: .75rem;
 }
+/* Une catégorie sans groupe est rendue seule, à la racine — depuis que les
+   en-têtes en doublon ont sauté (31/08/2026), il y en a douze sur la conf.
+   Sans cette règle, chacune traînait l'écart réservé à un GROUPE et la liste
+   paraissait trouée. On les distingue par ce qu'elles sont : un bloc dont
+   l'étiquette porte un `for`, donc une case et non un titre. */
+#id_cms_categories > div:has(> label[for]) {
+    margin-bottom: .1rem;
+}
 #id_cms_categories > div > label:not([for]) {
     display: block;
     font-weight: 700;
@@ -796,6 +832,90 @@ def insert_categories_css():
 @media (max-width: 900px) {
     #id_cms_categories { columns: 1; }
 }
+</style>"""
+
+
+@hooks.register('insert_global_admin_css')
+def insert_ecran_redaction_css():
+    """Dégage l'écran de rédaction du décor que personne n'utilise.
+
+    Relevé au navigateur sur `/cms/snippets/cms/articlepage/add/` en 1440×900,
+    le 31/08/2026 : le champ où l'on écrit l'article commençait à 513 px du
+    haut, derrière 79 px de barre syndicat, un titre H1, un champ « Titre » et
+    ses onglets. Arnaud : « l'article en lui-même est noyé sous les autres
+    infos ».
+
+    Trois retraits, mesurés :
+
+    1. **La minimap** — la colonne de tirets rouges à droite. Vérifié dans le
+       DOM : le bouton « Tout replier » est rendu PAR ce composant, les deux
+       tombent donc ensemble. À eux deux ils occupaient 400 px des 1240 px de
+       colonne pendant que la saisie restait plafonnée à 840.
+
+       CSS et non surcharge de `wagtailadmin/shared/side_panels.html` : la
+       surcharge recopierait trente lignes d'internes Wagtail qui dériveront à
+       la prochaine montée de version, pour le même résultat.
+
+       `display: none` et non `visibility: hidden` : il faut aussi sortir le
+       bouton de l'ordre de tabulation, sans quoi le clavier s'arrête sur une
+       commande invisible.
+
+    2. **Les ancres de panneau** (🔗) — 32 sur un écran d'article, une par
+       champ et par bloc. Elles copient un lien vers un champ ; sur un CMS où
+       personne ne s'échange d'adresse de champ, c'est 32 icônes de bruit.
+
+    3. **La largeur** — `.w-form-width` plafonne la saisie à 840 px là où le
+       formulaire en fait 1080. Le bloc « Texte et média côte à côte » y
+       affichait ses deux colonnes à l'étroit. On rend les 240 px que la
+       minimap occupait.
+
+    Les chevrons de repli par panneau restent : sur un corps d'article long,
+    replier une section rend un vrai service — contrairement au « Tout
+    replier », qui repliait aussi le champ qu'on était venu remplir.
+    """
+    return """<style>
+[data-minimap-container] { display: none; }
+
+/* ── Deux colonnes : à gauche ce qu'on rédige, à droite ce qu'on décide ──────
+   Demandé par Arnaud le 31/08/2026. Les classes viennent de
+   `panneaux_article()` : `.cnt-reglages` va à droite, `.cnt-categories`
+   reprend toute la largeur (jusqu'à 62 cases sur le 13, en trois colonnes —
+   « il faut toutes les catégories visibles »), le reste tient à gauche.
+
+   Au-dessous de 1200 px la grille ne s'applique pas : tout retombe en une
+   colonne dans l'ordre du formulaire, sans deuxième mise en page à maintenir.
+   Le seuil vaut pour un portable de 1366 px, pas pour l'écran d'un seul. */
+@media (min-width: 1200px) {
+    .w-form-width:has(> .cnt-reglages) {
+        max-width: 1500px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 22rem;
+        column-gap: 2.5rem;
+        align-items: start;
+    }
+    .w-form-width > .cnt-reglages {
+        grid-column: 2;
+        grid-row: 1 / span 99;
+        position: sticky;
+        top: 1rem;
+    }
+    /* Tout ce qui n'est pas les réglages tient dans la colonne de gauche,
+       catégories comprises.
+
+       Elles avaient d'abord `grid-column: 1 / -1` pour prendre toute la
+       largeur : elles passaient alors SOUS le panneau de réglages, qui occupe
+       la colonne 2 sur toute la hauteur, et les deux se chevauchaient (relevé
+       à l'écran, 31/08/2026). La colonne de gauche fait 750 à 1100 px selon
+       l'écran : les trois colonnes de cases y tiennent, et aucune n'est
+       masquée — ce qui était la demande. */
+    .w-form-width > section:not(.cnt-reglages) { grid-column: 1; }
+}
+/* Visé par l'attribut que Wagtail pose lui-même sur ces liens, et non par la
+   classe : la variante `--prefix` — le 🔗 en tête de chaque bloc du corps
+   d'article — garde un `display: grid` qui l'emportait encore sur un
+   sélecteur à deux classes. Mesuré, pas supposé. */
+[data-panel-anchor] { display: none !important; }
+.w-form-width { max-width: 1080px; }
 </style>"""
 
 
@@ -845,10 +965,11 @@ def insert_site_selector_js():
         var bar = tmp.firstElementChild;
         if (!bar) return;
 
-        // Ajouter next=URL_courante sur chaque lien de changement de syndicat
-        bar.querySelectorAll('a[href*="select-site"]').forEach(function(a) {
-          a.href = a.href + '&next=' + encodeURIComponent(window.location.pathname);
-        });
+        // Revenir sur l'écran courant après le changement de syndicat.
+        // Le fragment est servi par /cms/current-site-fragment/ : côté
+        // gabarit, request.path désignerait le fragment et non l'écran.
+        var champNext = bar.querySelector('input[name="next"]');
+        if (champNext) champNext.value = window.location.pathname;
 
         var main = document.getElementById('main') || document.querySelector('main');
         if (!main) return;
