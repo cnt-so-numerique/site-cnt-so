@@ -259,3 +259,34 @@ tranché — 1 occurrence dans le fichier, 0 dans la page servie.
 développement, ou ne pas utiliser `--noreload`. Et quand une mesure contredit
 le fichier, comparer d'abord **ce que le serveur sert** à **ce que le fichier
 contient**, avant de soupçonner le CSS ou la spécificité.
+
+## Un StreamField ne se poste pas en JSON (31/08/2026)
+
+Trois essais perdus à écrire un test qui soumet un corps d'article. Deux pièges
+enchaînés, l'un cachant l'autre :
+
+1. `StreamBlock.value_from_datadict` lit le **format préfixé**, pas un blob
+   JSON : `body-count`, puis `body-<i>-type`, `-id`, `-order`, `-deleted`,
+   `-value`. Un `data={'body': '[...]'}` lève `KeyError: 'body-count'`.
+2. Le champ de texte riche est servi par **Draftail**, qui envoie du
+   *contentstate* JSON — `{"blocks": [{"text": "…"}], "entityMap": {}}` — et
+   **non du HTML**. Un `body-0-value='<p>x</p>'` lève un `JSONDecodeError`.
+
+**Règle :** pour tester un corps d'article, construire le dictionnaire préfixé
+et encoder la valeur riche en contentstate (helpers `_poste` et `_saisie_riche`
+dans `cms.tests.EcranDeRedactionTest`). Et ce qui relève du HTML stocké — un
+`<p><br/></p>` hérité de WordPress — se teste sur le crible lui-même, pas à
+travers le formulaire : Draftail ne l'enverra jamais.
+
+## Un code de statut ne distingue pas deux refus (31/08/2026)
+
+Test écrit pour prouver qu'un chef placé sur la conf n'ouvre pas la newsletter
+d'un autre syndicat : `assertEqual(r.status_code, 302)`. Il passait — et il
+passait **aussi** en remettant le défaut d'avant, parce que l'autre garde-fou
+répond 302 lui aussi. Deux refus différents, même code.
+
+**Règle :** quand deux chemins mènent au même statut, l'assertion doit porter
+sur ce qui les sépare — ici la destination (`/cms/` contre la liste des
+newsletters) et l'absence du message de l'autre garde-fou. Corollaire de la
+validation par mutation : un test qui passe avec ET sans le correctif ne teste
+rien, même quand il échoue pour de bonnes raisons ailleurs.

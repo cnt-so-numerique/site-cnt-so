@@ -1,42 +1,52 @@
 {% comment %}
-Option C — Layout "Une de journal"
-Article 1 : pleine largeur, photo en fond + titre overlay
+Liste d'articles en « une de journal » — gabarit PARTAGÉ par cinq écrans :
+accueils de syndicat, pages de catégorie, pages de tag, espace presse,
+`site_home`. Le corriger ici les corrige tous ; le forker en recopie le
+défaut.
+
+Article 1 : pleine largeur, affiche entière puis titre dessous
 Articles 2-3 : demi-largeur côte à côte
 Articles 4+ : grille 3 colonnes
 {% endcomment %}
 
 <style>
-/* ---- Hero pleine largeur ---- */
+/* ---- Article de tête ----
+   Les visuels du site sont des AFFICHES : elles portent déjà du texte, et
+   elles sont composées pour être vues entières. Ce bloc les recadrait en
+   bandeau de 460 px (`object-fit: cover`), les noyait sous un dégradé noir à
+   82 % et écrivait le titre par-dessus — trois choses écartées le 16/08/2026,
+   règle appliquée alors à l'accueil confédéral et jamais ici.
+
+   Or ce gabarit sert cinq écrans : accueils de syndicat, pages de catégorie,
+   pages de tag, espace presse, `site_home`. Affiche entière sur blanc, titre
+   dessous, comme partout ailleurs (Arnaud, 31/08/2026). */
 .une-hero {
-    position: relative;
     width: 100%;
-    height: 460px;
-    overflow: hidden;
     margin-bottom: 1.5rem;
     display: block;
     text-decoration: none;
     color: inherit;
+    background: var(--white);
+    border: 1px solid var(--bg-lighter);
 }
 .une-hero-img {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    /* Hauteur tenue pour que la page garde un rythme, `contain` pour ne pas
+       couper l'affiche : le vide est du blanc, pas un aplat flouté. */
+    height: 420px;
+    object-fit: contain;
     object-position: center;
+    background: var(--white);
     display: block;
-    transition: transform .4s ease;
 }
-.une-hero:hover .une-hero-img { transform: scale(1.03); }
-.une-hero-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,.82) 0%, rgba(0,0,0,.35) 55%, rgba(0,0,0,.08) 100%);
+@media (max-width: 480px) {
+    /* En colonne unique il n'y a plus de rangée à aligner : une hauteur tenue
+       ferait flotter les affiches panoramiques dans de grandes bandes blanches. */
+    .une-hero-img { height: auto; max-height: 420px; }
 }
 .une-hero-body {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 2rem 2.5rem;
+    padding: 1rem 1.25rem 1.25rem;
+    border-top: 1px solid var(--bg-lighter);
 }
 .une-hero-meta {
     display: flex;
@@ -55,17 +65,17 @@ Articles 4+ : grille 3 colonnes
     padding: .2rem .55rem;
     text-decoration: none;
 }
-.une-hero-meta .date { color: rgba(255,255,255,.75); font-size: .85rem; }
+.une-hero-meta .date { color: var(--text-muted, #666); font-size: .85rem; }
 .une-hero-title {
     font-family: var(--font-heading);
     font-size: 2rem;
     line-height: 1.2;
-    color: #fff;
+    color: var(--text-color);
     margin: 0 0 .6rem;
-    text-shadow: 0 2px 8px rgba(0,0,0,.4);
 }
+.une-hero:hover .une-hero-title { color: var(--primary-color); }
 .une-hero-excerpt {
-    color: rgba(255,255,255,.85);
+    color: var(--text-color);
     font-size: .95rem;
     line-height: 1.6;
     max-width: 620px;
@@ -105,14 +115,17 @@ Articles 4+ : grille 3 colonnes
     overflow: hidden;
     flex-shrink: 0;
 }
+/* Même règle que le bloc de tête et que la manchette : ce sont des affiches,
+   `contain` sur blanc plutôt qu'un recadrage. Le zoom au survol partait du
+   même geste que le recadrage — il déborde d'une affiche contenue. */
 .une-card-img img {
     width: 100%;
+    height: 100%;
     display: block;
-    transition: transform .3s;
-    object-fit: cover;
+    object-fit: contain;
     object-position: center;
+    background: var(--white);
 }
-.une-card:hover .une-card-img img { transform: scale(1.04); }
 
 .une-duo .une-card-img { height: 220px; }
 .une-grid .une-card-img { height: 175px; }
@@ -167,7 +180,9 @@ Articles 4+ : grille 3 colonnes
 
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
-    .une-hero { height: 300px; }
+    /* Plus de `height` ici : le bloc de tête porte désormais l'affiche ET le
+       titre en dessous, une hauteur fixe les aurait rognés tous les deux. */
+    .une-hero-img { height: auto; max-height: 340px; }
     .une-hero-title { font-size: 1.4rem; }
     .une-duo { grid-template-columns: 1fr; }
     .une-grid { grid-template-columns: repeat(2, 1fr); }
@@ -187,7 +202,6 @@ Articles 4+ : grille 3 colonnes
     {% if img %}<img src="{{ img }}" alt="{{ article.title }}" class="une-hero-img">
     {% else %}<div class="une-hero-img" style="background:var(--primary-color);"></div>
     {% endif %}{% endwith %}
-    <div class="une-hero-overlay"></div>
     <div class="une-hero-body">
         <div class="une-hero-meta">
             {% for cat in article.cms_categories.all|slice:":2" %}<span class="cat-badge">{{ cat.name }}</span>{% endfor %}

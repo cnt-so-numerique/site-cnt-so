@@ -187,3 +187,132 @@ changement de contenu public sur 1677 articles si on l'applique rétroactivement
 - **Une page d'accueil correcte ne prouve rien.** L'accueil du STUCS paraît sain
   parce qu'il trie d'abord par présence d'image ; c'est le flux RSS qui a montré
   le défaut. Il a fallu chercher la liste qui ne trie *pas* par image.
+
+---
+
+# Deuxième passe — 31/08/2026
+
+Demande d'Arnaud : « quand on se connecte avec un compte de haut niveau il faut
+atterrir avec la conf sélectionnée » et « il faut revoir totalement l'interface
+de création des articles, l'article est noyé sous les autres infos ».
+
+Mesures au navigateur sur `/cms/snippets/cms/articlepage/add/`, 1440×900,
+compte superuser.
+
+## Ce qui occupait l'écran
+
+| Élément | Avant | Après |
+|---|---|---|
+| Barre syndicat | 79 px, 14 pastilles sur 2 lignes | 41 px, un menu déroulant |
+| Minimap + « Tout replier » | 400 px de la colonne | retirés |
+| Bulles de commentaire | 32 (0 commentaire en base / 1710 articles) | 0 |
+| Ancres 🔗 de panneau | 32 | 0 |
+| Largeur de saisie | 840 px | 1080 px |
+| Zone d'écriture | un « + » de 30 px, étiqueté « Body », à y=513 | un cadre de saisie à y=553, dans le premier écran |
+
+Le bouton « Tout replier » est rendu **par** le composant minimap : masquer
+`[data-minimap-container]` retire les deux. Vérifié dans le DOM, pas supposé.
+
+La variante `.w-panel__anchor--prefix` garde un `display: grid` qui l'emporte
+sur un sélecteur à deux classes — d'où le ciblage par `[data-panel-anchor]`.
+
+## Le syndicat courant
+
+`get_current_site()` renvoyait `None` pour un chef global sans choix en session.
+La barre affichait « ⚠️ Aucun sélectionné », les listes servaient les quatorze
+syndicats mêlés, et aucun bouton ne ramenait à cet état une fois qu'on en était
+sorti : il n'existait qu'au premier écran après connexion.
+
+Repli sur `principal`. Conséquence assumée : le cloisonnement s'applique dès la
+connexion. `NewsletterSendView` refuse désormais la lettre d'un autre syndicat
+là où un chef sans syndicat choisi passait au travers.
+
+## Effet de bord relevé, non corrigé en masse
+
+**400 blocs de texte vides dorment en base, sur 229 articles** — hérités de
+l'import WordPress. Ils produisent un `<div class="rich-text"></div>` sur la
+page publique (vérifié sur l'article 293). Le crible posé dans
+`ArticlePageForm.clean()` les retire **quand un humain enregistre cet
+article**, jamais en lot : aucune migration de contenu n'a été lancée.
+
+## Les trois cases « mise en avant » — deux faisaient double emploi, aucune ne marchait
+
+Arnaud, 31/08/2026 : « c'est quoi la différence entre le 1 et le 3 ? ».
+
+Aucune. `HomePage.get_context` les joignait par un OU :
+
+```python
+Q(section_slug='principal', is_featured=True) | Q(featured_on_conf=True)
+```
+
+Sur un article de la conf — le seul écran où les deux s'affichaient ensemble —
+cocher l'une ou l'autre donnait le même résultat. `is_featured` n'était qu'un
+sous-ensemble de `featured_on_conf`, **en plus offert à tout rédacteur** alors
+que `featured_on_conf` est masqué aux non-chefs : le verrou qui réserve la une
+aux chefs était contournable par la case d'à côté.
+
+En cherchant où `featured_on_conf` atterrissait, plus grave :
+
+| Constat | Vérification |
+|---|---|
+| `/` est servi par `content.views.HomeView` | `content.urls` inclus avant `wagtail_urls` |
+| `HomePage.get_context` ne sort nulle part | aucun gabarit ne lit `featured_article` ni `hero_mini_cards` |
+| `in_carousel` ignorait la conf | `section_type__in=['sectoral','regional']`, la conf est `main` |
+
+Donc, sur un article confédéral, **les trois cases étaient inertes**. Sur un
+article de syndicat, seule `in_carousel` agissait. 0 article sur 1710 en portait
+une seule.
+
+**Corrigé** — « il faut bien pouvoir remplir le carrousel et la une depuis la
+création d'article » :
+
+- `is_featured` supprimé (migration `0030`) ;
+- `in_carousel` synchronise sur **tous** les sites, conf comprise ;
+- `featured_on_conf` appliqué dans `HomeView` : un article hissé à la une par
+  un chef rejoint le carrousel confédéral, quel que soit son syndicat ;
+- les épinglés de la fiche passent devant — l'ordre du carrousel reste un choix
+  éditorial ;
+- le bloc mort de `HomePage.get_context` retiré ;
+- libellés : « Au carrousel de mon syndicat » / « À la une de la confédération »,
+  chacun nommant enfin **son** accueil.
+
+## La une des syndicats — et la règle des affiches, restée à moitié appliquée
+
+Arnaud, 31/08/2026 : « il faut que les sites des syndicats aient eux aussi une
+une ».
+
+Ils en avaient déjà une, au sens du gabarit : `_article_listing.html` s'intitule
+« Option C — Layout Une de journal » (article 1 en tête, 2-3 en duo, 4+ en
+grille). Mais il était rendu **à l'inverse de la décision du 16/08** — affiche
+entière sur blanc, titre dessous :
+
+```css
+.une-hero      { height: 460px }        /* affiche recadrée en bandeau */
+.une-hero-img  { object-fit: cover }
+.une-hero-overlay { linear-gradient(rgba(0,0,0,.82) …) }   /* voile noir */
+.une-hero-title   { position: absolute }                   /* titre PAR-DESSUS */
+.une-card-img img { object-fit: cover }                    /* et les petites cartes aussi */
+```
+
+La règle avait été appliquée à l'accueil confédéral (`.hp-manchette`,
+`object-fit: contain` sur blanc) et **jamais à ce gabarit**, qui sert cinq
+écrans : accueils de syndicat, pages de catégorie, pages de tag, espace presse,
+`site_home`.
+
+**Livré :**
+
+- la manchette de la conf devient `templates/content/_manchette.html`, partagée
+  entre l'accueil confédéral et ceux des syndicats — CSS compris, sorti de
+  `home.html` : une seule définition ;
+- `SiteHomeView._vitrine()` calcule diaporama + manchette une seule fois, et
+  `get_queryset` les retire de la liste. Le même article s'affichait jusqu'à
+  **trois fois** sur un écran (constaté sur `/13/`) ; repli si le syndicat n'a
+  que des articles de vitrine, pour ne pas servir « Aucun article » ;
+- voile et recadrage retirés du bloc de tête **et** des petites cartes ;
+- hauteur fixe résiduelle de 300 px supprimée en mobile — elle aurait rogné
+  l'affiche et le titre maintenant qu'ils sont dans le même bloc.
+
+Les deux derniers points ont été trouvés **par un test trop large** qui
+cherchait `object-fit: cover` partout : il échouait sur sa propre phrase
+d'explication, et en le resserrant sur les règles CSS j'ai vu que les cartes et
+le média mobile n'avaient pas été traités.

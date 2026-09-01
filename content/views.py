@@ -122,6 +122,27 @@ class HomeView(ListView):
                 main_site.carousel_items.select_related('article__featured_image').all()
                 if ci.article and ci.article.live
             ]
+        # Puis les articles hissés à la une par un chef, quel que soit le
+        # syndicat qui les a écrits.
+        #
+        # `featured_on_conf` alimentait `HomePage.get_context`, dont le contexte
+        # ne sortait nulle part : `/` est servi par cette vue-ci, et
+        # `content/home.html` n'a jamais lu `featured_article` ni
+        # `hero_mini_cards`. La case existait, son aide la décrivait, et cocher
+        # ne produisait rien (relevé le 31/08/2026, 0 article sur 1710 cochés).
+        #
+        # Les épinglés de la fiche passent devant : c'est un ordre choisi
+        # explicitement, il ne doit pas se faire doubler.
+        deja = {a.pk for a in carousel}
+        for article in (ArticlePage.objects.live()
+                        .filter(featured_on_conf=True)
+                        .order_by('-publication_date', '-first_published_at')
+                        .select_related('featured_image')
+                        .prefetch_related('cms_categories')):
+            if article.pk not in deja:
+                carousel.append(article)
+                deja.add(article.pk)
+
         # Compléter jusqu'à 5, plutôt que de tout couper au premier choisi.
         # Avant le 16/08/2026, un seul article épinglé faisait disparaître les
         # quatre autres : mettre un article en avant en retirait quatre.
@@ -310,38 +331,79 @@ class SiteHomeView(ListView):
             })
         return super().get(request, *args, **kwargs)
 
+    def _vitrine(self):
+        """Le diaporama et la manchette du syndicat, calculés une seule fois.
+
+        `get_queryset` s'en sert pour les RETIRER de la liste : sans ça, le
+        même article s'affichait dans le diaporama, dans la manchette et en
+        tête de « Dernières actualités » — trois fois sur un seul écran
+        (constaté sur /13/ le 31/08/2026).
+
+        `any_image_url` est une propriété Python (les images héritées de
+        WordPress ne sont pas toutes des `featured_image`) : le tri se fait en
+        mémoire, sur une tranche bornée à 20 et non sur tout le site.
+        """
+        if hasattr(self, '_vitrine_cache'):
+            return self._vitrine_cache
+        if not hasattr(self, 'current_site'):
+            self.current_site = get_section_or_404(self.kwargs['site_slug'])
+        site = self.current_site
+        if site.section_type not in ('sectoral', 'regional'):
+            self._vitrine_cache = ([], [])
+            return self._vitrine_cache
+        carousel = [ci.article for ci in
+                    site.carousel_items.select_related('article').all()]
+        candidats = [
+            a for a in ArticlePage.objects.live()
+            .filter(section_slug__in=site.slugs_contenu)
+            .select_related('featured_image')
+            .prefetch_related('cms_categories')
+            .order_by('-publication_date', '-first_published_at')[:20]
+            if a.any_image_url
+        ]
+        carousel = _completer_carrousel(carousel, candidats)
+        deja = {a.pk for a in carousel}
+        manchette = [a for a in candidats if a.pk not in deja][:6]
+        self._vitrine_cache = (carousel, manchette)
+        return self._vitrine_cache
+
     def get_queryset(self):
         if not hasattr(self, 'current_site'):
             self.current_site = get_section_or_404(self.kwargs['site_slug'])
-        return (ArticlePage.objects.live()
-                .filter(section_slug__in=self.current_site.slugs_contenu)
-                .select_related('featured_image')
-                .prefetch_related('cms_categories')
-                .annotate(has_img=Case(
-                    When(featured_image__isnull=False, then=Value(1)),
-                    default=Value(0),
-                    output_field=IntegerField(),
-                ))
-                .order_by('-has_img', '-first_published_at'))
+        complet = (ArticlePage.objects.live()
+                   .filter(section_slug__in=self.current_site.slugs_contenu)
+                   .select_related('featured_image')
+                   .prefetch_related('cms_categories')
+                   .annotate(has_img=Case(
+                       When(featured_image__isnull=False, then=Value(1)),
+                       default=Value(0),
+                       output_field=IntegerField(),
+                   ))
+                   .order_by('-has_img', '-first_published_at'))
+        carousel, manchette = self._vitrine()
+        deja = [a.pk for a in carousel] + [a.pk for a in manchette]
+        if not deja:
+            return complet
+        reste = complet.exclude(pk__in=deja)
+        # Un syndicat qui vient d'ouvrir peut n'avoir que ses articles de
+        # vitrine : mieux vaut alors répéter que servir « Aucun article ».
+        return reste if reste.exists() else complet
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['site'] = self.current_site
         context['pages'] = Page.objects.filter(site=self.current_site, status='publish')
         if self.current_site.section_type in ('sectoral', 'regional'):
-            carousel = [
-                ci.article for ci in
-                self.current_site.carousel_items.select_related('article').all()
-            ]
-            candidats = [
-                a for a in ArticlePage.objects.live()
-                .filter(section_slug__in=self.current_site.slugs_contenu)
-                .select_related('featured_image')
-                .order_by('-publication_date', '-first_published_at')[:20]
-                if a.any_image_url
-            ]
-            carousel = _completer_carrousel(carousel, candidats)
+            # Diaporama et manchette viennent de `_vitrine()`, qui sert aussi à
+            # `get_queryset` pour les retirer de la liste en dessous. Une seule
+            # source : sans elle, les deux calculs divergeraient et le doublon
+            # reviendrait par la porte de derrière.
+            carousel, manchette = self._vitrine()
             context['carousel_articles'] = carousel
+            # La manchette est la « une » du syndicat, comme sur cnt-so.org
+            # (Arnaud, 31/08/2026 : « il faut que les sites des syndicats aient
+            # eux aussi une une »).
+            context['manchette_articles'] = manchette
             context.update(_sectoral_sidebar_context(self.current_site))
         else:
             context.update(_sidebar_context(self.current_site.slug))

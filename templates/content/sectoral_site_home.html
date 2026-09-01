@@ -201,6 +201,13 @@
 </script>
 {% endif %}
 
+{% comment %}
+La manchette, partagée avec l'accueil confédéral. Elle n'apparaît que s'il
+reste des articles illustrés hors du diaporama : sur un syndicat qui vient
+d'ouvrir, elle s'efface au lieu d'afficher une grille vide.
+{% endcomment %}
+{% include "content/_manchette.html" %}
+
 <h2 class="section-title">Dernières actualités</h2>
 
 {% with empty_message="Aucun article pour le moment." %}

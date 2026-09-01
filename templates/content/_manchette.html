@@ -1,0 +1,155 @@
+{% comment %}
+La manchette — la sélection d'articles sous le diaporama.
+
+Partagée entre l'accueil confédéral et celui des syndicats depuis le
+31/08/2026. Les sous-sites avaient leur propre « une de journal »
+(`_article_listing.html`), rendue à l'inverse de la règle du 16/08 :
+affiche recadrée en bandeau de 460 px, voile noir, titre écrit par-dessus.
+Une seule définition plutôt qu'une recopie qui redivergera.
+
+Attend `manchette_articles`.
+{% endcomment %}
+<style>
+/* ----------------------------------------------------------
+   MANCHETTE : grille 2+4 — cartes presse (image + titre en overlay)
+   ---------------------------------------------------------- */
+.hp-manchette-section {
+    border-bottom: 1px solid var(--bg-lighter);
+    padding: 1.5rem 0 2rem 0;
+}
+
+.hp-manchette-section .hp-section-body {
+    width: 100%;
+}
+/* Même parti pris que le carrousel : ce sont des AFFICHES, donc déjà du texte.
+   Le titre en surimpression sur fond flouté donnait deux écritures l'une sur
+   l'autre, et il fallait survoler pour le lire — au doigt, personne ne
+   survole. Titre EN DESSOUS, sur blanc, toujours visible. Les hauteurs de
+   rangée disparaissent avec lui : c'est le contenu qui les fixe. */
+.hp-manchette {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+}
+
+.hp-manchette .hp-mcard { grid-column: span 2; }
+
+@media (max-width: 760px) {
+    .hp-manchette { grid-template-columns: repeat(2, 1fr); }
+    .hp-manchette .hp-mcard { grid-column: span 1; }
+}
+
+@media (max-width: 480px) {
+    .hp-manchette {
+        grid-template-columns: 1fr;
+        /* Empilées serré, les cartes se soudaient en un seul bandeau où l'on
+           ne voyait plus où finissait un article. Il leur faut de l'air. */
+        gap: 1.5rem;
+    }
+}
+
+.hp-mcard {
+    display: flex;
+    flex-direction: column;
+    background: var(--white);
+    border: 1px solid var(--bg-lighter);
+}
+
+.hp-mcard > a { display: block; }
+
+.hp-mcard img {
+    display: block;
+    width: 100%;
+    /* Hauteur tenue pour que la grille reste régulière, `contain` pour ne pas
+       couper l'affiche : le vide est du blanc, pas un aplat flouté. */
+    height: 220px;
+    object-fit: contain;
+    object-position: center;
+    background: var(--white);
+}
+
+/* Les deux cartes de tête ouvrent la sélection : leur affiche mérite plus de
+   hauteur. */
+.hp-manchette .hp-mcard:nth-child(-n+2) img,
+.hp-manchette .hp-mcard:nth-child(-n+2) .hp-mcard-noimg { height: 280px; }
+
+/* À placer APRÈS la règle ci-dessus : à spécificité égale, c'est l'ordre qui
+   tranche, et un override écrit plus haut se faisait battre en silence.
+   En colonne unique il n'y a plus de rangée à aligner : la hauteur tenue ne
+   sert plus à rien et fait flotter les affiches panoramiques au milieu de
+   grandes bandes blanches. L'image reprend donc ses proportions. */
+@media (max-width: 480px) {
+    .hp-manchette .hp-mcard img,
+    .hp-manchette .hp-mcard:nth-child(-n+2) img {
+        height: auto;
+        max-height: 420px;
+    }
+    .hp-manchette .hp-mcard .hp-mcard-noimg,
+    .hp-manchette .hp-mcard:nth-child(-n+2) .hp-mcard-noimg { height: 200px; }
+}
+
+.hp-mcard-noimg {
+    height: 220px;
+    background: linear-gradient(135deg, #1a0505 0%, #2d0a0a 60%, #1a1a1a 100%);
+}
+
+.hp-mcard-body {
+    display: flex;
+    flex-direction: column;
+    padding: .8rem .9rem 1rem;
+    border-top: 1px solid var(--bg-lighter);
+}
+
+.hp-mcard-cat {
+    font-size: var(--texte-courant);
+    color: var(--primary-color);
+    display: block;
+    margin-bottom: .3rem;
+}
+
+.hp-mcard-title {
+    font-family: var(--font-heading);
+    font-size: 18px;
+    line-height: 1.3;
+    margin: 0;
+}
+
+.hp-manchette .hp-mcard:nth-child(-n+2) .hp-mcard-title { font-size: 26px; }
+
+.hp-mcard-title a { color: var(--text-color); }
+.hp-mcard-title a:hover { color: var(--primary-color); }
+
+/* Badge source pour les articles réseau */
+.hp-badge-site {
+    background: var(--dark-bg);
+    color: rgba(255,255,255,.8);
+    font-size: var(--texte-courant);
+    padding: .2rem .5rem;
+}
+</style>
+
+        {% if manchette_articles %}
+        <div class="hp-manchette-section">
+            <div class="hp-section-body">
+                <div class="hp-manchette">
+                    {% for article in manchette_articles %}
+                    <article class="hp-mcard">
+                        {% if article.any_image_url %}
+                        <a href="{{ article.get_absolute_url }}"><img src="{{ article.any_image_url }}" alt="{{ article.title }}"></a>
+                        {% else %}
+                        <div class="hp-mcard-noimg"></div>
+                        {% endif %}
+                        <div class="hp-mcard-body">
+                            {% for cat in article.cms_categories.all|slice:":1" %}
+                            <span class="hp-mcard-cat">{{ cat.name }}</span>
+                            {% endfor %}
+                            <h3 class="hp-mcard-title">
+                                <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
+                            </h3>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}

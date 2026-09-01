@@ -95,14 +95,13 @@ def ajoute_a_la_newsletter(newsletter, article, rubrique='', order=None):
 
 
 def make_article_page(section_slug='principal', title='Article test', slug=None,
-                      live=True, is_featured=False, categories=None, **kwargs):
+                      live=True, categories=None, **kwargs):
     parent = _get_article_parent()
     slug = slug or title.lower().replace(' ', '-')
     art = parent.add_child(instance=ArticlePage(
         title=title, slug=slug,
         section_slug=section_slug,
         live=live,
-        is_featured=is_featured,
         **kwargs
     ))
     if categories:
@@ -1704,14 +1703,21 @@ class Phase6ScopingTest(TestCase):
         self.assertIn(self.art_a.pk, pks)
         self.assertNotIn(self.art_b.pk, pks)
 
-    def test_chef_without_session_sees_all(self):
+    def test_chef_sans_session_est_cadre_sur_la_conf(self):
+        """Sans choix en session, un chef confédéral voit la confédération.
+
+        Il voyait auparavant les quatorze syndicats mêlés, dans un état que
+        l'interface signalait elle-même « ⚠️ Aucun sélectionné » et où aucun
+        bouton ne ramenait une fois qu'on en était sorti (31/08/2026).
+        `site_a` est ici la page `principal`.
+        """
         from cms.site_context import scope_qs_slug
         from cms.models import ArticlePage
         request = self._make_request(self.chef)  # no session site
         qs = scope_qs_slug(ArticlePage.objects.all(), request, slug_field='section_slug')
         pks = list(qs.values_list('pk', flat=True))
         self.assertIn(self.art_a.pk, pks)
-        self.assertIn(self.art_b.pk, pks)
+        self.assertNotIn(self.art_b.pk, pks)
 
     def test_chef_with_session_sees_only_session_site(self):
         from cms.site_context import scope_qs_slug
@@ -1722,14 +1728,34 @@ class Phase6ScopingTest(TestCase):
         self.assertIn(self.art_a.pk, pks)
         self.assertNotIn(self.art_b.pk, pks)
 
-    def test_superuser_without_session_sees_all(self):
+    def test_sans_session_le_syndicat_courant_est_la_conf(self):
+        """Le repli lui-même, et non son effet sur un queryset."""
+        from cms.site_context import get_current_site
+        for user in (self.chef, self.superuser):
+            with self.subTest(user=user.username):
+                courant = get_current_site(self._make_request(user))
+                self.assertIsNotNone(courant)
+                self.assertEqual(courant.slug, 'principal')
+
+    def test_superuser_sans_session_est_cadre_sur_la_conf(self):
         from cms.site_context import scope_qs_slug
         from cms.models import ArticlePage
         request = self._make_request(self.superuser)
         qs = scope_qs_slug(ArticlePage.objects.all(), request, slug_field='section_slug')
         pks = list(qs.values_list('pk', flat=True))
         self.assertIn(self.art_a.pk, pks)
-        self.assertIn(self.art_b.pk, pks)
+        self.assertNotIn(self.art_b.pk, pks)
+
+    def test_sans_page_principale_le_chef_voit_tout(self):
+        """Repli : une base sans page `principal` retombe sur l'ancien
+        comportement plutôt que de lever une exception ou de tout masquer."""
+        from cms.site_context import scope_qs_slug, get_current_site
+        from cms.models import ArticlePage, SectionPage
+        SectionPage.objects.filter(slug='principal').delete()
+        request = self._make_request(self.superuser)
+        self.assertIsNone(get_current_site(request))
+        qs = scope_qs_slug(ArticlePage.objects.all(), request, slug_field='section_slug')
+        self.assertIn(self.art_b.pk, list(qs.values_list('pk', flat=True)))
 
     def test_redacteur_without_author_profile_sees_nothing(self):
         from cms.site_context import scope_qs_slug
@@ -4469,7 +4495,7 @@ class ViewsAdditionalCoverageTest(TestCase):
         for i in range(4):
             make_article_page(
                 section_slug='principal', title=f'Sticky {i}', slug=f'sticky-{i}',
-                is_featured=True
+                featured_on_conf=True
             )
         r = self.client.get(reverse('content:home'))
         self.assertEqual(r.status_code, 200)
@@ -6860,14 +6886,53 @@ class NewsletterReserveeALaConfTest(TestCase):
 
     def test_envoyer_depuis_un_syndicat_coupe_est_refuse(self):
         """Sans ce garde-fou, la lettre « partait » sans destinataire et sans
-        que rien ne le dise."""
+        que rien ne le dise.
+
+        Le chef doit s'être placé SUR Poitiers : depuis le 31/08/2026 un compte
+        de haut niveau atterrit sur la confédération, et le cloisonnement de
+        `_get_newsletter` refuse alors la lettre d'un autre syndicat avant même
+        d'arriver ici. C'est le test suivant qui couvre ce refus-là.
+        """
         from django.contrib.auth.models import User
         chef = User.objects.create_superuser('chef-nl', 'c@x.fr', 'x')
         self.client.force_login(chef)
+        session = self.client.session
+        session['cms_current_site_id'] = self.sous_site.pk
+        session.save()
         nl = Newsletter.objects.create(site=self.sous_site, title='Lettre du 86',
                                        intro='Bonjour')
         r = self.client.get(f'/cms/newsletter/{nl.pk}/envoyer/', follow=True)
         self.assertIn("n&#x27;est pas activée", r.content.decode())
+        nl.refresh_from_db()
+        self.assertEqual(nl.status, 'draft')
+
+    def test_la_lettre_dun_autre_syndicat_est_refusee(self):
+        """Placé sur la confédération, un chef n'ouvre pas la lettre de Poitiers.
+
+        Effet de l'atterrissage par défaut sur la conf : le cloisonnement de
+        `NewsletterSendView._get_newsletter` s'applique désormais dès la
+        connexion, là où un chef sans syndicat choisi passait au travers.
+        """
+        from django.contrib.auth.models import User
+        chef = User.objects.create_superuser('chef-nl-conf', 'cc@x.fr', 'x')
+        self.client.force_login(chef)
+        nl = Newsletter.objects.create(site=self.sous_site, title='Lettre du 86',
+                                       intro='Bonjour')
+        r = self.client.get(f'/cms/newsletter/{nl.pk}/envoyer/')
+        # 302 et non 403 : Wagtail convertit PermissionDenied en redirection
+        # dans les vues enregistrées par `register_admin_urls` (cf. la fiche
+        # « Pièges Wagtail »).
+        #
+        # La destination distingue les deux refus, et c'est tout l'intérêt du
+        # test : le cloisonnement renvoie sur /cms/ AVANT d'examiner la lettre,
+        # tandis que le garde-fou « newsletter coupée » renvoie sur la liste
+        # des newsletters avec son message. Un test qui se contenterait du 302
+        # passerait dans les deux cas — donc ne prouverait rien.
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r['Location'], '/cms/')
+        corps = self.client.get(f'/cms/newsletter/{nl.pk}/envoyer/',
+                                follow=True).content.decode()
+        self.assertNotIn("n&#x27;est pas activée", corps)
         nl.refresh_from_db()
         self.assertEqual(nl.status, 'draft')
 
@@ -8161,3 +8226,335 @@ class SommaireNewsletterLisibleTest(TestCase):
         self.assertEqual(groupes[0][0], '')
         self.assertEqual(groupes[0][1][0].article.title, 'Seul')
         self.assertEqual(groupes[1][0], 'Nos droits')
+
+
+class MiseEnAvantDepuisLarticleTest(TestCase):
+    """Remplir le carrousel et la une depuis l'article, pas depuis une fiche.
+
+    Arnaud, 31/08/2026 : « il faut bien pouvoir remplir le carrousel et la une
+    depuis la création d'article ». Deux cases existaient pour ça et **aucune
+    des deux ne marchait sur la confédération** :
+
+      - `in_carousel` ne synchronisait que pour `section_type` sectoral ou
+        régional ; la conf est `main` ;
+      - `featured_on_conf` alimentait `HomePage.get_context`, dont le contexte
+        ne sort nulle part — `/` est servi par `HomeView`.
+
+    0 article sur 1710 portait l'une ou l'autre.
+    """
+
+    def setUp(self):
+        self.conf = _ensure_section_page(slug='principal', name='CNT-SO',
+                                         site_type='main')
+        self.syndicat = _ensure_section_page(slug='stucs', name='CNT-SO STUCS',
+                                             site_type='sectoral')
+
+    def _image(self):
+        from wagtail.images.models import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        import io
+        try:
+            from PIL import Image as PILImage
+        except ImportError:  # pragma: no cover
+            self.skipTest('Pillow absent')
+        tampon = io.BytesIO()
+        PILImage.new('RGB', (60, 60), 'red').save(tampon, format='PNG')
+        return Image.objects.create(
+            title='Visuel', file=SimpleUploadedFile('v.png', tampon.getvalue(),
+                                                    content_type='image/png'))
+
+    # ── Le carrousel, y compris sur la conf ──────────────────────────────────
+
+    def test_cocher_le_carrousel_sur_un_article_conf_le_place_bien(self):
+        from cms.models import CarouselArticle
+        art = make_article_page(section_slug='principal', title='Au carrousel',
+                                slug='au-carrousel', in_carousel=True)
+        self.assertTrue(
+            CarouselArticle.objects.filter(page=self.conf, article=art).exists(),
+            "la conf est `main` : la synchro l'excluait")
+
+    def test_decocher_le_retire(self):
+        from cms.models import CarouselArticle
+        art = make_article_page(section_slug='principal', title='Puis retiré',
+                                slug='puis-retire', in_carousel=True)
+        art.in_carousel = False
+        art.save()
+        self.assertFalse(
+            CarouselArticle.objects.filter(page=self.conf, article=art).exists())
+
+    def test_le_carrousel_des_syndicats_marche_toujours(self):
+        """Non-régression : c'était le seul cas qui fonctionnait."""
+        from cms.models import CarouselArticle
+        art = make_article_page(section_slug='stucs', title='Au STUCS',
+                                slug='au-stucs', in_carousel=True)
+        self.assertTrue(
+            CarouselArticle.objects.filter(page=self.syndicat, article=art).exists())
+
+    # ── La une confédérale, depuis n'importe quel syndicat ───────────────────
+
+    def test_un_article_de_syndicat_hisse_a_la_une_apparait_sur_laccueil(self):
+        art = make_article_page(section_slug='stucs', title='Grève au nettoyage',
+                                slug='greve-nettoyage', featured_on_conf=True,
+                                featured_image=self._image())
+        r = self.client.get(reverse('content:home'))
+        self.assertEqual(r.status_code, 200)
+        pks = [a.pk for a in r.context['carousel_articles']]
+        self.assertIn(art.pk, pks, "la case « à la une » ne produisait rien")
+
+    def test_sans_la_case_larticle_de_syndicat_ne_monte_pas(self):
+        """Contrôle négatif : sinon le test précédent passerait tout seul,
+        l'accueil complétant le carrousel avec des articles récents."""
+        art = make_article_page(section_slug='stucs', title='Article ordinaire',
+                                slug='article-ordinaire',
+                                featured_image=self._image())
+        r = self.client.get(reverse('content:home'))
+        pks = [a.pk for a in r.context['carousel_articles']]
+        self.assertNotIn(art.pk, pks)
+
+    def test_les_epingles_de_la_fiche_passent_devant(self):
+        """L'ordre du carrousel est un choix éditorial : il ne se fait pas
+        doubler par une case cochée sur un article."""
+        from cms.models import CarouselArticle
+        epingle = make_article_page(section_slug='principal', title='Épinglé',
+                                    slug='epingle', featured_image=self._image())
+        CarouselArticle.objects.create(page=self.conf, article=epingle, sort_order=0)
+        promu = make_article_page(section_slug='stucs', title='Promu',
+                                  slug='promu', featured_on_conf=True,
+                                  featured_image=self._image())
+        r = self.client.get(reverse('content:home'))
+        pks = [a.pk for a in r.context['carousel_articles']]
+        self.assertLess(pks.index(epingle.pk), pks.index(promu.pk))
+
+
+class UneDesSyndicatsTest(TestCase):
+    """Les sites de syndicat ont désormais la manchette de la confédération.
+
+    Arnaud, 31/08/2026 : « il faut que les sites des syndicats aient eux aussi
+    une une ». Ils avaient bien un gabarit nommé « Une de journal »
+    (`_article_listing.html`), mais rendu à l'inverse de la règle du 16/08 :
+    affiche recadrée en bandeau de 460 px (`object-fit: cover`), dégradé noir à
+    82 %, titre écrit par-dessus. Cette règle avait été appliquée à l'accueil
+    confédéral et jamais à ce gabarit — qui sert cinq écrans.
+    """
+
+    def setUp(self):
+        self.conf = _ensure_section_page(slug='principal', name='CNT-SO',
+                                         site_type='main')
+        self.site = _ensure_section_page(slug='marseille', name='CNT-SO 13',
+                                         site_type='regional')
+
+    def _image(self):
+        from wagtail.images.models import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        import io
+        try:
+            from PIL import Image as PILImage
+        except ImportError:  # pragma: no cover
+            self.skipTest('Pillow absent')
+        tampon = io.BytesIO()
+        PILImage.new('RGB', (60, 60), 'red').save(tampon, format='PNG')
+        return Image.objects.create(
+            title='Affiche', file=SimpleUploadedFile('a.png', tampon.getvalue(),
+                                                     content_type='image/png'))
+
+    def _peupler(self, nombre):
+        return [
+            make_article_page(section_slug='marseille', title=f'Article {i}',
+                              slug=f'article-{i}', featured_image=self._image())
+            for i in range(nombre)
+        ]
+
+    def _accueil(self):
+        return self.client.get('/marseille/')
+
+    # ── La manchette ─────────────────────────────────────────────────────────
+
+    def test_un_accueil_de_syndicat_sert_une_manchette(self):
+        self._peupler(12)
+        r = self._accueil()
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.context['manchette_articles'],
+                        "les syndicats n'avaient que leur liste d'articles")
+
+    def test_elle_partage_le_gabarit_de_la_conf(self):
+        """Une seule définition : la recopie avait déjà fait diverger deux
+        écrans d'édition en août."""
+        self._peupler(12)
+        self.assertContains(self._accueil(), 'hp-manchette')
+
+    def test_un_syndicat_sans_article_illustre_n_affiche_pas_de_grille_vide(self):
+        make_article_page(section_slug='marseille', title='Sans image',
+                          slug='sans-image')
+        r = self._accueil()
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.context['manchette_articles'])
+
+    # ── Aucun article trois fois sur le même écran ───────────────────────────
+
+    def test_le_diaporama_et_la_manchette_ne_se_recoupent_pas(self):
+        self._peupler(12)
+        r = self._accueil()
+        diapo = {a.pk for a in r.context['carousel_articles']}
+        manch = {a.pk for a in r.context['manchette_articles']}
+        self.assertEqual(diapo & manch, set())
+
+    def test_la_liste_ne_reprend_pas_la_vitrine(self):
+        self._peupler(15)
+        r = self._accueil()
+        vitrine = ({a.pk for a in r.context['carousel_articles']}
+                   | {a.pk for a in r.context['manchette_articles']})
+        liste = {a.pk for a in r.context['articles']}
+        self.assertEqual(vitrine & liste, set(),
+                         "le même article s'affichait jusqu'à trois fois")
+
+    def test_un_syndicat_neuf_garde_sa_liste(self):
+        """Repli : avec 3 articles, tout part en vitrine. Mieux vaut répéter
+        que servir « Aucun article » sur un site qui vient d'ouvrir."""
+        self._peupler(3)
+        r = self._accueil()
+        self.assertTrue(r.context['articles'])
+
+    # ── La règle des affiches, enfin appliquée ───────────────────────────────
+
+    def test_le_titre_n_est_plus_ecrit_sur_l_affiche(self):
+        self._peupler(12)
+        self.assertNotContains(self._accueil(), 'une-hero-overlay')
+
+    def test_l_affiche_n_est_plus_recadree(self):
+        self._peupler(12)
+        html = self._accueil().content.decode()
+        debut = html.index('.une-hero-img {')
+        regle = html[debut:html.index('}', debut)]
+        self.assertIn('object-fit: contain', regle)
+        self.assertNotIn('cover', regle)
+
+    def test_les_autres_ecrans_heritent_du_meme_gabarit(self):
+        """Le correctif tient parce que le gabarit est PARTAGÉ.
+
+        Cinq écrans l'incluent : accueils de syndicat, pages de catégorie,
+        pages de tag, espace presse, `site_home`. C'est ce partage qu'il faut
+        garder — le jour où l'un d'eux se forke sa propre copie, il repartira
+        avec le voile et le recadrage.
+
+        On vérifie l'inclusion, pas le rendu : une page de catégorie sert zéro
+        article sur des fixtures neuves, et une assertion « pas de voile » y
+        passerait sans rien prouver (constaté en écrivant ce test).
+        """
+        categorie = make_cms_category(name='Droit', slug='droit',
+                                      section_slug='principal')
+        art = make_article_page(section_slug='principal', title='Un droit',
+                                slug='un-droit', featured_image=self._image())
+        art.cms_categories.add(categorie)
+        r = self.client.get('/categorie/droit/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('content/_article_listing.html',
+                      [t.name for t in r.templates if t.name])
+
+    def test_le_gabarit_partage_ne_recadre_plus_aucune_affiche(self):
+        """Le pendant du test précédent : la source du partiel, une fois pour
+        les cinq écrans. Validé par mutation — réintroduire le voile fait
+        tomber les tests d'accueil ci-dessus.
+
+        On lit les RÈGLES, pas le fichier entier : la première version de ce
+        test cherchait « object-fit: cover » n'importe où et échouait sur sa
+        propre phrase d'explication. Il a en revanche débusqué deux vrais
+        oublis — les petites cartes recadraient encore, et une hauteur fixe de
+        300 px traînait sur le bloc de tête en mobile, où elle aurait rogné
+        l'affiche ET le titre.
+        """
+        import re
+        from django.template.loader import get_template
+        source = open(get_template('content/_article_listing.html')
+                      .origin.name, encoding='utf-8').read()
+        self.assertNotIn('une-hero-overlay', source)
+        for selecteur in ('.une-hero-img {', '.une-card-img img {'):
+            with self.subTest(selecteur=selecteur):
+                debut = source.index(selecteur)
+                regle = source[debut:source.index('}', debut)]
+                self.assertIn('object-fit: contain', regle)
+                self.assertNotIn('cover', regle)
+        # Une hauteur fixe sur le conteneur rognerait l'affiche et le titre.
+        entete = source[source.index('.une-hero {'):source.index('}', source.index('.une-hero {'))]
+        self.assertNotIn('height', entete)
+
+    def test_la_conf_sert_toujours_sa_manchette(self):
+        """Non-régression : le CSS a été déplacé hors de `home.html`."""
+        for i in range(8):
+            make_article_page(section_slug='principal', title=f'Conf {i}',
+                              slug=f'conf-{i}', featured_image=self._image())
+        r = self.client.get(reverse('content:home'))
+        self.assertContains(r, 'hp-manchette')
+        self.assertContains(r, 'object-fit: contain')
+
+
+class RetirerDeLaUneNePerdRienTest(TestCase):
+    """Décocher la une ne doit jamais faire disparaître un article.
+
+    Arnaud, 31/08/2026 : « c'est cool d'éviter les doublons, mais si on
+    l'enlève du carrousel il revient en bas ? ». Question juste : depuis que
+    `get_queryset` retire la vitrine de la liste, un article mal repris nulle
+    part serait devenu invisible sur son propre site.
+    """
+
+    def setUp(self):
+        _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        _ensure_section_page(slug='m', name='CNT-SO M', site_type='regional')
+        self.arts = [self._article(i) for i in range(14)]
+
+    def _article(self, i):
+        from wagtail.images.models import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        import io
+        try:
+            from PIL import Image as PILImage
+        except ImportError:  # pragma: no cover
+            self.skipTest('Pillow absent')
+        tampon = io.BytesIO()
+        PILImage.new('RGB', (60, 60), 'red').save(tampon, format='PNG')
+        image = Image.objects.create(
+            title=f'Affiche {i}',
+            file=SimpleUploadedFile(f'a{i}.png', tampon.getvalue(),
+                                    content_type='image/png'))
+        return make_article_page(section_slug='m', title=f'A{i}', slug=f'a-{i}',
+                                 featured_image=image)
+
+    def _ou_est(self, article):
+        r = self.client.get('/m/')
+        for zone in ('carousel_articles', 'manchette_articles', 'articles'):
+            if article.pk in {a.pk for a in r.context[zone]}:
+                return zone
+        return None
+
+    def test_un_article_ancien_retire_de_la_une_redescend_dans_la_page(self):
+        ancien = self.arts[0]
+        ancien.in_carousel = True
+        ancien.save()
+        self.assertEqual(self._ou_est(ancien), 'carousel_articles')
+        ancien.in_carousel = False
+        ancien.save()
+        self.assertEqual(self._ou_est(ancien), 'articles',
+                         "l'article a disparu de son propre site")
+
+    def test_aucun_article_du_site_n_est_invisible(self):
+        """Le garde-fou de fond : la vitrine retire des articles de la liste,
+        donc la somme des trois zones doit couvrir tout ce qui est en ligne
+        sur la première page."""
+        self.arts[0].in_carousel = True
+        self.arts[0].save()
+        r = self.client.get('/m/')
+        vus = set()
+        for zone in ('carousel_articles', 'manchette_articles', 'articles'):
+            vus |= {a.pk for a in r.context[zone]}
+        # 14 articles = 5 au diaporama + 6 en manchette + 3 dans la liste.
+        # (Il n'y a pas de page 2 : la vitrine en absorbe onze, et la demander
+        # rend un 404 — ce qui a fait tomber la première version de ce test.)
+        self.assertEqual(vus, {a.pk for a in self.arts},
+                         "des articles ne sont servis nulle part")
+
+    def test_l_aide_previent_que_les_recents_y_entrent_seuls(self):
+        """Décocher un article récent ne change rien de visible : la complétion
+        automatique le remet aussitôt. La case doit le dire, sans quoi elle
+        passe pour cassée."""
+        aide = str(ArticlePage._meta.get_field('in_carousel').help_text)
+        self.assertIn('tout seuls', aide)
+        self.assertIn("n'est pas perdu", aide)
