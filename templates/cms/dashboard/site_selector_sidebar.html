@@ -1,49 +1,75 @@
+{% comment %}
+Barre « syndicat courant », injectée en tête de chaque écran du CMS par
+`insert_site_selector_js`.
+
+Elle affichait les quatorze syndicats en pastilles : 79 px sur DEUX lignes, en
+haut de tous les écrans, y compris celui où l'on écrit un article. Un menu
+déroulant tient sur une ligne et ne grandira pas quand un quinzième syndicat
+arrivera (Arnaud, 31/08/2026).
+
+Le formulaire vise `SelectSiteView`, qui lit déjà `site_id` et `next` en GET :
+la vue est reprise telle quelle. Un bouton « Changer » plutôt qu'une navigation
+au `change` du menu — au clavier, parcourir les options avec les flèches
+déclencherait un rechargement à chaque syndicat traversé.
+
+Le `next` est rempli par le JS : ce fragment est servi par
+/cms/current-site-fragment/, donc `request.path` désignerait le fragment
+lui-même et non l'écran qu'on regarde.
+
+Plus de mention « ⚠️ Aucun sélectionné » : `get_current_site` retombe
+maintenant sur la confédération, l'état n'existe plus.
+{% endcomment %}
 {% if available_sites %}
 <div id="cnt-site-bar" style="
-    display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;
+    display:flex;align-items:center;gap:.5rem;flex-wrap:nowrap;
     background:var(--w-color-surface-field);border-bottom:2px solid #E81C24;
-    padding:.4rem .8rem;font-size:.875rem;
+    padding:.35rem .8rem;font-size:.875rem;
     position:sticky;top:0;z-index:130;
 ">
-  <span style="color:var(--w-color-text-meta);white-space:nowrap;margin-right:.3rem;">Syndicat :</span>
+  <span style="color:var(--w-color-text-meta);white-space:nowrap;">Syndicat :</span>
 
-  {% for site in available_sites %}
   {% if is_chef %}
-  <a href="/cms/select-site/?site_id={{ site.pk }}" style="
-      padding:.2rem .6rem;border-radius:4px;text-decoration:none;white-space:nowrap;
-      {% if current_site and site.pk == current_site.pk %}
-        background:#E81C24;color:#fff;font-weight:600;
-      {% else %}
-        background:var(--w-color-surface-field);color:var(--w-color-text-meta);border:1px solid var(--w-color-border-furniture);
-      {% endif %}
-  ">{{ site.name }}</a>
+  <form method="get" action="/cms/select-site/"
+        style="display:flex;align-items:center;gap:.4rem;margin:0;">
+    <label for="cnt-site-select" class="w-sr-only">Changer de syndicat</label>
+    <select id="cnt-site-select" name="site_id" style="
+        background:var(--w-color-surface-page);color:var(--w-color-text-context);
+        border:1px solid var(--w-color-border-furniture);border-radius:4px;
+        font-size:.875rem;font-weight:600;padding:.1rem 1.6rem .1rem .5rem;
+        height:1.75rem;line-height:1.3;min-height:0;
+        max-width:22rem;cursor:pointer;">
+      {% for site in available_sites %}
+      <option value="{{ site.pk }}"{% if current_site and site.pk == current_site.pk %} selected{% endif %}>{{ site.name }}</option>
+      {% endfor %}
+    </select>
+    <input type="hidden" name="next" value="">
+    <button type="submit" style="
+        background:#E81C24;color:#fff;border:1px solid #E81C24;border-radius:4px;
+        font-size:.8125rem;padding:0 .7rem;height:1.75rem;line-height:1;
+        cursor:pointer;white-space:nowrap;">Changer</button>
+  </form>
   {% else %}
-  <span style="padding:.2rem .6rem;border-radius:4px;white-space:nowrap;background:#E81C24;color:#fff;font-weight:600;">{{ site.name }}</span>
-  {% endif %}
-  {% endfor %}
-
-  {% if not current_site %}
-  <span style="color:#f59e0b;font-size:.875rem;margin-left:.3rem;">⚠️ Aucun sélectionné</span>
+  <span style="padding:.2rem .6rem;border-radius:4px;white-space:nowrap;background:#E81C24;color:#fff;font-weight:600;">{{ current_site.name }}</span>
   {% endif %}
 
-  <span style="margin-left:auto;display:flex;gap:.5rem;align-items:center;">
+  <span style="margin-left:auto;display:flex;gap:.6rem;align-items:center;">
     {% if current_site %}
-    <a href="/cms/snippets/cms/articlepage/" style="color:var(--w-color-text-meta);text-decoration:none;font-size:.875rem;">📄 Articles</a>
+    <a href="/cms/snippets/cms/articlepage/" style="color:var(--w-color-text-meta);text-decoration:none;white-space:nowrap;">📄 Articles</a>
     {% comment %}
     Menus et newsletter sont gérés en autonomie par chaque syndicat : les
     vues leur sont ouvertes, les raccourcis doivent l'être aussi.
     {% endcomment %}
-    <a href="/cms/menus/" style="color:var(--w-color-text-meta);text-decoration:none;font-size:.875rem;">🗂️ Menus</a>
-    <a href="/cms/snippets/content/newsletter/" style="color:var(--w-color-text-meta);text-decoration:none;font-size:.875rem;">📧</a>
+    <a href="/cms/menus/" style="color:var(--w-color-text-meta);text-decoration:none;white-space:nowrap;">🗂️ Menus</a>
+    <a href="/cms/snippets/content/newsletter/" title="Newsletter" style="color:var(--w-color-text-meta);text-decoration:none;">📧</a>
     {% comment %}
     Renvoi vers le site public du syndicat courant. Nouvel onglet : on ne
     perd pas le travail en cours dans le CMS.
     {% endcomment %}
     <a href="{{ current_site.get_absolute_url }}" target="_blank" rel="noopener"
        title="Ouvrir {{ current_site.name }} dans un nouvel onglet"
-       style="color:var(--w-color-text-meta);text-decoration:none;font-size:.875rem;white-space:nowrap;">🌐 Voir le site</a>
+       style="color:var(--w-color-text-meta);text-decoration:none;white-space:nowrap;">🌐 Voir le site</a>
     {% endif %}
-    <a href="/cms/" style="color:var(--w-color-text-meta);text-decoration:none;font-size:.875rem;">🏠</a>
+    <a href="/cms/" title="Tableau de bord" style="color:var(--w-color-text-meta);text-decoration:none;">🏠</a>
   </span>
 </div>
 {% endif %}

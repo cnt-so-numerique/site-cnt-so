@@ -4,6 +4,7 @@ Source unique de vérité : cms.SectionPage.
 """
 import re
 
+from django.db import models
 from django.db.models import Q
 
 
@@ -58,7 +59,21 @@ def get_current_site(request):
                 return SectionPage.objects.get(pk=site_id)
             except SectionPage.DoesNotExist:
                 pass
-        return None
+        # Repli sur la confédération plutôt que « aucun syndicat ».
+        #
+        # Sans lui, un superuser ou un chef confédéral atterrissait après
+        # connexion sur un état où la barre affiche « ⚠️ Aucun sélectionné » et
+        # où les listes servent le contenu des quatorze syndicats mêlé. Aucun
+        # bouton ne ramène à cet état une fois qu'on en est sorti : il
+        # n'existait qu'au premier écran, et l'interface le signalait
+        # elle-même comme une anomalie (relevé par Arnaud, 31/08/2026).
+        #
+        # `principal` est la convention du projet pour le site confédéral,
+        # codée en dur dans les vues et les processeurs de contexte.
+        # `.first()` et non `.get()` : une base sans page `principal` — les
+        # jeux de tests qui ne créent que leur syndicat — retombe sur None,
+        # c'est-à-dire l'ancien comportement, sans lever d'exception.
+        return SectionPage.objects.filter(slug='principal').first()
 
     # Rédacteur/chef de section : groupe par section d'abord (prioritaire),
     # sinon site fixé via Author.site (FK SectionPage depuis Phase 2).
@@ -104,12 +119,30 @@ def scope_qs_slug(qs, request, slug_field='section_slug'):
     return qs.none()
 
 
+def sites_de_redaction():
+    """Les syndicats où l'on écrit — pas ceux qu'on référence.
+
+    STAA et TAS ont leur propre site (staa-cnt-so.org, cnt-tas.org). Leur fiche
+    existe chez nous pour porter l'`external_url` qui alimente le menu et le
+    cartouche « réseau » : elle ne doit surtout pas être supprimée, mais elle
+    n'est pas un endroit où rédiger. Le sélecteur les proposait quand même
+    (Arnaud, 31/08/2026).
+
+    Le critère est la donnée elle-même — un site qui renvoie ailleurs n'est pas
+    un site qu'on alimente — et non une liste de slugs à tenir à jour.
+    """
+    from cms.models import SectionPage
+    return (SectionPage.objects.filter(live=True)
+            .filter(models.Q(external_url='') | models.Q(external_url__isnull=True))
+            .order_by('title'))
+
+
 def get_available_sites(request):
     """Liste des SectionPage accessibles à cet utilisateur."""
     from cms.models import SectionPage
     user = request.user
     if _is_global_chef(user):
-        return SectionPage.objects.filter(live=True).order_by('title')
+        return sites_de_redaction()
     current = get_current_site(request)
     if current:
         return SectionPage.objects.filter(pk=current.pk)

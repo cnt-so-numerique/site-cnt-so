@@ -64,10 +64,12 @@ class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
         newsletter = get_object_or_404(Newsletter, pk=pk)
         current_site = get_current_site_for_view(request)
         if current_site is None:
-            # Un chef confédéral sans syndicat sélectionné garde la main ; pour
-            # tout autre compte, l'absence de syndicat doit refuser et non
-            # laisser passer — le mixin le garantit déjà, mais la garde doit
-            # tenir seule.
+            # Depuis le 31/08/2026 un chef global atterrit sur la confédération :
+            # ce cas ne survient plus que si la page `principal` a disparu de la
+            # base. On garde la garde plutôt que de supposer — pour tout compte
+            # qui n'est pas chef, l'absence de syndicat doit refuser et non
+            # laisser passer. Le mixin le garantit déjà ; la garde doit tenir
+            # seule.
             if not is_chef(request.user):
                 raise PermissionDenied
         elif newsletter.site != current_site:
