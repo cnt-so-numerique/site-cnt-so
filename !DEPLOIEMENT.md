@@ -120,50 +120,150 @@ sudo supervisorctl status cntso
 
 ---
 
-## ⚠️ Bascule DNS cnt-so.org → nouveau site (checklist, constat du 2026-07-02)
+## ⚠️ Bascule DNS cnt-so.org → nouveau site (état vérifié le 2026-09-02)
 
-**État actuel** : `cnt-so.org` pointe encore vers l'ancien WordPress (`5.196.74.69`,
-un autre serveur, toujours en ligne). Le site Django/Wagtail n'est public que sur
-`newsite.cnt-so.org` (`51.91.242.64`).
+### 🔴 L'ancien site est TOMBÉ — la bascule n'est plus une amélioration
 
-Le jour de la bascule (faire AVANT de changer le DNS) :
+```
+cnt-so.org        → 5.196.74.69   HTTP 500   « Database Error »
+www.cnt-so.org    → 5.196.74.69   ne répond pas
+educ.cnt-so.org   → 5.196.74.69   HTTP 500   « Database Error »
+/wp-admin/, /wp-login.php, /feed/            HTTP 500
+SSH port 22 sur 5.196.74.69                  connexion refusée
+```
 
-0. **Destinataires des formulaires de contact.** Quatre syndicats n'en ont
-   aucun et retombent sur `contact@cnt-so.org` : Marseille, Auvergne,
-   Poitiers, Rhône-Alpes. Tant que le site n'est pas public, personne ne s'en
-   aperçoit ; après la bascule, leurs messages arrivent à la confédération.
-   Détail et liens directs : `tasks/todo.md`. Vérification :
-   ```bash
-   grep 'SANS DESTINATAIRE' /var/www/cntso/logs/django.log
-   ```
+**L'adresse principale du syndicat sert une page d'erreur WordPress à tout
+visiteur** — celle qui est sur les tracts et dans les moteurs de recherche. Ce
+n'est pas la base Django : c'est la base MySQL de l'ancien WordPress.
 
-1. **ALLOWED_HOSTS prod** — le `local_settings.py` du serveur rejette actuellement
-   le Host `cnt-so.org` (erreur 400). Ajouter dans
-   `/var/www/cntso/cntso/local_settings.py` :
-   ```python
-   ALLOWED_HOSTS = ['cnt-so.org', 'www.cnt-so.org', 'newsite.cnt-so.org', '51.91.242.64']
-   ```
+Conséquences :
+- l'administration WP est inaccessible (`wp-login.php` répond 500) : **les
+  articles publiés là-bas depuis mars sont enfermés**, ni consultables ni
+  exportables tant que l'hébergeur ne relance pas la base ;
+- le point 5 ci-dessous — « garder l'ancien serveur accessible en lecture » —
+  **est caduc**, il n'y a plus rien à lire ;
+- basculer le DNS **répare cnt-so.org pour le public**, indépendamment de la
+  récupération des articles.
 
-2. **nginx** — élargir le `server_name` du vhost cntso
-   (`/etc/nginx/sites-enabled/cntso`) :
-   ```
-   server_name cnt-so.org www.cnt-so.org newsite.cnt-so.org 51.91.242.64;
-   ```
+### 🔴 DEUX BLOQUANTS À RÉGLER AVANT DE TOUCHER AU DNS
 
-3. **Certificat TLS** — obtenir un certificat pour `cnt-so.org` + `www.cnt-so.org`
-   (certbot). Attention : tant que le DNS pointe ailleurs, la validation HTTP
-   échouera → utiliser la validation DNS, ou refaire le certbot juste après la
-   bascule DNS.
+**A. 346 fichiers legacy servis par l'ancien serveur.**
 
-4. **Basculer le DNS** : `cnt-so.org` (A) et `www` → `51.91.242.64`.
+Contrairement à ce que laissait croire l'erreur 500, **Apache sert toujours les
+fichiers statiques** de l'ancien serveur : seules PHP et MySQL sont à terre. Une
+image legacy répond aujourd'hui en 200 (vérifié : 52 906 octets).
 
-5. **Après bascule** :
-   - `sudo supervisorctl restart cntso` puis vérifier `https://cnt-so.org/` (200)
-     et `https://cnt-so.org/cms/` (302 vers login) ;
-   - vérifier le header `Strict-Transport-Security` (déjà actif, 30 jours) ;
-   - garder l'ancien serveur WordPress accessible en lecture quelque temps
-     (redirections legacy, `wp-content/uploads` encore référencé par les
-     images non importées).
+```
+273 contenus EN LIGNE référencent cnt-so.org/wp-content/uploads/
+346 URL distinctes : 132 png · 130 jpg · 78 pdf · 6 odt
+répartition : 13 (178) · education (66) · auvergne (14)
+              rhone-alpes (12) · principal (2) · poitiers (1)
+```
+
+Ces URL pointent `cnt-so.org`. **Le jour où ce nom pointera sur 51.91.242.64,
+les 346 fichiers disparaîtront** — le nouveau serveur ne les a pas. Images
+cassées et PDF morts sur 273 contenus en ligne.
+
+Trois issues possibles, à trancher :
+1. **Rapatrier les 346 fichiers** par HTTP (ils répondent encore) et les servir
+   depuis nginx sur le nouveau serveur — le plus sûr, et faisable tout de suite
+   sans accès SSH à l'ancien ;
+2. réécrire les URL dans les contenus vers les images déjà importées dans
+   Wagtail, quand l'équivalent existe ;
+3. garder un nom dédié (`old.cnt-so.org`) pointant sur 5.196.74.69 et réécrire
+   les URL — dépend de la survie d'un serveur en panne.
+
+⚠️ L'ancienne note disait « garder l'ancien serveur accessible en lecture ».
+C'est insuffisant : ce n'est pas l'accès qui manquera, c'est **le nom de
+domaine**, qui aura changé de machine.
+
+**B. Une double barre oblique casse le nom d'hôte** (`cntso/middleware.py:85`).
+
+```
+/13/wp-content/…    → https://13.cnt-so.org/wp-content/…     correct
+//13/wp-content/…   → https://13.cnt-so.org3/wp-content/…    hôte inexistant
+```
+
+```python
+seg  = path.lstrip('/').split('/', 1)[0]   # "//13/x" → seg = "13"
+rest = path[len(seg) + 1:]                 # path[3:] = "3/x"  ← décalage
+```
+
+`len(seg) + 1` suppose une seule barre en tête. Or **les 346 URL legacy
+contiennent précisément `cnt-so.org//13/…`** — avec la double barre. Après la
+bascule, elles tomberaient donc sur un hôte malformé, en plus d'être absentes.
+
+Sans effet aujourd'hui : personne n'atteint `newsite.cnt-so.org//13/…`. Le
+défaut ne se réveille qu'à la bascule.
+
+### État de chaque prérequis, mesuré sur le serveur
+
+| Point | État au 2026-09-02 |
+|---|---|
+| `ALLOWED_HOSTS` | `['51.91.242.64', 'newsite.cnt-so.org']` + les 7 `FEDERATION_DOMAINS`. **Manquent `cnt-so.org`, `www.cnt-so.org`, `educ.cnt-so.org`** |
+| `MAIN_SITE_BASE_URL` | `https://newsite.cnt-so.org` — à passer à `https://cnt-so.org` |
+| nginx `server_name` | 8 noms (newsite + 6 fédérations + IP). **Mêmes 3 manquants** |
+| Certificat `newsite.cnt-so.org` | 8 noms. **Mêmes 3 manquants.** Expire le **2026-10-15** |
+| `FEDERATION_DOMAINS` | 7 domaines dans supervisor. **`educ.cnt-so.org` absent** |
+| Formulaires de contact | 7 syndicats sur 8 ont leur adresse. **Seul le 34 (Hérault) retombe sur `contact@cnt-so.org`** — normal, syndicat en attente |
+| hCaptcha | à vérifier dans le tableau de bord (hors de portée depuis le serveur) |
+
+⚠️ **Piège relevé** : `local_settings.py` ligne 7 **écrase** l'`ALLOWED_HOSTS` de
+`settings.py`, qui contenait déjà `cnt-so.org` et `www.cnt-so.org`. Les y remettre
+dans `settings.py` ne suffirait donc pas — c'est `local_settings.py` qu'il faut
+modifier.
+
+### Le jour de la bascule
+
+**1. `local_settings.py` du serveur** (`/var/www/cntso/cntso/local_settings.py`) :
+```python
+ALLOWED_HOSTS = ['cnt-so.org', 'www.cnt-so.org', 'educ.cnt-so.org',
+                 'newsite.cnt-so.org', '51.91.242.64']
+MAIN_SITE_BASE_URL = 'https://cnt-so.org'
+```
+
+**2. supervisor** — ajouter `educ.cnt-so.org` à `FEDERATION_DOMAINS`
+(`/etc/supervisor/conf.d/cntso.conf`), puis `sudo supervisorctl reread &&
+sudo supervisorctl update`.
+
+**3. nginx** — les DEUX blocs (80 et 443) de `/etc/nginx/sites-enabled/cntso` :
+```
+server_name 51.91.242.64 cnt-so.org www.cnt-so.org educ.cnt-so.org
+            newsite.cnt-so.org stucs.cnt-so.org 34.cnt-so.org
+            numerique.cnt-so.org 13.cnt-so.org 86.cnt-so.org
+            auvergne.cnt-so.org rhone-alpes.cnt-so.org;
+```
+
+**4. DNS** (zone `cnt-so.org` chez OVH) : `cnt-so.org` (A), `www` et `educ`
+→ `51.91.242.64`.
+
+**5. Certificat, APRÈS le DNS** — la validation HTTP échoue tant que le nom
+pointe ailleurs. Repasser **tous** les noms, jamais le nouveau seul :
+```bash
+sudo certbot --nginx --cert-name newsite.cnt-so.org --expand -n \
+  -d newsite.cnt-so.org -d cnt-so.org -d www.cnt-so.org -d educ.cnt-so.org \
+  -d 13.cnt-so.org -d 34.cnt-so.org -d 86.cnt-so.org -d auvergne.cnt-so.org \
+  -d numerique.cnt-so.org -d rhone-alpes.cnt-so.org -d stucs.cnt-so.org
+```
+
+**6. hCaptcha** — ajouter `cnt-so.org` et `educ.cnt-so.org` dans le tableau de
+bord, sinon tous les formulaires publics refusent l'envoi.
+
+**7. Vérifications** :
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" https://cnt-so.org/          # 200
+curl -s -o /dev/null -w "%{http_code}\n" https://cnt-so.org/cms/      # 302
+curl -s -o /dev/null -w "%{http_code}\n" https://educ.cnt-so.org/     # 200
+curl -sI https://cnt-so.org/ | grep -i strict-transport                # HSTS
+curl -s https://cnt-so.org/sitemap.xml | grep -c "<loc>"               # ~816
+```
+
+### Ce que la bascule répare toute seule
+
+- **`cnt-so.org`** cesse de servir une page d'erreur ;
+- `educ.cnt-so.org` sert le site Wagtail et **remplace l'ancien Éducation** ;
+- l'entrée de menu « Liens CNT-SO » du site Éducation, qui pointe
+  `https://cnt-so.org` et donne aujourd'hui un 500, redevient valide.
 
 Note : les redirections WordPress (`/YYYY/MM/slug/`) sont déjà gérées côté Django
 par `WordPressRedirectView`.

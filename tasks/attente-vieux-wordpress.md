@@ -1,5 +1,25 @@
 # En attente — vieux serveur WordPress (5.196.74.69)
 
+## Mise à jour du 2026-09-02 — mesuré, pas supposé
+
+```
+cnt-so.org · educ.cnt-so.org        HTTP 500  « Database Error »
+/wp-admin/ · /wp-login.php · /feed/ HTTP 500
+SSH port 22                          connexion refusée
+wp-content/uploads/<fichier>        HTTP 200  ← LES FICHIERS RÉPONDENT
+```
+
+**Nuance capitale** : Apache sert toujours les fichiers statiques. Seuls PHP et
+MySQL sont morts. On ne peut donc ni se connecter, ni exporter les articles —
+mais on peut **encore télécharger les 346 fichiers legacy** (132 png, 130 jpg,
+78 pdf, 6 odt) référencés par 273 contenus en ligne.
+
+👉 **À faire sans attendre la remise en route** : les rapatrier par HTTP tant
+qu'ils répondent. Après la bascule DNS, `cnt-so.org` désignera le nouveau
+serveur et ils deviendront inatteignables — voir le bloquant A de
+`!DEPLOIEMENT.md`. C'est une fenêtre qui peut se refermer sans prévenir.
+
+
 **Situation (constat 2026-07-12)** : le vieux serveur WordPress est en panne —
 erreur « Database Connection » sur tous les sites (cnt-so.org, educ.cnt-so.org),
 SSH refusé (port 22). Un copain doit le relancer (MySQL a priori).
