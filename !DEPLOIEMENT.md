@@ -145,9 +145,9 @@ Conséquences :
 - basculer le DNS **répare cnt-so.org pour le public**, indépendamment de la
   récupération des articles.
 
-### 🔴 DEUX BLOQUANTS À RÉGLER AVANT DE TOUCHER AU DNS
+### 🔴 UN BLOQUANT À RÉGLER AVANT DE TOUCHER AU DNS
 
-**A. 346 fichiers legacy servis par l'ancien serveur.**
+**LE bloquant : 346 fichiers legacy servis par l'ancien serveur.**
 
 Contrairement à ce que laissait croire l'erreur 500, **Apache sert toujours les
 fichiers statiques** de l'ancien serveur : seules PHP et MySQL sont à terre. Une
@@ -177,7 +177,9 @@ Trois issues possibles, à trancher :
 C'est insuffisant : ce n'est pas l'accès qui manquera, c'est **le nom de
 domaine**, qui aura changé de machine.
 
-**B. Une double barre oblique casse le nom d'hôte** (`cntso/middleware.py:85`).
+### Défaut annexe, PAS un bloquant : la double barre oblique
+
+(`cntso/middleware.py:85`)
 
 ```
 /13/wp-content/…    → https://13.cnt-so.org/wp-content/…     correct
@@ -193,8 +195,25 @@ rest = path[len(seg) + 1:]                 # path[3:] = "3/x"  ← décalage
 contiennent précisément `cnt-so.org//13/…`** — avec la double barre. Après la
 bascule, elles tomberaient donc sur un hôte malformé, en plus d'être absentes.
 
-Sans effet aujourd'hui : personne n'atteint `newsite.cnt-so.org//13/…`. Le
-défaut ne se réveille qu'à la bascule.
+**Ce n'est pas un bloquant, contrairement à ce que j'avais écrit** (corrigé le
+02/09/2026, Arnaud : « ça c'est pas grave non ? »). Les deux défauts mènent au
+même écran :
+
+```
+avec le bug     cnt-so.org//13/…  →  13.cnt-so.org3/…   hôte inexistant
+sans le bug     cnt-so.org//13/…  →  13.cnt-so.org/…    404, le fichier n'y est pas
+```
+
+Le corriger transforme une redirection absurde en un 404 propre — l'image reste
+cassée. **C'est le bloquant ci-dessus qui compte**, et il est indépendant.
+
+Mieux : si on sert `/wp-content/uploads/` depuis nginx sur le nouveau serveur,
+**ce défaut devient sans objet** — nginx répond avant Django, le middleware ne
+tourne pas.
+
+À corriger quand même, comme hygiène et non comme étape de bascule : une
+redirection vers un domaine inventé fera perdre une heure à quelqu'un dans six
+mois. Cinq lignes et un test.
 
 ### État de chaque prérequis, mesuré sur le serveur
 
