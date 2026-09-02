@@ -893,10 +893,22 @@ def _send_contact_email(site, message_obj):
     lines += ['', message_obj.message]
 
     safe_name = nom_complet.replace('\n', ' ').replace('\r', ' ')
+    # `parseaddr` et non `DEFAULT_FROM_EMAIL` tel quel : ce réglage vaut déjà
+    # « CNT-SO <newsletter@cnt-so.org> », nom d'affichage compris. L'insérer
+    # entre chevrons produisait des chevrons imbriqués —
+    #     Arnaud via CNT-SO confédération <CNT-SO <newsletter@cnt-so.org>>
+    # — que Django refuse avec « ValueError: Invalid address ». AUCUN message
+    # de contact ne pouvait donc partir, depuis la mise en place de ce
+    # « Untel via Syndicat » le 26/08/2026. Le défaut est resté invisible deux
+    # semaines parce qu'hCaptcha bloquait les formulaires en amont : personne
+    # n'atteignait cette ligne (constaté le 02/09/2026, sur le premier message
+    # jamais reçu).
+    from email.utils import parseaddr
+    _, adresse_expedition = parseaddr(settings.DEFAULT_FROM_EMAIL)
     email = EmailMultiAlternatives(
         subject=subject,
         body='\n'.join(lines),
-        from_email=f'{safe_name} via {site_name} <{settings.DEFAULT_FROM_EMAIL}>',
+        from_email=f'{safe_name} via {site_name} <{adresse_expedition}>',
         to=[recipient],
         reply_to=[message_obj.email],
     )
@@ -910,6 +922,14 @@ def _send_contact_email(site, message_obj):
     try:
         partis = email.send(fail_silently=True)
     except Exception:
+        # `logger.exception` et non un `pass` muet : le 02/09/2026, le journal
+        # disait « NON REMIS » sans jamais dire pourquoi, et il a fallu
+        # reproduire l'envoi à la main pour découvrir un en-tête malformé.
+        # La cause doit être dans le journal, pas dans la tête de qui cherche.
+        logger.exception(
+            "Message de contact n° %s : l'envoi a levé une exception",
+            message_obj.pk,
+        )
         partis = 0
     if not partis:
         logger.error(

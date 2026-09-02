@@ -8633,3 +8633,89 @@ class RetirerDeLaUneNePerdRienTest(TestCase):
         aide = str(ArticlePage._meta.get_field('in_carousel').help_text)
         self.assertIn('tout seuls', aide)
         self.assertIn("n'est pas perdu", aide)
+
+
+class EnteteExpediteurValideTest(TestCase):
+    """L'en-tête « De » du message de contact doit être une adresse valide.
+
+    Le 26/08/2026, l'expéditeur est devenu « Untel via Syndicat <…> » pour que
+    le destinataire sache d'où vient le message. Mais l'adresse insérée était
+    `DEFAULT_FROM_EMAIL`, qui vaut déjà « CNT-SO <newsletter@cnt-so.org> » —
+    nom d'affichage compris. D'où des chevrons imbriqués :
+
+        Arnaud via CNT-SO confédération <CNT-SO <newsletter@cnt-so.org>>
+
+    Django refuse cette adresse (`ValueError: Invalid address`). **Aucun
+    message de contact ne pouvait donc partir pendant deux semaines**, et le
+    défaut est resté invisible parce qu'hCaptcha bloquait les formulaires en
+    amont : personne n'atteignait cette ligne. Découvert le 02/09/2026 sur le
+    tout premier message jamais reçu.
+    """
+
+    def setUp(self):
+        self.site = make_site(slug='principal', name='CNT-SO confédération')
+        self.site.contact_email = 'contact@cnt-so.org'
+        self.site.save(update_fields=['contact_email'])
+
+    def _message(self, nom='Arnaud', prenom='D'):
+        from content.models import ContactMessage
+        return ContactMessage.objects.create(
+            site=self.site, name=nom, first_name=prenom,
+            email='visiteur@example.org', subject='Objet', message='Bonjour')
+
+    @override_settings(DEFAULT_FROM_EMAIL='CNT-SO <newsletter@cnt-so.org>')
+    def test_l_expediteur_est_une_adresse_acceptee(self):
+        """Le contrôle qui aurait attrapé le défaut : Django valide l'adresse
+        à la construction du message, avant tout envoi."""
+        from django.core import mail
+        from content.views import _send_contact_email
+        self.assertTrue(_send_contact_email(self.site, self._message()))
+        self.assertEqual(len(mail.outbox), 1)
+        from email.utils import parseaddr
+        nom, adresse = parseaddr(mail.outbox[0].from_email)
+        self.assertEqual(adresse, 'newsletter@cnt-so.org')
+        self.assertNotIn('<', nom, "des chevrons imbriqués dans le nom")
+
+    @override_settings(DEFAULT_FROM_EMAIL='CNT-SO <newsletter@cnt-so.org>')
+    def test_le_nom_de_l_expediteur_reste_lisible(self):
+        """On ne corrige pas en supprimant l'information : le destinataire doit
+        toujours voir de qui vient le message."""
+        from django.core import mail
+        from content.views import _send_contact_email
+        _send_contact_email(self.site, self._message(nom='Dupont', prenom='Marie'))
+        expediteur = mail.outbox[0].from_email
+        self.assertIn('Marie', expediteur)
+        self.assertIn('Dupont', expediteur)
+        self.assertIn('CNT-SO confédération', expediteur)
+
+    @override_settings(DEFAULT_FROM_EMAIL='sansnom@cnt-so.org')
+    def test_marche_aussi_si_le_reglage_est_une_adresse_nue(self):
+        """`parseaddr` rend l'adresse telle quelle quand il n'y a pas de nom."""
+        from django.core import mail
+        from content.views import _send_contact_email
+        _send_contact_email(self.site, self._message())
+        from email.utils import parseaddr
+        _, adresse = parseaddr(mail.outbox[0].from_email)
+        self.assertEqual(adresse, 'sansnom@cnt-so.org')
+
+    @override_settings(DEFAULT_FROM_EMAIL='CNT-SO <newsletter@cnt-so.org>')
+    def test_la_reponse_va_bien_au_visiteur(self):
+        """Non-régression : l'expéditeur est le site, mais « Répondre » doit
+        écrire à la personne qui a rempli le formulaire."""
+        from django.core import mail
+        from content.views import _send_contact_email
+        _send_contact_email(self.site, self._message())
+        self.assertEqual(mail.outbox[0].reply_to, ['visiteur@example.org'])
+
+    @override_settings(DEFAULT_FROM_EMAIL='CNT-SO <newsletter@cnt-so.org>')
+    def test_un_echec_d_envoi_dit_pourquoi_dans_le_journal(self):
+        """Le journal disait « NON REMIS » sans la cause : il a fallu
+        reproduire l'envoi à la main pour trouver l'en-tête malformé."""
+        from unittest.mock import patch
+        from content.views import _send_contact_email
+        with patch('content.views.EmailMultiAlternatives.send',
+                   side_effect=ValueError('adresse invalide')):
+            with self.assertLogs('content.views', level='ERROR') as journal:
+                self.assertFalse(_send_contact_email(self.site, self._message()))
+        trace = '\n'.join(journal.output)
+        self.assertIn('adresse invalide', trace)
