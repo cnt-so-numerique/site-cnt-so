@@ -145,9 +145,23 @@ Conséquences :
 - basculer le DNS **répare cnt-so.org pour le public**, indépendamment de la
   récupération des articles.
 
-### 🔴 UN BLOQUANT À RÉGLER AVANT DE TOUCHER AU DNS
+### ✅ BLOQUANT LEVÉ le 02/09/2026 — les 346 fichiers sont rapatriés
 
-**LE bloquant : 346 fichiers legacy servis par l'ancien serveur.**
+Les 346 fichiers (127 Mo) ont été téléchargés depuis l'ancien serveur tant
+qu'il répondait, et sont servis par nginx depuis `/var/www/cntso/legacy/`,
+arborescence identique. **Aucune URL n'a été réécrite dans les articles** : les
+mêmes adresses fonctionnent, servies par la nouvelle machine.
+
+Vérifié : les 346 URL répondent 200 sur `newsite.cnt-so.org`. Effet de bord
+heureux — nginx répondant avant Django, le défaut de la double barre oblique
+est sans objet sur ces chemins (`//13/…` répond 200).
+
+Règle nginx ajoutée : `location ~ wp-content/uploads/ { root /var/www/cntso/legacy; }`
+Sauvegardes : `/etc/nginx/sites-enabled/cntso.avant-legacy-*`
+
+#### Le constat qui l'avait motivé
+
+**346 fichiers legacy n'existaient que sur l'ancien serveur.**
 
 Contrairement à ce que laissait croire l'erreur 500, **Apache sert toujours les
 fichiers statiques** de l'ancien serveur : seules PHP et MySQL sont à terre. Une
@@ -219,11 +233,15 @@ mois. Cinq lignes et un test.
 
 | Point | État au 2026-09-02 |
 |---|---|
-| `ALLOWED_HOSTS` | `['51.91.242.64', 'newsite.cnt-so.org']` + les 7 `FEDERATION_DOMAINS`. **Manquent `cnt-so.org`, `www.cnt-so.org`, `educ.cnt-so.org`** |
-| `MAIN_SITE_BASE_URL` | `https://newsite.cnt-so.org` — à passer à `https://cnt-so.org` |
-| nginx `server_name` | 8 noms (newsite + 6 fédérations + IP). **Mêmes 3 manquants** |
-| Certificat `newsite.cnt-so.org` | 8 noms. **Mêmes 3 manquants.** Expire le **2026-10-15** |
-| `FEDERATION_DOMAINS` | 7 domaines dans supervisor. **`educ.cnt-so.org` absent** |
+| `ALLOWED_HOSTS` | ✅ **fait le 02/09** — les 3 noms ajoutés dans `local_settings.py` |
+| `FEDERATION_DOMAINS` | ✅ **fait le 02/09** — `educ.cnt-so.org` ajouté dans supervisor |
+| nginx `server_name` | ✅ **fait le 02/09** — les 3 noms ajoutés aux DEUX blocs |
+| Fichiers legacy | ✅ **fait le 02/09** — 346 fichiers servis par la nouvelle machine |
+| `MAIN_SITE_BASE_URL` | ⬜ `https://newsite.cnt-so.org`. **À NE PAS changer d'avance** : il alimente les URL canoniques, et les faire pointer vers un domaine en panne serait vu des moteurs de recherche. Le jour J. |
+| `custom_domain` de l'Éducation | ⬜ **À NE PAS poser d'avance** : redirigerait `/education/` vers un domaine mort. Le jour J. |
+| Certificat `newsite.cnt-so.org` | ⬜ 8 noms, expire le **2026-10-15**. Les 3 noms manquants, **après** le DNS |
+| DNS chez OVH | ⬜ `cnt-so.org`, `www`, `educ` → `51.91.242.64` |
+| hCaptcha | ⬜ ajouter `cnt-so.org` et `educ.cnt-so.org` au tableau de bord |
 | Formulaires de contact | 7 syndicats sur 8 ont leur adresse. **Seul le 34 (Hérault) retombe sur `contact@cnt-so.org`** — normal, syndicat en attente |
 | hCaptcha | à vérifier dans le tableau de bord (hors de portée depuis le serveur) |
 

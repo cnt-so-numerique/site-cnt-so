@@ -15,7 +15,7 @@ django-stubs-ext==6.0.5
 django-taggit==6.1.0
 django-tasks==0.12.0
 django-treebeard==5.1.0
-djangorestframework==3.17.1
+djangorestframework==3.17.2
 draftjs_exporter==5.2.0
 et_xmlfile==2.0.0
 feedparser==6.0.14
