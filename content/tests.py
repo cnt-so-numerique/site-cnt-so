@@ -681,13 +681,22 @@ class ArticleDetailViewTest(TestCase):
         response = self.client.get(url)
         self.assertIn('is_gallery', response.context)
 
-    def test_fallback_to_global_when_not_on_principal(self):
-        """Un article hors du site principal est trouvé via /article/<slug>/."""
+    def test_un_article_hors_conf_est_renvoye_chez_son_syndicat(self):
+        """L'adresse de la conf ne sert plus le contenu d'un syndicat.
+
+        Elle le faisait — et par un `get_object_or_404` sur un champ non
+        unique, qui rendait un **500** dès que deux syndicats partageaient le
+        slug : 43 adresses dans ce cas en production (03/09/2026). Même
+        correction que pour les catégories le 01/09 : on redirige vers le
+        syndicat propriétaire.
+        """
         make_site('other', wp_blog_id=2, site_type='regional', name='Other')
-        art = make_article_page(section_slug='other', title='Other Art', slug='other-art-fallback')
+        art = make_article_page(section_slug='other', title='Other Art',
+                                slug='other-art-fallback')
         url = reverse('content:article_detail', kwargs={'slug': 'other-art-fallback'})
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], art.get_absolute_url())
 
 
 class SiteHomeViewTest(TestCase):
@@ -9013,3 +9022,76 @@ class ListeEnBandesTest(TestCase):
     def test_la_liste_vide_le_dit(self):
         r = self.client.get('/marseille/')
         self.assertContains(r, 'Aucun article pour le moment')
+
+
+class ArticleSlugPartageTest(TestCase):
+    """`/article/<slug>/` rendait un 500 quand deux syndicats partagent un slug.
+
+    `get_object_or_404(ArticlePage, slug=slug)` lève `MultipleObjectsReturned`
+    sur un champ qui n'est pas unique. Mesuré en production le 03/09/2026 :
+    **241 slugs en double, dont 43 rendaient une erreur serveur**, depuis le
+    26 août au moins.
+
+    Exactement le défaut des flux de catégorie corrigé le 01/09 — un
+    `get_object_or_404` sur un champ non unique — dans un autre coin du code.
+    """
+
+    def setUp(self):
+        self.conf = make_site(slug='principal', name='CNT-SO confédération')
+        self.treize = _ensure_section_page(slug='marseille', name='CNT-SO 13')
+        self.auvergne = _ensure_section_page(slug='auvergne', name='CNT-SO Auvergne')
+
+    def _article(self, section, titre, slug):
+        """Sous la SectionPage du syndicat, comme en production.
+
+        Wagtail refuse deux pages de même slug sous le MÊME parent : les
+        doublons de production n'existent que parce que chaque article vit sous
+        la fiche de son syndicat. La factory commune, elle, range tout sous une
+        HomePage unique — d'où un `ValidationError` si on l'emploie ici.
+        """
+        from cms.models import ArticlePage
+        return section.add_child(instance=ArticlePage(
+            title=titre, slug=slug, section_slug=section.slug, live=True))
+
+    def test_un_slug_partage_par_deux_syndicats_ne_leve_plus_500(self):
+        self._article(self.treize, 'Grève', 'greve')
+        self._article(self.auvergne, 'Grève', 'greve')
+        r = self.client.get('/article/greve/')
+        self.assertEqual(r.status_code, 302)
+
+    def test_il_est_renvoye_chez_son_syndicat(self):
+        a = self._article(self.treize, 'Grève', 'greve')
+        b = self._article(self.auvergne, 'Grève', 'greve')
+        r = self.client.get('/article/greve/')
+        self.assertIn(r['Location'], {a.get_absolute_url(), b.get_absolute_url()})
+
+    def test_l_article_de_la_conf_prime_et_est_servi(self):
+        """Non-régression : si la conf a ce slug, elle le sert, sans redirection."""
+        self._article(self.conf, 'Grève conf', 'greve')
+        self._article(self.treize, 'Grève 13', 'greve')
+        r = self.client.get('/article/greve/')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.context['article'].section_slug, 'principal')
+
+    def test_le_choix_est_stable_d_une_requete_a_l_autre(self):
+        """Sans tri, `.first()` rendait un résultat au hasard de la base."""
+        self._article(self.treize, 'A', 'greve')
+        self._article(self.auvergne, 'B', 'greve')
+        cibles = {self.client.get('/article/greve/')['Location'] for _ in range(4)}
+        self.assertEqual(len(cibles), 1)
+
+    def test_un_syndicat_depublie_ne_sert_pas_de_destination(self):
+        ferme = _ensure_section_page(slug='ferme-art', name='Fermé', live=False)
+        self._article(ferme, 'Cachée', 'cachee')
+        self.assertEqual(self.client.get('/article/cachee/').status_code, 404)
+
+    def test_un_slug_inconnu_reste_un_404(self):
+        self.assertEqual(self.client.get('/article/nexiste-pas/').status_code, 404)
+
+    def test_un_seul_article_de_syndicat_redirige_aussi(self):
+        """Même sans doublon : l'adresse de la conf ne sert pas le contenu
+        d'un syndicat sous l'identité de la conf."""
+        a = self._article(self.treize, 'Seule', 'seule')
+        r = self.client.get('/article/seule/')
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r['Location'], a.get_absolute_url())

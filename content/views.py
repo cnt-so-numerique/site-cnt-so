@@ -416,17 +416,42 @@ class ArticleDetailView(DetailView):
     template_name = 'content/article_detail.html'
     context_object_name = 'article'
 
+    def get(self, request, *args, **kwargs):
+        """Une adresse de la conf ne sert que les articles de la conf.
+
+        `get_object_or_404(ArticlePage, slug=slug)` levait
+        `MultipleObjectsReturned` — donc un **500** — dès que deux syndicats
+        emploient le même slug. Relevé dans les journaux le 03/09/2026 :
+        241 slugs en double, dont **43 rendaient une erreur serveur**, et cela
+        depuis le 26 août au moins.
+
+        Même famille que les flux de catégorie corrigés le 01/09, et même
+        remède : on renvoie le lecteur chez le syndicat propriétaire plutôt que
+        de deviner. **302 et non 301** — un article peut être repris par la
+        confédération, et un 301 resterait gravé dans les navigateurs.
+        """
+        # `SiteArticleDetailView` HÉRITE de cette vue pour servir
+        # `/<syndicat>/<slug>/`. Elle a son propre cadrage — et sans cette
+        # garde, ma correction la détournait : 17 tests sont tombés d'un coup
+        # (03/09/2026). Le repli ne vaut que pour l'adresse confédérale.
+        if 'site_slug' in kwargs:
+            return super().get(request, *args, **kwargs)
+
+        slug = kwargs['slug']
+        self.article_conf = (ArticlePage.objects.live()
+                             .filter(slug=slug, section_slug='principal')
+                             .select_related('featured_image').first())
+        if self.article_conf is None:
+            ailleurs = ArticlePage.dun_syndicat_publie(slug)
+            if ailleurs is None:
+                raise Http404(f"Aucun article « {slug} » à la confédération")
+            return redirect(ailleurs.get_absolute_url())
+        return super().get(request, *args, **kwargs)
+
     def get_object(self, queryset=None):
-        slug = self.kwargs['slug']
-        article = (ArticlePage.objects.live()
-                   .filter(slug=slug, section_slug='principal')
-                   .select_related('featured_image').first())
-        if not article:
-            article = get_object_or_404(
-                ArticlePage.objects.live().select_related('featured_image'),
-                slug=slug,
-            )
-        return article
+        if getattr(self, 'article_conf', None) is None:
+            raise Http404
+        return self.article_conf
 
     def get_queryset(self):
         return ArticlePage.objects.live().select_related('featured_image')

@@ -1285,6 +1285,34 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
     legacy_article_id = models.IntegerField(null=True, blank=True, db_index=True)
     legacy_wp_id = models.IntegerField(null=True, blank=True)
 
+    @staticmethod
+    def dun_syndicat_publie(slug):
+        """L'article d'un syndicat PUBLIÉ portant ce slug, le plus récent.
+
+        Sert le repli de l'adresse confédérale `/article/<slug>/`. Elle
+        appelait `get_object_or_404(..., slug=slug)`, qui lève
+        `MultipleObjectsReturned` — donc un **500** — dès que deux syndicats
+        emploient le même slug. Mesuré en production le 03/09/2026 :
+        **241 slugs en double, dont 43 rendaient une erreur serveur**, et cela
+        depuis le 26 août au moins.
+
+        Même défaut que les flux de catégorie corrigés le 01/09 : un
+        `get_object_or_404` sur un champ non unique.
+
+        Le plus récent d'abord, `section_slug` en second critère : le choix
+        doit être le même d'une requête à l'autre.
+        """
+        publies = set()
+        for section in SectionPage.objects.filter(live=True):
+            publies.update(section.slugs_contenu)
+        conf = SectionPage.objects.filter(slug='principal').first()
+        slugs_conf = set(conf.slugs_contenu) if conf else {'principal'}
+        return (ArticlePage.objects.live()
+                .filter(slug=slug, section_slug__in=publies - slugs_conf)
+                .select_related('featured_image')
+                .order_by('-publication_date', '-first_published_at', 'section_slug')
+                .first())
+
     search_fields = Page.search_fields + [
         index.SearchField('body'),
         index.SearchField('excerpt'),
