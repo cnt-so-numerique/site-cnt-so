@@ -370,6 +370,43 @@ CSRF_TRUSTED_ORIGINS += [
     if o not in CSRF_TRUSTED_ORIGINS
 ]
 
+# ── Base PostgreSQL pour l'intégration continue ───────────────────────────────
+# Les tests tournent sur SQLite en développement, la production sur PostgreSQL.
+# Cet écart n'est pas cosmétique : un tri décroissant place les NULL EN TÊTE en
+# PostgreSQL et EN QUEUE en SQLite. Trois articles d'essai sans date se sont
+# ainsi retrouvés aux trois premières places du flux RSS du STUCS, sans qu'aucun
+# test ne le voie (15/08/2026).
+#
+# Posé APRÈS l'import de `local_settings` pour primer en CI, où ce fichier
+# n'existe pas. En production, `local_settings.py` définit déjà PostgreSQL et
+# `CI_POSTGRES` n'y est pas : ce bloc y reste inerte.
+if _os.environ.get('CI_POSTGRES'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': _os.environ.get('POSTGRES_DB', 'cntso_ci'),
+            'USER': _os.environ.get('POSTGRES_USER', 'cntso'),
+            'PASSWORD': _os.environ.get('POSTGRES_PASSWORD', 'cntso'),
+            'HOST': _os.environ.get('POSTGRES_HOST', '127.0.0.1'),
+            'PORT': _os.environ.get('POSTGRES_PORT', '5432'),
+        }
+    }
+
+
+# PostgreSQL exige `django.contrib.postgres` : l'index de recherche de Wagtail
+# (`wagtailsearch.IndexEntry`) utilise SearchVectorField et GinIndex, que Django
+# refuse sans cette application — six erreurs `postgres.E005` et le site ne
+# démarre pas.
+#
+# La production l'avait, mais par `local_settings.py`, un fichier non versionné :
+# `settings.py` seul ne savait donc pas tourner sur la base de production. Le
+# défaut est apparu en montant l'intégration continue (03/09/2026), qui n'a pas
+# ce fichier. Piloté par le moteur, il vaut désormais pour les deux.
+if DATABASES['default']['ENGINE'].endswith('postgresql'):
+    if 'django.contrib.postgres' not in INSTALLED_APPS:
+        INSTALLED_APPS = list(INSTALLED_APPS) + ['django.contrib.postgres']
+
+
 # ── Durcissement production ────────────────────────────────────────────────────
 # Après l'import de local_settings pour connaître la valeur finale de DEBUG.
 if not DEBUG:

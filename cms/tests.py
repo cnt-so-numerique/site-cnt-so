@@ -2700,10 +2700,11 @@ class OrdreHierarchiqueCategoriesTest(TestCase):
     def _ordre(self):
         from django.db.models.functions import Coalesce
         from cms.models import CmsCategory
+        from django.db.models import F
         qs = (CmsCategory.objects.filter(section_slug='13')
               .select_related('parent')
               .annotate(_groupe=Coalesce('parent__name', 'name'))
-              .order_by('_groupe', 'parent__name', 'name'))
+              .order_by('_groupe', F('parent__name').asc(nulls_first=True), 'name'))
         return [str(c) for c in qs]
 
     def test_le_parent_precede_immediatement_ses_enfants(self):

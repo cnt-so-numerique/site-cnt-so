@@ -1,0 +1,96 @@
+# La suite complète, à chaque poussée, sur PostgreSQL — la base de production.
+#
+# Motif : les tests tournent sur SQLite en développement, la production sur
+# PostgreSQL. L'écart n'est pas cosmétique. Un tri décroissant place les NULL
+# EN TÊTE en PostgreSQL et EN QUEUE en SQLite : trois articles d'essai sans
+# date se sont ainsi retrouvés aux trois premières places du flux RSS public du
+# STUCS, et aucun des 1181 tests ne l'a vu, parce qu'ils s'exécutaient sur le
+# moteur qui masque le défaut (15/08/2026).
+#
+# C'est le rôle de ce fichier : rencontrer la même base que la production, tout
+# seul, à chaque fois, sans qu'on ait à y penser.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Une fois par semaine, même sans changement : une dépendance transitive ou
+  # une image système peut casser un code qui n'a pas bougé, et il vaut mieux
+  # l'apprendre un lundi matin qu'un jour de déploiement.
+  schedule:
+    - cron: '0 6 * * 1'
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: cntso_ci
+          POSTGRES_USER: cntso
+          POSTGRES_PASSWORD: cntso
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+
+    env:
+      # C'est cette variable qui fait basculer `settings.py` sur PostgreSQL ;
+      # elle n'existe pas en production, où `local_settings.py` s'en charge.
+      CI_POSTGRES: '1'
+      POSTGRES_DB: cntso_ci
+      POSTGRES_USER: cntso
+      POSTGRES_PASSWORD: cntso
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: '5432'
+      # `settings.py` refuse de démarrer hors développement avec la clé
+      # d'exemple. Valeur jetable, propre à l'exécution : elle ne protège rien
+      # de réel, et c'est pour ça qu'elle peut figurer ici.
+      SECRET_KEY: 'ci-jetable-8d41f2b7c93e50a6d18f4b2e7a95c063f1d8b4e7a2c9'
+      # DEBUG reste à faux, délibérément : c'est le régime qui sert. Le passer
+      # à vrai ferait tourner la suite sur une application qui n'est pas celle
+      # des visiteurs.
+      DJANGO_DEBUG: 'False'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python de production
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Dépendances
+        # `requirements.txt` et non un sous-ensemble : le 03/09/2026, gunicorn
+        # n'y figurait pas du tout et la production tournait sur une version
+        # que rien ne déclarait. Installer le fichier tel quel le vérifie.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install psycopg[binary] pip-audit
+
+      - name: Cohérence des dépendances
+        run: pip check
+
+      - name: Contrôle Django
+        run: python manage.py check
+
+      - name: Migrations manquantes ?
+        # Un modèle modifié sans migration passe tous les tests et casse au
+        # déploiement suivant.
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: La suite complète, sur PostgreSQL
+        run: python manage.py test
+
+      - name: Failles connues
+        # Informatif : une CVE publiée ne doit pas faire échouer une poussée
+        # sans rapport, mais elle doit être visible dans le journal.
+        continue-on-error: true
+        run: python -m pip_audit

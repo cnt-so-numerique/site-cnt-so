@@ -204,9 +204,19 @@ def _make_scoped_article_page_view(base_class):
             # après leurs propres enfants.
             # `select_related('parent')` : l'étiquette lit le parent, sinon
             # c'est une requête par catégorie.
+            # `nulls_first=True` sur `parent__name` : un parent a cette valeur
+            # NULLE, ses enfants portent son nom. Sans consigne explicite,
+            # PostgreSQL place les NULL EN DERNIER — le parent arrivait donc
+            # APRÈS ses enfants en production, à l'inverse de ce que ce tri
+            # promet. Invisible en développement : SQLite les place en tête.
+            #
+            # Même piège que les articles sans date en tête du flux RSS
+            # (15/08/2026). Débusqué le 03/09/2026 en montant l'intégration
+            # continue sur PostgreSQL.
+            from django.db.models import F
             qs = (CmsCategory.objects.select_related('parent')
                   .annotate(_groupe=Coalesce('parent__name', 'name'))
-                  .order_by('_groupe', 'parent__name', 'name'))
+                  .order_by('_groupe', F('parent__name').asc(nulls_first=True), 'name'))
             slugs = None
             if current:
                 slugs = current.slugs_contenu
