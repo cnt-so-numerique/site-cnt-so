@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% comment %}
+Page servie quand un syndicat n'a pas encore d'adhésion en ligne.
+
+Le bouton « Adhérer » renvoyait vers l'application d'adhésion, qui ne connaît
+qu'un seul syndicat : sept boutons sur huit rendaient un 404 (02/09/2026).
+Mieux vaut dire honnêtement que ce n'est pas encore prêt, et ouvrir la porte
+la plus proche — le contact — que laisser quelqu'un devant une page d'erreur
+au moment précis où il voulait adhérer.
+{% endcomment %}
+
+{% block title %}Adhérer à {{ site.name }}{% endblock %}
+{% block meta_description %}Rejoindre {{ site.name }} — l'adhésion en ligne arrive bientôt, écrivez-nous en attendant.{% endblock %}
+
+{% block content %}
+<style>
+  .adh-attente {
+      max-width: 42rem;
+      margin: 2rem auto 3rem;
+      background: var(--white);
+      border: 1px solid var(--border-color);
+      border-top: 4px solid var(--primary-color);
+      padding: 2rem 2.25rem 2.25rem;
+  }
+  .adh-attente h1 {
+      font-family: var(--font-heading);
+      font-size: 1.75rem;
+      line-height: 1.25;
+      margin: 0 0 1rem;
+      color: var(--text-color);
+  }
+  .adh-attente p { line-height: 1.65; margin: 0 0 1rem; }
+  .adh-attente .adh-suite { color: var(--text-secondary); }
+  .adh-boutons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+      margin-top: 1.5rem;
+  }
+  .adh-btn {
+      display: inline-block;
+      background: var(--primary-color);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      padding: .7rem 1.4rem;
+      border: 1px solid var(--primary-color);
+  }
+  .adh-btn:hover { background: var(--text-color); border-color: var(--text-color); color: #fff; }
+  .adh-btn-second {
+      background: transparent;
+      color: var(--text-color);
+      border-color: var(--border-color);
+      font-weight: 400;
+  }
+  .adh-btn-second:hover { background: var(--bg-lighter); color: var(--text-color); }
+  @media (max-width: 480px) {
+      .adh-attente { padding: 1.5rem 1.25rem; }
+      .adh-boutons .adh-btn { width: 100%; text-align: center; }
+  }
+</style>
+
+<div class="adh-attente">
+  <h1>Adhérer à {{ site.name }}</h1>
+
+  <p><strong>L'adhésion en ligne arrive bientôt.</strong></p>
+
+  <p>En attendant, écris-nous : nous revenons vers toi rapidement pour
+     t'accompagner dans ton adhésion et répondre à tes questions.</p>
+
+  <p class="adh-suite">Se syndiquer, ce n'est pas remplir un formulaire —
+     c'est rejoindre des collègues qui s'organisent. Autant commencer par
+     se parler.</p>
+
+  <div class="adh-boutons">
+    <a href="{{ contact_url }}" class="adh-btn">Nous écrire</a>
+    {% if site.contact_email %}
+    <a href="mailto:{{ site.contact_email }}" class="adh-btn adh-btn-second">{{ site.contact_email }}</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

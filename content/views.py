@@ -1311,29 +1311,8 @@ class NewsletterDesabonnementView(View):
             return get_section_or_404(site_slug, live=True)
         return get_object_or_404(SectionPage, slug='principal')
 
-    @staticmethod
-    def _url_contact(site):
-        """Le formulaire de contact du syndicat, ou celui de la confédération.
-
-        Calculé ici plutôt que dans le gabarit : `section_url` impose un
-        `site_slug` et rendrait « /principal/contact/ », qui n'existe pas.
-        Le pied de page duplique cette condition, on ne l'ajoute pas une
-        troisième fois.
-        """
-        from django.urls import NoReverseMatch, reverse
-        try:
-            if site and site.slug != 'principal':
-                base = section_base_url(site.slug)
-                chemin = reverse('content:site_contact', kwargs={'site_slug': site.slug})
-                if base:
-                    return f'{base}{chemin[len(site.slug) + 1:]}'
-                return chemin
-            return reverse('content:contact')
-        except NoReverseMatch:
-            return ''
-
     def _contexte(self, site, form):
-        return {'site': site, 'form': form, 'url_contact': self._url_contact(site)}
+        return {'site': site, 'form': form, 'url_contact': url_contact_du_syndicat(site)}
 
     def get(self, request, site_slug=None):
         site = self._site(site_slug)
@@ -1586,3 +1565,72 @@ class SiteRessourcesView(View):
         }
         ctx.update(_sectoral_sidebar_context(site))
         return render(request, 'content/site_ressources.html', ctx)
+
+
+def url_contact_du_syndicat(site):
+    """Le formulaire de contact du syndicat, ou celui de la confédération.
+
+    Calculé ici plutôt que dans le gabarit : `section_url` impose un
+    `site_slug` et rendrait « /principal/contact/ », qui n'existe pas.
+
+    Au niveau du module et non en méthode : cette condition existait déjà en
+    deux endroits — la page de désabonnement et le pied de page — et son
+    commentaire disait « on ne l'ajoute pas une troisième fois ». La page
+    d'adhésion en attente en avait besoin à son tour (02/09/2026) : autant une
+    définition partagée qu'une quatrième recopie.
+    """
+    from django.urls import NoReverseMatch, reverse
+    try:
+        if site and site.slug != 'principal':
+            base = section_base_url(site.slug)
+            chemin = reverse('content:site_contact', kwargs={'site_slug': site.slug})
+            if base:
+                return f'{base}{chemin[len(site.slug) + 1:]}'
+            return chemin
+        return reverse('content:contact')
+    except NoReverseMatch:
+        return ''
+
+
+def adherer(request, site_slug):
+    """Où mène le bouton « Adhérer » d'un syndicat.
+
+    Il redirigeait **toujours** vers l'application d'adhésion, sans lire le
+    réglage `ADHESION_USE_NEW_APP` prévu pour ça — pourtant à `False` en
+    production, et documenté dans le CLAUDE.md. L'application ne connaît
+    aujourd'hui qu'un seul syndicat : le 02/09/2026, sept boutons « Adhérer »
+    sur huit rendaient un **404**, la confédération comprise. Sur un site
+    syndical, c'est le lien qui compte le plus.
+
+    Trois destinations, dans cet ordre :
+
+    1. `ADHESION_USE_NEW_APP` activé → l'application d'adhésion, pour tous ;
+    2. sinon, une `framaform_url` sur la fiche du syndicat → ce formulaire
+       (c'est le cas du STUCS, dont le Framaform fonctionne) ;
+    3. sinon → une page qui l'annonce et invite à écrire, au lieu d'un 404.
+
+    Arnaud, 02/09/2026 : « adhésion en ligne à venir, en attendant contactez-nous
+    et nous reviendrons rapidement vers vous ».
+    """
+    from django.conf import settings as _s
+    from django.db.models import Q
+
+    section = SectionPage.objects.filter(
+        Q(slug=site_slug) | Q(legacy_site_slug=site_slug), live=True
+    ).first()
+
+    if getattr(_s, 'ADHESION_USE_NEW_APP', False):
+        base = getattr(_s, 'ADHESION_BASE_URL', 'https://adhesion.cnt-so.org')
+        slug = (section.slug if section else site_slug)
+        return redirect(f'{base}/adherer/{slug}/')
+
+    if section and section.framaform_url:
+        return redirect(section.framaform_url)
+
+    if section is None:
+        raise Http404(f"Syndicat introuvable : {site_slug}")
+
+    return render(request, 'content/adhesion_a_venir.html', {
+        'site': section,
+        'contact_url': url_contact_du_syndicat(section),
+    })

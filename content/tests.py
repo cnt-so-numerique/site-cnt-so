@@ -7780,11 +7780,14 @@ class NewsletterDesabonnementTest(TestCase):
         """Même piège que le bouton du tract et l'écran « Pages du syndicat » :
         bâti par un simple `reverse`, le lien porte le slug en préfixe et un
         syndicat à domaine autonome renvoie son lecteur chez la conf."""
-        from content.views import NewsletterDesabonnementView
+        # Fonction de module depuis le 02/09/2026 : la page d'adhésion en
+        # attente en avait besoin à son tour, et son commentaire disait déjà
+        # « on ne l'ajoute pas une troisième fois ».
+        from content.views import url_contact_du_syndicat
         site = make_site(slug='stucs', name='CNT-SO STUCS', site_type='sectoral')
         site.custom_domain = 'stucs.cnt-so.org'
         site.save()
-        url = NewsletterDesabonnementView._url_contact(site)
+        url = url_contact_du_syndicat(site)
         self.assertEqual(url, 'https://stucs.cnt-so.org/contact/')
         self.assertNotIn('/stucs/contact', url)
 
@@ -8719,3 +8722,89 @@ class EnteteExpediteurValideTest(TestCase):
                 self.assertFalse(_send_contact_email(self.site, self._message()))
         trace = '\n'.join(journal.output)
         self.assertIn('adresse invalide', trace)
+
+
+class BoutonAdhererTest(TestCase):
+    """Le bouton « Adhérer » ne doit jamais mener à un 404.
+
+    Mesuré en production le 02/09/2026 : **sept boutons sur huit** rendaient un
+    404, la confédération comprise. `/adherer/<slug>/` redirigeait toujours vers
+    l'application d'adhésion, laquelle ne connaît qu'un seul syndicat — et le
+    réglage prévu pour ça, `ADHESION_USE_NEW_APP`, valait bien `False` en
+    production mais **n'était lu nulle part**.
+
+    Sur un site syndical, c'est le lien qui compte le plus.
+    """
+
+    def setUp(self):
+        self.conf = make_site(slug='principal', name='CNT-SO confédération')
+        self.stucs = _ensure_section_page(slug='stucs', name='CNT-SO STUCS',
+                                          site_type='sectoral')
+        self.stucs.framaform_url = 'https://framaforms.org/adherer-au-stucs'
+        self.stucs.contact_email = 'spectacle@cnt-so.org'
+        self.stucs.save(update_fields=['framaform_url', 'contact_email'])
+
+    # ── application d'adhésion désactivée : le cas d'aujourd'hui ─────────────
+
+    @override_settings(ADHESION_USE_NEW_APP=False)
+    def test_sans_formulaire_on_explique_au_lieu_de_renvoyer_un_404(self):
+        r = self.client.get('/adherer/principal/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "arrive bientôt")
+        self.assertContains(r, "Nous écrire")
+
+    @override_settings(ADHESION_USE_NEW_APP=False)
+    def test_la_page_mene_au_contact_du_bon_syndicat(self):
+        r = self.client.get('/adherer/principal/')
+        self.assertEqual(r.context['contact_url'], _url_contact_attendu(self.conf))
+
+    @override_settings(ADHESION_USE_NEW_APP=False)
+    def test_un_syndicat_avec_framaform_y_est_conduit(self):
+        """Le STUCS a un Framaform qui fonctionne : il ne doit pas tomber sur
+        la page d'attente."""
+        r = self.client.get('/adherer/stucs/')
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r['Location'], 'https://framaforms.org/adherer-au-stucs')
+
+    # ── application activée : le jour où elle sera prête ─────────────────────
+
+    @override_settings(ADHESION_USE_NEW_APP=True,
+                       ADHESION_BASE_URL='https://adhesion.cnt-so.org')
+    def test_le_reglage_active_bascule_tout_vers_l_application(self):
+        for slug in ('principal', 'stucs'):
+            with self.subTest(slug=slug):
+                r = self.client.get(f'/adherer/{slug}/')
+                self.assertEqual(r.status_code, 302)
+                self.assertEqual(
+                    r['Location'], f'https://adhesion.cnt-so.org/adherer/{slug}/')
+
+    @override_settings(ADHESION_USE_NEW_APP=True)
+    def test_le_reglage_prime_sur_le_framaform(self):
+        """Sinon le STUCS resterait sur Framaform quand tout le monde aura
+        basculé — et personne ne comprendrait pourquoi."""
+        r = self.client.get('/adherer/stucs/')
+        self.assertNotIn('framaforms', r['Location'])
+
+    # ── garde-fous ───────────────────────────────────────────────────────────
+
+    @override_settings(ADHESION_USE_NEW_APP=False)
+    def test_un_syndicat_inconnu_reste_un_404(self):
+        self.assertEqual(self.client.get('/adherer/nexiste-pas/').status_code, 404)
+
+    @override_settings(ADHESION_USE_NEW_APP=False)
+    def test_un_syndicat_depublie_aussi(self):
+        ferme = _ensure_section_page(slug='ferme-adh', name='Fermé', live=False)
+        self.assertEqual(self.client.get('/adherer/ferme-adh/').status_code, 404)
+
+    @override_settings(ADHESION_USE_NEW_APP=False)
+    def test_le_bouton_de_la_page_rejoindre_pointe_bien_ici(self):
+        """Non-régression du chemin complet : la page « Rejoindre » construit
+        son bouton avec {% url 'adherer' %}."""
+        r = self.client.get('/principal/rejoindre/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, '/adherer/principal/')
+
+
+def _url_contact_attendu(section):
+    from content.views import url_contact_du_syndicat
+    return url_contact_du_syndicat(section)
