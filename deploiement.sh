@@ -46,7 +46,14 @@ fi
 
 echo "═══ 2. Sauvegarde de la base ═══"
 sauv=~/cntso-$(date +%Y%m%d-%H%M).sql.gz
-sudo -u postgres pg_dump cntso | gzip > "$sauv"
+# `umask 077` AVANT la redirection, et `chmod 600` après par sécurité : le
+# fichier contient TOUTE la base — empreintes de mots de passe, adresses des
+# abonnés, messages de contact. Le umask du compte vaut 022, les sauvegardes
+# sortaient donc en `-rw-r--r--`, lisibles par tout compte de la machine
+# (relevé par Arnaud le 03/09/2026 ; les sauvegardes manuelles antérieures,
+# elles, étaient bien en 600).
+( umask 077; sudo -u postgres pg_dump cntso | gzip > "$sauv" )
+chmod 600 "$sauv"
 taille=$(stat -c%s "$sauv")
 echo "   $sauv ($taille octets)"
 # Une sauvegarde minuscule est une sauvegarde ratée : pg_dump lancé sans le bon
@@ -66,9 +73,28 @@ echo "═══ 4. Dépendances, migrations, statiques ═══"
 source venv/bin/activate
 pip install -q -r requirements.txt
 pip check
+
+# Une migration oubliée ne se voit PAS : le code part, `migrate` ne trouve rien
+# à appliquer, et la base reste en retard sur les modèles. La panne surgit plus
+# tard, sur une requête qui touche la colonne absente. On refuse d'aller plus
+# loin (suggéré par Arnaud, 03/09/2026).
+if ! python manage.py makemigrations --check --dry-run > /dev/null 2>&1; then
+    echo "   ✗ ARRÊT : des modèles ont changé sans migration."
+    python manage.py makemigrations --check --dry-run || true
+    exit 1
+fi
+echo "   ✓ aucune migration oubliée"
+
 python manage.py migrate
 python manage.py collectstatic --noinput > /dev/null
 echo "   ok"
+
+# Informatif : les quatre avertissements connus (HSTS includeSubDomains,
+# redirection SSL déléguée à nginx, X_FRAME_OPTIONS que l'aperçu Wagtail exige
+# en SAMEORIGIN, préchargement HSTS) sont des choix assumés. On les affiche
+# pour qu'un CINQUIÈME se remarque.
+echo "═══ 4 bis. Contrôles de déploiement Django ═══"
+python manage.py check --deploy 2>&1 | grep -E "^\?:|identified" | sed 's/^/   /' || true
 
 echo "═══ 5. Redémarrage ═══"
 sudo supervisorctl restart cntso
