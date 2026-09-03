@@ -210,8 +210,15 @@ d'ouvrir, elle s'efface au lieu d'afficher une grille vide.
 
 <h2 class="section-title">Dernières actualités</h2>
 
+{% comment %}
+Bandes et non « une de journal » : cette liste arrive APRÈS le diaporama et
+APRÈS la manchette. Un troisième bloc à grande image répétait le même geste une
+fois de trop (Arnaud, 03/09/2026). `_article_listing.html` reste employé par
+les pages de catégorie, de tag et l'espace presse, où la liste est le seul
+contenu et peut donc s'ouvrir sur un grand article de tête.
+{% endcomment %}
 {% with empty_message="Aucun article pour le moment." %}
-{% include "content/_article_listing.html" %}
+{% include "content/_article_bandes.html" %}
 {% endwith %}
 
 {% with query_string="" %}{% include "content/_pagination.html" %}{% endwith %}

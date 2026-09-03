@@ -1,0 +1,154 @@
+{% comment %}
+Liste d'articles en bandes — image à gauche, texte à droite.
+
+Sert la liste « Dernières actualités » des accueils de syndicat, et ELLE SEULE.
+`_article_listing.html` reste en place pour les pages de catégorie, de tag et
+l'espace presse : là, la liste est le seul contenu de la page, elle peut donc
+s'ouvrir sur un grand article de tête.
+
+Sur un accueil, non. Elle arrive APRÈS le diaporama et APRÈS la manchette :
+un troisième bloc à grande image répétait le même geste une fois de trop
+(Arnaud, 03/09/2026 — « plus cohérente avec ce qui est au-dessus »). Sur le
+STUCS, l'article de tête étalait le logo du syndicat sur 420 px de haut,
+presque entièrement blancs.
+
+Les affiches restent entières sur blanc (`contain`), comme partout depuis le
+16/08 : la vignette est étroite, jamais recadrée.
+
+Attend `articles`.
+{% endcomment %}
+
+<style>
+  .ab-liste { border-top: 1px solid var(--border-color); }
+
+  .ab-bande {
+      display: flex;
+      gap: 1.25rem;
+      align-items: flex-start;
+      padding: 1.1rem 0;
+      border-bottom: 1px solid var(--border-color);
+      position: relative;
+  }
+  .ab-bande:hover { background: var(--bg-lighter); }
+
+  /* Le lien couvre toute la bande : on clique n'importe où. Les liens de
+     catégorie restent au-dessus grâce à leur z-index. */
+  .ab-lien {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      text-indent: -9999px;
+      overflow: hidden;
+  }
+
+  .ab-visuel {
+      flex: 0 0 190px;
+      height: 130px;
+      background: var(--white);
+      border: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+  }
+  .ab-visuel img {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      display: block;
+      /* Affiche entière, jamais recadrée — règle du 16/08/2026. */
+      object-fit: contain;
+  }
+  .ab-sans-visuel {
+      flex: 0 0 190px;
+      height: 130px;
+      background: var(--bg-lighter);
+      border: 1px solid var(--border-color);
+  }
+
+  .ab-texte { flex: 1; min-width: 0; }
+
+  .ab-meta {
+      display: flex;
+      gap: .55rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: .4rem;
+      font-size: .8rem;
+  }
+  .ab-meta a {
+      position: relative;
+      z-index: 2;
+      color: var(--primary-color);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      text-decoration: none;
+  }
+  .ab-meta a:hover { text-decoration: underline; }
+  .ab-date { color: var(--text-muted); }
+
+  .ab-titre {
+      font-family: var(--font-heading);
+      font-size: 1.2rem;
+      line-height: 1.3;
+      margin: 0 0 .4rem;
+      color: var(--text-color);
+  }
+  .ab-bande:hover .ab-titre { color: var(--primary-color); }
+
+  .ab-extrait {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: .9rem;
+      line-height: 1.6;
+  }
+
+  @media (max-width: 600px) {
+      .ab-bande { flex-direction: column; gap: .8rem; }
+      /* En colonne, une vignette étroite n'a plus de sens : l'affiche reprend
+         ses proportions, bornée pour ne pas manger l'écran. */
+      .ab-visuel, .ab-sans-visuel {
+          flex: none;
+          width: 100%;
+          height: auto;
+          max-height: 320px;
+      }
+      .ab-visuel img { max-height: 320px; }
+      .ab-sans-visuel { height: 120px; }
+  }
+</style>
+
+{% if articles %}
+<div class="ab-liste">
+  {% for article in articles %}
+  <article class="ab-bande">
+    <a href="{{ article.get_absolute_url }}" class="ab-lien">{{ article.title }}</a>
+
+    {% with img=article.any_image_url %}
+    {% if img %}
+    <div class="ab-visuel"><img src="{{ img }}" alt="{{ article.title }}" loading="lazy"></div>
+    {% else %}
+    <div class="ab-sans-visuel"></div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="ab-texte">
+      <div class="ab-meta">
+        {% for cat in article.cms_categories.all|slice:":1" %}
+        <a href="{{ cat.get_absolute_url }}">{{ cat.name }}</a>
+        {% endfor %}
+        <span class="ab-date">{{ article.published_at|date:"d F Y" }}</span>
+      </div>
+      <h3 class="ab-titre">{{ article.title }}</h3>
+      {% if article.excerpt %}
+      <p class="ab-extrait">{{ article.excerpt|striptags|truncatewords:28 }}</p>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<p style="color:var(--text-muted);">{{ empty_message|default:"Aucun article." }}</p>
+{% endif %}

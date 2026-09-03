@@ -8499,9 +8499,17 @@ class UneDesSyndicatsTest(TestCase):
         self.assertNotContains(self._accueil(), 'une-hero-overlay')
 
     def test_l_affiche_n_est_plus_recadree(self):
+        """La règle vaut pour ce que l'accueil sert AUJOURD'HUI : des bandes.
+
+        Ce test visait `.une-hero-img` — le grand article de tête — mais
+        l'accueil ne l'emploie plus depuis le 03/09/2026 : il arrivait après le
+        diaporama et la manchette, et répétait le même geste une fois de trop.
+        Le gabarit partagé garde sa propre vérification, dans
+        `test_le_gabarit_partage_ne_recadre_plus_aucune_affiche`.
+        """
         self._peupler(12)
         html = self._accueil().content.decode()
-        debut = html.index('.une-hero-img {')
+        debut = html.index('.ab-visuel img {')
         regle = html[debut:html.index('}', debut)]
         self.assertIn('object-fit: contain', regle)
         self.assertNotIn('cover', regle)
@@ -8927,3 +8935,81 @@ class RepareMenuEducationTest(TestCase):
         self._lancer(appliquer=True)
         autre.refresh_from_db()
         self.assertEqual(autre.url, '/education/ressources/')
+
+
+class ListeEnBandesTest(TestCase):
+    """L'accueil d'un syndicat liste ses articles en bandes, pas en « une ».
+
+    Arnaud, 03/09/2026 : la liste « Dernières actualités » arrive APRÈS le
+    diaporama et APRÈS la manchette. Son grand article de tête répétait le même
+    geste visuel une fois de trop — sur le STUCS, le logo du syndicat s'étalait
+    sur 420 px de haut, presque entièrement blancs.
+
+    Les pages de catégorie, de tag et l'espace presse GARDENT l'ancien gabarit :
+    là, la liste est le seul contenu de la page, elle peut s'ouvrir sur un
+    grand article. C'est la raison d'avoir deux gabarits et non un.
+    """
+
+    def setUp(self):
+        make_site(slug='principal')
+        self.site = _ensure_section_page(slug='marseille', name='CNT-SO 13')
+
+    def _image(self):
+        from wagtail.images.models import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        import io
+        try:
+            from PIL import Image as PILImage
+        except ImportError:  # pragma: no cover
+            self.skipTest('Pillow absent')
+        t = io.BytesIO()
+        PILImage.new('RGB', (60, 80), 'red').save(t, format='PNG')
+        return Image.objects.create(
+            title='Affiche', file=SimpleUploadedFile('a.png', t.getvalue(),
+                                                     content_type='image/png'))
+
+    def _peupler(self, n=14):
+        return [make_article_page(section_slug='marseille', title=f'Article {i}',
+                                  slug=f'art-{i}', featured_image=self._image())
+                for i in range(n)]
+
+    def test_l_accueil_sert_des_bandes(self):
+        self._peupler()
+        r = self.client.get('/marseille/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'ab-bande')
+
+    def test_l_accueil_n_a_plus_de_grand_article_de_tete(self):
+        self._peupler()
+        self.assertNotContains(self.client.get('/marseille/'), 'une-hero"')
+
+    def test_les_pages_de_categorie_gardent_l_ancien_gabarit(self):
+        """Contrôle négatif : on n'a pas basculé les cinq écrans d'un coup."""
+        cat = make_cms_category(name='Droit', slug='droit', section_slug='principal')
+        for i in range(3):
+            make_article_page(section_slug='principal', title=f'D{i}',
+                              slug=f'd-{i}', categories=[cat],
+                              featured_image=self._image())
+        r = self.client.get('/categorie/droit/')
+        self.assertContains(r, 'une-hero"')
+        self.assertNotContains(r, 'ab-bande')
+
+    def test_les_affiches_ne_sont_pas_recadrees(self):
+        """Règle du 16/08 : affiche entière, jamais `cover`."""
+        self._peupler()
+        html = self.client.get('/marseille/').content.decode()
+        debut = html.index('.ab-visuel img {')
+        regle = html[debut:html.index('}', debut)]
+        self.assertIn('object-fit: contain', regle)
+        self.assertNotIn('cover', regle)
+
+    def test_un_article_sans_image_garde_sa_place(self):
+        """Sans réserve, la bande se décalerait et la liste perdrait son peigne."""
+        make_article_page(section_slug='marseille', title='Sans visuel',
+                          slug='sans-visuel')
+        r = self.client.get('/marseille/')
+        self.assertContains(r, 'ab-sans-visuel')
+
+    def test_la_liste_vide_le_dit(self):
+        r = self.client.get('/marseille/')
+        self.assertContains(r, 'Aucun article pour le moment')
