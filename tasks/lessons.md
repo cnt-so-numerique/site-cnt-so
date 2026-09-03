@@ -290,3 +290,50 @@ sur ce qui les sépare — ici la destination (`/cms/` contre la liste des
 newsletters) et l'absence du message de l'autre garde-fou. Corollaire de la
 validation par mutation : un test qui passe avec ET sans le correctif ne teste
 rien, même quand il échoue pour de bonnes raisons ailleurs.
+
+## Un tuyau avale le code de retour (02/09/2026)
+
+`git pull --ff-only | tail -3` : le code de retour d'un pipeline est celui de
+sa **dernière** commande — `tail`, qui réussit toujours. `set -e` ne voyait donc
+pas l'échec du pull. Le déploiement a continué : sauvegarde faite, service
+redémarré, correctif jamais parti, et le tout s'annonçant réussi.
+
+Même famille que la sauvegarde de 20 octets d'août : **une commande qui échoue
+derrière un tuyau ne dit rien.**
+
+**Règle :** `set -euo pipefail` dans tout script de déploiement, et aucun tuyau
+sur ce qui compte. Pour lire le code de sortie d'une commande distante,
+`ssh … > fichier 2>&1; echo $?` — pas `ssh … | tail`.
+
+Ironie utile : en vérifiant que le garde-fou refusait bien, j'ai écrit
+`ssh … | tail -8` puis lu `$?`, qui m'a répondu 0 alors que le script avait
+échoué. Le piège se commet une ligne après l'avoir documenté.
+
+## Mesurer en production, jamais en dev (02–03/09/2026)
+
+Quatre conclusions fausses en deux jours, toutes tirées de la base de
+développement :
+
+- « la faute *Popuplaire* est en production » → non, seulement en dev (mais
+  elle était bien dans le **slug** en prod : j'avais cherché dans les noms) ;
+- « 247 catégories, 64 recopies » → 218 en prod, et les « recopies » étaient
+  la taxonomie légitime du 13 ;
+- « 0 article porte `is_featured` » → 1 en production, et la migration
+  l'aurait effacé sans le garde-fou ;
+- « les sites Debug/test sont dans le sélecteur » → seulement en dev.
+
+**Règle :** toute affirmation chiffrée sur le contenu se vérifie **sur le
+serveur**. La base de dev diverge, c'est noté depuis août.
+
+## Pour une question de navigation, lire le HTML servi (02/09/2026)
+
+Deux conclusions fausses d'affilée en interrogeant la base au lieu de la page :
+
+- « Éducation & Recherche n'est dans aucun menu » → elle y était, reliée par
+  **URL** et non par clé étrangère ;
+- « Revendications est un lien mort » → c'était un parent de 8 enfants ; mon
+  relevé ne descendait qu'à deux niveaux.
+
+**Règle :** une question sur ce que voit un visiteur se tranche sur le HTML
+rendu (`curl`), pas sur les relations en base. Et un arbre se lit
+**récursivement**, sinon on prend les branches pour des feuilles.
