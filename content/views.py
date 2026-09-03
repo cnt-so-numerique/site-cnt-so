@@ -1624,7 +1624,14 @@ def adherer(request, site_slug):
         slug = (section.slug if section else site_slug)
         return redirect(f'{base}/adherer/{slug}/')
 
-    if section and section.framaform_url:
+    # Une `framaform_url` qui pointe vers l'application d'adhésion contredit le
+    # réglage qu'on vient de lire : il dit « pas prête », elle dit « vas-y ».
+    # C'est le cas de l'Éducation, dont la fiche porte
+    # `https://adhesion.cnt-so.org/adherer/education/` — une adresse qui rend
+    # 404 (02/09/2026). Le réglage tranche, et le lecteur voit la page
+    # d'attente au lieu d'une erreur.
+    base_adhesion = getattr(_s, 'ADHESION_BASE_URL', 'https://adhesion.cnt-so.org')
+    if section and section.framaform_url and not section.framaform_url.startswith(base_adhesion):
         return redirect(section.framaform_url)
 
     if section is None:

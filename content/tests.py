@@ -8808,3 +8808,44 @@ class BoutonAdhererTest(TestCase):
 def _url_contact_attendu(section):
     from content.views import url_contact_du_syndicat
     return url_contact_du_syndicat(section)
+
+
+class AdhesionUrlContradictoireTest(TestCase):
+    """Une `framaform_url` qui pointe vers l'application d'adhésion contredit
+    le réglage `ADHESION_USE_NEW_APP`.
+
+    Cas réel : la fiche de l'Éducation porte
+    `https://adhesion.cnt-so.org/adherer/education/`, une adresse qui rend 404.
+    Le réglage dit « l'application n'est pas prête », cette valeur dit
+    « vas-y ». Le réglage tranche (02/09/2026).
+    """
+
+    def setUp(self):
+        make_site(slug='principal')
+        self.educ = _ensure_section_page(slug='education', name='CNT-SO Éducation')
+        self.educ.framaform_url = 'https://adhesion.cnt-so.org/adherer/education/'
+        self.educ.save(update_fields=['framaform_url'])
+
+    @override_settings(ADHESION_USE_NEW_APP=False,
+                       ADHESION_BASE_URL='https://adhesion.cnt-so.org')
+    def test_l_adresse_de_l_application_est_ignoree_quand_le_reglage_est_coupe(self):
+        r = self.client.get('/adherer/education/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "arrive bientôt")
+
+    @override_settings(ADHESION_USE_NEW_APP=False,
+                       ADHESION_BASE_URL='https://adhesion.cnt-so.org')
+    def test_un_vrai_formulaire_externe_reste_suivi(self):
+        """Contrôle négatif : on n'ignore que l'application d'adhésion."""
+        self.educ.framaform_url = 'https://framaforms.org/adherer-educ'
+        self.educ.save(update_fields=['framaform_url'])
+        r = self.client.get('/adherer/education/')
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r['Location'], 'https://framaforms.org/adherer-educ')
+
+    @override_settings(ADHESION_USE_NEW_APP=True,
+                       ADHESION_BASE_URL='https://adhesion.cnt-so.org')
+    def test_une_fois_l_application_prete_on_y_va(self):
+        r = self.client.get('/adherer/education/')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('adhesion.cnt-so.org', r['Location'])
