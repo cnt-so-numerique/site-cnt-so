@@ -8849,3 +8849,81 @@ class AdhesionUrlContradictoireTest(TestCase):
         r = self.client.get('/adherer/education/')
         self.assertEqual(r.status_code, 302)
         self.assertIn('adhesion.cnt-so.org', r['Location'])
+
+
+class RepareMenuEducationTest(TestCase):
+    """Deux entrées du menu Éducation menaient au mauvais endroit.
+
+    « Liens CNT-SO » pointait `https://cnt-so.org` en dur — l'ancien WordPress,
+    qui rend un HTTP 500 depuis juillet. « Rejoindre la CNT-SO » menait au
+    formulaire de contact alors que la page d'adhésion existe.
+
+    La commande ne touche QUE ces deux-là, et seulement si elles sont dans
+    l'état attendu : un `pk` réattribué ou une entrée déjà modifiée à la main
+    ne doit pas être écrasée en silence.
+    """
+
+    def setUp(self):
+        from content.models import MenuItem
+        self.educ = _ensure_section_page(slug='education', name='CNT-SO Éducation')
+        self.liens = MenuItem.objects.create(
+            pk=394, site=self.educ, menu='main', title='Liens CNT-SO',
+            url='https://cnt-so.org', order=1)
+        self.rejoindre = MenuItem.objects.create(
+            pk=413, site=self.educ, menu='footer', title='Rejoindre la CNT-SO',
+            url='/education/contact/', order=1)
+
+    def _lancer(self, appliquer=False):
+        from django.core.management import call_command
+        from io import StringIO
+        s = StringIO()
+        call_command('repare_menu_education', *(['--appliquer'] if appliquer else []), stdout=s)
+        return s.getvalue()
+
+    def test_a_blanc_rien_n_est_ecrit(self):
+        self._lancer()
+        self.liens.refresh_from_db()
+        self.assertEqual(self.liens.url, 'https://cnt-so.org')
+
+    def test_le_lien_vers_l_ancien_serveur_devient_relatif(self):
+        """`/` et non une adresse en dur : juste avant ET après la bascule."""
+        self._lancer(appliquer=True)
+        self.liens.refresh_from_db()
+        self.assertEqual(self.liens.url, '/')
+
+    def test_rejoindre_mene_a_la_page_d_adhesion(self):
+        self._lancer(appliquer=True)
+        self.rejoindre.refresh_from_db()
+        self.assertEqual(self.rejoindre.url, '/education/rejoindre/')
+
+    def test_une_entree_deja_modifiee_n_est_pas_ecrasee(self):
+        """Garde-fou : si quelqu'un a corrigé à la main autrement, on n'écrase
+        pas son choix."""
+        self.liens.url = 'https://newsite.cnt-so.org/'
+        self.liens.save(update_fields=['url'])
+        sortie = self._lancer(appliquer=True)
+        self.liens.refresh_from_db()
+        self.assertEqual(self.liens.url, 'https://newsite.cnt-so.org/')
+        self.assertIn('non touchée', sortie)
+
+    def test_un_pk_reattribue_a_un_autre_titre_est_epargne(self):
+        """Le contrôle porte sur le titre ET l'URL, pas sur le seul `pk`."""
+        self.liens.title = 'Tout autre chose'
+        self.liens.save(update_fields=['title'])
+        self._lancer(appliquer=True)
+        self.liens.refresh_from_db()
+        self.assertEqual(self.liens.url, 'https://cnt-so.org')
+
+    def test_relancee_elle_ne_fait_rien_de_plus(self):
+        self._lancer(appliquer=True)
+        sortie = self._lancer(appliquer=True)
+        self.assertIn('déjà réparée', sortie)
+
+    def test_le_reste_du_menu_est_intact(self):
+        from content.models import MenuItem
+        autre = MenuItem.objects.create(
+            site=self.educ, menu='main', title='Ressources',
+            url='/education/ressources/', order=9)
+        self._lancer(appliquer=True)
+        autre.refresh_from_db()
+        self.assertEqual(autre.url, '/education/ressources/')
