@@ -49,3 +49,9 @@ wagtailmedia==0.18.1
 whitenoise==6.12.0
 Willow==1.12.0
 tblib==3.2.2
+
+# Serveur d'application en production (supervisor le lance avec
+# `--workers 3 --bind unix:…`). Il n'était pas épinglé ici : la production
+# tournait sur la 23.0.0 sans que rien ne le déclare, et un déploiement ne
+# l'aurait jamais mis à jour (constaté le 03/09/2026).
+gunicorn==26.2.0
