@@ -372,13 +372,19 @@ LOGGING = {
 # Destinataires des alertes d'erreur. Adresse dédiée créée par Arnaud le
 # 04/09/2026. Vide par défaut : en développement et pendant les tests, aucun
 # courriel ne part.
+# `if adr.strip()` : une entrée sans adresse est REJETÉE, pas gardée.
+# Le 04/09/2026, systemd a coupé `Environment=DJANGO_ADMINS=Technique CNT-SO:…`
+# sur l'espace du nom ; il ne restait que « Technique », d'où un couple
+# ('Technique', '') — et l'alerte partait « à personne » en annonçant un
+# succès. Un système d'alerte qui échoue en silence est pire que pas d'alerte.
 ADMINS = [
-    (nom.strip(), adr.strip())
+    (nom.strip() or 'Technique', adr.strip())
     for nom, _, adr in (
         couple.partition(':')
         for couple in _os.environ.get('DJANGO_ADMINS', '').split(',')
         if couple.strip()
     )
+    if adr.strip()
 ]
 
 # Surcharge par local_settings.py (credentials, DEBUG, etc.) — jamais commité

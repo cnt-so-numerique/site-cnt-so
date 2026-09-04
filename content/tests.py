@@ -9243,3 +9243,48 @@ class AlerteEchecSystemdTest(TestCase):
             self._lancer()
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('journal illisible', mail.outbox[0].body)
+
+
+class AdminsDepuisEnvironnementTest(TestCase):
+    """Une entrée sans adresse ne doit JAMAIS entrer dans ADMINS.
+
+    Le 04/09/2026, systemd a coupé `Environment=DJANGO_ADMINS=Technique
+    CNT-SO:technique@cnt-so.org` sur l'espace du nom : il ne restait que
+    « Technique ». L'ancien analyseur en tirait ('Technique', ''), et l'alerte
+    partait « à personne » en annonçant un succès — un système d'alerte qui
+    échoue en silence est pire que pas d'alerte du tout.
+    """
+
+    @staticmethod
+    def _lire(valeur):
+        """Rejoue exactement l'expression de settings.py."""
+        return [
+            (nom.strip() or 'Technique', adr.strip())
+            for nom, _, adr in (
+                couple.partition(':')
+                for couple in valeur.split(',')
+                if couple.strip()
+            )
+            if adr.strip()
+        ]
+
+    def test_un_couple_complet_est_lu(self):
+        self.assertEqual(self._lire('Technique:technique@cnt-so.org'),
+                         [('Technique', 'technique@cnt-so.org')])
+
+    def test_une_entree_sans_adresse_est_rejetee(self):
+        """Le cas réel : systemd n'a transmis que le premier mot."""
+        self.assertEqual(self._lire('Technique'), [])
+
+    def test_une_valeur_vide_donne_une_liste_vide(self):
+        self.assertEqual(self._lire(''), [])
+
+    def test_plusieurs_destinataires(self):
+        self.assertEqual(
+            self._lire('A:a@x.fr,B:b@x.fr'),
+            [('A', 'a@x.fr'), ('B', 'b@x.fr')])
+
+    def test_une_adresse_seule_reste_utilisable(self):
+        """Sans nom, on ne perd pas le destinataire pour autant."""
+        self.assertEqual(self._lire(':technique@cnt-so.org'),
+                         [('Technique', 'technique@cnt-so.org')])
