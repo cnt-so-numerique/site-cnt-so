@@ -331,6 +331,15 @@ LOGGING = {
         },
     },
     'handlers': {
+        # Une erreur 500 part par courriel, plafonnée à une par heure et par
+        # signature (voir cntso.alertes). Sans elle, une panne reste dans un
+        # fichier que personne ne lit : les 43 adresses d'article en erreur
+        # ont duré du 26/08 au 03/09/2026 sans que rien ne le signale.
+        'admins': {
+            'class': 'cntso.alertes.AlerteLimitee',
+            'level': 'ERROR',
+            'include_html': True,
+        },
         'file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': LOGS_DIR / 'django.log',
@@ -347,7 +356,30 @@ LOGGING = {
         'handlers': ['file', 'console'],
         'level': 'WARNING',
     },
+    'loggers': {
+        # Explicite plutôt que de compter sur la configuration par défaut de
+        # Django : ce projet redéfinit LOGGING, et se reposer sur une fusion
+        # implicite rendrait l'alerte silencieusement inopérante le jour où
+        # quelqu'un touche à ce bloc.
+        'django.request': {
+            'handlers': ['admins', 'file', 'console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
 }
+
+# Destinataires des alertes d'erreur. Adresse dédiée créée par Arnaud le
+# 04/09/2026. Vide par défaut : en développement et pendant les tests, aucun
+# courriel ne part.
+ADMINS = [
+    (nom.strip(), adr.strip())
+    for nom, _, adr in (
+        couple.partition(':')
+        for couple in _os.environ.get('DJANGO_ADMINS', '').split(',')
+        if couple.strip()
+    )
+]
 
 # Surcharge par local_settings.py (credentials, DEBUG, etc.) — jamais commité
 try:

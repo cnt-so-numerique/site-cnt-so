@@ -9095,3 +9095,101 @@ class ArticleSlugPartageTest(TestCase):
         r = self.client.get('/article/seule/')
         self.assertEqual(r.status_code, 302)
         self.assertEqual(r['Location'], a.get_absolute_url())
+
+
+class AlerteErreurParCourrielTest(TestCase):
+    """Une erreur 500 doit prévenir quelqu'un, sans noyer la boîte.
+
+    Les 43 adresses d'article en erreur ont duré **du 26/08 au 03/09/2026**
+    sans que rien ne le signale : `ADMINS` n'était pas défini, la panne restait
+    dans `django.log` et journald. Adresse dédiée créée le 04/09 :
+    technique@cnt-so.org.
+
+    Mais alerter sans limite serait pire : ces 43 adresses, martelées par les
+    robots, auraient rempli la boîte de messages identiques.
+    """
+
+    def _enregistrement(self, chemin='/article/casse/', exception=ValueError):
+        import logging
+        from django.test import RequestFactory
+        req = RequestFactory().get(chemin)
+        rec = logging.LogRecord('django.request', logging.ERROR, __file__, 1,
+                                'Internal Server Error: %s', (chemin,), None)
+        rec.request = req
+        try:
+            raise exception('bing')
+        except exception:
+            import sys
+            rec.exc_info = sys.exc_info()
+        return rec
+
+    def _handler(self):
+        from cntso.alertes import AlerteLimitee
+        return AlerteLimitee()
+
+    @override_settings(ADMINS=[('Technique', 'technique@cnt-so.org')])
+    def test_une_erreur_500_envoie_un_courriel(self):
+        from django.core import mail
+        self._handler().emit(self._enregistrement())
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['technique@cnt-so.org'])
+
+    @override_settings(ADMINS=[('Technique', 'technique@cnt-so.org')])
+    def test_la_meme_erreur_repetee_n_envoie_qu_un_courriel(self):
+        """Le cas qui compte : un robot qui martèle une page cassée."""
+        from django.core import mail
+        h = self._handler()
+        for _ in range(30):
+            h.emit(self._enregistrement())
+        self.assertEqual(len(mail.outbox), 1)
+
+    @override_settings(ADMINS=[('Technique', 'technique@cnt-so.org')])
+    def test_une_deuxieme_page_cassee_passe_tout_de_suite(self):
+        """Ce n'est pas un plafond global : chaque signature a son quota."""
+        from django.core import mail
+        h = self._handler()
+        h.emit(self._enregistrement('/article/un/'))
+        h.emit(self._enregistrement('/article/deux/'))
+        self.assertEqual(len(mail.outbox), 2)
+
+    @override_settings(ADMINS=[('Technique', 'technique@cnt-so.org')])
+    def test_une_autre_exception_sur_la_meme_page_passe_aussi(self):
+        from django.core import mail
+        h = self._handler()
+        h.emit(self._enregistrement('/article/un/', ValueError))
+        h.emit(self._enregistrement('/article/un/', KeyError))
+        self.assertEqual(len(mail.outbox), 2)
+
+    @override_settings(ADMINS=[('Technique', 'technique@cnt-so.org')])
+    def test_l_alerte_repasse_apres_la_fenetre(self):
+        """Sinon une panne persistante ne serait signalée qu'une seule fois."""
+        from django.core import mail
+        h = self._handler()
+        h.emit(self._enregistrement())
+        for sig in list(h._vues):
+            h._vues[sig] -= h.FENETRE + 1   # on avance d'une heure
+        h.emit(self._enregistrement())
+        self.assertEqual(len(mail.outbox), 2)
+
+    @override_settings(ADMINS=[('Technique', 'technique@cnt-so.org')])
+    def test_le_compteur_ne_grossit_pas_sans_fin(self):
+        """Un gestionnaire d'alertes qui fuit serait une panne de plus."""
+        h = self._handler()
+        for i in range(h.MAX_SIGNATURES + 60):
+            h.emit(self._enregistrement(f'/article/{i}/'))
+        self.assertLessEqual(len(h._vues), h.MAX_SIGNATURES)
+
+    @override_settings(ADMINS=[])
+    def test_sans_destinataire_rien_ne_part(self):
+        """Le défaut en développement et pendant les tests."""
+        from django.core import mail
+        self._handler().emit(self._enregistrement())
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_le_journal_django_request_est_bien_branche(self):
+        """Explicite dans LOGGING : se reposer sur la fusion implicite de
+        Django rendrait l'alerte silencieusement inopérante."""
+        from django.conf import settings
+        conf = settings.LOGGING['loggers']['django.request']
+        self.assertIn('admins', conf['handlers'])
+        self.assertEqual(conf['level'], 'ERROR')
