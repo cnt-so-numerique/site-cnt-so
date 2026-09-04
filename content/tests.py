@@ -9193,3 +9193,53 @@ class AlerteErreurParCourrielTest(TestCase):
         conf = settings.LOGGING['loggers']['django.request']
         self.assertIn('admins', conf['handlers'])
         self.assertEqual(conf['level'], 'ERROR')
+
+
+class AlerteEchecSystemdTest(TestCase):
+    """Une tâche systemd qui échoue doit prévenir, pas se taire.
+
+    Si `pg-backup.service` ratait une nuit, on l'apprendrait le jour où il
+    faudrait une sauvegarde — le pire moment (audit du 04/09/2026).
+    """
+
+    def _lancer(self, unite='pg-backup.service'):
+        from django.core.management import call_command
+        from io import StringIO
+        s, e = StringIO(), StringIO()
+        call_command('alerte_echec', unite, stdout=s, stderr=e)
+        return s.getvalue(), e.getvalue()
+
+    @override_settings(ADMINS=[('Technique', 'technique@cnt-so.org')])
+    def test_l_echec_part_par_courriel(self):
+        from django.core import mail
+        self._lancer()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('pg-backup.service', mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[0].to, ['technique@cnt-so.org'])
+
+    @override_settings(ADMINS=[('Technique', 'technique@cnt-so.org')])
+    def test_le_courriel_dit_quoi_faire(self):
+        """Une alerte sans marche à suivre oblige à chercher : on joint la
+        commande exacte."""
+        from django.core import mail
+        self._lancer()
+        corps = mail.outbox[0].body
+        self.assertIn('systemctl status pg-backup.service', corps)
+        self.assertIn('journalctl -u pg-backup.service', corps)
+
+    @override_settings(ADMINS=[])
+    def test_sans_destinataire_elle_le_dit_au_lieu_de_se_taire(self):
+        from django.core import mail
+        _, erreur = self._lancer()
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertIn('ADMINS est vide', erreur)
+
+    @override_settings(ADMINS=[('Technique', 'technique@cnt-so.org')])
+    def test_un_journal_illisible_n_empeche_pas_l_alerte(self):
+        """Mieux vaut une alerte sans extrait qu'aucune alerte."""
+        from unittest.mock import patch
+        from django.core import mail
+        with patch('subprocess.run', side_effect=PermissionError('refusé')):
+            self._lancer()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('journal illisible', mail.outbox[0].body)
