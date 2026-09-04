@@ -194,7 +194,20 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = ''
 EMAIL_HOST_PASSWORD = ''
 DEFAULT_FROM_EMAIL = 'CNT-SO <newsletter@cnt-so.org>'
-SERVER_EMAIL = 'newsletter@cnt-so.org'
+# Expéditeur des alertes techniques (erreurs 500, échecs de tâches).
+#
+# C'était `newsletter@cnt-so.org` — l'adresse qui sert vraiment la newsletter
+# aux abonnés. Deux raisons d'en sortir (04/09/2026) :
+#   - un message « [Django] ERROR: … » venant d'une adresse « newsletter » est
+#     un profil typique de courrier indésirable ; deux alertes d'essai sur
+#     trois ne sont pas arrivées du premier coup ;
+#   - surtout, une alerte classée indésirable abîme la réputation de l'adresse
+#     QUI ENVOIE LA NEWSLETTER. Le travail de délivrabilité d'août serait
+#     défait par la bande.
+#
+# Le compte SMTP (newsletter@) est autorisé à expédier au nom de technique@ —
+# vérifié sur le serveur avant d'appliquer.
+SERVER_EMAIL = _os.environ.get('SERVER_EMAIL', 'CNT-SO technique <technique@cnt-so.org>')
 # Domaine du Message-ID des courriels sortants. Sans lui, Django prend le nom
 # d'hôte de la machine — « cnt-so » en production, qui n'est pas un domaine
 # valide et vaut un point de suspicion aux filtres antispam. Voir

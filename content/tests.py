@@ -9288,3 +9288,50 @@ class AdminsDepuisEnvironnementTest(TestCase):
         """Sans nom, on ne perd pas le destinataire pour autant."""
         self.assertEqual(self._lire(':technique@cnt-so.org'),
                          [('Technique', 'technique@cnt-so.org')])
+
+
+class ExpediteurDesAlertesTest(TestCase):
+    """Les alertes techniques ne doivent pas partir de l'adresse de newsletter.
+
+    Elles le faisaient. Deux raisons d'en sortir, relevées le 04/09/2026 :
+    un « [Django] ERROR: … » venant d'une adresse « newsletter » est un profil
+    typique de courrier indésirable — deux alertes d'essai sur trois ne sont
+    pas arrivées du premier coup — et surtout, une alerte classée indésirable
+    abîme la réputation de l'adresse **qui envoie la newsletter aux abonnés**.
+    """
+
+    def test_l_expediteur_des_alertes_n_est_pas_la_newsletter(self):
+        from django.conf import settings
+        from email.utils import parseaddr
+        _, adresse = parseaddr(settings.SERVER_EMAIL)
+        self.assertNotEqual(adresse, 'newsletter@cnt-so.org')
+        self.assertEqual(adresse, 'technique@cnt-so.org')
+
+    def test_l_adresse_de_la_newsletter_reste_celle_des_abonnes(self):
+        """Contrôle négatif : on n'a pas déplacé le mauvais réglage."""
+        from django.conf import settings
+        from email.utils import parseaddr
+        _, adresse = parseaddr(settings.DEFAULT_FROM_EMAIL)
+        self.assertEqual(adresse, 'newsletter@cnt-so.org')
+
+    @override_settings(ADMINS=[('Technique', 'technique@cnt-so.org')],
+                       SERVER_EMAIL='CNT-SO technique <technique@cnt-so.org>')
+    def test_une_alerte_part_bien_de_cette_adresse(self):
+        from django.core import mail
+        from django.core.mail import mail_admins
+        from email.utils import parseaddr
+        mail_admins('Essai', 'corps')
+        _, adresse = parseaddr(mail.outbox[0].from_email)
+        self.assertEqual(adresse, 'technique@cnt-so.org')
+
+    def test_l_expediteur_reste_une_adresse_valide(self):
+        """Le piège de l'en-tête « De » du 02/09 : un nom d'affichage inséré
+        dans des chevrons produisait une adresse invalide."""
+        from django.conf import settings
+        from django.core.mail import EmailMessage
+        from email.utils import parseaddr
+        nom, adresse = parseaddr(settings.SERVER_EMAIL)
+        self.assertTrue(adresse and '@' in adresse)
+        self.assertNotIn('<', nom)
+        EmailMessage(subject='x', body='y', from_email=settings.SERVER_EMAIL,
+                     to=['a@b.fr']).message()  # lève si l'adresse est invalide
