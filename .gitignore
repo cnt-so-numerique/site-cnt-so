@@ -47,3 +47,21 @@ build/
 
 # Logs applicatifs
 logs/
+
+# ── Ce qui vit sur le serveur, jamais dans le dépôt ───────────────────────────
+# Un arbre git « sale » côté production bloque les déploiements — le script de
+# déploiement de l'app adhésion refuse d'avancer dans ce cas (signalé le
+# 04/09/2026). Ces dossiers sont légitimes sur le serveur et n'ont rien à faire
+# ici : autant qu'ils n'y apparaissent pas.
+
+# 346 fichiers hérités de l'ancien WordPress (127 Mo), rapatriés le 02/09/2026
+# et servis par nginx. Voir le bloquant de bascule dans !DEPLOIEMENT.md.
+/legacy/
+
+# Sauvegardes de base posées à la main avant une opération délicate.
+/sauvegardes/
+*.sql.gz
+*.dump
+
+# Copies de sauvegarde des réglages, prises avant modification.
+cntso/local_settings.py.*
