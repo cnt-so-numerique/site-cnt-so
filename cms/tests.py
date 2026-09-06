@@ -4735,3 +4735,89 @@ class ImportSansDoublonInterSyndicatsTest(TestCase):
         sortie = self._lancer(tous_syndicats=True)
         self.assertIn('0 créés', sortie)
         self.assertIn('1 existants', sortie)
+
+
+class RepareEntitesHtmlTest(TestCase):
+    """54 articles affichaient « Contre l&rsquo;austérité » en toutes lettres.
+
+    `import_from_wp_api._clean_html` retirait les balises sans décoder les
+    entités. Le titre étant du texte, Django échappe l'esperluette au rendu :
+    le lecteur voyait le code source. Constaté sur la production le 06/09/2026,
+    corrigé à la source et réparé en base par cette commande.
+    """
+
+    def setUp(self):
+        _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+
+    def _lancer(self, appliquer=False):
+        from django.core.management import call_command
+        from io import StringIO
+        sortie = StringIO()
+        args = ['repare_entites_html'] + ([] if appliquer else ['--dry-run'])
+        call_command(*args, stdout=sortie)
+        return sortie.getvalue()
+
+    def test_le_titre_est_decode(self):
+        art = make_article_page(section_slug='principal', slug='austerite',
+                                title='Contre l&rsquo;austérité')
+        self._lancer(appliquer=True)
+        art.refresh_from_db()
+        self.assertEqual(art.title, 'Contre l’austérité')
+
+    def test_les_entites_numeriques_aussi(self):
+        art = make_article_page(section_slug='principal', slug='greve',
+                                title='Grève le 13 mai &#8211; austérité')
+        self._lancer(appliquer=True)
+        art.refresh_from_db()
+        self.assertEqual(art.title, 'Grève le 13 mai – austérité')
+
+    def test_un_titre_sain_nest_pas_touche(self):
+        art = make_article_page(section_slug='principal', slug='sain',
+                                title='Grève & solidarité')
+        self._lancer(appliquer=True)
+        art.refresh_from_db()
+        self.assertEqual(art.title, 'Grève & solidarité')
+
+    def test_le_corps_de_larticle_nest_jamais_touche(self):
+        """Le corps est du HTML : y décoder les entités créerait des balises."""
+        art = make_article_page(section_slug='principal', slug='corps',
+                                title='Titre sain',
+                                body=[('rich_text',
+                                       RichText('<p>Comparer &lt;b&gt; et &amp;</p>'))])
+        avant = str(art.body)
+        self._lancer(appliquer=True)
+        art.refresh_from_db()
+        self.assertEqual(str(art.body), avant)
+
+    def test_lessai_a_blanc_ne_modifie_rien(self):
+        art = make_article_page(section_slug='principal', slug='blanc',
+                                title='Contre l&rsquo;austérité')
+        sortie = self._lancer(appliquer=False)
+        art.refresh_from_db()
+        self.assertEqual(art.title, 'Contre l&rsquo;austérité')
+        self.assertIn('pages corrigées : 1', sortie)
+
+
+class NettoyageDesChampsWordPressTest(TestCase):
+    """`_clean_html` retirait les balises sans décoder les entités.
+
+    C'est la source des 54 titres abîmés. Le test tient les deux moitiés du
+    contrat, et l'ordre entre elles.
+    """
+
+    def _nettoyer(self, brut):
+        from cms.management.commands.import_from_wp_api import Command
+        return Command()._clean_html(brut)
+
+    def test_les_balises_sont_retirees(self):
+        self.assertEqual(self._nettoyer('<b>Grève</b> générale'), 'Grève générale')
+
+    def test_les_entites_sont_decodees(self):
+        self.assertEqual(self._nettoyer('Contre l&rsquo;austérité'),
+                         'Contre l’austérité')
+        self.assertEqual(self._nettoyer('13 mai &#8211; grève'), '13 mai – grève')
+
+    def test_une_balise_ecrite_par_lauteur_survit(self):
+        """L'ordre compte : décoder d'abord transformerait ceci en balise."""
+        self.assertEqual(self._nettoyer('Employer &lt;b&gt; en HTML'),
+                         'Employer <b> en HTML')

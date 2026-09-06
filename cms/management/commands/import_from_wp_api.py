@@ -10,6 +10,7 @@ import json
 import re
 import time
 import uuid
+from html import unescape
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlparse, unquote
@@ -450,7 +451,18 @@ class Command(BaseCommand):
     # ── Helpers ────────────────────────────────────────────────────────────────
 
     def _clean_html(self, html):
-        return re.sub(r'<[^>]+>', '', html).strip()
+        """Texte brut d'un champ WordPress : balises retirées, entités décodées.
+
+        L'oubli du décodage a laissé 54 titres affichant « Contre
+        l&rsquo;austérité » en toutes lettres sur le site (constaté le
+        06/09/2026) : le champ est du texte, Django échappe donc l'esperluette
+        au rendu, et le lecteur voit le code au lieu de l'apostrophe.
+
+        L'ordre compte. On retire les balises AVANT de décoder : un auteur qui
+        a écrit « &lt;b&gt; » dans son titre voulait ces caractères, et les
+        décoder d'abord les transformerait en balise, aussitôt supprimée.
+        """
+        return unescape(re.sub(r'<[^>]+>', '', html)).strip()
 
     def _fetch_all(self, endpoint, params=None):
         params = dict(params or {})
