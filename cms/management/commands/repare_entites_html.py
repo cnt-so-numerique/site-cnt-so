@@ -48,6 +48,23 @@ class Command(BaseCommand):
         total_pages = 0
         total_champs = 0
 
+        # Les catégories aussi : l'import ne décodait pas davantage leurs noms,
+        # d'où neuf « Actualité &amp; luttes » créées le 06/09/2026.
+        from cms.models import CmsCategory
+        for cat in CmsCategory.objects.all():
+            if not cat.name or not ENTITE.search(cat.name):
+                continue
+            propre = unescape(cat.name)
+            if propre == cat.name:
+                continue
+            total_pages += 1
+            total_champs += 1
+            if total_pages <= 10:
+                self.stdout.write(f"  catégorie « {cat.name[:50]} » → « {propre[:50]} »")
+            if not dry_run:
+                cat.name = propre
+                cat.save(update_fields=['name'])
+
         for modele in (ArticlePage, ContentPage):
             for page in modele.objects.all():
                 modifies = []

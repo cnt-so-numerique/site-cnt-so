@@ -87,9 +87,21 @@ class Command(BaseCommand):
             if self.dry_run:
                 created += 1
                 continue
+            # Le nom passe par le même nettoyage que les titres : l'import du
+            # 06/09/2026 a créé neuf catégories nommées « Actualité &amp;
+            # luttes », entité comprise, faute de décoder ce que renvoie
+            # WordPress.
+            #
+            # Le rapprochement se fait par slug, jamais par nom : c'est ce qui
+            # protège les catégories renommées à la main. Revers de la médaille,
+            # une catégorie dont on a changé le slug EN MÊME TEMPS que le nom
+            # devient méconnaissable, et l'import en recrée une sous l'ancien
+            # libellé — c'est ainsi que « Actions » (ex-« Actualités - luttes »)
+            # s'est retrouvée dédoublée, avec dix articles dans la mauvaise.
+            # Pour renommer sans casser l'import : garder le slug.
             obj, is_new = CmsCategory.objects.get_or_create(
                 slug=c['slug'], section_slug=self.section,
-                defaults={'name': c['name']},
+                defaults={'name': self._clean_html(c['name'])},
             )
             cat_map[c['id']] = obj
             created += is_new

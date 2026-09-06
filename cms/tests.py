@@ -4789,6 +4789,15 @@ class RepareEntitesHtmlTest(TestCase):
         art.refresh_from_db()
         self.assertEqual(str(art.body), avant)
 
+    def test_le_nom_dune_categorie_est_decode(self):
+        """Neuf catégories « Actualité &amp; luttes » sont nées le 06/09/2026."""
+        cat = make_cms_category(section_slug='principal',
+                                name='Actualité &amp; luttes',
+                                slug='actualite-luttes-btp')
+        self._lancer(appliquer=True)
+        cat.refresh_from_db()
+        self.assertEqual(cat.name, 'Actualité & luttes')
+
     def test_lessai_a_blanc_ne_modifie_rien(self):
         art = make_article_page(section_slug='principal', slug='blanc',
                                 title='Contre l&rsquo;austérité')
