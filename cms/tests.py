@@ -4681,3 +4681,57 @@ class HarmoniseEcritureInclusiveTest(TestCase):
         art.refresh_from_db()
         self.assertEqual(art.title, 'Un article')
         self.assertEqual(art.cms_categories.count(), 1)
+
+
+class ImportSansDoublonInterSyndicatsTest(TestCase):
+    """Le site WordPress confédéral relayait les articles de ses syndicats.
+
+    Mesuré sur la production le 06/09/2026 : sur les 80 articles que l'ancien
+    site propose encore, 30 existent déjà chez nous, rangés sous « stucs »,
+    « auvergne », « 13 » ou « poitiers ». La commande d'import ne cherchait le
+    doublon que dans la section visée : les relancer aurait fabriqué 30 copies
+    sous « principal ».
+
+    `--tous-syndicats` élargit la recherche à tout le site.
+    """
+
+    def setUp(self):
+        _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        _ensure_section_page(slug='stucs', name='STUCS', site_type='sectoral')
+        # L'article existe déjà, mais sous le syndicat qui l'a écrit.
+        make_article_page(section_slug='stucs', title='Grève au théâtre',
+                          slug='greve-au-theatre')
+
+    def _lancer(self, tous_syndicats):
+        """Import à blanc d'un unique article dont le slug existe sous stucs."""
+        from django.core.management import call_command
+        from io import StringIO
+
+        post = {
+            'id': 999, 'slug': 'greve-au-theatre', 'date': '2026-08-01T10:00:00',
+            'title': {'rendered': 'Grève au théâtre'},
+            'content': {'rendered': '<p>x</p>'}, 'excerpt': {'rendered': ''},
+            'categories': [], 'featured_media': 0,
+        }
+
+        def faux_fetch(chemin, params=None):
+            return [post] if chemin == '/posts' else []
+
+        sortie = StringIO()
+        args = ['import_from_wp_api', '--url', 'https://exemple.test',
+                '--section', 'principal', '--dry-run']
+        if tous_syndicats:
+            args.append('--tous-syndicats')
+        with patch('cms.management.commands.import_from_wp_api.Command._fetch_all',
+                   side_effect=faux_fetch):
+            call_command(*args, stdout=sortie)
+        return sortie.getvalue()
+
+    def test_sans_option_larticle_dun_autre_syndicat_serait_recopie(self):
+        """Le comportement d'origine, qu'on garde par défaut : c'est un import neuf."""
+        self.assertIn('1 créés', self._lancer(tous_syndicats=False))
+
+    def test_avec_option_il_est_reconnu_comme_doublon(self):
+        sortie = self._lancer(tous_syndicats=True)
+        self.assertIn('0 créés', sortie)
+        self.assertIn('1 existants', sortie)

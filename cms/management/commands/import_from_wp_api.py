@@ -35,6 +35,9 @@ class Command(BaseCommand):
         parser.add_argument('--categories-only', action='store_true',
                             help='Réaffecter uniquement les catégories des articles existants '
                                  '(répare les imports faits avant le fix du save() modelcluster)')
+        parser.add_argument('--tous-syndicats', action='store_true',
+                            help="Considérer qu'un article déjà présent SOUS UN AUTRE SYNDICAT "
+                                 "est un doublon, et ne pas le réimporter")
 
     def handle(self, *args, **options):
         self.base_url = options['url'].rstrip('/')
@@ -42,6 +45,7 @@ class Command(BaseCommand):
         self.section = options['section']
         self.dry_run = options['dry_run']
         self.media_only = options['media_only']
+        self.tous_syndicats = options['tous_syndicats']
         self.session = requests.Session()
         self.session.headers['User-Agent'] = 'CNT-SO-Importer/1.0'
         self.img_cache = {}   # url → WagtailImage or None
@@ -112,7 +116,17 @@ class Command(BaseCommand):
                 slug = slugify(unquote(post['slug']))
                 title = self._clean_html(post['title']['rendered'])
 
-                if ArticlePage.objects.filter(slug=slug, section_slug=self.section).exists():
+                # Le site WordPress confédéral relayait les articles de ses
+                # syndicats : 30 des 80 articles qu'il propose ici existent déjà
+                # chez nous, mais rangés sous « stucs », « auvergne », « 13 »…
+                # Ne chercher le doublon que dans la section visée les
+                # réimporterait en double sous « principal » (mesuré le
+                # 06/09/2026). L'article existe, il est simplement attribué à
+                # son syndicat — ce qui est plus juste que l'inverse.
+                deja = ArticlePage.objects.filter(slug=slug)
+                if not self.tous_syndicats:
+                    deja = deja.filter(section_slug=self.section)
+                if deja.exists():
                     skipped += 1
                     continue
                 if self.dry_run:
