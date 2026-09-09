@@ -576,11 +576,17 @@ class PageDetailView(View):
     def get(self, request, slug, **kwargs):
         from cms.models import ContentPage
         from django.http import HttpResponsePermanentRedirect
-        cp = ContentPage.objects.live().filter(slug=slug).first()
+        # `/page/<slug>/` est l'adresse de la confédération : on borne au
+        # périmètre du site principal, comme `SitePageDetailView` le fait pour
+        # chaque sous-site. Sans ce filtre, une page de sous-site homonyme
+        # (ContentPage ou legacy) se serait servie sous l'URL de la conf.
+        principal = get_object_or_404(SectionPage, slug='principal')
+        cp = ContentPage.objects.live().filter(
+            slug=slug, section_slug__in=principal.slugs_contenu).first()
         if cp:
             return HttpResponsePermanentRedirect(cp.get_absolute_url())
         # Fallback : servir la page legacy
-        page = get_object_or_404(Page, slug=slug, status='publish')
+        page = get_object_or_404(Page, slug=slug, site=principal, status='publish')
         return render(request, 'content/page_detail.html', {
             'page': page,
             'site': page.site,

@@ -33,6 +33,65 @@ class BasicAuthMiddleware:
         return response
 
 
+class ContentSecurityPolicyMiddleware:
+    """Pose une Content-Security-Policy sur les pages publiques.
+
+    Absente jusqu'ici (relevé au pentest du 08/09/2026). Elle n'est *pas*
+    appliquée à l'admin (`/cms/`, `/admin/`) : Wagtail y sert quantité de
+    scripts et de styles inline sans nonce, qu'une politique stricte casserait.
+    Le périmètre public n'a, lui, qu'un jeu borné d'hôtes externes (hCaptcha,
+    Leaflet/unpkg, Google Fonts).
+
+    `script-src`/`style-src` gardent `'unsafe-inline'` : une douzaine de blocs
+    inline (JSON-LD, init de carte, boutons de partage…) en dépendent. Le gain
+    n'est donc pas de bloquer le script injecté *inline* — l'échappement Django
+    s'en charge déjà — mais de fermer les vecteurs qui ne coûtent rien à
+    verrouiller : `object-src`, `base-uri`, `frame-ancestors`, `form-action`,
+    et le refus de charger un script/style depuis un hôte non listé.
+
+    `frame-src` et `img-src` restent larges (`https:`) à dessein : un rédacteur
+    intègre des vidéos (EmbedBlock) et des images d'origine libre ; les brider
+    à une liste figée casserait le prochain embed d'un fournisseur non prévu.
+
+    Passer à une politique par nonce (sans `'unsafe-inline'`) suppose d'ajouter
+    un nonce à chaque bloc inline — chantier séparé.
+    """
+
+    EXEMPT_PREFIXES = ('/cms/', '/cms', '/admin/', '/admin', '/django-admin')
+
+    POLICY = "; ".join([
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' https://js.hcaptcha.com "
+        "https://*.hcaptcha.com https://unpkg.com",
+        "style-src 'self' 'unsafe-inline' https://unpkg.com "
+        "https://fonts.googleapis.com https://*.hcaptcha.com",
+        "img-src 'self' data: https:",
+        "font-src 'self' data: https://fonts.gstatic.com",
+        "connect-src 'self' https://*.hcaptcha.com",
+        "frame-src https:",
+        "media-src 'self' https:",
+        "worker-src 'self' blob:",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "frame-ancestors 'self'",
+        "form-action 'self'",
+    ])
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if request.path.startswith(self.EXEMPT_PREFIXES):
+            return response
+        # Uniquement sur du HTML : inutile (et parfois gênant) sur les images,
+        # flux RSS, JSON, fichiers servis…
+        ctype = response.get('Content-Type', '')
+        if ctype.startswith('text/html') and not response.has_header('Content-Security-Policy'):
+            response['Content-Security-Policy'] = self.POLICY
+        return response
+
+
 class SectionDomainMiddleware:
     """
     Sert les sous-sites sur leur domaine autonome (SectionPage.custom_domain).

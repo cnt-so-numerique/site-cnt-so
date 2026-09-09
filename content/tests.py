@@ -785,6 +785,13 @@ class PageDetailViewTest(TestCase):
         url = reverse('content:page_detail', kwargs={'slug': 'draft-page'})
         self.assertEqual(self.client.get(url).status_code, 404)
 
+    def test_page_from_sub_site_not_served_under_main_url(self):
+        """Une page legacy d'un sous-site ne fuit pas sous l'URL de la conf."""
+        sub = make_site('sub', wp_blog_id=2, site_type='regional', name='Sub')
+        Page.objects.create(site=sub, title='Voisin', slug='homonyme', status='publish')
+        url = reverse('content:page_detail', kwargs={'slug': 'homonyme'})
+        self.assertEqual(self.client.get(url).status_code, 404)
+
 
 class SitePageDetailViewTest(TestCase):
     def setUp(self):
@@ -806,6 +813,25 @@ class SitePageDetailViewTest(TestCase):
         Page.objects.create(site=other, title='Other Page', slug='other-page', status='publish')
         url = reverse('content:site_page_detail', kwargs={'site_slug': 'sub', 'slug': 'other-page'})
         self.assertEqual(self.client.get(url).status_code, 404)
+
+
+class ContentSecurityPolicyTest(TestCase):
+    def setUp(self):
+        make_site()
+
+    def test_csp_pose_sur_page_publique(self):
+        r = self.client.get('/')
+        csp = r.headers.get('Content-Security-Policy', '')
+        self.assertIn("object-src 'none'", csp)
+        self.assertIn("frame-ancestors 'self'", csp)
+        self.assertIn("base-uri 'self'", csp)
+        self.assertIn("form-action 'self'", csp)
+
+    def test_csp_absente_sur_admin(self):
+        # /cms/ redirige vers le login sans en-tête CSP (Wagtail y sert de
+        # l'inline sans nonce : une CSP stricte casserait l'admin).
+        r = self.client.get('/cms/', follow=False)
+        self.assertNotIn('Content-Security-Policy', r.headers)
 
 
 class CategoryDetailViewTest(TestCase):

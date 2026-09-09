@@ -87,6 +87,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'cntso.middleware.ContentSecurityPolicyMiddleware',
     'cntso.middleware.BasicAuthMiddleware',
     'cntso.middleware.SectionDomainMiddleware',
     'wagtail.contrib.redirects.middleware.RedirectMiddleware',
@@ -473,4 +474,15 @@ if not DEBUG:
     # nginx doit transmettre X-Forwarded-Proto pour que Django voie le HTTPS
     # (nécessaire à l'émission du header HSTS derrière le reverse proxy)
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_HSTS_SECONDS = 2592000  # 30 jours — la redirection HTTP→HTTPS reste gérée par nginx
+    # HSTS : un an (recommandation courante), relevé de 30 jours au pentest du
+    # 08/09/2026. La redirection HTTP→HTTPS reste gérée par nginx.
+    SECURE_HSTS_SECONDS = 31536000  # 1 an
+    # includeSubDomains est sûr sur les hôtes actuels (newsite/stucs/…) : ce
+    # sont des feuilles, ils n'ont pas de sous-domaine. L'en-tête est cadré par
+    # le navigateur sur l'hôte qui l'émet — il ne remonte jamais à l'apex.
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    # preload volontairement OFF : c'est irréversible, et l'apex `cnt-so.org`
+    # comme `educ.cnt-so.org` sont encore servis par l'ancien serveur. À
+    # n'activer qu'une fois la bascule DNS finale faite et educ en HTTPS, sinon
+    # un apex en includeSubDomains forcerait educ en HTTPS avant qu'il ne suive.
+    SECURE_HSTS_PRELOAD = False
