@@ -5094,3 +5094,89 @@ class ConversionHtmlModifiableTest(TestCase):
         blocs = json.loads(body_json)
         self.assertEqual([b['type'] for b in blocs], ['rich_text'])
         self.assertIn('Un communiqué.', blocs[0]['value'])
+
+
+class ImportAiguillageVersLeSyndicatTest(TestCase):
+    """Le site confédéral relayait les articles de ses syndicats.
+
+    Mesuré le 10/09/2026 : sur les 26 articles du site confédéral encore
+    absents de chez nous, **17 portent la catégorie du STUCS**
+    (`communication-culture-spectacle`, id 155). Importés tels quels, ils
+    seraient rangés sous la conf — le STUCS serait privé de ses propres textes.
+    """
+
+    def setUp(self):
+        self.conf = _ensure_section_page(slug='principal', name='CNT-SO',
+                                         site_type='main')
+        self.stucs = _ensure_section_page(slug='stucs', name='STUCS',
+                                          site_type='sectoral')
+
+    def _importer(self, *extra):
+        from django.core.management import call_command
+        from io import StringIO
+
+        post = {
+            'id': 4242, 'slug': 'greve-des-intermittents',
+            'date': '2025-10-08T10:00:00',
+            'title': {'rendered': 'Grève des intermittent-es'},
+            'content': {'rendered': '<p>Le communiqué.</p>'},
+            'excerpt': {'rendered': ''},
+            'categories': [155, 182], 'featured_media': 0,
+        }
+        categories = [
+            {'id': 155, 'slug': 'communication-culture-spectacle',
+             'name': 'Syndicat des travailleur·euses'},
+            {'id': 182, 'slug': 'culture', 'name': 'Culture'},
+        ]
+
+        def faux_fetch(chemin, params=None):
+            return [post] if chemin == '/posts' else categories
+
+        sortie = StringIO()
+        with patch('cms.management.commands.import_from_wp_api.Command._fetch_all',
+                   side_effect=faux_fetch):
+            call_command('import_from_wp_api', '--url', 'https://exemple.test',
+                         '--section', 'principal', *extra, stdout=sortie)
+        return sortie.getvalue()
+
+    def test_sans_aiguillage_larticle_atterrit_sous_la_conf(self):
+        self._importer()
+        art = ArticlePage.objects.get(slug='greve-des-intermittents')
+        self.assertEqual(art.section_slug, 'principal')
+
+    def test_avec_aiguillage_il_est_rendu_au_stucs(self):
+        sortie = self._importer('--section-si-categorie', 'stucs=155')
+        art = ArticlePage.objects.get(slug='greve-des-intermittents')
+        self.assertEqual(art.section_slug, 'stucs')
+        # Et physiquement rangé sous le syndicat, pas seulement étiqueté.
+        self.assertEqual(art.get_parent().id, self.stucs.id)
+        self.assertIn('rendu(s) à leur syndicat', sortie)
+
+    def test_ses_rubriques_le_suivent_dans_son_syndicat(self):
+        self._importer('--section-si-categorie', 'stucs=155')
+        art = ArticlePage.objects.get(slug='greve-des-intermittents')
+        rubriques = list(art.cms_categories.all())
+        self.assertEqual([c.slug for c in rubriques], ['culture'])
+        # Rangée dans le syndicat : sans quoi le sous-site n'afficherait rien,
+        # les rubriques étant filtrées par section.
+        self.assertEqual(rubriques[0].section_slug, 'stucs')
+        # La catégorie qui a servi à l'aiguiller nomme le syndicat lui-même :
+        # elle n'apprend plus rien une fois l'article chez lui.
+        self.assertFalse(
+            CmsCategory.objects.filter(
+                slug='communication-culture-spectacle',
+                section_slug='stucs').exists())
+
+    def test_regle_mal_formee_refusee(self):
+        from django.core.management import call_command
+        from io import StringIO
+        err = StringIO()
+        with patch('cms.management.commands.import_from_wp_api.Command._fetch_all',
+                   side_effect=lambda c, p=None: []):
+            call_command('import_from_wp_api', '--url', 'https://exemple.test',
+                         '--section', 'principal',
+                         '--section-si-categorie', 'stucs',
+                         stdout=StringIO(), stderr=err)
+        self.assertIn('mal formée', err.getvalue())
+        self.assertFalse(ArticlePage.objects.filter(
+            slug='greve-des-intermittents').exists())

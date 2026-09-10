@@ -38,6 +38,14 @@ class Command(BaseCommand):
         parser.add_argument('--categories-only', action='store_true',
                             help='Réaffecter uniquement les catégories des articles existants '
                                  '(répare les imports faits avant le fix du save() modelcluster)')
+        parser.add_argument(
+            '--section-si-categorie', action='append', default=[],
+            metavar='SECTION=ID',
+            help="Aiguiller vers un autre syndicat les articles portant une "
+                 "catégorie WordPress donnée, ex. « stucs=155 ». Le site "
+                 "confédéral relayait les articles de ses syndicats : c'est "
+                 "ce qui permet de les rendre à leur syndicat plutôt que de "
+                 "les ranger sous la conf. Répétable.")
         parser.add_argument('--tous-syndicats', action='store_true',
                             help="Considérer qu'un article déjà présent SOUS UN AUTRE SYNDICAT "
                                  "est un doublon, et ne pas le réimporter")
@@ -67,6 +75,22 @@ class Command(BaseCommand):
             return
         self.stdout.write(f'Section cible : {self.section_page.title}')
 
+        self.routage = {}          # id de catégorie WP → (slug de section, SectionPage)
+        self.cat_wp = {}           # id de catégorie WP → (slug, nom)
+        self.routes = 0
+        for regle in options['section_si_categorie']:
+            if '=' not in regle:
+                self.stderr.write(f'Règle mal formée, attendu SECTION=ID : {regle}')
+                return
+            slug_section, id_cat = regle.split('=', 1)
+            cible = SectionPage.objects.filter(slug=slug_section.strip()).first()
+            if not cible:
+                self.stderr.write(f'SectionPage "{slug_section}" introuvable.')
+                return
+            self.routage[int(id_cat)] = (cible.slug, cible)
+            self.stdout.write(
+                f'  aiguillage : catégorie WP {id_cat} → {cible.title}')
+
         if self.media_only:
             self._import_media_for_existing()
         elif options['categories_only']:
@@ -91,6 +115,9 @@ class Command(BaseCommand):
         for c in cats:
             if c['slug'] in ('uncategorized', 'non-classe'):
                 continue
+            # Gardé même à blanc : l'aiguillage vers un autre syndicat a besoin
+            # du slug et du nom pour y recréer la rubrique.
+            self.cat_wp[c['id']] = (c['slug'], self._clean_html(c['name']))
             if self.dry_run:
                 created += 1
                 continue
@@ -149,6 +176,10 @@ class Command(BaseCommand):
                 if deja.exists():
                     skipped += 1
                     continue
+
+                section_slug, parent = self._destination(post)
+                if section_slug != self.section:
+                    self.routes += 1
                 if self.dry_run:
                     created += 1
                     continue
@@ -163,7 +194,7 @@ class Command(BaseCommand):
                     page = ArticlePage(
                         title=title,
                         slug=slug,
-                        section_slug=self.section,
+                        section_slug=section_slug,
                         body=body_json,
                         excerpt=self._clean_html(post['excerpt']['rendered'])[:500],
                         featured_image=featured_image,
@@ -174,10 +205,9 @@ class Command(BaseCommand):
                         legacy_wp_id=post['id'],
                         live=True,
                     )
-                    self.section_page.add_child(instance=page)
+                    parent.add_child(instance=page)
 
-                    cats = [self.cat_map[cid] for cid in post.get('categories', [])
-                            if cid in self.cat_map]
+                    cats = self._categories_pour(post, section_slug)
                     if cats:
                         page.cms_categories.set(cats)
                         # ParentalManyToManyField (modelcluster) : set() ne persiste
@@ -196,6 +226,45 @@ class Command(BaseCommand):
                 transaction.set_rollback(True)
 
         self.stdout.write(f'  {created} créés, {skipped} existants, {errors} erreurs')
+        if self.routes:
+            self.stdout.write(self.style.SUCCESS(
+                f'  {self.routes} article(s) rendu(s) à leur syndicat'))
+
+    def _destination(self, post):
+        """Le syndicat qui doit porter cet article, et la page qui l'accueille.
+
+        Le site confédéral relayait les articles de ses syndicats. Sans
+        aiguillage, ils atterrissent tous sous la conf — ce qui est faux, et
+        prive le syndicat de ses propres textes.
+        """
+        for cid in post.get('categories', []):
+            if cid in self.routage:
+                return self.routage[cid]
+        return self.section, self.section_page
+
+    def _categories_pour(self, post, section_slug):
+        """Les rubriques de l'article, dans le syndicat qui le porte.
+
+        Un article rendu au STUCS ne peut pas garder les rubriques de la
+        conf : elles sont rangées par section, et le sous-site n'afficherait
+        rien. La catégorie qui a servi à l'aiguiller est écartée — elle nomme
+        le syndicat lui-même et n'apprend plus rien une fois l'article chez lui.
+        """
+        from cms.models import CmsCategory
+
+        ids = post.get('categories', [])
+        if section_slug == self.section:
+            return [self.cat_map[cid] for cid in ids if cid in self.cat_map]
+
+        cats = []
+        for cid in ids:
+            if cid in self.routage or cid not in self.cat_wp:
+                continue
+            slug, nom = self.cat_wp[cid]
+            obj, _ = CmsCategory.objects.get_or_create(
+                slug=slug, section_slug=section_slug, defaults={'name': nom})
+            cats.append(obj)
+        return cats
 
     # ── Réaffectation des catégories pour articles existants ───────────────────
 
