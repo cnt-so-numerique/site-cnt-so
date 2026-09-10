@@ -16,6 +16,8 @@ from pathlib import Path
 from urllib.parse import urlparse, unquote
 
 import requests
+
+from cms.conversion_html import html_vers_blocs
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils.text import slugify
@@ -51,6 +53,9 @@ class Command(BaseCommand):
         self.session.headers['User-Agent'] = 'CNT-SO-Importer/1.0'
         self.img_cache = {}   # url → WagtailImage or None
         self.doc_cache = {}   # url → Document or None
+        # Ce que la conversion en blocs modifiables n'a pas su reprendre.
+        self.conv_stats = {'rich_text': 0, 'image': 0, 'html_conserve': 0,
+                           'images_perdues': 0, 'widgets_retires': 0}
 
         if self.dry_run:
             self.stdout.write(self.style.WARNING('=== DRY-RUN ==='))
@@ -70,6 +75,8 @@ class Command(BaseCommand):
         else:
             self.cat_map = self._import_categories()
             self._import_posts()
+
+        self._bilan_conversion()
 
         self.stdout.write(self.style.SUCCESS('Import terminé.'))
 
@@ -277,6 +284,26 @@ class Command(BaseCommand):
         if errors:
             self.stdout.write(f'  Erreurs: {errors}')
 
+    def _bilan_conversion(self):
+        """Ce que la mise en blocs modifiables n'a pas su reprendre."""
+        st = getattr(self, 'conv_stats', None)
+        if not st or not any(st.values()):
+            return
+        self.stdout.write(
+            f"Corps : {st['rich_text']} bloc(s) de texte modifiable, "
+            f"{st['image']} bloc(s) image")
+        if st['html_conserve']:
+            self.stdout.write(self.style.WARNING(
+                f"  {st['html_conserve']} morceau(x) gardé(s) en HTML brut "
+                f"(tableau, vidéo ou balise non convertible)"))
+        if st.get('widgets_retires'):
+            self.stdout.write(
+                f"  {st['widgets_retires']} greffon(s) WordPress inerte(s) retiré(s)")
+        if st['images_perdues']:
+            self.stdout.write(self.style.WARNING(
+                f"  {st['images_perdues']} image(s) introuvable(s) en "
+                f"médiathèque, balise d'origine conservée"))
+
     # ── Traitement du contenu HTML ─────────────────────────────────────────────
 
     def _process_content(self, html):
@@ -298,7 +325,15 @@ class Command(BaseCommand):
 
         blocks = []
         if content:
-            blocks.append({'type': 'html', 'value': content, 'id': str(uuid.uuid4())})
+            # Directement en blocs modifiables. Un article importé doit pouvoir
+            # être retouché par un rédacteur, pas seulement relu : le bloc
+            # « HTML brut » est masqué du menu de l'éditeur et s'ouvre sur une
+            # zone de code source. Ce que la conversion ne sait pas représenter
+            # (tableau, vidéo) y reste, et est compté pour le dire à la fin.
+            convertis, stats = html_vers_blocs(content)
+            blocks.extend(convertis)
+            for cle, valeur in stats.items():
+                self.conv_stats[cle] = self.conv_stats.get(cle, 0) + valeur
 
         # Ajouter les blocs fichiers après le contenu HTML
         blocks.extend(file_blocks)

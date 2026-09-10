@@ -4830,3 +4830,267 @@ class NettoyageDesChampsWordPressTest(TestCase):
         """L'ordre compte : décoder d'abord transformerait ceci en balise."""
         self.assertEqual(self._nettoyer('Employer &lt;b&gt; en HTML'),
                          'Employer <b> en HTML')
+
+
+# ── Articles importés : du HTML brut vers un article modifiable ───────────────
+
+class ConversionHtmlModifiableTest(TestCase):
+    """L'import rangeait tout l'article dans un unique bloc « HTML brut ».
+
+    Ce bloc est masqué du menu de l'éditeur (`CorpsBlock.BLOCS_MASQUES`) : le
+    rédacteur qui ouvrait un article importé tombait sur une zone de code
+    source, sans pouvoir corriger une faute ni déplacer une image. Ces tests
+    tiennent les deux promesses du convertisseur : ce qui sort est ouvrable
+    dans l'éditeur, et rien n'est jamais perdu.
+    """
+
+    def setUp(self):
+        from wagtail.images import get_image_model
+        from wagtail.images.tests.utils import get_test_image_file
+        self.Image = get_image_model()
+        self.image = self.Image.objects.create(
+            title='Affiche', file=get_test_image_file())
+        self.src = f'/media/{self.image.file.name}'
+
+    # ── Le convertisseur ──────────────────────────────────────────────────────
+
+    def test_paragraphes_deviennent_du_texte_modifiable(self):
+        from cms.conversion_html import html_vers_blocs
+        blocs, stats = html_vers_blocs(
+            '<p>Premier paragraphe.</p><p>Second <strong>appuyé</strong>.</p>')
+        self.assertEqual([b['type'] for b in blocs], ['rich_text'])
+        self.assertIn('Premier paragraphe.', blocs[0]['value'])
+        self.assertIn('<strong>appuyé</strong>', blocs[0]['value'])
+        self.assertEqual(stats['rich_text'], 1)
+
+    def test_tout_texte_produit_s_ouvre_dans_l_editeur(self):
+        """La promesse du convertisseur, sur du HTML volontairement sale.
+
+        C'est le défaut du 15/08/2026 : 261 articles s'affichaient en public et
+        renvoyaient une erreur 500 dès qu'un rédacteur cliquait « Modifier ».
+        """
+        from cms.conversion_html import html_vers_blocs, texte_riche_ouvrable
+        sales = [
+            '<p>Une ligne<br>et la suite</p>',
+            '<p>Paragraphe jamais fermé',
+            '<ul><li>un<li>deux</ul>',
+            '<p>Imbriqué <strong>gras <em>et penché</strong> encore</em></p>',
+            '<p>Entités&nbsp;: l&rsquo;aust&eacute;rit&eacute; &amp; le reste</p>',
+            '<h3>Titre</h3><p>Texte</p><hr><blockquote>Citation</blockquote>',
+        ]
+        for html in sales:
+            with self.subTest(html=html[:40]):
+                for bloc in html_vers_blocs(html)[0]:
+                    if bloc['type'] == 'rich_text':
+                        self.assertTrue(texte_riche_ouvrable(bloc['value']),
+                                        f"bloc inouvrable : {bloc['value']!r}")
+
+    def test_texte_inouvrable_retombe_en_html_brut(self):
+        """Plutôt un fragment non modifiable qu'un article qui casse l'éditeur."""
+        from unittest.mock import patch
+        from cms.conversion_html import html_vers_blocs
+        with patch('cms.conversion_html.texte_riche_ouvrable', return_value=False):
+            blocs, stats = html_vers_blocs('<p>Un texte que l\'éditeur refuse.</p>')
+        self.assertEqual([b['type'] for b in blocs], ['html'])
+        self.assertIn("Un texte que l'éditeur refuse.", blocs[0]['value'])
+        self.assertEqual(stats['html_conserve'], 1)
+
+    def test_image_sortie_en_bloc_image(self):
+        from cms.conversion_html import html_vers_blocs
+        blocs, stats = html_vers_blocs(
+            f'<p>Avant.</p><img src="{self.src}" alt="Notre affiche"/>'
+            f'<p>Après.</p>')
+        self.assertEqual([b['type'] for b in blocs],
+                         ['rich_text', 'image', 'rich_text'])
+        self.assertEqual(blocs[1]['value']['image'], self.image.pk)
+        self.assertEqual(blocs[1]['value']['caption'], 'Notre affiche')
+        self.assertEqual(stats['image'], 1)
+        self.assertEqual(stats['images_perdues'], 0)
+
+    def test_legende_de_figure_reprise(self):
+        from cms.conversion_html import html_vers_blocs
+        blocs, _ = html_vers_blocs(
+            f'<figure><img src="{self.src}"/>'
+            f'<figcaption>Manifestation du 1er mai</figcaption></figure>')
+        self.assertEqual([b['type'] for b in blocs], ['image'])
+        self.assertEqual(blocs[0]['value']['caption'], 'Manifestation du 1er mai')
+
+    def test_image_dans_un_paragraphe_est_sortie_du_texte(self):
+        """Un bloc image ne peut pas vivre à l'intérieur d'un texte riche."""
+        from cms.conversion_html import html_vers_blocs
+        blocs, _ = html_vers_blocs(
+            f'<p>Le tract : <img src="{self.src}"/> à diffuser.</p>')
+        self.assertEqual([b['type'] for b in blocs], ['rich_text', 'image'])
+        self.assertIn('Le tract', blocs[0]['value'])
+        self.assertIn('à diffuser', blocs[0]['value'])
+
+    def test_image_d_un_tableau_reste_dans_le_tableau(self):
+        """Un morceau gardé en HTML brut garde ses images.
+
+        Les en sortir les ferait paraître deux fois : une dans le tableau
+        conservé, une en bloc image juste après.
+        """
+        from cms.conversion_html import html_vers_blocs
+        blocs, _ = html_vers_blocs(
+            f'<table><tr><td>Grille</td><td><img src="{self.src}"/></td></tr>'
+            f'</table>')
+        self.assertEqual([b['type'] for b in blocs], ['html'])
+        self.assertIn('<table>', blocs[0]['value'])
+        self.assertIn('<img', blocs[0]['value'])
+
+    def test_image_introuvable_jamais_perdue(self):
+        from cms.conversion_html import html_vers_blocs
+        blocs, stats = html_vers_blocs(
+            '<p>Texte.</p><img src="https://ailleurs.example/photo.jpg"/>')
+        self.assertEqual([b['type'] for b in blocs], ['rich_text', 'html'])
+        self.assertIn('https://ailleurs.example/photo.jpg', blocs[1]['value'])
+        self.assertEqual(stats['images_perdues'], 1)
+
+    def test_tableau_garde_en_html_brut(self):
+        """Un tableau déplié en paragraphes ne se répare pas : on le garde."""
+        from cms.conversion_html import html_vers_blocs
+        tableau = '<table><tr><td>Salaire</td><td>1 800 €</td></tr></table>'
+        blocs, stats = html_vers_blocs(tableau)
+        self.assertEqual([b['type'] for b in blocs], ['html'])
+        # Le balisage est conservé au caractère près — c'est ce qui tombe si
+        # l'on retire la garde INCOMPATIBLES.
+        self.assertIn('<table>', blocs[0]['value'])
+        self.assertIn('<td>1 800 €</td>', blocs[0]['value'])
+        self.assertEqual(stats['html_conserve'], 1)
+
+    def test_attributs_wordpress_nettoyes(self):
+        from cms.conversion_html import html_vers_blocs
+        blocs, _ = html_vers_blocs(
+            '<div class="wp-block-group"><h1 style="color:red" id="t">Titre</h1>'
+            '<p class="has-large-font-size">Texte <b>gras</b> et '
+            '<a href="/page/" target="_blank" rel="noopener">un lien</a>.</p></div>')
+        valeur = blocs[0]['value']
+        self.assertNotIn('class=', valeur)
+        self.assertNotIn('style=', valeur)
+        self.assertNotIn('target=', valeur)
+        # Le titre de niveau 1 est déjà celui de la page.
+        self.assertNotIn('<h1', valeur)
+        self.assertIn('<h2>Titre</h2>', valeur)
+        self.assertIn('<strong>gras</strong>', valeur)
+        self.assertIn('href="/page/"', valeur)
+
+    def test_apercu_pdf_wordpress_retire(self):
+        """Le bloc fichier de WordPress double son lien d'un aperçu inerte.
+
+        Mesuré le 10/09/2026 : présent dans 17 articles sur 20. Le garder
+        condamnait l'article entier à rester en HTML brut, pour un greffon
+        masqué d'office et piloté par un moteur JavaScript absent d'ici.
+        """
+        from cms.conversion_html import html_vers_blocs
+        blocs, stats = html_vers_blocs(
+            '<div class="wp-block-file">'
+            '<object class="wp-block-file__embed" data="/media/tract.pdf" '
+            'type="application/pdf" hidden=""></object>'
+            '<a href="/media/tract.pdf">Le tract</a></div>')
+        self.assertEqual([b['type'] for b in blocs], ['rich_text'])
+        # Le lien de téléchargement, lui, ne bouge pas.
+        self.assertIn('href="/media/tract.pdf"', blocs[0]['value'])
+        self.assertNotIn('<object', blocs[0]['value'])
+        self.assertEqual(stats['widgets_retires'], 1)
+
+    def test_script_tiers_retire_mais_le_repli_reste(self):
+        """La politique de sécurité du 09/09/2026 les bloque déjà."""
+        from cms.conversion_html import html_vers_blocs
+        blocs, _ = html_vers_blocs(
+            '<blockquote>Le message d\'origine</blockquote>'
+            '<script async src="https://embed.bsky.app/static/embed.js"></script>')
+        self.assertEqual([b['type'] for b in blocs], ['rich_text'])
+        self.assertIn("Le message d'origine", blocs[0]['value'])
+        self.assertNotIn('bsky', blocs[0]['value'])
+
+    def test_object_inconnu_garde_le_morceau_en_html(self):
+        """On ne retire que le greffon WordPress identifié, pas tous les
+        `<object>` : le reste vaut mieux intact que deviné."""
+        from cms.conversion_html import html_vers_blocs
+        blocs, _ = html_vers_blocs(
+            '<div><object data="/media/carte.svg" type="image/svg+xml">'
+            '</object></div>')
+        self.assertEqual([b['type'] for b in blocs], ['html'])
+        self.assertIn('carte.svg', blocs[0]['value'])
+
+    def test_html_vide_ne_produit_rien(self):
+        from cms.conversion_html import html_vers_blocs
+        self.assertEqual(html_vers_blocs('')[0], [])
+        self.assertEqual(html_vers_blocs('   ')[0], [])
+
+    # ── La commande de reprise ────────────────────────────────────────────────
+
+    def _article_importe(self, html, **kwargs):
+        import json
+        return make_article_page(
+            title=kwargs.pop('title', 'Article importé'),
+            body=json.dumps([{'type': 'html', 'value': html,
+                              'id': 'aaaaaaaa-0000-0000-0000-000000000001'}]),
+            **kwargs)
+
+    def test_commande_convertit_et_est_idempotente(self):
+        from django.core.management import call_command
+        from io import StringIO
+        art = self._article_importe(
+            f'<p>Le texte.</p><img src="{self.src}" alt="Affiche"/>')
+        call_command('convertit_html_modifiable', stdout=StringIO())
+        art.refresh_from_db()
+        self.assertEqual([b['type'] for b in art.body.raw_data],
+                         ['rich_text', 'image'])
+        # Les blocs produits doivent se charger réellement, pas seulement
+        # ressembler à des blocs : l'image doit se résoudre en objet.
+        blocs = list(art.body)
+        self.assertEqual(blocs[1].value['image'].pk, self.image.pk)
+
+        sortie = StringIO()
+        call_command('convertit_html_modifiable', stdout=sortie)
+        self.assertIn('rien à faire', sortie.getvalue())
+
+    def test_commande_ignore_un_brouillon_en_attente(self):
+        """Republier écraserait des modifications non validées."""
+        from django.core.management import call_command
+        from io import StringIO
+        art = self._article_importe('<p>Texte.</p>')
+        art.has_unpublished_changes = True
+        art.save(update_fields=['has_unpublished_changes'])
+        sortie = StringIO()
+        call_command('convertit_html_modifiable', stdout=sortie)
+        art.refresh_from_db()
+        self.assertEqual([b['type'] for b in art.body.raw_data], ['html'])
+        self.assertIn('brouillon en attente', sortie.getvalue())
+
+    def test_commande_aligne_la_revision(self):
+        """L'éditeur ouvre la dernière révision quand il y en a une."""
+        from django.core.management import call_command
+        from io import StringIO
+        art = self._article_importe('<p>Texte.</p>')
+        art.save_revision(changed=False, clean=False)
+        call_command('convertit_html_modifiable', stdout=StringIO())
+        art.refresh_from_db()
+        revision = art.latest_revision
+        self.assertIn('rich_text', revision.content['body'])
+        self.assertNotIn('"type": "html"', revision.content['body'])
+
+    def test_dry_run_n_ecrit_rien(self):
+        from django.core.management import call_command
+        from io import StringIO
+        art = self._article_importe('<p>Texte.</p>')
+        call_command('convertit_html_modifiable', '--dry-run', stdout=StringIO())
+        art.refresh_from_db()
+        self.assertEqual([b['type'] for b in art.body.raw_data], ['html'])
+
+    def test_import_produit_des_blocs_modifiables(self):
+        """L'import lui-même ne doit plus fabriquer de bloc HTML brut."""
+        from cms.management.commands.import_from_wp_api import Command
+        cmd = Command()
+        cmd.base_url = 'https://cnt-so.org'
+        cmd.conv_stats = {'rich_text': 0, 'image': 0,
+                          'html_conserve': 0, 'images_perdues': 0}
+        cmd._download_inline_images = lambda html: html
+        cmd._download_inline_docs = lambda html: (html, [])
+        import json
+        body_json, _ = cmd._process_content(
+            '<!-- wp:paragraph --><p>Un communiqué.</p>')
+        blocs = json.loads(body_json)
+        self.assertEqual([b['type'] for b in blocs], ['rich_text'])
+        self.assertIn('Un communiqué.', blocs[0]['value'])
