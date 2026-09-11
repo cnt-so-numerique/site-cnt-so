@@ -121,6 +121,24 @@ déplaçables, le cinquième (HISTOROCK, id 24) a un brouillon en attente et res
 où il est. « FÊTES LIBRES » porte aussi la rubrique STAA, qui n'a pas
 d'équivalent au STUCS.
 
+**Fait le 11/09/2026** : Festival Europavox, Le roi est nu, FÊTES LIBRES et la
+réforme de l'assurance-chômage sont au STUCS. Vérifié pour chacun : section,
+parent et révision à `stucs`, éditeur en 200, ancienne adresse en 302 vers
+`stucs.cnt-so.org`. Tous ont perdu la rubrique conf
+`communication-culture-spectacle` (elle nomme le STUCS lui-même) ; FÊTES LIBRES
+a aussi perdu sa rubrique STAA, sans équivalent au STUCS.
+
+## Remise en ordre et réimport, le 11/09/2026
+
+- article du 07/09 supprimé puis réimporté avec le code corrigé (id 1971) :
+  rubrique « Actions », **ses deux PDF**, aucun lien vers l'ancien serveur,
+  éditeur et page publique en 200 ;
+- les 40 rubriques recréées supprimées (toutes vides, repérées par comparaison
+  avec la sauvegarde de la veille) ; « Actions » compte 111 articles ;
+- réimport : **0 rubrique créée**, 38 reconnues, 37 sans équivalent signalées ;
+- `normalise_urls_heritees` passée pour la première fois : **84 adresses
+  réécrites sur 41 pages**, 104 laissées faute de fichier chez nous.
+
 ## Deux erreurs de mesure, pour mémoire
 
 - J'annonçais « ~32 articles absents » du nouveau site. Il y en avait **deux**.
@@ -133,7 +151,7 @@ d'équivalent au STUCS.
 
 ## Reste à faire
 
-- [ ] Passer la conversion en production (voir la séquence annoncée en séance).
+- [x] Conversion passée en production le 11/09/2026 (48 articles).
 - [ ] Décider du fonds : 1 100 pages sont dans le même état. La conversion
       change légèrement le rendu public (les images deviennent des blocs
       centrés pleine colonne, avec leur légende). À regarder sur un article

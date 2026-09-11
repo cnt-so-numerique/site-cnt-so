@@ -24,11 +24,12 @@ Deux faits changent le plan par rapport à la note du 02/09 :
    11/09** : il n'en manquait que deux (07/09 conf, 08/09 Éducation), importés
    ce jour-là. Ma comparaison ratait les slugs normalisés par l'import.
 
-3. **49 adresses de fichiers mourront à la bascule** (mesuré le 11/09 sur la
-   production) : 217 pages citent `cnt-so.org/wp-content/uploads/…` en adresse
-   absolue ; 246 de ces fichiers sont parmi les 346 rapatriés le 02/09 et
-   resteront servis par nginx, **49 ne le sont pas** — dont 41 de 2026, donc
-   surtout le lot importé le 06/09.
+3. **32 adresses de fichiers mourront à la bascule** (remesuré le 11/09, tous
+   hôtes `*.cnt-so.org`, après le passage de `normalise_urls_heritees`) : 351
+   adresses absolues restent dans les corps, 319 sont couvertes par les 346
+   fichiers rapatriés le 02/09 et resteront servies par nginx, **32 ne le sont
+   pas** — 30 de 2026 —, sur 24 pages en ligne. Un échantillon de 15 répond
+   encore chez l'ancien hébergeur : elles sont récupérables.
 
 ---
 
@@ -47,7 +48,7 @@ Deux faits changent le plan par rapport à la note du 02/09 :
       ```
       (puis sans `--dry-run`). `--tous-syndicats` est obligatoire : sans lui,
       30 relais du site confédéral se dupliquent sous « principal ».
-- [ ] **Rapatrier les 49 fichiers manquants** dans `/var/www/cntso/legacy/`,
+- [ ] **Rapatrier les 32 fichiers manquants** dans `/var/www/cntso/legacy/`,
       même arborescence, comme les 346 du 02/09 — **tant que l'ancien
       WordPress répond**. Les mêmes adresses resteront valables après la
       bascule, sans réécrire un seul article.
