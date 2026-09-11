@@ -10,8 +10,27 @@ L'import range tout le contenu d'un article dans un **unique bloc « HTML brut
 article importé tombe sur une zone de code source. Il ne peut pas corriger une
 faute sans lire du HTML, ni déplacer une image, ni insérer un encadré.
 
-C'est le cas des **51 articles repris le 06/09/2026** — et, mesuré en base de
-développement, de **1 061 articles et 48 pages** au total.
+C'est le cas des **51 articles repris le 06/09/2026**.
+
+~~Et de 1 061 articles et 48 pages au total~~ — **faux** : ce chiffre venait de
+la base de développement, qui diverge de la production. Mesuré en production
+le 11/09/2026 :
+
+| ArticlePage (1 854) | |
+|---|---|
+| texte entièrement modifiable | 758 |
+| texte modifiable + un morceau de HTML brut (« mixte ») | 960 |
+| entièrement en HTML brut | 114 |
+| corps vide | 22 |
+
+Le texte du fonds a donc bien été rendu modifiable par la migration d'origine.
+Ce qui reste en HTML brut, ce sont **des images** : 1 775 blocs « image seule »
+dans 970 articles, que le convertisseur ne peut pas changer en blocs image
+parce qu'elles **ne sont pas dans la médiathèque Wagtail** — 1 521 fichiers sont
+bien sur le serveur sous `/media/`, 249 pointent encore l'ancien WordPress.
+S'y ajoutent 61 aperçus PDF, 26 morceaux de texte, 12 texte + image et 5
+tableaux. Sur tout le fonds, la simulation ne trouve que **137 pages**
+convertibles en l'état.
 
 ## Ce qui a été fait
 
@@ -152,9 +171,9 @@ a aussi perdu sa rubrique STAA, sans équivalent au STUCS.
 ## Reste à faire
 
 - [x] Conversion passée en production le 11/09/2026 (48 articles).
-- [ ] Décider du fonds : 1 100 pages sont dans le même état. La conversion
-      change légèrement le rendu public (les images deviennent des blocs
-      centrés pleine colonne, avec leur légende). À regarder sur un article
-      avant d'engager le lot.
+- [ ] Décider du fonds, en deux temps :
+      1. les **137 pages** convertibles en l'état (la simulation les liste) ;
+      2. les **970 articles** dont les images sont hors médiathèque : il
+         faudrait d'abord y verser ~1 500 images — autre chantier, à peser.
 - [x] Import de rattrapage : deux articles seulement manquaient (07/09 conf,
       08/09 Éducation), importés le 11/09.

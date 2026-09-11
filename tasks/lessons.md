@@ -337,3 +337,31 @@ Deux conclusions fausses d'affilée en interrogeant la base au lieu de la page :
 **Règle :** une question sur ce que voit un visiteur se tranche sur le HTML
 rendu (`curl`), pas sur les relations en base. Et un arbre se lit
 **récursivement**, sinon on prend les branches pour des feuilles.
+
+## Un chiffre de dev répété comme un fait (11/09/2026)
+
+J'ai annoncé trois fois « 1 061 articles et 48 pages sont encore en HTML
+brut », jusque dans deux messages de commit, et proposé à Arnaud de « décider
+du fonds » là-dessus. Le chiffre venait de la **base de développement**,
+mesuré la veille pour dimensionner le travail. Arnaud : « tu es sûr ? on est
+censé l'avoir déjà fait ». En production : 758 articles entièrement
+modifiables, 960 dont le texte l'est déjà (il ne leur reste qu'un bloc image
+hors médiathèque), 114 seulement entièrement en HTML brut — et 137 pages
+convertibles en l'état, pas 1 100.
+
+C'est la règle juste au-dessus, enfreinte une semaine après l'avoir écrite.
+Ce qui l'a laissée passer : le chiffre est né comme un ordre de grandeur de
+travail, légitime en dev, puis il a **changé de statut sans être remesuré** —
+d'estimation à « reste à décider ».
+
+Même séance, même famille : « ~32 articles absents du nouveau site », mesuré
+par un détour (sitemap, puis recherche par titre). Il y en avait **deux**. Seule
+la logique de l'import elle-même (`slugify(unquote(slug))` interrogé sur la
+base de production) donnait le vrai chiffre.
+
+**Règles :**
+- un chiffre mesuré en dev porte son étiquette (« en dev ») chaque fois qu'il
+  est répété — ou il n'est pas répété ;
+- avant qu'un chiffre serve à proposer une décision, il se remesure **sur le
+  serveur**, le jour même ;
+- on mesure avec l'outil qui agira, pas avec un indicateur voisin.
