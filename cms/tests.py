@@ -4300,7 +4300,12 @@ class DecorDeLecranDeRedactionTest(TestCase):
         self.client.force_login(make_superuser('decor-admin'))
 
     def _html(self):
-        return self.client.get(f'/cms/pages/{self.article.pk}/edit/').content.decode()
+        # L'écran que les rédacteurs ouvrent réellement. L'éditeur de pages de
+        # Wagtail, que ce test visait, renvoie désormais vers lui (11/09/2026) —
+        # et le test du panneau de commentaires passait alors sur une page vide.
+        r = self.client.get(f'/cms/snippets/cms/articlepage/edit/{self.article.pk}/')
+        self.assertEqual(r.status_code, 200)
+        return r.content.decode()
 
     def test_la_minimap_et_son_bouton_tout_replier_sont_retires(self):
         # « Tout replier » est rendu PAR la minimap : masquer le conteneur
@@ -5606,3 +5611,38 @@ class RetireChevronsBrTest(TestCase):
         self._lancer()
         self.assertEqual(ArticlePage.objects.get(pk=art.pk).body.raw_data[0]['value'],
                          '<p>Avant</p><p>Après</p>')
+
+
+class UnSeulEcranDEditionTest(TestCase):
+    """L'éditeur de pages proposait les rubriques de tous les syndicats.
+
+    Arnaud, 11/09/2026 : « c'est toujours autant le bordel les catégories » —
+    216 rubriques de huit syndicats, sur `/cms/pages/1803/edit/`, là où l'écran
+    snippet de l'article en proposait 23, les siennes.
+    """
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        self.client.force_login(User.objects.create_superuser('admin_ecran', 'a@e.fr', 'x'))
+        self.section = _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        self.art = make_article_page(title='Un article', slug='un-article-ecran')
+        self.page = make_content_page(title='Une page', slug='une-page-ecran')
+
+    def test_l_editeur_de_pages_renvoie_vers_l_ecran_de_l_article(self):
+        r = self.client.get(f'/cms/pages/{self.art.pk}/edit/')
+        self.assertRedirects(r, f'/cms/snippets/cms/articlepage/edit/{self.art.pk}/',
+                             fetch_redirect_response=False)
+
+    def test_de_meme_pour_une_page_de_contenu(self):
+        r = self.client.get(f'/cms/pages/{self.page.pk}/edit/')
+        self.assertRedirects(r, f'/cms/snippets/cms/contentpage/edit/{self.page.pk}/',
+                             fetch_redirect_response=False)
+
+    def test_la_creation_est_renvoyee_aussi(self):
+        r = self.client.get(f'/cms/pages/add/cms/articlepage/{self.section.pk}/')
+        self.assertRedirects(r, '/cms/snippets/cms/articlepage/add/',
+                             fetch_redirect_response=False)
+
+    def test_les_autres_pages_gardent_l_editeur_de_wagtail(self):
+        """Contrôle positif : un crochet trop large fermerait tout."""
+        self.assertEqual(self.client.get(f'/cms/pages/{self.section.pk}/edit/').status_code, 200)

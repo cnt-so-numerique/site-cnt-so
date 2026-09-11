@@ -1621,3 +1621,37 @@ def insert_gestes_frequents_css():
             position: relative;
         }}
     </style>''', rouge='#E81C24', rouge_fonce='#c01018')
+
+
+# ── Un seul écran d'édition pour les articles et les pages de contenu ─────────
+#
+# ArticlePage et ContentPage s'éditent par leurs écrans snippet, cloisonnés par
+# syndicat, rubriques comprises. L'éditeur de pages de Wagtail restait pourtant
+# ouvert — par l'arbre des pages, la barre Wagtail du site public, ou un lien
+# direct — et proposait les 216 rubriques de huit syndicats mélangées (Arnaud,
+# 11/09/2026 : « c'est toujours autant le bordel les catégories »). Rien ne s'y
+# cloisonnait. On le referme en renvoyant vers le bon écran, en édition comme
+# en création ; les autres types de pages gardent l'éditeur de Wagtail.
+
+_ECRANS_SNIPPET = {
+    'articlepage': 'wagtailsnippets_cms_articlepage',
+    'contentpage': 'wagtailsnippets_cms_contentpage',
+}
+
+
+@hooks.register('before_edit_page')
+def editer_par_l_ecran_snippet(request, page):
+    from django.shortcuts import redirect
+    from django.urls import reverse
+    espace = _ECRANS_SNIPPET.get(page.specific_class._meta.model_name)
+    if espace:
+        return redirect(reverse(f'{espace}:edit', args=[page.pk]))
+
+
+@hooks.register('before_create_page')
+def creer_par_l_ecran_snippet(request, parent_page, page_class):
+    from django.shortcuts import redirect
+    from django.urls import reverse
+    espace = _ECRANS_SNIPPET.get(page_class._meta.model_name)
+    if espace:
+        return redirect(reverse(f'{espace}:add'))
