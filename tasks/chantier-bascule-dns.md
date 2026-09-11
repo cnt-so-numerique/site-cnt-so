@@ -76,7 +76,7 @@ Séquence détaillée ci-dessous.
 - [ ] `cntso/middleware.py:85` : la double barre oblique (`//13/…`) construit un
       hôte inexistant. Sans objet depuis que nginx sert `/wp-content/uploads/`,
       mais cinq lignes et un test d'hygiène.
-- [ ] Redirection `www.cnt-so.org` → `cnt-so.org` en 301 dans nginx (aujourd'hui
+- [x] (11/09/2026, vérifiée) Redirection `www.cnt-so.org` → `cnt-so.org` en 301 dans nginx (aujourd'hui
       les deux noms serviraient le même contenu).
 
 ---
@@ -98,6 +98,42 @@ Ceux du STUCS lui ont été rendus (`rend_au_syndicat`). Pour les autres,
   republié.
 
 ## Le mode « old » : pourquoi le réflexe évident ne marche pas
+
+> **Mis à jour le 11/09/2026 — le relais décrit plus bas est impossible** : le
+> nginx du serveur est compilé sans `http_sub_module` (`nginx -V`). Ce qui
+> était « l'assurance » est devenu la solution : une copie statique, en place.
+
+### La copie statique, faite le 11/09/2026
+
+- `/var/www/cntso/archive-wp/`, environ 4,4 Go, prise pendant que l'ancienne
+  machine répondait : **1 827 articles sur 1 827** des neuf sites de l'ancien
+  WordPress — conf 700, 13 525, Auvergne 261, Poitiers 193, educ 102,
+  Rhône-Alpes 32, STAA 10, Éducation 3, Numérique 1. Auvergne, Rhône-Alpes,
+  STAA, Éducation et Numérique n'étaient reliés par aucun lien : ils ont dû
+  être copiés un par un, et le contrôle article par article l'a révélé.
+- **Rendue autonome** par une passe de finition : 565 feuilles de style,
+  scripts, polices, images et documents rapatriés, adresses absolues
+  réécrites vers la copie, **26 575 attributs `srcset` retirés**. Sans elle,
+  après la bascule, les styles auraient été cherchés sur le nouveau serveur
+  (écartés à la copie à cause de leur `?ver=`), et les images en tailles
+  alternatives auraient cassé — un navigateur qui choisit une taille de
+  `srcset` ne se rabat pas sur `src`.
+- Contrôle final : 0 article manquant, 0 `srcset`, toutes les feuilles de
+  style servies en local sur les sept accueils testés par `old.`.
+- Laissés hors de la copie, volontairement : flux RSS, API, pages d'auteurs
+  et d'étiquettes, 636 pages de pièces jointes (l'image, elle, est copiée),
+  et environ 300 liens déjà morts sur l'ancien site lui-même.
+- Vhost `/etc/nginx/sites-available/old-cntso` : `old.cnt-so.org/` renvoie
+  vers `/cnt-so.org/`, en-tête `X-Robots-Tag: noindex`, `robots.txt` qui
+  interdit tout.
+- Outils relançables : `tasks/outils/copie-ancien-wp/` (finition, contrôle).
+  Sauvegardes des pages avant chaque finition : `~/archive-wp-html-avant-finition-*.tgz`.
+
+**Reste** : l'enregistrement DNS `old.cnt-so.org` → 51.91.242.64 (chez OVH) ;
+son HTTPS le jour J, `old.cnt-so.org` figurant déjà dans la commande certbot.
+La copie est figée au 11/09 : si l'ancien WordPress publiait encore, la
+reprendre.
+
 
 Le réflexe est de créer `old.cnt-so.org → 5.196.74.69` et de renvoyer les gens
 dessus. **Mesuré : ça donne une page blanche.**
@@ -242,6 +278,9 @@ servent des clients de messagerie, que le HSTS ne concerne pas.)
 sous-domaine vérifié en HTTPS. C'est aussi le prérequis du préchargement,
 reporté (note de la mémoire cnt-adhesion, `project_hsts_preload_differe`).
 
+**Fait le 11/09/2026** (commit `8f28f0f`) : `includeSubDomains` coupé, en-tête
+servi vérifié en production — `max-age=31536000`, seul.
+
 ## Le jour J, dans l'ordre
 
 **Avant** — `www` et `educ` à **60 s** de TTL (l'apex y est déjà) ; choisir
@@ -279,6 +318,9 @@ un retour arrière met des heures à se propager.
    ```
    (Un `certbot -d nouveau-nom` isolé remplace le certificat multi-noms dans le
    vhost et casse le HTTPS de tous les autres — incident du 17/07/2026.)
+   certbot ajoute aussi, dans le bloc du port 80, la redirection HTTP→HTTPS de
+   chaque nom certifié : jusque-là, ce bloc répond **404** aux noms qu'il ne
+   connaît pas — `http://cnt-so.org` y compris.
 7. **Django** — `/var/www/cntso/cntso/local_settings.py` :
    ```python
    ALLOWED_HOSTS = ['cnt-so.org', 'www.cnt-so.org', 'educ.cnt-so.org',
