@@ -382,3 +382,24 @@ vérification ne pouvait pas le voir.
   pointent les liens de l'interface —, pas un écran voisin qui affiche le même
   objet ;
 - le vérifier dans ses conditions à lui : ici, le site courant de sa session.
+
+## Une réparation vérifiée sur la présence des mots, pas sur le texte (11/09/2026)
+
+Arnaud : « je vois des > partout ». La réparation du 15/08
+(`repare_richtext_illisible`) remplaçait `<br` par `<br/>` et laissait le `>`
+d'origine : **1 487 « > » visibles dans 262 articles**, pendant près d'un mois.
+Son test vérifiait que « Avant » et « Après » étaient encore là —
+`Avant<br/>>Après` les contient tous les deux.
+
+J'avais recopié la même expression dans le convertisseur le 10/09. Elle n'y
+nuisait pas, bs4 refermant les balises avant elle ; la mutation l'a montrée
+morte, et je l'ai retirée **sans me demander si elle était juste**. Elle vivait
+pourtant ailleurs, et abîmait déjà le site.
+
+**Règles :**
+- un test de transformation de texte compare la sortie **exacte**
+  (`assertEqual`), jamais la seule présence de fragments ;
+- une expression qui remplace une balise se teste sur la balise entière :
+  `<br>` doit donner `<br/>`, pas « contenir `<br/>` » ;
+- quand une mutation montre qu'un code est mort, se demander aussi s'il est
+  juste : il est peut-être vivant ailleurs, sous le même nom.

@@ -180,11 +180,57 @@ une ligne, sans dépendance extérieure.
 
 ---
 
+## Deux pièges du jour J : le certificat et le HSTS (vérifié le 11/09/2026)
+
+### 1. Une fenêtre d'erreur de certificat
+
+Le vhost `cntso` déclare **déjà** `cnt-so.org`, `www` et `educ`, mais avec le
+certificat `newsite`, qui ne les porte pas (il couvre newsite + 13, 34, 86,
+auvergne, numerique, rhone-alpes, stucs). Dès que le DNS bascule, ces trois
+noms servent un certificat au mauvais nom, jusqu'à ce que certbot tourne. Et
+certbot ne peut pas l'émettre avant : il n'a que les greffons nginx, standalone
+et webroot, et HTTP-01 exige que le nom pointe déjà ici.
+
+Deux façons de faire :
+
+1. **Pré-émettre en DNS-01** — `python3-certbot-dns-ovh` et une clé d'API OVH
+   avec droits sur `/domain/zone/cnt-so.org/*`. Le certificat existe avant la
+   bascule : aucune fenêtre. Voie propre. (Les clés `OVH_*` du site servent aux
+   listes de diffusion ; une clé dédiée, bornée à la zone, est préférable.)
+2. **Basculer puis émettre aussitôt** — faisable parce que le TTL de
+   `cnt-so.org` est déjà à **60 s**. Mais **`www` et `educ` sont à 3 600 s** :
+   les abaisser à 60 s **au moins une heure avant**, sinon ils traîneront une
+   heure derrière l'apex.
+
+L'ancien site n'envoie **aucun** HSTS et le domaine n'est pas préchargé :
+pendant la fenêtre, l'erreur resterait franchissable (un avertissement, pas un
+blocage). La messagerie n'est pas concernée : MX `mx1/2/3.mail.ovh.net`, SPF
+`include:mx.ovh.com`.
+
+### 2. Le HSTS du nouveau site verrouillera tous les sous-domaines
+
+Django envoie `Strict-Transport-Security: max-age=31536000; includeSubDomains`
+(`SECURE_HSTS_INCLUDE_SUBDOMAINS = True`, durci le 09/09 ; nginx n'en ajoute
+aucun). Sans danger aujourd'hui sur `newsite.cnt-so.org`. **Mais dès que
+`cnt-so.org` sera servi ici, chaque visiteur verra tous les `*.cnt-so.org`
+forcés en HTTPS pendant un an, sans pouvoir passer outre.**
+
+Sous-domaines sondés le 11/09 sans HTTPS valide : **`mail`** (alias de
+`ssl0.ovh.net`, dont le certificat ne porte pas ce nom — l'accès au webmail
+par ce nom casserait), `ftp`. (`smtp`, `imap`, `autodiscover`, `autoconfig`
+servent des clients de messagerie, que le HSTS ne concerne pas.)
+
+→ **Avant la bascule : `SECURE_HSTS_INCLUDE_SUBDOMAINS = False`**, ou un
+`max-age` court, et ne réactiver `includeSubDomains` qu'une fois chaque
+sous-domaine vérifié en HTTPS. C'est aussi le prérequis du préchargement,
+reporté (note de la mémoire cnt-adhesion, `project_hsts_preload_differe`).
+
 ## Le jour J, dans l'ordre
 
-**48 h avant** — baisser le TTL de la zone `cnt-so.org` chez OVH à 300 s pour
-les enregistrements `cnt-so.org`, `www` et `educ`. Sans ça, un retour arrière
-met des heures à se propager.
+**Avant** — `www` et `educ` à **60 s** de TTL (l'apex y est déjà) ; choisir
+entre certificat pré-émis en DNS-01 et émission aussitôt après ; couper
+`includeSubDomains` du HSTS (voir « Deux pièges du jour J »). Sans TTL court,
+un retour arrière met des heures à se propager.
 
 1. **Sauvegarde** de la base (voir `!DEPLOIEMENT.md` : `sudo -u postgres pg_dump`,
    vérifier que le fichier pèse une dizaine de Mo et pas 20 octets).

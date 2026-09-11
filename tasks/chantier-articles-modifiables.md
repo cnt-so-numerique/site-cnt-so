@@ -158,6 +158,55 @@ a aussi perdu sa rubrique STAA, sans équivalent au STUCS.
 - `normalise_urls_heritees` passée pour la première fois : **84 adresses
   réécrites sur 41 pages**, 104 laissées faute de fichier chez nous.
 
+## Le fonds, le 11/09/2026
+
+Le convertisseur cherchait les images par chemin exact ; Wagtail renomme ce
+qu'il range. `ResolveurImages` les retrouve (chemin, rendu, même contenu sous
+un autre nom, original d'une réduction WordPress) et verse les manquantes dans
+la collection de leur syndicat.
+
+| ArticlePage (1 854) | avant | après |
+|---|---|---|
+| texte entièrement modifiable | 758 | **1 811** |
+| mixte (texte + HTML brut) | 960 | **17** |
+| tout en HTML brut | 114 | **4** |
+| corps vide | 22 | 22 |
+
+ContentPage : 44 modifiables, 2 tout HTML, 22 vides.
+
+Lot du 11/09 : 1 092 pages converties, 20 ignorées (tableaux, deux brouillons),
+1 928 blocs image, 731 images retrouvées en médiathèque, **954 versées** (témoin
+compris) — conf 352, 13 279, Auvergne 244, Poitiers 46, STUCS 26, Rhône-Alpes 7,
+**aucune à la racine** —, 2 introuvables conservées, 4 morceaux gardés en HTML
+brut. 0 bloc de texte que l'éditeur ne saurait rouvrir.
+
+Témoin (page 176, Radisson Blu) : texte identique au mot près ; l'image est
+l'original 1 080 px affiché sur la colonne (869 px) au lieu de la réduction
+724 px — sans étirement. Arnaud : « j'ai du mal à voir la différence ».
+
+Pour défaire : sauvegardes `~/cntso-AVANT-fonds-20260911-1438.sql.gz` et
+`~/cntso-AVANT-chevrons-20260911-1512.sql.gz` ; les images versées sont celles
+de numéro supérieur à 3334 (`~/repere-images-fonds.txt`).
+
+## Les « > » partout (11/09/2026)
+
+Arnaud les a vus, pas moi. `repare_richtext_illisible` (15/08) changeait `<br>`
+en `<br/>>` : **1 487 « > » dans 262 articles**, pendant près d'un mois.
+`retire_chevrons_br` les a retirés (0 restant, versions publiques et
+révisions) ; l'expression fautive est corrigée et son test compare désormais
+le texte exact.
+
+## La 404 muette de l'écran d'édition (11/09/2026)
+
+L'écran snippet des articles est cloisonné par « site courant », superutilisateur
+compris : ouvert depuis un autre syndicat, il répondait 404 sans un mot. Il
+bascule désormais sur le syndicat de l'article pour qui a le droit de le
+choisir, avec un message. Les rédacteurs restent cloisonnés.
+
+Reste : les articles de **Rhône-Alpes** ne s'ouvrent pas à l'édition tant que
+ce syndicat est dépublié (il n'est pas proposé par le sélecteur) — antérieur
+à ce chantier.
+
 ## Deux erreurs de mesure, pour mémoire
 
 - J'annonçais « ~32 articles absents » du nouveau site. Il y en avait **deux**.
@@ -171,9 +220,6 @@ a aussi perdu sa rubrique STAA, sans équivalent au STUCS.
 ## Reste à faire
 
 - [x] Conversion passée en production le 11/09/2026 (48 articles).
-- [ ] Décider du fonds, en deux temps :
-      1. les **137 pages** convertibles en l'état (la simulation les liste) ;
-      2. les **970 articles** dont les images sont hors médiathèque : il
-         faudrait d'abord y verser ~1 500 images — autre chantier, à peser.
+- [x] Fonds converti le 11/09/2026 : 1 811 articles modifiables sur 1 854.
 - [x] Import de rattrapage : deux articles seulement manquaient (07/09 conf,
       08/09 Éducation), importés le 11/09.
