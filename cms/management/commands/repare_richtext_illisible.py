@@ -25,9 +25,12 @@ from django.db import transaction
 
 from cms.models import ArticlePage, ContentPage, RICHTEXT_FEATURES
 
-# `<br>` non suivi de `/` ni d'une lettre — pour ne pas toucher `<br/>` déjà
-# correct, ni un hypothétique `<break>`.
-BALISE_BR_NUE = re.compile(r'<br(?![/a-zA-Z])')
+# La balise `<br>` ENTIÈRE, chevron fermant compris. L'expression d'origine,
+# `<br(?![/a-zA-Z])`, ne prenait que les trois caractères `<br` et laissait le
+# `>` : `<br>` devenait `<br/>>`, et 1 486 « > » ont paru en tête de ligne dans
+# 261 articles (Arnaud, 11/09/2026 : « je vois des > partout »). Réparé par
+# `retire_chevrons_br`. `<br/>` déjà fermé n'est pas touché.
+BALISE_BR_NUE = re.compile(r'<br\s*>')
 
 
 class Command(BaseCommand):

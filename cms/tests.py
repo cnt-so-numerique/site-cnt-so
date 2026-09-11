@@ -3207,9 +3207,11 @@ class RichTextLisibleParLEditeurTest(TestCase):
         """`<br>` et `<br/>` rendent le même saut de ligne : on répare
         l'éditeur, pas le contenu public."""
         self._lancer()
-        corps = str(ArticlePage.objects.get(pk=self.art.pk).body[0].value)
-        self.assertIn('Avant', corps)
-        self.assertIn('Après', corps)
+        corps = ArticlePage.objects.get(pk=self.art.pk).body.raw_data[0]['value']
+        # Le texte EXACT, pas seulement la présence des mots : l'ancienne
+        # version de ce test acceptait `Avant<br/>>Après`, et 1 486 « > »
+        # sont passés en production (11/09/2026).
+        self.assertEqual(corps, '<p>Avant<br/>Après</p>')
 
     def test_dry_run_n_ecrit_rien(self):
         self._lancer(dry_run=True)
@@ -5535,3 +5537,72 @@ class BasculeVersLeSyndicatDeLObjetTest(TestCase):
         c = _client_with_site(redacteur, self.stucs)
         self.assertEqual(self._edit(c, self.article_conf).status_code, 404)
         self.assertEqual(c.session[SESSION_KEY], self.stucs.pk)
+
+
+
+class RetireChevronsBrTest(TestCase):
+    """Arnaud, 11/09/2026 : « je vois des > partout ».
+
+    La réparation du 15/08 transformait `<br>` en `<br/>>` : 1 486 « > » en
+    tête de ligne dans 261 articles.
+    """
+
+    def setUp(self):
+        import json
+        self.art = make_article_page(title='Chevrons', slug='chevrons', body=json.dumps([
+            {'type': 'rich_text', 'id': 'eeeeeeee-0000-0000-0000-000000000001',
+             'value': '<p>Ligne un<br/>>Ligne deux<br/>>Ligne trois</p>'}]))
+
+    def _lancer(self, *args):
+        from django.core.management import call_command
+        from io import StringIO
+        sortie = StringIO()
+        call_command('retire_chevrons_br', *args, stdout=sortie)
+        return sortie.getvalue()
+
+    def _valeur(self):
+        return ArticlePage.objects.get(pk=self.art.pk).body.raw_data[0]['value']
+
+    def test_les_chevrons_disparaissent(self):
+        self._lancer()
+        self.assertEqual(self._valeur(), '<p>Ligne un<br/>Ligne deux<br/>Ligne trois</p>')
+
+    def test_un_chevron_de_texte_legitime_reste(self):
+        """Un « > » écrit par un rédacteur est stocké `&gt;` : on n'y touche pas."""
+        import json
+        art = make_article_page(title='Flèche', slug='fleche', body=json.dumps([
+            {'type': 'rich_text', 'id': 'eeeeeeee-0000-0000-0000-000000000002',
+             'value': '<p>Salaires &gt; inflation<br/>et après</p>'}]))
+        self._lancer()
+        self.assertEqual(ArticlePage.objects.get(pk=art.pk).body.raw_data[0]['value'],
+                         '<p>Salaires &gt; inflation<br/>et après</p>')
+
+    def test_la_revision_suit(self):
+        """Sinon une publication depuis l'éditeur réintroduirait le défaut."""
+        self.art.save_revision(changed=False, clean=False)
+        self._lancer()
+        corps = ArticlePage.objects.get(pk=self.art.pk).latest_revision.content['body']
+        self.assertNotIn('<br/>>', corps if isinstance(corps, str) else str(corps))
+
+    def test_simulation_n_ecrit_rien(self):
+        self._lancer('--dry-run')
+        self.assertIn('<br/>>', self._valeur())
+
+    def test_un_brouillon_en_attente_est_epargne(self):
+        ArticlePage.objects.filter(pk=self.art.pk).update(has_unpublished_changes=True)
+        self.assertIn('brouillon en attente', self._lancer())
+        self.assertIn('<br/>>', self._valeur())
+
+    def test_idempotente(self):
+        self._lancer()
+        self.assertIn('rien à faire', self._lancer())
+
+    def test_le_paragraphe_reduit_a_un_chevron_disparait(self):
+        """La seconde forme, relevée une fois en production (page 1107)."""
+        import json
+        art = make_article_page(title='Communiqué', slug='communique-chevron', body=json.dumps([
+            {'type': 'rich_text', 'id': 'eeeeeeee-0000-0000-0000-000000000003',
+             'value': '<p>Avant</p><p>></p><p>Après</p>'}]))
+        self._lancer()
+        self.assertEqual(ArticlePage.objects.get(pk=art.pk).body.raw_data[0]['value'],
+                         '<p>Avant</p><p>Après</p>')
