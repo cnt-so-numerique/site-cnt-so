@@ -477,10 +477,14 @@ if not DEBUG:
     # HSTS : un an (recommandation courante), relevé de 30 jours au pentest du
     # 08/09/2026. La redirection HTTP→HTTPS reste gérée par nginx.
     SECURE_HSTS_SECONDS = 31536000  # 1 an
-    # includeSubDomains est sûr sur les hôtes actuels (newsite/stucs/…) : ce
-    # sont des feuilles, ils n'ont pas de sous-domaine. L'en-tête est cadré par
-    # le navigateur sur l'hôte qui l'émet — il ne remonte jamais à l'apex.
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    # includeSubDomains coupé le 11/09/2026, avant la bascule DNS. Sur les hôtes
+    # actuels (newsite, stucs, 13…) il n'apportait rien : ce sont des feuilles,
+    # sans sous-domaine. Mais le jour où l'apex `cnt-so.org` sera servi ici, il
+    # forcerait pendant un an le HTTPS sur TOUS les *.cnt-so.org chez chaque
+    # visiteur — or `mail.cnt-so.org` (alias de ssl0.ovh.net) et `ftp` n'ont
+    # pas de HTTPS valide (sondés le 11/09). À réactiver une fois chaque
+    # sous-domaine vérifié en HTTPS, en même temps que le préchargement.
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
     # preload volontairement OFF : c'est irréversible, et l'apex `cnt-so.org`
     # comme `educ.cnt-so.org` sont encore servis par l'ancien serveur. À
     # n'activer qu'une fois la bascule DNS finale faite et educ en HTTPS, sinon
