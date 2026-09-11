@@ -5493,3 +5493,45 @@ class ResolveurImagesTest(TestCase):
         versee = self.Image.objects.get(pk=art.body.raw_data[0]['value']['image'])
         self.assertEqual(versee.collection.name, 'STUCS')
         self.assertNotEqual(versee.collection_id, Collection.get_first_root_node().pk)
+
+
+class BasculeVersLeSyndicatDeLObjetTest(TestCase):
+    """Arnaud, 11/09/2026 : une 404 muette en ouvrant un article de la conf,
+    parce que son site courant était resté sur le STUCS.
+
+    Qui a le droit de sélectionner le syndicat de l'objet y est basculé, avec
+    un message ; un rédacteur ordinaire reste dehors, comme avant.
+    """
+
+    def setUp(self):
+        self.conf = _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        self.stucs = _ensure_section_page(slug='stucs', name='STUCS', site_type='sectoral')
+        self.article_conf = make_article_page(section_slug='principal',
+                                              title='Non à la répression',
+                                              slug='non-a-la-repression')
+
+    def _edit(self, client, article):
+        return client.get(f'/cms/snippets/cms/articlepage/edit/{article.pk}/')
+
+    def test_le_superutilisateur_bascule_au_lieu_d_une_404(self):
+        from django.contrib.auth.models import User
+        from django.contrib.messages import get_messages
+        from cms.site_context import SESSION_KEY
+        admin = User.objects.create_superuser('admin_bascule', 'a@b.fr', 'x')
+        c = _client_with_site(admin, self.stucs)
+        r = self._edit(c, self.article_conf)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(c.session[SESSION_KEY], self.conf.pk)
+        # Et il le sait : la bascule n'est pas silencieuse.
+        self.assertTrue(any('a basculé' in str(m) for m in get_messages(r.wsgi_request)))
+
+    def test_le_redacteur_d_un_autre_syndicat_reste_dehors(self):
+        """La garde de sécurité : le cloisonnement des rédacteurs est intact."""
+        from django.contrib.auth.models import User, Group
+        from cms.site_context import SESSION_KEY
+        groupe, _ = Group.objects.get_or_create(name='redacteur_stucs')
+        redacteur = User.objects.create_user('redac_bascule', 'r@b.fr', 'x')
+        redacteur.groups.set([groupe])
+        c = _client_with_site(redacteur, self.stucs)
+        self.assertEqual(self._edit(c, self.article_conf).status_code, 404)
+        self.assertEqual(c.session[SESSION_KEY], self.stucs.pk)

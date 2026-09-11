@@ -365,3 +365,20 @@ base de production) donnait le vrai chiffre.
 - avant qu'un chiffre serve à proposer une décision, il se remesure **sur le
   serveur**, le jour même ;
 - on mesure avec l'outil qui agira, pas avec un indicateur voisin.
+
+## « L'éditeur répond 200 » — mais pas celui des rédacteurs (11/09/2026)
+
+J'ai vérifié l'édition des articles convertis et déplacés sur
+`/cms/pages/<id>/edit/`, et annoncé « éditeur 200 » pour chacun. Or dans ce
+projet, les articles s'éditent par l'écran snippet
+`/cms/snippets/cms/articlepage/edit/<id>/` — c'est là que mène tout lien
+« Modifier » (`ArticlePage` y renvoie lui-même). Arnaud y a pris une 404 sur
+l'article réimporté : son site courant était resté sur le STUCS, et l'écran
+snippet est cloisonné par site courant, même pour un superutilisateur. Ma
+vérification ne pouvait pas le voir.
+
+**Règles :**
+- vérifier l'écran que l'utilisateur ouvre réellement — celui vers lequel
+  pointent les liens de l'interface —, pas un écran voisin qui affiche le même
+  objet ;
+- le vérifier dans ses conditions à lui : ici, le site courant de sa session.

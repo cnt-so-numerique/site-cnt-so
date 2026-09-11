@@ -41,8 +41,40 @@ class MixinObjetCloisonne:
             return objet
         perimetre = self._viewset_cloisonne.get_queryset(self.request)
         if not perimetre.filter(pk=objet.pk).exists():
-            raise Http404("Contenu hors du périmètre de votre syndicat.")
+            if not self._basculer_vers_le_syndicat_de(objet):
+                raise Http404("Contenu hors du périmètre de votre syndicat.")
         return objet
+
+    def _basculer_vers_le_syndicat_de(self, objet):
+        """Bascule le CMS sur le syndicat de l'objet, si l'utilisateur y a droit.
+
+        Arnaud, 11/09/2026 : une 404 muette en ouvrant un article de la conf,
+        parce que son site courant était resté sur le STUCS. Le contenu
+        existait ; seul le sélecteur était ailleurs. Et tout lien « Modifier »
+        mène à cet écran (`ArticlePage` y renvoie lui-même) : le piège se
+        refermait à chaque changement de syndicat.
+
+        La règle d'accès n'est pas nouvelle : c'est `get_available_sites`, la
+        liste que propose déjà le sélecteur — tous les syndicats pour un
+        superutilisateur ou un rédacteur en chef, le sien seul pour un
+        rédacteur. Le cloisonnement des rédacteurs est donc intact : pour eux,
+        l'objet du voisin reste une 404.
+        """
+        from django.contrib import messages
+        from .site_context import get_available_sites, set_current_site
+
+        syndicat = self._viewset_cloisonne.syndicat_de(objet)
+        if syndicat is None:
+            return False
+        if not get_available_sites(self.request).filter(pk=syndicat.pk).exists():
+            return False
+        set_current_site(self.request, syndicat.pk)
+        if not self._viewset_cloisonne.get_queryset(self.request).filter(pk=objet.pk).exists():
+            return False
+        messages.info(self.request,
+                      f"« {objet} » appartient à {syndicat.title} : "
+                      f"le CMS a basculé sur ce syndicat.")
+        return True
 
 
 class MixinFormulaireCloisonne:
@@ -147,6 +179,31 @@ class ViewSetCloisonne:
             # filter() en sa clé primaire.
             return scope_qs(qs, request, site_field='pk')
         return scope_qs(qs, request, site_field=champ)
+
+    def syndicat_de(self, objet):
+        """SectionPage à laquelle l'objet est rattaché, ou None.
+
+        Lu d'après la même déclaration `cloisonnement` que le périmètre, pour
+        qu'une nouvelle forme de rattachement n'ait qu'un endroit à décrire.
+        """
+        from django.db.models import Q
+        from .models import SectionPage
+
+        mode, chemin = self.cloisonnement
+        if mode == 'pk':
+            return SectionPage.objects.filter(pk=objet.pk).first()
+        if mode == 'slug':
+            slug = getattr(objet, chemin, '') or ''
+            if not slug:
+                return None
+            # Slug Wagtail ou slug hérité de WordPress, comme `slugs_contenu`.
+            return SectionPage.objects.filter(Q(slug=slug) | Q(legacy_site_slug=slug)).first()
+        cible = objet
+        for maillon in chemin.split('__'):
+            cible = getattr(cible, maillon, None)
+            if cible is None:
+                return None
+        return cible if isinstance(cible, SectionPage) else None
 
     # ── Verrouillage du champ de rattachement au syndicat ────────────────────
 
