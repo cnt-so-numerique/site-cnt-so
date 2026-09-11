@@ -147,6 +147,10 @@ parent et révision à `stucs`, éditeur en 200, ancienne adresse en 302 vers
 `communication-culture-spectacle` (elle nomme le STUCS lui-même) ; FÊTES LIBRES
 a aussi perdu sa rubrique STAA, sans équivalent au STUCS.
 
+**HISTOROCK** (id 24) : son brouillon — révision n°3 du 11/06/2026, créée par un
+script, sans auteur — a été écarté le 11/09 à la demande d'Arnaud (il reste
+dans l'historique de la page), puis l'article rendu au STUCS.
+
 ## Remise en ordre et réimport, le 11/09/2026
 
 - article du 07/09 supprimé puis réimporté avec le code corrigé (id 1971) :

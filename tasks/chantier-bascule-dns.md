@@ -48,11 +48,12 @@ Deux faits changent le plan par rapport à la note du 02/09 :
       ```
       (puis sans `--dry-run`). `--tous-syndicats` est obligatoire : sans lui,
       30 relais du site confédéral se dupliquent sous « principal ».
-- [ ] **Rapatrier les 32 fichiers manquants** dans `/var/www/cntso/legacy/`,
-      même arborescence, comme les 346 du 02/09 — **tant que l'ancien
-      WordPress répond**. Les mêmes adresses resteront valables après la
-      bascule, sans réécrire un seul article.
-- [ ] **Gel éditorial** : prévenir les syndicats que l'ancien WordPress ne doit
+- [x] **32 fichiers rapatriés le 11/09/2026** dans `/var/www/cntso/legacy/`,
+      même arborescence (30 PDF et visuels de 2026, 2 du 13), sans écraser
+      aucun fichier : **32/32 servis en 200** par le nouveau serveur. Plus
+      aucune adresse de fichier ne mourra à la bascule.
+- [x] **Gel éditorial** (confirmé par Arnaud le 11/09 ; dernière publication
+      sur l'ancien WordPress le 08/09, importée — **à revérifier le jour J**) : prévenir les syndicats que l'ancien WordPress ne doit
       plus recevoir de publication à partir d'une date annoncée. Sans ce gel,
       un article publié après le dernier import est perdu pour le public le
       jour où le nom bascule.
@@ -79,6 +80,22 @@ Séquence détaillée ci-dessous.
       les deux noms serviraient le même contenu).
 
 ---
+
+## Articles d'autres syndicats restés sous la conf (mesuré le 11/09/2026)
+
+Articles du site confédéral portant la catégorie WordPress d'un autre syndicat.
+Ceux du STUCS lui ont été rendus (`rend_au_syndicat`). Pour les autres,
+**recommandation : ne rien déplacer.**
+
+- **STAA** (catégorie 168) : 3 sous la conf — lancement du syndicat (2020),
+  festival BD d'Angoulême (2021), continuité de revenus des artistes-auteurs
+  (2023). Le STAA a son propre site (flux « réseau », `sync_flux_reseau`) et sa
+  section chez nous est vide.
+- **Rhône-Alpes** (catégorie 151) : 11 sous la conf. Le syndicat est
+  **dépublié** : y ranger ses articles les ferait disparaître du public
+  (`ContenuDeSyndicatMixin`) et les rendrait inouvrables à l'édition (le
+  sélecteur ne propose que les syndicats en ligne). À reconsidérer s'il est
+  republié.
 
 ## Le mode « old » : pourquoi le réflexe évident ne marche pas
 
