@@ -72,6 +72,65 @@ malgré la garde retirée :
   gardé en HTML brut — où sans elle l'image paraîtrait **deux fois**. Le test a
   été récrit sur ce cas.
 
+## En production, le 11/09/2026
+
+**48 articles convertis**, un laissé intact (« Forfait jours », qui contient un
+tableau — la garde a joué et l'a dit). 62 blocs de texte, 78 blocs image,
+54 greffons inertes retirés, zéro image perdue.
+
+Article témoin vérifié contre l'original encore servi par l'ancien WordPress :
+texte identique au caractère près (2 696), les 85 mots présents, les 4 images
+là ; seul l'aperçu PDF inerte a disparu. L'écran de rédaction s'ouvre (200). Il
+portait une révision (n° 915) : sans l'alignement de révision, l'éditeur aurait
+rouvert l'ancien bloc HTML.
+
+## Ce que l'import du 11/09 a cassé, et qui est corrigé
+
+L'import de rattrapage n'avait qu'un article à créer par site. Il a pourtant :
+
+1. **recréé 40 rubriques** (38 conf, 2 Éducation) dans un arbre rangé à la main,
+   dont un « Actualités - luttes » qui a capté le nouvel article au lieu de
+   « Actions ». L'import créait d'office toutes les catégories WordPress.
+   → Il ne crée plus rien : correspondance par slug avec l'existant, plus un
+   alias pour la seule rubrique renommée avec son slug (`actualites-luttes` →
+   `actions`, cf. `chantier-categories-lancement.md` § 1). Les catégories sans
+   équivalent sont nommées en fin de course ;
+2. **perdu le PDF du rassemblement du 15/09** : 130 caractères de chemin pour
+   un champ de 100. → `nom_qui_tient` raccourcit le nom en gardant dossier et
+   extension. La recherche de doublon de documents ne marchait pas non plus
+   (elle omettait le préfixe `documents/` réellement stocké) ;
+3. **laissé le bouton « Télécharger »** de WordPress pointer l'ancien serveur,
+   alors que le PDF était déjà en bloc fichier : un lien mort à la bascule.
+   → Tous les liens vers un document converti sont retirés, pas le premier seul.
+
+Et `normalise_urls_heritees`, commitée le 06/09 sans test, était **cassée deux
+fois** : elle tombait sur la première page relue en base (`RawDataView` n'est
+pas sérialisable), et même réparée elle n'aurait rien réécrit — elle cherche
+dans le JSON du corps, où `"` devient `\"`, et capturait donc des chemins
+finissant par une barre inverse. Premier test écrit, les deux défauts sont
+tenus par mutation.
+
+## Articles STUCS rangés sous la conf
+
+`rend_au_syndicat` déplace un article sous son syndicat : parent Wagtail,
+`section_slug`, rubriques remplacées par celles du syndicat (aucune créée),
+révision alignée. L'ancienne adresse redirige d'elle-même (302).
+
+Cinq articles de catégorie STUCS vivaient sous la conf ; quatre sont
+déplaçables, le cinquième (HISTOROCK, id 24) a un brouillon en attente et reste
+où il est. « FÊTES LIBRES » porte aussi la rubrique STAA, qui n'a pas
+d'équivalent au STUCS.
+
+## Deux erreurs de mesure, pour mémoire
+
+- J'annonçais « ~32 articles absents » du nouveau site. Il y en avait **deux**.
+  La comparaison par slug et par la recherche du site ratait les slugs
+  normalisés ; seule la logique de l'import lui-même (`slugify(unquote(…))`,
+  interrogée sur la base de production) donnait le vrai chiffre.
+- La capture « avant » de l'article témoin a disparu au redémarrage de session
+  (le brouillon de travail n'est pas conservé). Le texte de l'original
+  WordPress a servi de référence — meilleure, car indépendante.
+
 ## Reste à faire
 
 - [ ] Passer la conversion en production (voir la séquence annoncée en séance).
@@ -79,5 +138,5 @@ malgré la garde retirée :
       change légèrement le rendu public (les images deviennent des blocs
       centrés pleine colonne, avec leur légende). À regarder sur un article
       avant d'engager le lot.
-- [ ] Importer les ~32 articles encore absents du nouveau site (voir
-      `tasks/chantier-bascule-dns.md`).
+- [x] Import de rattrapage : deux articles seulement manquaient (07/09 conf,
+      08/09 Éducation), importés le 11/09.

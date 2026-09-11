@@ -18,6 +18,23 @@ from urllib.parse import urlparse, unquote
 import requests
 
 from cms.conversion_html import html_vers_blocs
+
+
+def nom_qui_tient(rel, prefixe_stockage, limite=100, marge=8):
+    """Raccourcit le nom de fichier pour que le chemin stocké tienne.
+
+    `marge` réserve la place du suffixe aléatoire que Django ajoute quand le
+    nom est déjà pris (« _DoP5PQW »). Le dossier et l'extension ne bougent pas.
+    """
+    budget = limite - len(prefixe_stockage) - marge
+    if len(rel) <= budget:
+        return rel
+    dossier, _, nom = rel.rpartition('/')
+    racine, point, ext = nom.rpartition('.')
+    if not point:
+        racine, ext = nom, ''
+    garde = budget - len(dossier) - 1 - len(point + ext)
+    return f"{dossier}/{racine[:max(garde, 1)]}{point}{ext}"
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils.text import slugify
@@ -78,6 +95,7 @@ class Command(BaseCommand):
         self.routage = {}          # id de catégorie WP → (slug de section, SectionPage)
         self.cat_wp = {}           # id de catégorie WP → (slug, nom)
         self.routes = 0
+        self.sans_rubrique = set()   # (section, nom) sans équivalent
         for regle in options['section_si_categorie']:
             if '=' not in regle:
                 self.stderr.write(f'Règle mal formée, attendu SECTION=ID : {regle}')
@@ -106,42 +124,48 @@ class Command(BaseCommand):
 
     # ── Catégories ─────────────────────────────────────────────────────────────
 
+    # Rubriques renommées à la main depuis l'import d'origine : le slug a changé
+    # en même temps que le nom, l'import ne peut plus les reconnaître seul.
+    # Voir tasks/chantier-categories-lancement.md, § 1.
+    ALIAS_CATEGORIES = {
+        'principal': {'actualites-luttes': 'actions'},
+    }
+
     def _import_categories(self):
-        from cms.models import CmsCategory
-        self.stdout.write('Import catégories...')
+        """Fait correspondre les catégories WordPress aux rubriques existantes.
+
+        **Ne crée rien.** L'arbre des rubriques a été rangé à la main. L'import
+        le défaisait à chaque passage : neuf catégories recréées le 06/09/2026,
+        quarante le 11/09 — des « Actualité & luttes » et « Nos droits » par
+        secteur, toutes vides, et un « Actualités - luttes » qui a capté le
+        nouvel article à la place de « Actions ». Une catégorie WordPress sans
+        équivalent est signalée en fin de course, jamais recréée.
+
+        Le rapprochement se fait par slug, jamais par nom : c'est ce qui protège
+        les rubriques renommées sans changer de slug. Celles dont le slug a
+        changé passent par ALIAS_CATEGORIES.
+        """
+        self.stdout.write('Correspondance des catégories...')
         cats = self._fetch_all('/categories', {'_fields': 'id,name,slug'})
         cat_map = {}
-        created = skipped = 0
         for c in cats:
             if c['slug'] in ('uncategorized', 'non-classe'):
                 continue
             # Gardé même à blanc : l'aiguillage vers un autre syndicat a besoin
-            # du slug et du nom pour y recréer la rubrique.
+            # du slug pour y chercher la rubrique correspondante.
             self.cat_wp[c['id']] = (c['slug'], self._clean_html(c['name']))
-            if self.dry_run:
-                created += 1
-                continue
-            # Le nom passe par le même nettoyage que les titres : l'import du
-            # 06/09/2026 a créé neuf catégories nommées « Actualité &amp;
-            # luttes », entité comprise, faute de décoder ce que renvoie
-            # WordPress.
-            #
-            # Le rapprochement se fait par slug, jamais par nom : c'est ce qui
-            # protège les catégories renommées à la main. Revers de la médaille,
-            # une catégorie dont on a changé le slug EN MÊME TEMPS que le nom
-            # devient méconnaissable, et l'import en recrée une sous l'ancien
-            # libellé — c'est ainsi que « Actions » (ex-« Actualités - luttes »)
-            # s'est retrouvée dédoublée, avec dix articles dans la mauvaise.
-            # Pour renommer sans casser l'import : garder le slug.
-            obj, is_new = CmsCategory.objects.get_or_create(
-                slug=c['slug'], section_slug=self.section,
-                defaults={'name': self._clean_html(c['name'])},
-            )
-            cat_map[c['id']] = obj
-            created += is_new
-            skipped += not is_new
-        self.stdout.write(f'  {created} créées, {skipped} existantes')
+            obj = self._rubrique_existante(c['slug'], self.section)
+            if obj is not None:
+                cat_map[c['id']] = obj
+        self.stdout.write(
+            f'  {len(cat_map)} reconnues, {len(self.cat_wp) - len(cat_map)} '
+            f'sans équivalent (non créées)')
         return cat_map
+
+    def _rubrique_existante(self, slug_wp, section_slug):
+        from cms.models import CmsCategory
+        slug = self.ALIAS_CATEGORIES.get(section_slug, {}).get(slug_wp, slug_wp)
+        return CmsCategory.objects.filter(slug=slug, section_slug=section_slug).first()
 
     # ── Articles ───────────────────────────────────────────────────────────────
 
@@ -229,6 +253,12 @@ class Command(BaseCommand):
         if self.routes:
             self.stdout.write(self.style.SUCCESS(
                 f'  {self.routes} article(s) rendu(s) à leur syndicat'))
+        if self.sans_rubrique:
+            self.stdout.write(self.style.WARNING(
+                f'  {len(self.sans_rubrique)} rubrique(s) WordPress sans équivalent, '
+                f'non créée(s) — à rattacher à la main si besoin :'))
+            for section, nom in sorted(self.sans_rubrique):
+                self.stdout.write(f'    {section} : {nom}')
 
     def _destination(self, post):
         """Le syndicat qui doit porter cet article, et la page qui l'accueille.
@@ -247,23 +277,26 @@ class Command(BaseCommand):
 
         Un article rendu au STUCS ne peut pas garder les rubriques de la
         conf : elles sont rangées par section, et le sous-site n'afficherait
-        rien. La catégorie qui a servi à l'aiguiller est écartée — elle nomme
-        le syndicat lui-même et n'apprend plus rien une fois l'article chez lui.
+        rien. On lui donne celles du syndicat qui portent le même slug — sans
+        en créer aucune, pour la même raison que `_import_categories`. La
+        catégorie qui a servi à l'aiguiller est écartée : elle nomme le
+        syndicat lui-même et n'apprend plus rien une fois l'article chez lui.
         """
-        from cms.models import CmsCategory
-
-        ids = post.get('categories', [])
-        if section_slug == self.section:
-            return [self.cat_map[cid] for cid in ids if cid in self.cat_map]
-
         cats = []
-        for cid in ids:
-            if cid in self.routage or cid not in self.cat_wp:
+        for cid in post.get('categories', []):
+            if cid not in self.cat_wp:
                 continue
-            slug, nom = self.cat_wp[cid]
-            obj, _ = CmsCategory.objects.get_or_create(
-                slug=slug, section_slug=section_slug, defaults={'name': nom})
-            cats.append(obj)
+            ailleurs = section_slug != self.section
+            if ailleurs and cid in self.routage:
+                continue
+            if ailleurs:
+                obj = self._rubrique_existante(self.cat_wp[cid][0], section_slug)
+            else:
+                obj = self.cat_map.get(cid)
+            if obj is None:
+                self.sans_rubrique.add((section_slug, self.cat_wp[cid][1]))
+            else:
+                cats.append(obj)
         return cats
 
     # ── Réaffectation des catégories pour articles existants ───────────────────
@@ -446,6 +479,12 @@ class Command(BaseCommand):
         for m in DOC_PAT.finditer(html):
             url, link_text = m.group(1), m.group(2).strip()
             if url in urls_replaced:
+                # Le bloc fichier de WordPress double son lien d'un bouton
+                # « Télécharger » vers le même PDF. On ne retirait que le
+                # premier : le bouton restait dans le texte, pointant l'ancien
+                # serveur — un lien qui meurt à la bascule, alors que le PDF est
+                # déjà offert par le bloc fichier (article du 07/09/2026).
+                html = html.replace(m.group(0), '')
                 continue
             doc = self._download_file(url, is_image=False)
             if doc and isinstance(doc, Document):
@@ -547,7 +586,14 @@ class Command(BaseCommand):
 
             else:
                 from wagtail.documents.models import Document
-                existing = Document.objects.filter(file=rel).first()
+                # Le chemin stocké vaut « documents/ » + rel, et le champ est
+                # limité à 100 caractères. Un nom WordPress de 88 caractères
+                # faisait échouer le PDF de l'article du 07/09/2026 — celui du
+                # rassemblement du 15 — sans que l'article s'en ressente.
+                rel = nom_qui_tient(rel, 'documents/')
+                # Rechercher le chemin réellement stocké, préfixe compris :
+                # sans lui, le doublon n'était jamais reconnu.
+                existing = Document.objects.filter(file='documents/' + rel).first()
                 if existing:
                     cache[url] = existing
                     return existing

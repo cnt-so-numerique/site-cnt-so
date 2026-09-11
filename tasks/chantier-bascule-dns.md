@@ -20,10 +20,15 @@ Deux faits changent le plan par rapport à la note du 02/09 :
 
 1. **On publie encore sur l'ancien WordPress** : un article le 07/09 (conf),
    un le 08/09 (Éducation). Tant que ça dure, chaque jour creuse l'écart.
-2. **Il reste ~32 articles absents du nouveau site** (26 côté conf, surtout
-   STUCS/culture ; 6 côté Éducation), vérifiés par titre et pas seulement par
-   slug. L'import du 06/09 a bien repris les 51 de mars-août : ce qui reste est
-   antérieur, plus les deux de septembre.
+2. ~~Il reste ~32 articles absents du nouveau site~~ — **faux, corrigé le
+   11/09** : il n'en manquait que deux (07/09 conf, 08/09 Éducation), importés
+   ce jour-là. Ma comparaison ratait les slugs normalisés par l'import.
+
+3. **49 adresses de fichiers mourront à la bascule** (mesuré le 11/09 sur la
+   production) : 217 pages citent `cnt-so.org/wp-content/uploads/…` en adresse
+   absolue ; 246 de ces fichiers sont parmi les 346 rapatriés le 02/09 et
+   resteront servis par nginx, **49 ne le sont pas** — dont 41 de 2026, donc
+   surtout le lot importé le 06/09.
 
 ---
 
@@ -31,9 +36,6 @@ Deux faits changent le plan par rapport à la note du 02/09 :
 
 ### A. Contenu — à finir avant la bascule
 
-- [ ] **Trancher les ~32 articles absents** (liste reproductible par la
-      comparaison API WP ↔ sitemap, cf. la commande en fin de fiche).
-      Beaucoup sont des relais STUCS : décider import ou abandon, un par un.
 - [ ] **Import de rattrapage final**, au plus près du jour J :
       ```bash
       python manage.py import_from_wp_api --url https://cnt-so.org \
@@ -45,6 +47,10 @@ Deux faits changent le plan par rapport à la note du 02/09 :
       ```
       (puis sans `--dry-run`). `--tous-syndicats` est obligatoire : sans lui,
       30 relais du site confédéral se dupliquent sous « principal ».
+- [ ] **Rapatrier les 49 fichiers manquants** dans `/var/www/cntso/legacy/`,
+      même arborescence, comme les 346 du 02/09 — **tant que l'ancien
+      WordPress répond**. Les mêmes adresses resteront valables après la
+      bascule, sans réécrire un seul article.
 - [ ] **Gel éditorial** : prévenir les syndicats que l'ancien WordPress ne doit
       plus recevoir de publication à partir d'une date annoncée. Sans ce gel,
       un article publié après le dernier import est perdu pour le public le

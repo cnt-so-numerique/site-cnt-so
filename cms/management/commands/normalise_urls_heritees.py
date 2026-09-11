@@ -46,7 +46,12 @@ MOTIF = re.compile(
     r'https?://(?P<hote>[a-z0-9.-]*cnt-so\.org)'   # l'hôte, avec ou sans sous-domaine
     r'(?P<prefixe>(?:/[^/\s"\']+)*?)'              # /13, /auvergne, // … ou rien
     r'/wp-content/uploads/'
-    r'(?P<chemin>[^\s"\'<>)]+)'
+    # La recherche se fait dans le JSON du corps, où chaque guillemet devient
+    # `\"`. Sans la barre inverse dans les exclusions, le chemin capturé
+    # finissait par « \ », aucun fichier ne correspondait, et aucune adresse
+    # placée dans un attribut — c'est-à-dire toutes — n'était réécrite
+    # (révélé par le premier test de la commande, le 11/09/2026).
+    r'(?P<chemin>[^\s"\'<>)\\]+)'
 )
 
 
@@ -80,7 +85,11 @@ class Command(BaseCommand):
 
         for modele in (ArticlePage, ContentPage):
             for page in modele.objects.all().specific():
-                brut = json.dumps(page.body.raw_data, ensure_ascii=False)
+                # `raw_data` est une vue (RawDataView) sur une page lue en base,
+                # pas une liste : json.dumps la refusait et la commande tombait
+                # à la première page (constaté en production le 11/09/2026).
+                # Aucun test ne la lançait sur une page relue en base.
+                brut = json.dumps(list(page.body.raw_data), ensure_ascii=False)
 
                 trouvees = list(MOTIF.finditer(brut))
                 if not trouvees:

@@ -5152,20 +5152,23 @@ class ImportAiguillageVersLeSyndicatTest(TestCase):
         self.assertEqual(art.get_parent().id, self.stucs.id)
         self.assertIn('rendu(s) à leur syndicat', sortie)
 
-    def test_ses_rubriques_le_suivent_dans_son_syndicat(self):
+    def test_ses_rubriques_le_suivent_si_le_syndicat_les_a(self):
+        make_cms_category(name='Culture', slug='culture', section_slug='stucs')
         self._importer('--section-si-categorie', 'stucs=155')
         art = ArticlePage.objects.get(slug='greve-des-intermittents')
         rubriques = list(art.cms_categories.all())
-        self.assertEqual([c.slug for c in rubriques], ['culture'])
-        # Rangée dans le syndicat : sans quoi le sous-site n'afficherait rien,
-        # les rubriques étant filtrées par section.
-        self.assertEqual(rubriques[0].section_slug, 'stucs')
-        # La catégorie qui a servi à l'aiguiller nomme le syndicat lui-même :
-        # elle n'apprend plus rien une fois l'article chez lui.
-        self.assertFalse(
-            CmsCategory.objects.filter(
-                slug='communication-culture-spectacle',
-                section_slug='stucs').exists())
+        self.assertEqual([(c.slug, c.section_slug) for c in rubriques],
+                         [('culture', 'stucs')])
+
+    def test_aucune_rubrique_n_est_creee(self):
+        """L'import du 11/09/2026 en avait recréé quarante, vides, dans un
+        arbre rangé à la main. Ni sous la conf, ni chez le syndicat."""
+        avant = CmsCategory.objects.count()
+        sortie = self._importer('--section-si-categorie', 'stucs=155')
+        self.assertEqual(CmsCategory.objects.count(), avant)
+        # Et on le dit, plutôt que de le taire.
+        self.assertIn('sans équivalent', sortie)
+        self.assertIn('stucs : Culture', sortie)
 
     def test_regle_mal_formee_refusee(self):
         from django.core.management import call_command
@@ -5180,3 +5183,174 @@ class ImportAiguillageVersLeSyndicatTest(TestCase):
         self.assertIn('mal formée', err.getvalue())
         self.assertFalse(ArticlePage.objects.filter(
             slug='greve-des-intermittents').exists())
+
+
+
+class ImportRubriquesRangeesTest(TestCase):
+    """L'import ne défait plus l'arbre des rubriques.
+
+    Le 11/09/2026, un article de la catégorie WordPress « Actualités - luttes »
+    a été rangé dans une rubrique recréée pour l'occasion, au lieu de
+    « Actions » — le nom qu'elle porte depuis le 16/08.
+    """
+
+    def setUp(self):
+        _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        # Une migration de données la crée déjà dans la base de test.
+        self.actions, _ = CmsCategory.objects.get_or_create(
+            slug='actions', section_slug='principal', defaults={'name': 'Actions'})
+
+    def _importer(self):
+        from django.core.management import call_command
+        from io import StringIO
+        post = {
+            'id': 7, 'slug': 'non-a-la-repression', 'date': '2026-09-07T08:00:00',
+            'title': {'rendered': 'Non à la répression'},
+            'content': {'rendered': '<p>Rassemblement.</p>'},
+            'excerpt': {'rendered': ''}, 'categories': [159], 'featured_media': 0,
+        }
+        categories = [{'id': 159, 'slug': 'actualites-luttes',
+                       'name': 'Actualités - luttes'}]
+        with patch('cms.management.commands.import_from_wp_api.Command._fetch_all',
+                   side_effect=lambda c, p=None: [post] if c == '/posts' else categories):
+            call_command('import_from_wp_api', '--url', 'https://exemple.test',
+                         '--section', 'principal', stdout=StringIO())
+        return ArticlePage.objects.get(slug='non-a-la-repression')
+
+    def test_actualites_luttes_va_dans_actions(self):
+        art = self._importer()
+        self.assertEqual([c.pk for c in art.cms_categories.all()], [self.actions.pk])
+
+    def test_le_doublon_n_est_pas_recree(self):
+        self._importer()
+        self.assertFalse(CmsCategory.objects.filter(
+            slug='actualites-luttes', section_slug='principal').exists())
+
+
+class ImportDocumentsTest(TestCase):
+    """Les PDF des articles importés."""
+
+    def test_nom_trop_long_raccourci(self):
+        """Le PDF du rassemblement du 15/09 échouait : 130 caractères pour 100."""
+        from cms.management.commands.import_from_wp_api import nom_qui_tient
+        rel = ('uploads/sites/9/imported/Communique-mobilisation-15.09.26-CAP-'
+               'disciplinaire-de-Pierre-et-Benoit-Ministere-du-travail.pdf')
+        court = nom_qui_tient(rel, 'documents/')
+        # Place laissée au suffixe que Django ajoute si le nom est pris.
+        self.assertLessEqual(len('documents/' + court) + 8, 100)
+        self.assertTrue(court.startswith('uploads/sites/9/imported/Communique-'))
+        self.assertTrue(court.endswith('.pdf'))
+
+    def test_nom_court_intact(self):
+        from cms.management.commands.import_from_wp_api import nom_qui_tient
+        rel = 'uploads/sites/9/imported/Appel-15-septembre.pdf'
+        self.assertEqual(nom_qui_tient(rel, 'documents/'), rel)
+
+    def test_le_bouton_telecharger_en_doublon_est_retire(self):
+        """Il pointait l'ancien serveur : un lien mort le jour de la bascule."""
+        from django.core.files.base import ContentFile
+        from wagtail.documents.models import Document
+        from cms.management.commands.import_from_wp_api import Command
+        doc = Document.objects.create(title='Tract',
+                                      file=ContentFile(b'%PDF', name='tract.pdf'))
+        cmd = Command()
+        cmd.base_url = 'https://cnt-so.org'
+        cmd._download_file = lambda url, is_image=True, title='': doc
+        url = 'https://cnt-so.org/wp-content/uploads/2026/09/tract.pdf'
+        html, blocs = cmd._download_inline_docs(
+            f'<div class="wp-block-file"><a href="{url}">Le tract</a>'
+            f'<a href="{url}" class="wp-block-file__button" download>Télécharger</a></div>')
+        self.assertEqual(len(blocs), 1)
+        self.assertNotIn(url, html)
+
+
+class NormaliseUrlsHeriteesTest(TestCase):
+    """La commande tombait à la première page relue en base (11/09/2026)."""
+
+    def test_tourne_sur_une_page_relue_en_base(self):
+        import json, os, tempfile
+        from django.core.management import call_command
+        from django.test import override_settings
+        from io import StringIO
+        with tempfile.TemporaryDirectory() as media:
+            os.makedirs(os.path.join(media, 'uploads', '2026', '01'))
+            open(os.path.join(media, 'uploads', '2026', '01', 'affiche.png'), 'wb').close()
+            art = make_article_page(title='Affiche', body=json.dumps([{
+                'type': 'rich_text', 'id': 'bbbbbbbb-0000-0000-0000-000000000001',
+                'value': '<p><a href="https://testwp.cnt-so.org/wp-content/uploads/'
+                         '2026/01/affiche.png">affiche</a></p>'}]))
+            with override_settings(MEDIA_ROOT=media):
+                call_command('normalise_urls_heritees', stdout=StringIO())
+            art.refresh_from_db()
+            valeur = art.body.raw_data[0]['value']
+            self.assertIn('href="/media/uploads/2026/01/affiche.png"', valeur)
+            self.assertNotIn('testwp', valeur)
+
+
+class RendAuSyndicatTest(TestCase):
+    """Cinq articles STUCS vivaient sous la conf (mesuré le 11/09/2026)."""
+
+    def setUp(self):
+        import json
+        self.conf = _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        self.stucs = _ensure_section_page(slug='stucs', name='STUCS', site_type='sectoral')
+        self.cat_conf = make_cms_category(name='STUCS', slug='communication-culture-spectacle',
+                                          section_slug='principal')
+        self.greve_conf = make_cms_category(name='Grève', slug='greve',
+                                            section_slug='principal')
+        self.greve_stucs = make_cms_category(name='Grève', slug='greve',
+                                             section_slug='stucs')
+        self.art = self.conf.add_child(instance=ArticlePage(
+            title='Le roi est nu', slug='le-roi-est-nu', section_slug='principal',
+            live=True, body=json.dumps([])))
+        through = ArticlePage.cms_categories.through
+        for c in (self.cat_conf, self.greve_conf):
+            through.objects.create(articlepage=self.art, cmscategory=c)
+
+    def _lancer(self, *extra):
+        from django.core.management import call_command
+        from io import StringIO
+        sortie = StringIO()
+        call_command('rend_au_syndicat', '--section', 'stucs',
+                     '--slug', 'le-roi-est-nu', *extra, stdout=sortie)
+        return sortie.getvalue()
+
+    def test_l_article_change_de_parent_et_de_section(self):
+        self._lancer()
+        art = ArticlePage.objects.get(pk=self.art.pk)
+        self.assertEqual(art.get_parent().pk, self.stucs.pk)
+        self.assertEqual(art.section_slug, 'stucs')
+
+    def test_ses_rubriques_deviennent_celles_du_syndicat(self):
+        sortie = self._lancer()
+        art = ArticlePage.objects.get(pk=self.art.pk)
+        self.assertEqual([c.pk for c in art.cms_categories.all()], [self.greve_stucs.pk])
+        self.assertIn('communication-culture-spectacle', sortie)   # nommée, pas tue
+
+    def test_la_revision_suit(self):
+        """Sinon la prochaine publication défait le déplacement."""
+        self.art.save_revision(changed=False, clean=False)
+        self._lancer()
+        art = ArticlePage.objects.get(pk=self.art.pk)
+        self.assertEqual(art.latest_revision.content['section_slug'], 'stucs')
+        self.assertEqual(art.latest_revision.content['cms_categories'],
+                         [self.greve_stucs.pk])
+
+    def test_un_brouillon_en_attente_n_est_pas_deplace(self):
+        ArticlePage.objects.filter(pk=self.art.pk).update(has_unpublished_changes=True)
+        sortie = self._lancer()
+        art = ArticlePage.objects.get(pk=self.art.pk)
+        self.assertEqual(art.section_slug, 'principal')
+        self.assertIn('brouillon en attente', sortie)
+
+    def test_simulation_n_ecrit_rien(self):
+        self._lancer('--dry-run')
+        art = ArticlePage.objects.get(pk=self.art.pk)
+        self.assertEqual(art.section_slug, 'principal')
+        self.assertEqual(art.get_parent().pk, self.conf.pk)
+
+    def test_l_ancienne_adresse_mene_au_syndicat(self):
+        self._lancer()
+        r = self.client.get('/article/le-roi-est-nu/')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/stucs/', r['Location'])
