@@ -26,7 +26,7 @@ import json
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from cms.conversion_html import html_vers_blocs
+from cms.conversion_html import ResolveurImages, collection_du_syndicat, html_vers_blocs
 from cms.models import ArticlePage, ContentPage
 
 
@@ -56,6 +56,9 @@ class Command(BaseCommand):
         self.ignorees = 0
         self.totaux = {'rich_text': 0, 'image': 0, 'html_conserve': 0,
                        'images_perdues': 0, 'widgets_retires': 0}
+        # Un seul résolveur pour toute la course : une image citée par dix
+        # articles n'est cherchée — ou versée — qu'une fois.
+        self.resolveur = ResolveurImages(creer=not self.sec)
 
         if self.sec:
             self.stdout.write(self.style.WARNING(
@@ -81,6 +84,15 @@ class Command(BaseCommand):
                 f"  {self.totaux['widgets_retires']} greffon(s) WordPress inerte(s) "
                 f"retiré(s) (aperçu PDF en doublon, script tiers bloqué par la "
                 f"politique de sécurité)")
+        st = self.resolveur.stats
+        if st['retrouvees']:
+            self.stdout.write(f"  {st['retrouvees']} image(s) retrouvée(s) en médiathèque")
+        if st['versees']:
+            self.stdout.write(f"  {st['versees']} image(s) versée(s) en médiathèque, "
+                              f"dans la collection de leur syndicat")
+        if st['a_verser']:
+            self.stdout.write(f"  {st['a_verser']} image(s) à verser en médiathèque "
+                              f"(simulation : aucun fichier écrit)")
         if self.totaux['images_perdues']:
             self.stdout.write(self.style.WARNING(
                 f"  {self.totaux['images_perdues']} image(s) introuvable(s) en "
@@ -151,7 +163,10 @@ class Command(BaseCommand):
             if bloc['type'] != 'html':
                 nouveaux.append(bloc)
                 continue
-            produits, part = html_vers_blocs(bloc['value'])
+            collection = collection_du_syndicat(page.section_slug)
+            produits, part = html_vers_blocs(
+                bloc['value'],
+                lambda src, c=collection: self.resolveur.resoudre(src, c))
             if not produits:
                 # Rien de convertible : on garde le bloc d'origine intact.
                 nouveaux.append(bloc)

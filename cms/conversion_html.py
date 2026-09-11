@@ -35,8 +35,12 @@ Deux exceptions, et deux seulement, sont retirées sans état d'âme :
   contenu de repli — la citation du message — reste, lui, en place.
 """
 
+import os
+import re
 import uuid
+from collections import Counter
 from functools import lru_cache
+from urllib.parse import unquote
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 
@@ -88,26 +92,147 @@ def texte_riche_ouvrable(html):
         return False
 
 
-def _image_par_source(src):
-    """Retrouve l'image de la médiathèque derrière une adresse /media/….
+def racine_legacy():
+    """Là où nginx sert les fichiers rapatriés de l'ancien serveur (02/09/2026)."""
+    from django.conf import settings
+    return getattr(settings, 'LEGACY_UPLOADS_ROOT',
+                   os.path.join(str(settings.BASE_DIR), 'legacy'))
 
-    L'import réécrit les images WordPress en `/media/<nom du fichier Wagtail>`
-    (`_download_inline_images`), donc la correspondance est exacte. Une adresse
-    qui pointe ailleurs — un domaine tiers, un fichier jamais rapatrié — ne
-    donne rien, et l'appelant la laissera en HTML brut plutôt que de la perdre.
+
+def collection_du_syndicat(section_slug):
+    """Collection de médias du syndicat, sinon la racine.
+
+    Même règle que `assign_media_collections` : la collection liée au groupe
+    `redacteur_<slug>` par le provisionnement (`cms.provisioning`), qui survit
+    au renommage d'un syndicat. Chercher par le titre, comme le fait
+    `promote_body_images`, marche aujourd'hui — les quatorze titres
+    correspondent en production (11/09/2026) — mais enverrait tout à la racine
+    au premier syndicat renommé.
     """
-    from wagtail.images import get_image_model
+    from django.contrib.auth.models import Group
+    from django.db.models import Q
+    from wagtail.models import Collection
+    from cms.models import SectionPage
+    from cms.provisioning import section_collection
 
-    if not src:
-        return None
-    chemin = src.split('?', 1)[0].split('#', 1)[0]
-    for prefixe in ('/media/', 'media/'):
-        if chemin.startswith(prefixe):
-            chemin = chemin[len(prefixe):]
-            break
-    else:
-        return None
-    return get_image_model().objects.filter(file=chemin).first()
+    racine = Collection.get_first_root_node()
+    if not section_slug:
+        return racine
+    section = SectionPage.objects.filter(
+        Q(slug=section_slug) | Q(legacy_site_slug=section_slug)).first()
+    if section is None:
+        return racine
+    groupe = Group.objects.filter(
+        name=f'redacteur_{section.legacy_site_slug or section.slug}').first()
+    if groupe is not None:
+        return section_collection(groupe, section)
+    return Collection.objects.filter(name=section.title).first() or racine
+
+
+class _ImageAVerser:
+    """Leurre de simulation : l'image serait versée, rien n'est créé."""
+    pk = None
+
+
+class ResolveurImages:
+    """Retrouve dans la médiathèque l'image d'une balise <img> — ou l'y verse.
+
+    Le convertisseur cherchait l'image par son chemin exact. Or Wagtail renomme
+    ce qu'il range : `uploads/2024/06/x.jpg` devient
+    `original_images/uploads202406x.jpg`. Mesuré en production le 11/09/2026 :
+    sur 1 409 images d'articles, **497 étaient déjà en médiathèque** et restaient
+    en HTML brut faute d'être reconnues ; 970 articles en gardaient un bloc
+    qu'aucun rédacteur ne pouvait manipuler.
+
+    Ordre de recherche, du plus sûr au plus coûteux :
+
+    1. le chemin Wagtail exact, original ou rendu ;
+    2. le même contenu déjà en médiathèque sous un autre nom — présélection par
+       nom puis empreinte, la fonction éprouvée de `migrate_images` ;
+    3. pour une réduction WordPress (`-724x1024`), l'original ;
+    4. sinon, et seulement si `creer`, l'image est versée — l'original plutôt
+       que la réduction —, dans la collection du syndicat.
+
+    Les adresses WordPress absolues sont cherchées dans `legacy/`, là où nginx
+    sert déjà les fichiers rapatriés le 02/09.
+
+    En simulation (`creer=False`), **aucun fichier n'est écrit** : c'est le
+    piège de `migrate_images`, dont la simulation enregistre des fichiers sur
+    le disque que l'annulation de la transaction n'efface pas.
+    """
+
+    VARIANTE = re.compile(r'-\d+x\d+(?=\.\w+$)')
+    WORDPRESS = re.compile(r'^https?://(?:[a-z0-9-]+\.)?cnt-so\.org(/.*?wp-content/uploads/.+)$')
+
+    def __init__(self, creer=False):
+        self.creer = creer
+        self.cache = {}
+        self.stats = Counter()
+
+    def resoudre(self, src, collection=None):
+        if src not in self.cache:
+            self.cache[src] = self._cherche(src, collection)
+        return self.cache[src]
+
+    def _cherche(self, src, collection):
+        from django.conf import settings
+        from wagtail.images import get_image_model
+
+        Image = get_image_model()
+        adresse = (src or '').split('?', 1)[0].split('#', 1)[0]
+        prefixe = settings.MEDIA_URL or '/media/'
+
+        if adresse.startswith(prefixe):
+            rel = unquote(adresse[len(prefixe):])
+            image = Image.objects.filter(file=rel).first()
+            if image is None:
+                rendu = (Image.get_rendition_model().objects
+                         .filter(file=rel).select_related('image').first())
+                image = rendu.image if rendu else None
+            if image is not None:
+                self.stats['retrouvees'] += 1
+                return image
+            fichier = os.path.join(settings.MEDIA_ROOT, rel)
+        else:
+            m = self.WORDPRESS.match(adresse)
+            if not m:
+                return None
+            # nginx fusionne les barres doubles (« //13/… ») : on fait de même.
+            chemin = re.sub(r'/+', '/', unquote(m.group(1))).lstrip('/')
+            fichier = os.path.join(racine_legacy(), chemin)
+
+        if not os.path.isfile(fichier):
+            self.stats['introuvables'] += 1
+            return None
+
+        from cms.management.commands.migrate_images import _empreinte, _image_deja_importee
+
+        image = _image_deja_importee(Image, fichier)
+        if image is None:
+            original = self.VARIANTE.sub('', fichier)
+            if original != fichier and os.path.isfile(original):
+                image = _image_deja_importee(Image, original)
+                # À verser : l'original, pas la réduction.
+                fichier = original
+        if image is not None:
+            self.stats['retrouvees'] += 1
+            return image
+
+        if not self.creer:
+            self.stats['a_verser'] += 1
+            return _ImageAVerser()
+
+        from django.core.files.images import ImageFile
+        image = Image(title=os.path.basename(fichier)[:255],
+                      collection=collection or collection_du_syndicat(None))
+        with open(fichier, 'rb') as fh:
+            image.file = ImageFile(fh, name=os.path.basename(fichier))
+            # Empreinte dès la création : la prochaine recherche la trouvera
+            # sans relire le fichier.
+            image.file_hash = _empreinte(fichier)
+            image.save()
+        self.stats['versees'] += 1
+        return image
 
 
 def _bloc(type_, valeur):
@@ -214,7 +339,7 @@ def html_vers_blocs(html, resoud_image=None):
     brut) et `images_perdues` (fichiers introuvables en médiathèque). Un appelant
     honnête affiche ces deux nombres.
     """
-    resoud_image = resoud_image or _image_par_source
+    resoud_image = resoud_image or ResolveurImages().resoudre
     stats = {'rich_text': 0, 'image': 0, 'html_conserve': 0,
              'images_perdues': 0, 'widgets_retires': 0}
     if not html or not html.strip():

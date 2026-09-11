@@ -5354,3 +5354,142 @@ class RendAuSyndicatTest(TestCase):
         r = self.client.get('/article/le-roi-est-nu/')
         self.assertEqual(r.status_code, 302)
         self.assertIn('/stucs/', r['Location'])
+
+
+class ResolveurImagesTest(TestCase):
+    """Le convertisseur retrouve les images que Wagtail a renommées.
+
+    Mesuré en production le 11/09/2026 : 497 images déjà en médiathèque
+    restaient en HTML brut, parce qu'on les cherchait par chemin exact et que
+    Wagtail range `uploads/2024/06/x.png` sous `original_images/uploads202406x.png`.
+    """
+
+    def setUp(self):
+        import tempfile
+        from django.test import override_settings
+        self.media = tempfile.mkdtemp()
+        self.legacy = tempfile.mkdtemp()
+        reglages = override_settings(MEDIA_ROOT=self.media, LEGACY_UPLOADS_ROOT=self.legacy)
+        reglages.enable()
+        self.addCleanup(reglages.disable)
+        import shutil
+        self.addCleanup(shutil.rmtree, self.media, True)
+        self.addCleanup(shutil.rmtree, self.legacy, True)
+        from wagtail.images import get_image_model
+        self.Image = get_image_model()
+
+    def _ecrit(self, racine, rel, couleur='white'):
+        import os
+        from wagtail.images.tests.utils import get_test_image_file
+        chemin = os.path.join(racine, rel)
+        os.makedirs(os.path.dirname(chemin), exist_ok=True)
+        with open(chemin, 'wb') as f:
+            f.write(get_test_image_file(colour=couleur).file.getvalue())
+        return chemin
+
+    def _en_mediatheque(self, chemin, nom):
+        from django.core.files.images import ImageFile
+        with open(chemin, 'rb') as fh:
+            return self.Image.objects.create(title=nom, file=ImageFile(fh, name=nom))
+
+    def test_retrouve_une_image_renommee_par_wagtail(self):
+        from cms.conversion_html import ResolveurImages
+        chemin = self._ecrit(self.media, 'uploads/2024/06/affiche.png')
+        connue = self._en_mediatheque(chemin, 'affiche.png')
+        avant = self.Image.objects.count()
+        r = ResolveurImages(creer=True)
+        self.assertEqual(r.resoudre('/media/uploads/2024/06/affiche.png').pk, connue.pk)
+        self.assertEqual(self.Image.objects.count(), avant)     # rien de dupliqué
+
+    def test_reduction_wordpress_ramenee_a_l_original(self):
+        from cms.conversion_html import ResolveurImages
+        original = self._ecrit(self.media, 'uploads/2024/06/tract.png', 'white')
+        self._ecrit(self.media, 'uploads/2024/06/tract-724x1024.png', 'red')
+        connue = self._en_mediatheque(original, 'tract.png')
+        r = ResolveurImages(creer=True)
+        self.assertEqual(r.resoudre('/media/uploads/2024/06/tract-724x1024.png').pk, connue.pk)
+
+    def test_image_absente_versee_dans_la_collection_du_syndicat(self):
+        from wagtail.models import Collection
+        from cms.conversion_html import ResolveurImages
+        stucs = Collection.get_first_root_node().add_child(name='STUCS')
+        self._ecrit(self.media, 'uploads/2024/06/inedite.png')
+        r = ResolveurImages(creer=True)
+        image = r.resoudre('/media/uploads/2024/06/inedite.png', stucs)
+        self.assertIsNotNone(image.pk)
+        self.assertEqual(image.collection_id, stucs.pk)
+        self.assertTrue(image.file_hash)
+        self.assertEqual(r.stats['versees'], 1)
+
+    def test_on_verse_l_original_plutot_que_la_reduction(self):
+        from cms.conversion_html import ResolveurImages
+        self._ecrit(self.media, 'uploads/2024/06/grand.png', 'white')
+        self._ecrit(self.media, 'uploads/2024/06/grand-300x200.png', 'red')
+        image = ResolveurImages(creer=True).resoudre('/media/uploads/2024/06/grand-300x200.png')
+        self.assertIn('grand', image.file.name)
+        self.assertNotIn('300x200', image.file.name)
+
+    def test_la_simulation_n_ecrit_aucun_fichier(self):
+        """Le piège de migrate_images : sa simulation laisse des fichiers."""
+        import os
+        from cms.conversion_html import ResolveurImages
+        self._ecrit(self.media, 'uploads/2024/06/inedite.png')
+        avant = self.Image.objects.count()
+        r = ResolveurImages(creer=False)
+        leurre = r.resoudre('/media/uploads/2024/06/inedite.png')
+        self.assertIsNone(leurre.pk)
+        self.assertEqual(self.Image.objects.count(), avant)
+        self.assertFalse(os.path.exists(os.path.join(self.media, 'original_images')))
+        self.assertEqual(r.stats['a_verser'], 1)
+
+    def test_adresse_wordpress_reprise_depuis_legacy(self):
+        from cms.conversion_html import ResolveurImages
+        self._ecrit(self.legacy, '13/wp-content/uploads/sites/2/2023/01/visuel.png')
+        image = ResolveurImages(creer=True).resoudre(
+            'https://cnt-so.org//13/wp-content/uploads/sites/2/2023/01/visuel.png')
+        self.assertIsNotNone(image.pk)
+
+    def test_adresse_etrangere_ignoree(self):
+        from cms.conversion_html import ResolveurImages
+        self.assertIsNone(ResolveurImages(creer=True).resoudre('https://pbs.twimg.com/media/x.jpg'))
+
+    def test_la_commande_rend_modifiable_un_article_mixte(self):
+        """Le cas des 970 : du texte déjà modifiable, et un bloc image en HTML brut."""
+        import json
+        from django.core.management import call_command
+        from io import StringIO
+        chemin = self._ecrit(self.media, 'uploads/2024/06/radisson.png')
+        connue = self._en_mediatheque(chemin, 'radisson.png')
+        art = make_article_page(title='Radisson Blu', body=json.dumps([
+            {'type': 'rich_text', 'value': '<p>La grève continue.</p>',
+             'id': 'cccccccc-0000-0000-0000-000000000001'},
+            {'type': 'html', 'value': '<p><img src="/media/uploads/2024/06/radisson.png" '
+                                      'alt="Le tract"/></p>',
+             'id': 'cccccccc-0000-0000-0000-000000000002'}]))
+        call_command('convertit_html_modifiable', stdout=StringIO())
+        art.refresh_from_db()
+        self.assertEqual([b['type'] for b in art.body.raw_data], ['rich_text', 'image'])
+        self.assertEqual(art.body.raw_data[1]['value']['image'], connue.pk)
+
+    def test_la_commande_verse_l_image_absente_chez_son_syndicat(self):
+        """Et sa simulation n'en verse aucune."""
+        import json
+        from io import StringIO
+        from django.core.management import call_command
+        from wagtail.models import Collection
+        _ensure_section_page(slug='stucs', name='STUCS', site_type='sectoral')
+        # Pas de collection créée ici : le provisionnement du syndicat s'en
+        # charge à la création de sa page, comme en production.
+        self._ecrit(self.media, 'uploads/2025/10/greve.png')
+        art = make_article_page(title='Grève des intermittents', section_slug='stucs',
+                                body=json.dumps([{'type': 'html', 'id': 'dddddddd-0000-0000-0000-000000000001',
+                                                  'value': '<img src="/media/uploads/2025/10/greve.png"/>'}]))
+        avant = self.Image.objects.count()
+        call_command('convertit_html_modifiable', '--dry-run', stdout=StringIO())
+        self.assertEqual(self.Image.objects.count(), avant)
+        call_command('convertit_html_modifiable', stdout=StringIO())
+        art.refresh_from_db()
+        self.assertEqual([b['type'] for b in art.body.raw_data], ['image'])
+        versee = self.Image.objects.get(pk=art.body.raw_data[0]['value']['image'])
+        self.assertEqual(versee.collection.name, 'STUCS')
+        self.assertNotEqual(versee.collection_id, Collection.get_first_root_node().pk)
