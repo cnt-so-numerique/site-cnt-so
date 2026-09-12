@@ -516,3 +516,30 @@ Et un piège de rotation, propre à ce dépôt : `local_settings.py` étant impo
 après `settings.py`, il écrase l'environnement. Changer la variable dans
 supervisor seul n'aurait rien changé, et la vérification aurait « marché » —
 avec l'ancienne clé. Procédure complète dans `!DEPLOIEMENT.md`.
+
+
+## Chercher dans la page ce que la page contient (12/09/2026)
+
+Trois fausses alertes dans la même journée, toutes de la même famille : j'ai
+cherché dans du HTML rendu une chaîne prise ailleurs, et conclu à un défaut du
+site alors que seule ma sonde était fautive.
+
+- **l'espace insécable** : `AESH : face au mépris` tapé avec une espace
+  ordinaire ne correspondait pas au titre, qui porte U+00A0 devant les
+  deux-points (typographie française héritée de WordPress) ;
+- **le `<title>`** : un `grep -c "<loc>"` a rendu `1` sur un sitemap de 733
+  entrées, parce que le XML tient sur quelques lignes très longues — `grep -c`
+  compte des LIGNES ;
+- **l'apostrophe échappée** : `grep -F "c'est toujours non"` sur un titre venu
+  de la base ne trouve rien dans la page, qui rend `c&#x27;est`. J'ai annoncé
+  « article ABSENT » pour un article affiché trois fois.
+
+**Règles :**
+- pour vérifier qu'un contenu est affiché, chercher un fragment **sans
+  ponctuation ni typographie** (`Rouill`, `LRA`) — les entités HTML, les
+  insécables et les guillemets courbes font mentir toute recherche littérale ;
+- `grep -c` compte des lignes, `grep -o | wc -l` compte des occurrences. Sur du
+  XML ou du HTML minifié, seul le second dit la vérité ;
+- et devant un résultat qui contredit un correctif qu'on vient de valider par
+  les tests, **suspecter la sonde avant le code**. Les trois fois, le site avait
+  raison.
