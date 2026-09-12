@@ -85,8 +85,21 @@ Séquence détaillée ci-dessous.
         « 2nd degré » → grilles de salaires, « Primaire » → une motion du 13,
         « Secondaire », « Supérieur », « Vie scolaire – AESH », « Pédagogie ».
         Le visiteur attend une liste, il reçoit un texte daté.
-      Refonte à faire avec le syndicat ; en profiter pour désigner des
-      rubriques au lieu d'écrire des adresses.
+      - **et surtout, les rubriques visées sont vides.** Neuf des onze
+        intitulés ont bien une rubrique du même nom (« 1er dégré »,
+        « Primaire », « Supérieur », « Vie scolaire - AESH »…), mais
+        **83 des 102 articles de l'Éducation ne portent que « Premiere Page »
+        et/ou « Actualités - Luttes »**. Faire pointer le menu vers ces
+        rubriques donnerait des pages à un ou deux articles.
+
+      Le travail n'est donc pas de réparer des liens, mais de **reclasser les
+      articles** — décision éditoriale du syndicat. Ensuite seulement, désigner
+      les rubriques dans le menu au lieu d'écrire des adresses. Restent deux
+      intitulés sans rubrique : « Textes officiels » et « Supérieur – Recherche »,
+      à créer ou à retirer.
+
+      Aide possible : proposer un classement à partir des titres, à valider
+      article par article avant d'être appliqué.
 - [ ] `cntso/middleware.py:85` : la double barre oblique (`//13/…`) construit un
       hôte inexistant. Sans objet depuis que nginx sert `/wp-content/uploads/`,
       mais cinq lignes et un test d'hygiène.
