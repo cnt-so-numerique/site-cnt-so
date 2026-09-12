@@ -86,7 +86,9 @@
         <small>Reviens bientôt ou <a href="{% section_url 'content:site_ressources' site %}">consulte toutes les ressources</a>.</small>
       {% else %}
         <p>Aucune ressource publiée pour l'instant.</p>
+        {% if user.is_authenticated %}
         <small>Ajoute du contenu depuis <a href="/cms/">le CMS</a> en choisissant la section {{ site.name }}.</small>
+        {% endif %}
       {% endif %}
     </div>
   {% endif %}

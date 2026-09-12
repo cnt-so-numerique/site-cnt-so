@@ -70,7 +70,9 @@
 <div class="s-page">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;">
     <h1 class="s-section-title" style="margin-bottom:0;">Agenda</h1>
+    {% if user.is_authenticated %}
     <a href="/cms/snippets/cms/event/add/" class="btn-red" style="font-size:.875rem;padding:.45rem .9rem;">+ Ajouter un événement</a>
+    {% endif %}
   </div>
 
   {# Carte Leaflet si au moins un événement géolocalisé #}
@@ -164,7 +166,9 @@
       <p style="font-size:.875rem;margin-bottom:1.25rem;">
         Suis nos <a href="{{ site.linkstack_url }}" target="_blank" rel="noopener">réseaux sociaux</a> pour les prochaines dates.
       </p>
+      {% if user.is_authenticated %}
       <a href="/cms/snippets/cms/event/add/" class="btn-red" style="font-size:.875rem;">+ Ajouter un événement</a>
+      {% endif %}
     </div>
   {% endif %}
 

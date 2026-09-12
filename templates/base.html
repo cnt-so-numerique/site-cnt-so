@@ -1949,8 +1949,19 @@
                 </svg>
                 Espace presse
             </a>
-            {# Le lien reste visible aux anonymes sur les sous-sites : la session est propre à chaque domaine, un gestionnaire du 86 arrive donc déconnecté sur 86.cnt-so.org et n'avait plus aucune porte d'entrée depuis son propre site. #}
-            {% if user.is_authenticated or site and site.slug != 'principal' %}
+            {% comment %}
+            Réservé aux personnes connectées — Arnaud, 12/09/2026, en découvrant
+            le bouton sur educ.cnt-so.org le jour de la bascule.
+
+            Il était auparavant visible des visiteurs anonymes sur les
+            sous-sites : la session est propre à chaque domaine, si bien qu'un
+            rédacteur arrivant sur le site de son syndicat s'y trouve déconnecté
+            et n'avait plus aucune porte d'entrée. Le contre-argument l'a
+            emporté : un site public n'annonce pas son arrière-boutique. La
+            porte reste `cnt-so.org/cms/`, adresse donnée dans la fiche 1
+            remise aux rédacteurs (`docs/fiches-pratiques-redacteurs.html`).
+            {% endcomment %}
+            {% if user.is_authenticated %}
             <a href="{% if article and user.is_authenticated %}{{ article.get_cms_edit_url }}{% else %}{{ cms_url }}{% endif %}" class="top-bar-presse"
                style="border:1px solid rgba(230,57,70,.4); color:#E81C24; padding:.2rem .6rem; border-radius:3px;">
                 <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">

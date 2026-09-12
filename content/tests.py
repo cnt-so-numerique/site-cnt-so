@@ -6896,13 +6896,20 @@ class NewsletterRubriquesTest(TestCase):
 
 
 class BoutonRedactionTest(TestCase):
-    """Une porte d'entrée vers /cms/ depuis chaque sous-site.
+    """La porte vers /cms/ depuis les sous-sites — et son retrait au public.
 
-    Le lien était conditionné à `user.is_authenticated`. Or la session est
-    propre à chaque domaine : un gestionnaire du 86 arrive déconnecté sur
-    86.cnt-so.org, ne voyait donc aucun bouton, et devait passer par le site
-    de la confédération pour modifier ses propres pages (signalé par Arnaud,
-    17/08/2026).
+    Ouverte le 17/08/2026 : le lien était conditionné à `user.is_authenticated`,
+    or la session est propre à chaque domaine. Un gestionnaire du 86 arrivait
+    déconnecté sur 86.cnt-so.org, ne voyait aucun bouton, et devait passer par
+    le site de la confédération pour modifier ses propres pages (signalé par
+    Arnaud).
+
+    **RÈGLE INVERSÉE le 12/09/2026**, jour de la bascule : Arnaud a découvert le
+    bouton sur `educ.cnt-so.org` et tranché l'inverse — un site public n'annonce
+    pas son arrière-boutique. Le test qui exigeait sa visibilité est inversé, et
+    non supprimé : il dit ce qui était vrai, depuis quand ça ne l'est plus, et
+    pourquoi. La porte reste `cnt-so.org/cms/`, adresse donnée dans la fiche 1
+    remise aux rédacteurs (`docs/fiches-pratiques-redacteurs.html`).
     """
 
     def setUp(self):
@@ -6910,32 +6917,89 @@ class BoutonRedactionTest(TestCase):
         self.sous_site = make_site(slug='poitiers', name='CNT-SO Poitiers',
                                    site_type='regional')
 
-    def test_le_bouton_est_visible_sur_un_sous_site_sans_etre_connecte(self):
+    def _connecte(self, nom):
+        User.objects.create_user(nom, password='secret-12345')
+        self.client.login(username=nom, password='secret-12345')
+
+    def test_un_visiteur_anonyme_ne_voit_plus_le_bouton_sur_un_sous_site(self):
+        """Exactement l'inverse de ce que ce test exigeait jusqu'au 12/09/2026."""
         html = self.client.get('/poitiers/').content.decode()
-        self.assertIn('Rédaction', html)
+        self.assertNotIn('Rédaction', html)
 
     def test_le_bouton_reste_absent_de_laccueil_conf_pour_un_visiteur(self):
         """Rien ne change pour le public de la confédération."""
         html = self.client.get('/').content.decode()
-        self.assertNotIn('>\n                Rédaction', html)
+        self.assertNotIn('Rédaction', html)
 
     def test_le_bouton_apparait_pour_un_utilisateur_connecte(self):
-        User.objects.create_user('camarade', password='secret-12345')
-        self.client.login(username='camarade', password='secret-12345')
+        self._connecte('camarade')
         html = self.client.get('/').content.decode()
+        self.assertIn('Rédaction', html)
+
+    def test_il_apparait_aussi_sur_un_sous_site_pour_qui_est_connecte(self):
+        """Contrôle positif : le retrait vise le public, pas les rédacteurs.
+        Un garde trop large fermerait la porte à tout le monde, et personne ne
+        s'en apercevrait avant le jour où quelqu'un cherche à écrire."""
+        self._connecte('camarade-sous-site')
+        html = self.client.get('/poitiers/').content.decode()
         self.assertIn('Rédaction', html)
 
     @override_settings(ALLOWED_HOSTS=['testserver', '86.cnt-so.org'],
                        MAIN_SITE_BASE_URL='https://newsite.cnt-so.org')
     def test_depuis_un_domaine_de_federation_le_lien_est_absolu(self):
         """Un /cms/ relatif y provoque une redirection, et surtout la session
-        n'existe pas sur ce domaine : le lien doit mener droit à la conf."""
+        n'existe pas sur ce domaine : le lien doit mener droit à la conf.
+
+        Il faut désormais être connecté pour le voir — c'est le sens du
+        changement du 12/09 — mais l'exigence sur la FORME du lien est intacte,
+        et c'est elle que ce test garde.
+        """
         from django.core.cache import cache
         cache.clear()  # le lookup hôte→section est mis en cache 60 s
+        self._connecte('camarade-federation')
         self.sous_site.custom_domain = '86.cnt-so.org'
         self.sous_site.save()
         html = self.client.get('/', HTTP_HOST='86.cnt-so.org').content.decode()
         self.assertIn('https://newsite.cnt-so.org/cms/', html)
+
+
+class BoutonsCmsMasquesAuxAnonymesTest(TestCase):
+    """Les autres portes vers le CMS, relevées le 12/09/2026.
+
+    Le lien « Rédaction » n'était pas seul : les pages Agenda et Ressources des
+    sous-sites offraient « + Ajouter un événement » et « Ajoute du contenu
+    depuis le CMS » à n'importe quel visiteur — sept boutons au total, dans cinq
+    gabarits, sans le moindre garde. Mesuré sur la production : `13.cnt-so.org`
+    et `stucs.cnt-so.org` les affichaient à un `curl` anonyme.
+
+    Même arbitrage que pour « Rédaction » : le public ne voit pas l'outillage.
+    Sans ce test, le prochain qui touche à ces gabarits les rouvrira sans le
+    savoir — c'est précisément ce qui s'était produit ici.
+    """
+
+    def setUp(self):
+        make_site(slug='principal')
+        make_site(slug='poitiers', name='CNT-SO Poitiers', site_type='regional')
+
+    def test_un_visiteur_anonyme_ne_voit_pas_ajouter_un_evenement(self):
+        reponse = self.client.get('/poitiers/agenda/')
+        self.assertEqual(reponse.status_code, 200)
+        self.assertNotContains(reponse, 'Ajouter un événement')
+
+    def test_une_personne_connectee_le_voit(self):
+        """Contrôle positif : c'est un raccourci utile aux rédacteurs, on le
+        masque au public sans le retirer à ceux qui s'en servent."""
+        User.objects.create_user('camarade-agenda', password='secret-12345')
+        self.client.login(username='camarade-agenda', password='secret-12345')
+        reponse = self.client.get('/poitiers/agenda/')
+        self.assertContains(reponse, 'Ajouter un événement')
+
+    def test_aucune_invitation_a_remplir_le_cms_pour_le_public(self):
+        """« Ajoute du contenu depuis le CMS » s'affichait en page vide de
+        Ressources : un message d'équipe, servi aux visiteurs."""
+        reponse = self.client.get('/poitiers/ressources/')
+        self.assertEqual(reponse.status_code, 200)
+        self.assertNotContains(reponse, 'Ajoute du contenu depuis')
 
 
 class CartouchesDeBarreLateraleTest(TestCase):
@@ -9423,3 +9487,5 @@ class ExpediteurDesAlertesTest(TestCase):
         self.assertNotIn('<', nom)
         EmailMessage(subject='x', body='y', from_email=settings.SERVER_EMAIL,
                      to=['a@b.fr']).message()  # lève si l'adresse est invalide
+
+

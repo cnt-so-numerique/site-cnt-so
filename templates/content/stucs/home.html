@@ -255,7 +255,9 @@
   {% if not latest %}
   <div style="text-align:center;padding:4rem 1rem;color:var(--muted);">
     <p style="font-size:1.05rem;margin-bottom:.5rem;">Aucune publication pour l'instant.</p>
+    {% if user.is_authenticated %}
     <p style="font-size:.88rem;">Ajoute du contenu depuis <a href="/cms/">le CMS</a>.</p>
+    {% endif %}
   </div>
   {% endif %}
 
