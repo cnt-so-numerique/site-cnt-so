@@ -67,6 +67,12 @@ Tout le détail, la séquence du jour J et le retour arrière :
 `tasks/chantier-bascule-dns.md`. Le chantier des articles :
 `tasks/chantier-articles-modifiables.md`.
 
+## Plus tard, sans urgence
+
+- **Adresses du CMS écrites en dur** (83 occurrences, dont quatre sélecteurs
+  CSS qui reconnaissent un bouton à son adresse et casseraient en silence) :
+  `tasks/chantier-adresses-en-dur.md`. Noté le 12/09 à la demande d'Arnaud.
+
 ## Pièges appris le 11 et le 12/09
 
 - **Un chiffre mesuré en dev n'est pas un fait.** « 1 061 articles en HTML
