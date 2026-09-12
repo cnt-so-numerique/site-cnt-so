@@ -271,10 +271,36 @@ l'article au lieu de la liste.
    tapée : elle survit à un changement de slug et rend d'elle-même la bonne
    adresse sur `educ.cnt-so.org` (cf. `chantier-adresses-en-dur.md`).
 
-Projection sur les données réelles : Pédagogie 1 → 5, Supérieur 1 → 4, Voie
-professionnelle 1 → 9, Vie scolaire–AESH 2 → 8, 2nd degré 2 → 3 **repointées** ;
-Primaire (1), Secondaire (2), Personnels médico-sociaux (1), 1er degré (1),
-AED–AESH (2) **laissées sur leur article**, faute de matière.
+**APPLIQUÉ EN PRODUCTION le 12/09/2026.** Vérifié après coup : 0 article porte
+encore « Premiere Page », 0 article ne s'est retrouvé sans rubrique, et les cinq
+pages de rubrique répondent 200.
+
+| Rubrique | Avant | Après | Menu |
+|---|---|---|---|
+| Voie professionnelle | 1 | **9** | repointée |
+| Vie scolaire–AESH | 2 | **8** | repointée |
+| Pédagogie | 1 | **5** | repointée |
+| Supérieur | 1 | **4** | repointée |
+| 2nd degré | 2 | **3** | repointée |
+| Secondaire | 1 | 2 | laissée sur son article |
+| AED–AESH | 1 | 2 | laissée sur son article |
+| Primaire / 1er degré / Personnels médico-sociaux | 1 | 1 | laissées sur leur article |
+
+Les liens rendus restent **relatifs** (`/education/categorie/voie-pro/`) :
+`section_base_url` ne renvoie un domaine que si la section a un `custom_domain`,
+et celui de l'Éducation n'est pas encore activé. Le jour de la bascule d'`educ`,
+ces liens suivront d'eux-mêmes — ce qu'une adresse tapée n'aurait pas fait.
+
+### Le constat mentait — corrigé avant d'écrire (à retenir)
+
+Le premier constat lancé en production annonçait « 0 entrée repointée » et
+« rubrique trop maigre » pour les dix entrées, soit l'inverse de la vérité.
+`ParentalManyToManyField.add()` ne travaille qu'en mémoire jusqu'au `save()` :
+les étapes ne persistant que sous `--appliquer`, l'étape 3 comptait dans une
+base où l'étape 2 n'avait rien rangé. Les trois étapes écrivent désormais pour
+de vrai, le `rollback` final étant ce qui distingue le constat. Une barrière a
+été posée avant l'écriture : la production n'est touchée que si le constat
+annonce les trois chiffres projetés.
 
 ### Ce qui reste à décider par le syndicat
 

@@ -438,3 +438,28 @@ révision, lance la commande, puis relit `page.latest_revision.content` relit so
 propre souvenir, pas la base — il échouait alors que le code était juste. Relire
 avec `revision.refresh_from_db()` (ou `ArticlePage.objects.get(pk=…)`, ce que
 fait le test jumeau de `rend_au_syndicat`).
+
+## Un constat qui n'écrit pas ne constate rien (12/09/2026)
+
+Même commande, lancée en constat sur la production : « **0 entrée repointée** »,
+et « rubrique trop maigre » pour les dix entrées de menu. La projection, elle,
+en annonçait cinq. L'un des deux mentait.
+
+C'était le constat. `ParentalManyToManyField.add()` ne travaille qu'en mémoire
+jusqu'au `save()` ; je ne persistais que `if self.appliquer`. L'étape 3 comptait
+donc les articles dans une base où l'étape 2 n'avait rien rangé — et annonçait
+l'inverse exact de ce que `--appliquer` allait faire. Un constat qui ne montre
+pas ce que l'écriture fera est pire qu'inutile : il autorise à tort, ou il
+dissuade à tort.
+
+**Règles :**
+- une commande à `--dry-run` fait le travail **pour de vrai** dans la
+  transaction, et c'est le `rollback` qui la rend blanche — jamais des `if`
+  semés dans les étapes. C'est ce que fait déjà `range_categories_conf` ;
+- dès qu'une étape lit ce qu'une étape précédente a écrit, sauter l'écriture
+  casse la simulation en silence. Le test qui l'attrape n'assure pas « rien
+  n'est écrit » mais « **la sortie annonce ce que l'écriture fera**, et la base
+  n'a pas bougé » ;
+- avant une écriture en production, poser une **barrière** : n'écrire que si le
+  constat annonce les chiffres attendus. Ici elle a servi de second filet après
+  que le constat a été corrigé.
