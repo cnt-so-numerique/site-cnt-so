@@ -41,18 +41,27 @@ GROUPE_CHEF = 'redacteur_en_chef'
 # auteur s'appelle « education », ce qui nomme un syndicat et non une personne.
 #
 # Le syndicat vient des articles eux-mêmes, pas d'une supposition : chaque
-# signature n'écrit que dans un seul syndicat, à une exception près — `cntso`
-# est le compte d'administration historique (wp_id 1), dispersé sur Poitiers
-# (50 articles), la conf (7) et Rhône-Alpes (1), et sans publication depuis
-# juin 2021. Il est rangé chez sa majorité, Poitiers, et c'est à revoir si le
-# syndicat le dit.
+# signature n'écrit que dans un seul syndicat, à une exception près — `cntso`,
+# le compte d'administration historique (wp_id 1), dispersé sur Poitiers
+# (50 articles), la conf (7) et Rhône-Alpes (1), sans publication depuis juin
+# 2021.
+#
+# Je l'avais rangé chez sa majorité, Poitiers. C'était faux, et Arnaud l'a
+# tranché le 12/09/2026 : son adresse est `ud69@cnt-so.org`, et *ud69* désigne
+# l'union départementale du Rhône. L'adresse dit à QUI est le compte ; le
+# volume d'articles ne disait que là où ce compte d'administration avait servi.
+# Entre les deux, c'est l'adresse qui identifie.
+#
+# En suspens : les 50 articles de Poitiers signés `cntso` reviennent à
+# quelqu'un d'autre, dont Arnaud doit fournir l'adresse. Poitiers n'a donc pour
+# l'instant que `felix86`.
 COMPTES = [
-    ('media',     'media@cnt-so.org',              'principal', True,  'media'),
-    ('roberto',   'roberto.trozzo@gmail.com',      'education', False, 'education'),
-    ('nicolas13', 'nicolasv690@gmail.com',         '13',        False, 'nicolas13'),
-    ('felix86',   'haymark3t_1886@protonmail.com', 'poitiers',  False, 'felix86'),
-    ('auvergne',  'contact03@cnt-so.org',          'auvergne',  False, 'auvergne'),
-    ('cntso',     'ud69@cnt-so.org',               'poitiers',  False, 'cntso'),
+    ('media',     'media@cnt-so.org',              'principal',   True,  'media'),
+    ('roberto',   'roberto.trozzo@gmail.com',      'education',   False, 'education'),
+    ('nicolas13', 'nicolasv690@gmail.com',         '13',          False, 'nicolas13'),
+    ('felix86',   'haymark3t_1886@protonmail.com', 'poitiers',    False, 'felix86'),
+    ('auvergne',  'contact03@cnt-so.org',          'auvergne',    False, 'auvergne'),
+    ('cntso',     'ud69@cnt-so.org',               'rhone-alpes', False, 'cntso'),
 ]
 
 
