@@ -463,3 +463,32 @@ dissuade à tort.
 - avant une écriture en production, poser une **barrière** : n'écrire que si le
   constat annonce les chiffres attendus. Ici elle a servi de second filet après
   que le constat a été corrigé.
+
+## Retirer une permission d'une liste ne la retire à personne (12/09/2026)
+
+« La newsletter c'est pour les super rédac ». Le réflexe était d'ôter les quatre
+permissions de `_REDACTEUR_CONTENT` dans `content/apps.py` et d'en rester là.
+Ça n'aurait rien fermé : la synchronisation fait `permissions.add(...)`, qui
+**n'enlève jamais rien**. Tous les groupes `redacteur_<slug>` de production
+avaient déjà reçu le droit ; ils l'auraient gardé indéfiniment, et le test
+aurait pourtant été vert, puisqu'en base de test les groupes sont créés à neuf.
+
+**Règles :**
+- une permission se reprend **explicitement** (`permissions.remove`), dans une
+  liste dédiée, rejouée à chaque migration — sinon un groupe recréé à la main
+  rouvre la porte en silence ;
+- le test qui le prouve doit **reposer le droit** avant de lancer la
+  synchronisation. Un test qui part d'une base neuve ne distingue pas « retiré »
+  de « jamais donné » ;
+- fermer une porte se fait en trois endroits, pas un : la **vue** (qui refuse),
+  le **bouton** (qui ne doit pas montrer une porte que la vue refermera), et la
+  **permission** (qui décide de l'écran entier). N'en faire qu'un laisse un
+  chemin ouvert ou une impasse déroutante.
+
+**Et quand une règle change, on inverse les tests, on ne les efface pas.** Trois
+tests garantissaient l'ancienne règle. Les supprimer aurait effacé la trace ;
+inversés et commentés, ils disent ce qui était vrai, depuis quand ça ne l'est
+plus, et pourquoi. Même chose pour la documentation : les fiches pratiques
+annonçaient une rubrique « Première page » supprimée le matin même — **un
+changement de données périme aussi les documents**, il faut les relire dans la
+foulée.
