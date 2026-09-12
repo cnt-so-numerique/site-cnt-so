@@ -377,6 +377,30 @@ un retour arrière met des heures à se propager.
      -d auvergne.cnt-so.org -d numerique.cnt-so.org -d rhone-alpes.cnt-so.org \
      -d stucs.cnt-so.org
    ```
+   **Fait le 12/09/2026 : `www` et `old` sont DÉJÀ dans le certificat.** Ils
+   pointaient déjà sur cette machine, donc HTTP-01 pouvait les valider avant la
+   bascule. Le certificat porte dix noms et court jusqu'au **11 décembre 2026**
+   (le renouvellement du 15 octobre est absorbé). Il n'en reste que **deux à
+   ajouter le jour J** — `cnt-so.org` et `educ.cnt-so.org` —, qui eux ne peuvent
+   pas l'être avant, faute de greffon DNS.
+
+   ⚠️ **certbot sortira en code 1 alors qu'il aura réussi.** Il tente d'insérer
+   sa propre redirection HTTP→HTTPS pour `www.cnt-so.org` et bute sur la nôtre,
+   celle du 11/09 qui envoie `www` vers l'apex canonique. La nôtre est la bonne,
+   on la garde. Le certificat est bel et bien émis ET déployé malgré ce code de
+   retour : **vérifier le certificat servi, jamais le code de sortie**
+   (`openssl s_client -servername …`, ou `certbot certificates`). Ne PAS suivre
+   la suggestion `certbot install --cert-name newsite.cnt-so.org` : inutile, et
+   elle rejouerait le même conflit. Contrôlé le 12/09 — renouvellement
+   `--dry-run` réussi, minuterie intacte.
+
+   ⚠️ **Ne jamais lire `/etc/nginx/sites-available/cntso` : il est PÉRIMÉ.**
+   `sites-enabled/cntso` est un vrai fichier, pas un lien, et c'est lui qui est
+   servi. Le fichier de `sites-available` ignore `cnt-so.org`, `www`, `educ`,
+   `34` et les règles `/media/` — il m'a fait conclure à tort, le 12/09, que la
+   bascule était mal préparée. Lire `sudo nginx -T`, qui montre la
+   configuration effective.
+
    (Un `certbot -d nouveau-nom` isolé remplace le certificat multi-noms dans le
    vhost et casse le HTTPS de tous les autres — incident du 17/07/2026.)
    certbot ajoute aussi, dans le bloc du port 80, la redirection HTTP→HTTPS de
