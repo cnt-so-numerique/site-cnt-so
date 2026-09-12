@@ -26,6 +26,12 @@ from content.models import MenuItem
 # ait à la modifier. Le premier `--dry-run` en prod a buté là-dessus.
 RUBRIQUE_SECTEURS = ('Secteurs', 'Syndicats')
 
+# L'entrée « Actualités – luttes » du menu Éducation porte un tiret demi-cadratin
+# et une minuscule à « luttes ». Plusieurs graphies sont acceptées, le premier
+# trouvé gagne : un renommage à la main ne doit pas casser la commande.
+RUBRIQUE_LUTTES_EDUC = ('Actualités – luttes', 'Actualités - luttes',
+                        'Actualités – Luttes', 'Actualités - Luttes')
+
 # Une ligne par entrée à créer. `ordre` est un souhait : si la place est déjà
 # prise chez les frères, l'entrée va à la fin plutôt que d'en bousculer une.
 ENTREES = [
@@ -60,6 +66,41 @@ ENTREES = [
         'categorie': 'interim',
         'libelle': 'Intérim',
         'ordre': 19,
+    },
+    # ── Éducation : les quatre thèmes de lutte, créés le 12/09/2026 ──────────
+    #
+    # Ils vont sous « Actualités – luttes », et nulle part ailleurs : ce sont
+    # des fils de l'actualité, pas des revendications par public (« Primaire »,
+    # « Voie professionnelle »…) ni des droits. L'entrée parente garde son
+    # propre lien vers `/education/` — `base.html` rend toujours le `<a>` de
+    # l'item avant d'ouvrir son sous-menu.
+    {
+        'site': 'education',
+        'rubrique': RUBRIQUE_LUTTES_EDUC,
+        'categorie': 'austerite-budget',
+        'libelle': 'Austérité et budget',
+        'ordre': 1,
+    },
+    {
+        'site': 'education',
+        'rubrique': RUBRIQUE_LUTTES_EDUC,
+        'categorie': 'militarisation-snu',
+        'libelle': 'Militarisation – SNU',
+        'ordre': 2,
+    },
+    {
+        'site': 'education',
+        'rubrique': RUBRIQUE_LUTTES_EDUC,
+        'categorie': 'feminisme',
+        'libelle': 'Féminisme',
+        'ordre': 3,
+    },
+    {
+        'site': 'education',
+        'rubrique': RUBRIQUE_LUTTES_EDUC,
+        'categorie': 'antifascisme-antiracisme',
+        'libelle': 'Antifascisme et antiracisme',
+        'ordre': 4,
     },
 ]
 

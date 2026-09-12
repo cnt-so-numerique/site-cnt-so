@@ -5871,3 +5871,172 @@ class RangeCategoriesEducationTest(TestCase):
         self._lancer(appliquer=True)
         self.menu_primaire.refresh_from_db()
         self.assertEqual(self.menu_primaire.link_type, 'url')
+
+
+class CreeRubriquesLuttesEducationTest(TestCase):
+    """Les quatre thèmes de lutte que le fil d'actualité contenait sans le dire.
+
+    Après le rangement du 12/09, 60 articles restaient dans le seul fil
+    « Actualités - Luttes » — à raison : appels à la grève et communiqués. Mais
+    quatre thèmes y revenaient assez pour mériter leur rubrique. Arnaud les a
+    demandées le 12/09/2026.
+
+    La commande supprime aussi « Premiere Page », le résidu WordPress vidé le
+    même jour — et seulement si elle le trouve inerte : `MenuItem.category` est
+    en SET_NULL et `cms_categories` est un M2M, donc une suppression hâtive ne
+    lèverait rien, elle viderait un lien ou détacherait des articles en silence.
+    """
+
+    def setUp(self):
+        self.educ = _ensure_section_page(slug='education', name='CNT-SO Éducation')
+        self.generique = make_cms_category(
+            name='Actualités - Luttes', slug='actualites-luttes',
+            section_slug='education')
+        self.residu = make_cms_category(
+            name='Premiere Page', slug='premiere-page', section_slug='education')
+
+        def art(cle, titre):
+            return make_article_page(section_slug='education', title=titre,
+                                     slug=cle, categories=[self.generique])
+
+        self.budget = art('budget', 'Budget austéritaire, moyens insuffisants : '
+                                    'la lutte a commencé, généralisons-la !')
+        self.double = art('double', 'Contre l’austérité et la militarisation : '
+                                    'notre lutte est internationale !')
+        self.femmes = art('femmes', '8 mars 2025 : grève féministe !')
+        self.fasciste = art('fasciste', 'Contre le fascisme : mobilisons-nous, '
+                                        'luttons !')
+
+    def _lancer(self, appliquer=False):
+        """Même table que la production, bâtie sur les pk du bac d'essai."""
+        from django.core.management import call_command
+        from io import StringIO
+        from cms.management.commands import cree_rubriques_luttes_education as cmd
+
+        classement = [
+            (self.budget.pk, 'Budget austéritaire', ['austerite-budget']),
+            (self.double.pk, 'notre lutte est internationale',
+             ['austerite-budget', 'militarisation-snu']),
+            (self.femmes.pk, '8 mars 2025 : grève féministe', ['feminisme']),
+            (self.fasciste.pk, 'Contre le fascisme', ['antifascisme-antiracisme']),
+        ]
+        s = StringIO()
+        with patch.object(cmd, 'CLASSEMENT', classement):
+            call_command('cree_rubriques_luttes_education',
+                         *(['--appliquer'] if appliquer else []), stdout=s)
+        return s.getvalue()
+
+    def _rubriques(self, page):
+        page.refresh_from_db()
+        return {c.slug for c in page.cms_categories.all()}
+
+    def _existe(self, slug):
+        from cms.models import CmsCategory
+        return CmsCategory.objects.filter(
+            section_slug='education', slug=slug).exists()
+
+    # ── 1. les rubriques ─────────────────────────────────────────────────────
+
+    def test_a_blanc_rien_n_est_ecrit(self):
+        sortie = self._lancer()
+        self.assertIn('constat seul', sortie)
+        self.assertFalse(self._existe('feminisme'))
+        self.assertTrue(self._existe('premiere-page'))
+
+    def test_le_constat_annonce_ce_qu_il_ne_fait_pas(self):
+        """Un constat qui ne montre pas ce que l'écriture fera ne sert à rien.
+
+        L'étape 2 range dans les rubriques que l'étape 1 vient de créer : si le
+        constat n'écrivait pas, elle n'aurait rien où ranger et annoncerait zéro.
+        """
+        sortie = self._lancer()
+        self.assertIn('Féminisme', sortie)
+        self.assertIn('4 article(s) rangé(s)', sortie)
+        self.assertIn('supprimée', sortie)
+        # …et pourtant la base n'a pas bougé.
+        self.assertFalse(self._existe('feminisme'))
+        self.assertTrue(self._existe('premiere-page'))
+
+    def test_les_quatre_rubriques_sont_creees(self):
+        self._lancer(appliquer=True)
+        for slug in ('austerite-budget', 'militarisation-snu', 'feminisme',
+                     'antifascisme-antiracisme'):
+            self.assertTrue(self._existe(slug), f'{slug} manquante')
+
+    def test_relancee_elle_ne_cree_pas_de_doublon(self):
+        from cms.models import CmsCategory
+        self._lancer(appliquer=True)
+        avant = CmsCategory.objects.filter(section_slug='education').count()
+        self._lancer(appliquer=True)
+        self.assertEqual(
+            CmsCategory.objects.filter(section_slug='education').count(), avant)
+
+    # ── 2. le classement ─────────────────────────────────────────────────────
+
+    def test_les_articles_rejoignent_leur_lutte(self):
+        self._lancer(appliquer=True)
+        self.assertIn('austerite-budget', self._rubriques(self.budget))
+        self.assertIn('feminisme', self._rubriques(self.femmes))
+
+    def test_un_article_peut_relever_de_deux_luttes(self):
+        """« Contre l'austérité ET la militarisation » parle des deux."""
+        self._lancer(appliquer=True)
+        self.assertTrue(
+            {'austerite-budget', 'militarisation-snu'} <= self._rubriques(self.double))
+
+    def test_le_fil_d_actualite_n_est_pas_retire(self):
+        """On ajoute la lutte, on ne sort pas l'article du fil."""
+        self._lancer(appliquer=True)
+        self.assertIn('actualites-luttes', self._rubriques(self.budget))
+
+    def test_un_titre_qui_a_change_n_est_pas_touche(self):
+        self.femmes.title = 'Tout autre chose'
+        self.femmes.save(update_fields=['title'])
+        sortie = self._lancer(appliquer=True)
+        self.assertNotIn('feminisme', self._rubriques(self.femmes))
+        self.assertIn('non touché', sortie)
+
+    # ── 3. la suppression du résidu ──────────────────────────────────────────
+
+    def test_le_residu_wordpress_est_supprime(self):
+        self._lancer(appliquer=True)
+        self.assertFalse(self._existe('premiere-page'))
+
+    def test_un_residu_encore_porte_par_un_article_est_conserve(self):
+        """`cms_categories` est un M2M : la suppression ne lèverait rien, elle
+        détacherait l'article en silence."""
+        self.budget.cms_categories.add(self.residu)
+        self.budget.save()
+        sortie = self._lancer(appliquer=True)
+        self.assertTrue(self._existe('premiere-page'))
+        self.assertIn('pas inerte', sortie)
+
+    def test_une_entree_de_menu_visant_le_residu_le_protege(self):
+        """`MenuItem.category` est en SET_NULL : le lien se viderait sans un mot
+        — exactement la panne que `fix_menus_morts` a mis un mois à réparer."""
+        from content.models import MenuItem
+        MenuItem.objects.create(site=self.educ, menu='main', title='Une Page',
+                                link_type='category', category=self.residu, order=1)
+        sortie = self._lancer(appliquer=True)
+        self.assertTrue(self._existe('premiere-page'))
+        self.assertIn('pas inerte', sortie)
+
+    # ── 4. cohérence des tables de production ────────────────────────────────
+
+    def test_la_table_de_production_n_a_ni_doublon_ni_rubrique_inconnue(self):
+        from cms.management.commands import cree_rubriques_luttes_education as cmd
+        pks = [pk for pk, _, _ in cmd.CLASSEMENT]
+        self.assertEqual(len(pks), len(set(pks)), 'un article rangé deux fois')
+        connues = {slug for slug, _ in cmd.RUBRIQUES}
+        for _, _, slugs in cmd.CLASSEMENT:
+            for slug in slugs:
+                self.assertIn(slug, connues)
+
+    def test_le_menu_vise_exactement_les_rubriques_creees(self):
+        """Les deux commandes vivent dans deux fichiers : rien ne garantit
+        qu'elles parlent des mêmes rubriques, sinon ce test."""
+        from cms.management.commands import ajoute_menu_categorie as menu
+        from cms.management.commands import cree_rubriques_luttes_education as cmd
+        creees = {slug for slug, _ in cmd.RUBRIQUES}
+        au_menu = {e['categorie'] for e in menu.ENTREES if e['site'] == 'education'}
+        self.assertEqual(au_menu, creees)

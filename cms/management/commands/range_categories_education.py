@@ -51,6 +51,8 @@ Usage :
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
+from cms.rangement import aligne_revision, mots
+
 SECTION = 'education'
 GENERIQUE = 'actualites-luttes'
 RESIDU_WORDPRESS = 'premiere-page'
@@ -117,21 +119,6 @@ MENU_VERS_RUBRIQUE = [
 ]
 
 
-def mots(texte):
-    """La suite des mots, débarrassée de la typographie.
-
-    Les titres venus de WordPress portent des espaces insécables (U+00A0)
-    devant les deux-points et les points d'exclamation — douze des titres visés
-    ici en ont. Un fragment tapé avec une espace ordinaire ne correspondait
-    alors plus, et le garde-fou refusait de ranger un article pourtant
-    parfaitement identifié (relevé sur les données de prod le 12/09/2026).
-
-    Comparer les mots ne l'affaiblit pas : il est là pour repérer un `pk`
-    réattribué à un AUTRE article, pas pour arbitrer une espace.
-    """
-    return ' '.join(texte.split())
-
-
 class Command(BaseCommand):
     help = ("Retire le résidu WordPress « Premiere Page », range 23 articles de "
             "l'Éducation dans les rubriques que son menu nomme, et repointe les "
@@ -172,21 +159,9 @@ class Command(BaseCommand):
         return {c.slug: c for c in CmsCategory.objects.filter(section_slug=SECTION)}
 
     def _enregistre(self, page):
-        """`ParentalManyToManyField` : `set()` ne persiste qu'au `save()`.
-
-        Et la révision doit suivre : sans ça, le rédacteur qui rouvre l'article
-        voit l'ancien cochage et le réécrit au premier enregistrement.
-        """
-        page.save()
-        revision = page.latest_revision
-        if revision is None:
-            return
-        contenu = revision.content
-        if not isinstance(contenu, dict) or 'cms_categories' not in contenu:
-            return
-        contenu['cms_categories'] = [c.pk for c in page.cms_categories.all()]
-        revision.content = contenu
-        revision.save(update_fields=['content'])
+        # Le détail — persistance du M2M puis report dans la révision — vit
+        # dans `cms/rangement.py`, partagé avec la commande sœur.
+        aligne_revision(page)
 
     # ── 1. le résidu WordPress ───────────────────────────────────────────────
 
