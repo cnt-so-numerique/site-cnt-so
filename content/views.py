@@ -5,7 +5,7 @@ from itertools import chain
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView, DetailView, View, CreateView, TemplateView
 from django.http import Http404
-from django.db.models import Q, Case, When, Value, IntegerField
+from django.db.models import Q
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.core.mail import EmailMultiAlternatives
@@ -383,16 +383,22 @@ class SiteHomeView(ListView):
     def get_queryset(self):
         if not hasattr(self, 'current_site'):
             self.current_site = get_section_or_404(self.kwargs['site_slug'])
+        # Par DATE, comme l'accueil confédéral et toutes les autres listes du
+        # site. Le tri « illustrés d'abord » posé le 16/08 (commit 90b1c77,
+        # « articles avec image en premier dans le listing sectoriel ») était un
+        # ajustement d'apparence, sans raison consignée — et il enterrait les
+        # articles récents sans visuel : le communiqué de rentrée de l'Éducation
+        # se retrouvait en PAGE 9 de son propre accueil (mesuré le 12/09/2026 ;
+        # même effet sur Poitiers et le Numérique).
+        #
+        # La mise en valeur visuelle reste assurée là où c'est son rôle : le
+        # diaporama et la manchette, qui ne retiennent que les articles
+        # illustrés, par conception.
         complet = (ArticlePage.objects.live()
                    .filter(section_slug__in=self.current_site.slugs_contenu)
                    .select_related('featured_image')
                    .prefetch_related('cms_categories')
-                   .annotate(has_img=Case(
-                       When(featured_image__isnull=False, then=Value(1)),
-                       default=Value(0),
-                       output_field=IntegerField(),
-                   ))
-                   .order_by('-has_img', '-first_published_at'))
+                   .order_by('-publication_date', '-first_published_at'))
         carousel, manchette = self._vitrine()
         deja = [a.pk for a in carousel] + [a.pk for a in manchette]
         if not deja:
@@ -661,16 +667,15 @@ class CategoryDetailView(ListView):
     def get_queryset(self):
         if getattr(self, 'category', None) is None:
             raise Http404
+        # Par date : une page de rubrique doit montrer ce qui vient de paraître.
+        # Le tri « illustrés d'abord » y produisait le même effet que sur les
+        # accueils de syndicat — un article récent sans visuel repoussé derrière
+        # tous les autres (voir le commentaire de `SiteHomeView.get_queryset`).
         return (ArticlePage.objects.live()
                 .filter(cms_categories=self.category)
                 .select_related('featured_image')
                 .prefetch_related('cms_categories')
-                .annotate(has_img=Case(
-                    When(featured_image__isnull=False, then=Value(1)),
-                    default=Value(0),
-                    output_field=IntegerField(),
-                ))
-                .order_by('-has_img', '-publication_date', '-first_published_at'))
+                .order_by('-publication_date', '-first_published_at'))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -696,16 +701,15 @@ class SiteCategoryDetailView(ListView):
         return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
+        # Par date : une page de rubrique doit montrer ce qui vient de paraître.
+        # Le tri « illustrés d'abord » y produisait le même effet que sur les
+        # accueils de syndicat — un article récent sans visuel repoussé derrière
+        # tous les autres (voir le commentaire de `SiteHomeView.get_queryset`).
         return (ArticlePage.objects.live()
                 .filter(cms_categories=self.category)
                 .select_related('featured_image')
                 .prefetch_related('cms_categories')
-                .annotate(has_img=Case(
-                    When(featured_image__isnull=False, then=Value(1)),
-                    default=Value(0),
-                    output_field=IntegerField(),
-                ))
-                .order_by('-has_img', '-publication_date', '-first_published_at'))
+                .order_by('-publication_date', '-first_published_at'))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

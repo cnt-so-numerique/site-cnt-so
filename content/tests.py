@@ -7002,6 +7002,68 @@ class BoutonsCmsMasquesAuxAnonymesTest(TestCase):
         self.assertNotContains(reponse, 'Ajoute du contenu depuis')
 
 
+class ListeParDateEtNonParImageTest(TestCase):
+    """Un article récent sans visuel ne doit pas être enterré.
+
+    L'accueil d'un syndicat triait « illustrés d'abord » (commit 90b1c77,
+    16/08/2026), un ajustement d'apparence sans raison consignée. Avec une
+    pagination par 10, les articles sans image passaient derrière TOUS les
+    autres : le 12/09/2026, le communiqué de rentrée de l'Éducation — son
+    article le plus récent — se trouvait en **page 9** de son propre accueil.
+    Signalé par Arnaud : « pour l'educ il manque les derniers articles ». Il ne
+    manquait pas, il était hors de portée.
+
+    Trois syndicats étaient touchés (Éducation, Poitiers, Numérique) et tous les
+    autres l'auraient été à la première publication sans visuel.
+    """
+
+    def setUp(self):
+        from datetime import datetime, timezone as tz
+        from wagtail.images.models import Image
+        from wagtail.images.tests.utils import get_test_image_file
+        make_site(slug='principal')
+        make_site(slug='poitiers', name='CNT-SO Poitiers', site_type='regional')
+
+        # 12 anciens illustrés : de quoi remplir diaporama (5) et manchette (6)
+        # et laisser malgré tout de la matière dans la liste.
+        for i in range(12):
+            art = make_article_page(section_slug='poitiers', title=f'Ancien {i}',
+                                    slug=f'ancien-{i}')
+            art.featured_image = Image.objects.create(
+                title=f'img{i}', file=get_test_image_file())
+            art.publication_date = datetime(2026, 1, 1 + i, 12, 0, tzinfo=tz.utc)
+            art.save()
+
+        self.recent = make_article_page(section_slug='poitiers',
+                                        title='Communiqué de rentrée',
+                                        slug='communique-de-rentree')
+        self.recent.publication_date = datetime(2026, 9, 1, 12, 0, tzinfo=tz.utc)
+        self.recent.save()
+
+    def test_le_plus_recent_ouvre_la_liste_meme_sans_image(self):
+        articles = self.client.get('/poitiers/').context['articles']
+        self.assertEqual(articles[0].pk, self.recent.pk,
+                         "l'article le plus récent n'ouvre pas la liste")
+
+    def test_il_est_sur_la_premiere_page(self):
+        """Le symptôme tel qu'Arnaud l'a vu : absent de l'accueil."""
+        html = self.client.get('/poitiers/').content.decode()
+        self.assertIn('Communiqué de rentrée', html)
+
+    def test_une_page_de_rubrique_suit_la_meme_regle(self):
+        """Même travers, même remède : les deux listes de catégorie triaient
+        aussi les illustrés d'abord."""
+        cat = make_cms_category(name='Luttes', slug='luttes-ordre',
+                                section_slug='poitiers')
+        self.recent.cms_categories.add(cat)
+        self.recent.save()
+        ancien = ArticlePage.objects.get(slug='ancien-0')
+        ancien.cms_categories.add(cat)
+        ancien.save()
+        articles = self.client.get('/poitiers/categorie/luttes-ordre/').context['articles']
+        self.assertEqual(articles[0].pk, self.recent.pk)
+
+
 class CartouchesDeBarreLateraleTest(TestCase):
     """Deux cartouches annonçaient du contenu et n'en montraient aucun.
 
