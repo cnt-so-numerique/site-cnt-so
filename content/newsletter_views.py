@@ -16,7 +16,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
-from content.admin_utils import WagtailSyndicatRequiredMixin, get_current_site_for_view, is_chef
+from content.admin_utils import (WagtailChefRequiredMixin,
+                                 WagtailSyndicatRequiredMixin,
+                                 get_current_site_for_view, is_chef)
 from content.courriel import destinataire_de_reponse
 from content.models import Newsletter, Subscriber
 
@@ -57,8 +59,21 @@ def _corps_texte(newsletter, articles, unsubscribe_url):
     return '\n'.join(lignes)
 
 
-class NewsletterSendView(WagtailSyndicatRequiredMixin, View):
-    """Confirmation puis envoi de la newsletter."""
+class NewsletterSendView(WagtailChefRequiredMixin, View):
+    """Confirmation puis envoi — rédacteurs en chef seulement.
+
+    Arnaud, 12/09/2026 : « la newsletter c'est pour les super rédac ».
+
+    Le garde était `WagtailSyndicatRequiredMixin`, qui laisse passer tout compte
+    ayant un syndicat courant : n'importe quel rédacteur ouvrait donc cet écran.
+    Or pour la confédération le bouton vise les trois listes OVH à la fois —
+    news, news2 et news3, soit 5 914 abonnés —, l'envoi est irréversible, et
+    news/news2 portent les 5 895 sympathisants historiques.
+
+    Le cloisonnement par syndicat qui suit (`_get_newsletter`) reste en place :
+    il borne un chef de syndicat à la lettre de son syndicat. Les deux gardes
+    se complètent, l'un ne remplace pas l'autre.
+    """
 
     def _get_newsletter(self, request, pk):
         newsletter = get_object_or_404(Newsletter, pk=pk)

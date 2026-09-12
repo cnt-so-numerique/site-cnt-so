@@ -2014,13 +2014,17 @@ class SectionAutonomyPermissionsTest(TestCase):
 
     def test_redacteur_has_syndicat_tool_perms(self):
         redacteur = make_redacteur(site=self.site_a)
-        for perm in ['content.add_newsletter',
-                     'content.add_subscriber', 'content.delete_subscriber',
+        for perm in ['content.add_subscriber', 'content.delete_subscriber',
                      'content.change_contactmessage', 'content.change_formulairecontact',
                      'content.add_champcontactcustom',
                      'cms.change_sectionpage', 'cms.publish_sectionpage',
                      'cms.add_event', 'cms.add_cmscategory']:
             self.assertTrue(redacteur.has_perm(perm), f'manquante : {perm}')
+        # `content.add_newsletter` a QUITTÉ cette liste le 12/09/2026 — Arnaud :
+        # « la newsletter c'est pour les super rédac ». Dit en négatif ici pour
+        # que la règle soit affirmée, et pas seulement absente.
+        self.assertFalse(redacteur.has_perm('content.add_newsletter'))
+        self.assertFalse(redacteur.has_perm('content.change_newsletter'))
 
     def test_redacteur_gere_son_syndicat_suppression_comprise(self):
         """Décision du 02/08/2026 : autonomie complète sur son syndicat.
@@ -2029,7 +2033,9 @@ class SectionAutonomyPermissionsTest(TestCase):
         redacteur = make_redacteur(site=self.site_a)
         for perm in ['cms.delete_articlepage', 'cms.delete_contentpage',
                      'cms.delete_cmscategory', 'cms.delete_event',
-                     'content.delete_menuitem', 'content.delete_newsletter',
+                     # `content.delete_newsletter` retiré le 12/09/2026 :
+                     # la newsletter est passée aux rédacteurs en chef.
+                     'content.delete_menuitem',
                      'content.delete_subscriber', 'content.delete_comment',
                      'wagtailimages.delete_image', 'wagtaildocs.delete_document']:
             self.assertTrue(redacteur.has_perm(perm), f'manquante : {perm}')
@@ -2202,18 +2208,68 @@ class SectionAutonomyPermissionsTest(TestCase):
         r = self.client.get(f'/cms/newsletter/{nl.pk}/envoyer/')
         self.assertIn(r.status_code, (302, 403))
 
-    def test_section_redacteur_can_open_own_newsletter_send(self):
+    def test_section_redacteur_ne_peut_plus_ouvrir_l_envoi(self):
+        """RÈGLE CHANGÉE le 12/09/2026 — Arnaud : « la newsletter c'est pour
+        les super rédac ».
+
+        Ce test affirmait l'inverse : un rédacteur de syndicat ouvrait l'écran
+        d'envoi de SA lettre (200). C'était voulu par l'autonomie des syndicats
+        du 16/07, mais l'écran de la conf vise news + news2 + news3, soit
+        5 914 abonnés, et l'envoi est irréversible. Il est inversé, pas
+        supprimé : c'est la trace du changement de règle.
+        """
         from content.models import Newsletter
-        # Ce test porte sur le cloisonnement, pas sur l'arbitrage éditorial :
-        # le syndicat doit donc proposer une newsletter pour qu'on puisse
-        # vérifier que son rédacteur y accède.
         self.site_b.newsletter_active = True
         self.site_b.save(update_fields=['newsletter_active'])
         nl = Newsletter.objects.create(site=self.site_b, title='Locale', intro='x')
         redacteur = make_redacteur(site=self.site_b, username='nl-redac2')
         self.client.force_login(redacteur)
         r = self.client.get(f'/cms/newsletter/{nl.pk}/envoyer/')
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r['Location'], '/cms/')
+
+    def test_un_chef_ouvre_toujours_l_envoi(self):
+        """Contrôle positif : un garde trop large fermerait l'outil à tout le
+        monde, et le premier à s'en apercevoir serait celui qui doit envoyer."""
+        from content.models import Newsletter
+        self.site_b.newsletter_active = True
+        self.site_b.save(update_fields=['newsletter_active'])
+        nl = Newsletter.objects.create(site=self.site_b, title='Locale', intro='x')
+        # `_chef_client` pose aussi le site courant en session. Sans lui, le
+        # cloisonnement de `_get_newsletter` compare la lettre au site par
+        # défaut du chef et refuse : on buterait sur le garde SUIVANT, pas sur
+        # celui qu'on veut vérifier ici.
+        r = _chef_client(self.site_b).get(f'/cms/newsletter/{nl.pk}/envoyer/')
         self.assertEqual(r.status_code, 200)
+
+    def test_le_bouton_envoyer_est_masque_pour_un_redacteur(self):
+        """Un bouton ne doit pas ouvrir une porte que la vue refermera."""
+        from django.test import RequestFactory
+        from content.models import Newsletter
+        from content.wagtail_hooks import add_newsletter_send_button
+        nl = Newsletter.objects.create(site=self.site_b, title='Locale', intro='x')
+        bouton = add_newsletter_send_button(Newsletter)
+        requete = RequestFactory().get('/cms/')
+        requete.user = make_redacteur(site=self.site_b, username='nl-bouton')
+        self.assertFalse(bouton.is_shown({'instance': nl, 'request': requete}))
+        requete.user = make_superuser('nl-bouton-chef')
+        self.assertTrue(bouton.is_shown({'instance': nl, 'request': requete}))
+
+    def test_la_permission_newsletter_est_reprise_aux_redacteurs(self):
+        """`permissions.add()` n'enlève jamais rien.
+
+        Sans révocation explicite, retirer la newsletter de `_REDACTEUR_CONTENT`
+        ne la reprendrait PAS aux groupes de production, qui l'ont déjà reçue :
+        le changement serait purement décoratif. On repose donc le droit à la
+        main, puis on vérifie que la synchronisation le retire.
+        """
+        from django.contrib.auth.models import Group, Permission
+        perm = Permission.objects.get(codename='change_newsletter',
+                                      content_type__app_label='content')
+        groupe = Group.objects.get(name='redacteur')
+        groupe.permissions.add(perm)
+        _setup_editorial_groups()
+        self.assertNotIn(perm, groupe.permissions.all())
 
     def test_section_sheet_queryset_scoped_to_own_section(self):
         """La fiche « Mon syndicat » n'expose que la section de l'utilisateur,
@@ -4854,14 +4910,20 @@ class WagtailHookViewSetsTest(TestCase):
         item = add_newsletter_send_button(Newsletter)
         self.assertIsNotNone(item)
 
+        # Depuis le 12/09/2026 le bouton est réservé aux rédacteurs en chef :
+        # `is_shown` lit `context['request']`, qu'il faut donc fournir.
+        from django.test import RequestFactory
+        requete = RequestFactory().get('/cms/')
+        requete.user = make_superuser('nl-menu-am-chef')
+
         # get_url avec brouillon
-        ctx_draft = {'instance': nl}
+        ctx_draft = {'instance': nl, 'request': requete}
         self.assertEqual(item.get_url(ctx_draft), f'/cms/newsletter/{nl.pk}/envoyer/')
         self.assertTrue(item.is_shown(ctx_draft))
 
         # get_url avec envoyée → None
         nl.status = 'sent'
-        ctx_sent = {'instance': nl}
+        ctx_sent = {'instance': nl, 'request': requete}
         self.assertIsNone(item.get_url(ctx_sent))
         self.assertFalse(item.is_shown(ctx_sent))
 

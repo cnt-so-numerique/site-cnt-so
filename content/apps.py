@@ -91,13 +91,27 @@ def create_editorial_groups(sender, **kwargs):
         # site verrouillé côté formulaire ET serveur — ouvert depuis le lot 6.
         'content.add_menuitem', 'content.change_menuitem',
         'content.delete_menuitem', 'content.view_menuitem',
-        'content.add_newsletter', 'content.change_newsletter',
-        'content.delete_newsletter', 'content.view_newsletter',
+        # La newsletter N'EST PLUS ici : passée aux rédacteurs en chef le
+        # 12/09/2026, voir `_REDACTEUR_RETIREES` juste après.
         'content.add_subscriber', 'content.change_subscriber', 'content.delete_subscriber', 'content.view_subscriber',
         'content.view_contactmessage', 'content.change_contactmessage',
         'content.view_formulairecontact', 'content.change_formulairecontact',
         'content.add_champcontactcustom', 'content.change_champcontactcustom',
         'content.delete_champcontactcustom', 'content.view_champcontactcustom',
+    ]
+
+    # Permissions REPRISES aux rédacteurs. Décision d'Arnaud du 12/09/2026 :
+    # « la newsletter c'est pour les super rédac ».
+    #
+    # Cette liste n'est pas une redite de celle du dessus : `permissions.add()`
+    # n'enlève jamais rien. Retirer une ligne de `_REDACTEUR_CONTENT` ne la
+    # reprend donc PAS aux groupes qui l'ont déjà reçue — en production, tous
+    # les `redacteur_<slug>` garderaient le droit d'envoyer. La révocation doit
+    # être explicite, et rejouée à chaque migration pour qu'un groupe recréé à
+    # la main ne rouvre pas la porte en silence.
+    _REDACTEUR_RETIREES = [
+        'content.add_newsletter', 'content.change_newsletter',
+        'content.delete_newsletter', 'content.view_newsletter',
     ]
 
     # Permissions CMS Wagtail (cms.ArticlePage, ContentPage, CmsCategory, images, docs)
@@ -176,3 +190,12 @@ def create_editorial_groups(sender, **kwargs):
         name='redacteur_en_chef')
     for group in section_groups:
         group.permissions.add(*redacteur_perms)
+
+    # Révocation — voir `_REDACTEUR_RETIREES`. Elle vient APRÈS les `add()` :
+    # si une permission figurait encore dans les deux listes, c'est le retrait
+    # qui doit l'emporter.
+    retirees = get_permissions(_REDACTEUR_RETIREES)
+    if retirees:
+        redacteur_group.permissions.remove(*retirees)
+        for group in section_groups:
+            group.permissions.remove(*retirees)

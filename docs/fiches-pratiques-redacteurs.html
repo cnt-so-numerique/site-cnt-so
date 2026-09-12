@@ -1,0 +1,326 @@
+<title>Écrire sur cnt-so.org</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --papier: #FAF8F5;
+    --papier-creux: #F2EDE6;
+    --encre: #1A1714;
+    --encre-douce: #6B6560;
+    --rouge: #E81C24;
+    --filet: #E2DCD4;
+    --alerte-fond: #FDF3E7;
+    --alerte-filet: #E8C89A;
+    --ombre: 0 1px 2px rgba(26, 23, 20, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --papier: #15120F;
+      --papier-creux: #1E1A16;
+      --encre: #F2EDE6;
+      --encre-douce: #A39B92;
+      --rouge: #FF5A5F;
+      --filet: #2E2823;
+      --alerte-fond: #241C12;
+      --alerte-filet: #6B4F2A;
+      --ombre: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --papier: #15120F;
+    --papier-creux: #1E1A16;
+    --encre: #F2EDE6;
+    --encre-douce: #A39B92;
+    --rouge: #FF5A5F;
+    --filet: #2E2823;
+    --alerte-fond: #241C12;
+    --alerte-filet: #6B4F2A;
+    --ombre: none;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding-block: 2.5rem 4rem;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    background: var(--papier);
+    color: var(--encre);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 1.0625rem;
+    line-height: 1.6;
+  }
+
+  .feuille { max-width: 46rem; margin: 0 auto; }
+
+  /* ── En-tête ────────────────────────────────────────────────── */
+  .entete { border-top: 4px solid var(--rouge); padding-top: 1.25rem; display: grid; gap: .75rem; }
+  .entete h1 {
+    font-family: Oswald, "Arial Narrow", sans-serif;
+    font-weight: 600;
+    font-size: clamp(2rem, 6vw, 2.9rem);
+    line-height: 1.05;
+    letter-spacing: .01em;
+    margin: 0;
+    text-wrap: balance;
+    text-transform: uppercase;
+  }
+  .entete p { margin: 0; max-width: 34rem; }
+  .surtitre {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .75rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--encre-douce);
+    margin: 0;
+  }
+  .adresse {
+    display: flex; flex-wrap: wrap; gap: .5rem 1.25rem;
+    align-items: baseline;
+    padding: .85rem 1rem;
+    background: var(--papier-creux);
+    border-radius: 2px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .9rem;
+  }
+  .adresse b { font-weight: 500; color: var(--encre-douce); font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; }
+
+  /* ── Fiches ─────────────────────────────────────────────────── */
+  .fiches { display: grid; gap: 3.5rem; margin-top: 3rem; }
+  .fiche { display: grid; gap: 1rem; }
+  .fiche > header { display: grid; grid-template-columns: auto 1fr; gap: 0 1rem; align-items: baseline; border-bottom: 1px solid var(--filet); padding-bottom: .6rem; }
+  .numero {
+    font-family: Oswald, "Arial Narrow", sans-serif;
+    font-size: 2.4rem; line-height: 1; font-weight: 600;
+    color: var(--rouge);
+    font-variant-numeric: tabular-nums;
+  }
+  .fiche h2 {
+    font-family: Oswald, "Arial Narrow", sans-serif;
+    font-weight: 600; text-transform: uppercase; letter-spacing: .02em;
+    font-size: 1.45rem; line-height: 1.15; margin: 0; text-wrap: balance;
+  }
+  .fiche header p { grid-column: 2; margin: .15rem 0 0; color: var(--encre-douce); font-size: .95rem; }
+
+  ol.etapes { margin: 0; padding-left: 1.4rem; display: grid; gap: .65rem; }
+  ol.etapes li::marker { font-family: "IBM Plex Mono", monospace; color: var(--rouge); font-size: .85em; }
+  ul.puces { margin: 0; padding-left: 1.2rem; display: grid; gap: .4rem; }
+
+  kbd, code, .ecran {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .88em;
+    background: var(--papier-creux);
+    padding: .1em .35em;
+    border-radius: 2px;
+  }
+  .ecran { font-style: normal; }
+
+  .piege {
+    background: var(--alerte-fond);
+    border-left: 3px solid var(--alerte-filet);
+    padding: .85rem 1rem;
+    display: grid; gap: .35rem;
+    font-size: .97rem;
+  }
+  .piege b {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--encre-douce); font-weight: 500;
+  }
+
+  .repere { display: grid; gap: .3rem; padding: .8rem 1rem; border: 1px solid var(--filet); border-radius: 2px; box-shadow: var(--ombre); font-size: .97rem; }
+  .repere b { font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: .04em; font-size: .82rem; }
+
+  dl.champs { display: grid; grid-template-columns: minmax(9rem, auto) 1fr; gap: .45rem 1rem; margin: 0; font-size: .97rem; }
+  dl.champs dt { font-family: "IBM Plex Mono", monospace; font-size: .85em; color: var(--encre); }
+  dl.champs dd { margin: 0; color: var(--encre-douce); }
+
+  footer.pied { margin-top: 3.5rem; border-top: 1px solid var(--filet); padding-top: 1rem; color: var(--encre-douce); font-size: .9rem; display: grid; gap: .4rem; }
+
+  a { color: var(--rouge); }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--rouge); outline-offset: 2px; }
+
+  @media (max-width: 30rem) {
+    dl.champs { grid-template-columns: 1fr; }
+    dl.champs dd { margin-bottom: .35rem; }
+  }
+
+  @media print {
+    body { background: #fff; color: #000; font-size: 11pt; padding: 0; }
+    .fiche { break-before: page; }
+    .fiche:first-of-type { break-before: auto; }
+    .fiches { gap: 0; }
+    .piege, .repere, .adresse { break-inside: avoid; }
+  }
+</style>
+
+<div class="feuille">
+  <header class="entete">
+    <p class="surtitre">CNT-Solidarité Ouvrière · fiches à distribuer</p>
+    <h1>Écrire sur cnt-so.org</h1>
+    <p>Sept fiches pour tenir le site de son syndicat sans dépendre de personne. Chacune tient sur une page : imprime-les, garde celle dont tu as besoin.</p>
+    <div class="adresse">
+      <span><b>Adresse</b> https://cnt-so.org/cms/</span>
+      <span><b>Avant la bascule</b> https://newsite.cnt-so.org/cms/</span>
+    </div>
+  </header>
+
+  <div class="fiches">
+
+    <section class="fiche">
+      <header>
+        <div class="numero">1</div>
+        <h2>Se connecter</h2>
+        <p>Un compte par personne, jamais un compte partagé : c'est ce qui permet de savoir qui a écrit quoi.</p>
+      </header>
+      <ol class="etapes">
+        <li>Ouvre <code>cnt-so.org/cms/</code> et saisis ton identifiant et ton mot de passe.</li>
+        <li>Mot de passe perdu ? Clique sur <span class="ecran">Mot de passe oublié ?</span> sous le formulaire. Un courriel arrive dans la minute ; regarde les indésirables.</li>
+        <li>En haut de la colonne de gauche, vérifie le <b>sélecteur de syndicat</b> : il indique le syndicat sur lequel tu travailles. Tout ce que tu écris part dans celui-là.</li>
+      </ol>
+      <div class="piege">
+        <b>Piège</b>
+        <span>Si tu ouvres un article d'un autre syndicat, le CMS bascule automatiquement sur lui et te le dit par un message. Pense à revenir sur le tien avant d'écrire un nouvel article — sinon il sera publié chez le voisin.</span>
+      </div>
+    </section>
+
+    <section class="fiche">
+      <header>
+        <div class="numero">2</div>
+        <h2>Écrire un article</h2>
+        <p>Menu de gauche → <span class="ecran">Rédaction</span> → <span class="ecran">Articles</span> → bouton rouge <span class="ecran">+ Nouvel article</span>.</p>
+      </header>
+      <p>L'écran a deux colonnes. À gauche, ce qui se lit ; à droite, les réglages ; en bas, les rubriques.</p>
+      <dl class="champs">
+        <dt>Titre</dt><dd>Court et parlant. C'est lui qui s'affiche partout et qui fabrique l'adresse de l'article.</dd>
+        <dt>L'article</dt><dd>Le texte. Le bouton <b>+</b> insère une image, un encadré, une citation, un document à télécharger, une vidéo.</dd>
+        <dt>Extrait</dt><dd>Deux ou trois lignes de présentation, reprises dans les listes et la newsletter. Laissé vide, le début du texte sert d'extrait.</dd>
+      </dl>
+      <div class="repere">
+        <b>Écrire, ce n'est pas mettre en forme</b>
+        <span>Colle ton texte sans mise en forme, puis structure-le : des intertitres (H2, H3) plutôt que du gras, des listes à puces plutôt que des tirets. C'est ce qui rend l'article lisible au téléphone et trouvable par les moteurs de recherche.</span>
+      </div>
+      <div class="piege">
+        <b>Piège</b>
+        <span><span class="ecran">Enregistrer le brouillon</span> garde ton travail sans le publier. Ferme toujours par un enregistrement : rien n'est sauvegardé automatiquement.</span>
+      </div>
+    </section>
+
+    <section class="fiche">
+      <header>
+        <div class="numero">3</div>
+        <h2>Le classer</h2>
+        <p>Les rubriques sont en bas de l'écran, en cases à cocher, toutes visibles d'un coup.</p>
+      </header>
+      <p>Un article <b>doit</b> avoir au moins une rubrique. Si tu l'oublies, le CMS refuse d'enregistrer et affiche :</p>
+      <div class="repere">
+        <span>« Choisissez au moins une catégorie : sans elle, l'article n'apparaît sur aucune page de rubrique. »</span>
+      </div>
+      <ul class="puces">
+        <li>Coche <b>la rubrique du sujet</b> — « Nettoyage », « Vie scolaire - AESH », « Voie professionnelle »… C'est elle qui range l'article dans le menu du site.</li>
+        <li>Ajoute <b>« Actualités - luttes »</b> si c'est une actualité.</li>
+        <li>Pour remonter sur l'accueil, ce n'est <b>pas</b> une rubrique : ce sont les cases <span class="ecran">À la une de mon syndicat</span> et <span class="ecran">À la une de la confédération</span>, dans les réglages de la colonne de droite.</li>
+        <li>Deux ou trois rubriques suffisent. Tout cocher revient à ne rien classer.</li>
+      </ul>
+      <div class="piege">
+        <b>Piège</b>
+        <span>Un article classé <b>uniquement</b> en « Actualités - luttes » disparaît des pages de rubrique du menu : il est dans le fil, mais dans aucune rubrique. C'est ce qui était arrivé à 83 articles de l'Éducation sur 102, dont les rubriques thématiques sont restées vides — rangées le 12 septembre 2026.</span>
+      </div>
+    </section>
+
+    <section class="fiche">
+      <header>
+        <div class="numero">4</div>
+        <h2>L'illustrer</h2>
+        <p>Colonne de droite, cadre <span class="ecran">Réglages</span>, tout en haut : <span class="ecran">Image mise en avant</span>.</p>
+      </header>
+      <ul class="puces">
+        <li><b>Mets toujours une image.</b> Sans elle, ton article passe <b>derrière</b> tous les articles illustrés de sa rubrique, quelle que soit sa date : publié aujourd'hui, il arrive en bas de page.</li>
+        <li><b>Les affiches et les tracts s'affichent en entier</b>, sur fond blanc, sans recadrage. Inutile de les découper ou de fabriquer une bannière : envoie l'affiche telle quelle.</li>
+        <li>Un PDF à diffuser ? Dans le texte, bouton <b>+</b> → <span class="ecran">Fichier à télécharger</span>. Le visiteur obtient un vrai bouton de téléchargement.</li>
+        <li>Les images versées restent dans la médiathèque de ton syndicat : tu les retrouves pour un autre article.</li>
+      </ul>
+      <div class="piege">
+        <b>Piège</b>
+        <span>Ne mets pas le titre en surimpression sur l'affiche : il est déjà affiché dessous par le site, et l'affiche doit rester lisible telle que le syndicat l'a faite.</span>
+      </div>
+    </section>
+
+    <section class="fiche">
+      <header>
+        <div class="numero">5</div>
+        <h2>Publier, corriger, retirer</h2>
+        <p>En bas de l'écran de rédaction : <span class="ecran">Publier</span>. Ce que tu publies est en ligne aussitôt.</p>
+      </header>
+      <ol class="etapes">
+        <li><b>Publier</b> : l'article paraît sur le site de ton syndicat, sur l'accueil s'il est à la une, et dans le flux RSS.</li>
+        <li><b>Corriger</b> : rouvre l'article depuis <span class="ecran">Articles</span>, modifie, puis <span class="ecran">Publier</span> à nouveau. L'adresse ne change pas, les liens déjà partagés continuent de fonctionner.</li>
+        <li><b>Retirer</b> : dans le menu du bouton de publication, choisis <span class="ecran">Dépublier</span>. L'article quitte le site sans être détruit ; on peut le republier plus tard.</li>
+        <li><b>Revenir en arrière</b> : <span class="ecran">Historique</span> conserve chaque version enregistrée. <span class="ecran">Supprimer</span>, lui, efface pour de bon — préfère toujours <span class="ecran">Dépublier</span>.</li>
+      </ol>
+      <div class="piege">
+        <b>Piège</b>
+        <span>L'adresse d'un article est fabriquée à partir de son titre <b>au moment de la création</b>, puis elle ne bouge plus : renommer un article déjà publié ne casse aucun lien partagé. C'est voulu — et c'est pourquoi il vaut la peine de trouver le bon titre du premier coup.</span>
+      </div>
+    </section>
+
+    <section class="fiche">
+      <header>
+        <div class="numero">6</div>
+        <h2>Le reste du menu</h2>
+        <p>Ce que tu peux tenir toi-même, sans passer par quiconque.</p>
+      </header>
+      <dl class="champs">
+        <dt>Agenda</dt><dd>Les rendez-vous du syndicat : rassemblements, permanences, assemblées. Ils paraissent sur la page Agenda et dans la colonne de droite du site.</dd>
+        <dt>Pages statiques</dt><dd>Les pages qui ne bougent pas : présentation, ressources, contacts. Même écran que les articles.</dd>
+        <dt>Pages du syndicat</dt><dd>La fiche de ton syndicat : adresse de contact, réseaux sociaux, texte d'accueil, lien d'adhésion.</dd>
+        <dt>Messages reçus</dt><dd>Ce que les visiteurs envoient par le formulaire. Ils arrivent aussi par courriel à l'adresse du syndicat.</dd>
+        <dt>Config formulaire</dt><dd>Les champs du formulaire de contact et l'adresse qui reçoit. À vérifier une fois, puis on l'oublie.</dd>
+        <dt>Menus</dt><dd>Les entrées du menu de ton site. Désigne une <b>rubrique</b> plutôt que de taper une adresse : le lien suivra si la rubrique change.</dd>
+        <dt>Images · Documents</dt><dd>La médiathèque de ton syndicat. Ce que tu y verses reste disponible pour tous tes articles.</dd>
+        <dt>Commentaires</dt><dd>Les commentaires laissés sur les articles, à valider ou à écarter.</dd>
+        <dt>Abonnés</dt><dd>Les inscrits à la newsletter de ton syndicat, avec un export en tableur.</dd>
+      </dl>
+      <div class="repere">
+        <b>Ce qui ne t'est pas ouvert</b>
+        <span><span class="ecran">Listes mails</span> figure dans le menu mais refuse l'accès : ces listes sont tenues par le responsable de la liste. C'est normal, ce n'est pas une panne. De même, <span class="ecran">Newsletters</span> — écrire et envoyer une lettre revient aux rédacteurs en chef ; tu gardes <span class="ecran">Abonnés</span>, la liste des inscrits de ton syndicat.</span>
+      </div>
+      <div class="piege">
+        <b>Quand ça coince</b>
+        <span>Une page blanche, un message d'erreur, un article qui refuse de s'enregistrer : note l'heure et l'adresse affichée dans le navigateur, puis écris à <code>technique@cnt-so.org</code>. Avec l'adresse exacte, le problème se retrouve en quelques minutes.</span>
+      </div>
+    </section>
+
+    <section class="fiche">
+      <header>
+        <div class="numero">7</div>
+        <h2>Envoyer une newsletter</h2>
+        <p>Réservé aux <b>rédactrices et rédacteurs en chef</b>. C'est le seul écran du site où une erreur ne se rattrape pas : un envoi parti est parti.</p>
+      </header>
+      <ol class="etapes">
+        <li><b>Écrire</b> : menu <span class="ecran">Newsletter</span> → <span class="ecran">Newsletters</span> → créer. Un sujet, un texte d'introduction, et les articles à reprendre — ils s'ordonnent à la main.</li>
+        <li><b>Se relire en vrai</b> : bouton <span class="ecran">Envoyer</span>, puis le bloc <span class="ecran">Envoi de test</span>. Saisis ta propre adresse et regarde le courriel tel qu'il arrivera. Fais-le <b>toujours</b> : c'est gratuit, et c'est la seule répétition possible.</li>
+        <li><b>Lire le bouton avant de cliquer.</b> Le bouton d'envoi réel <b>nomme les listes visées</b> et l'écran affiche le nombre d'abonnés. Vérifie que ce sont bien ceux à qui tu veux écrire.</li>
+        <li><b>Envoyer</b> : un seul courriel part vers la liste, et OVH le redistribue. La newsletter passe de <span class="ecran">Brouillon</span> à <span class="ecran">Envoyé</span> — il n'y a pas de retour en arrière.</li>
+      </ol>
+      <div class="piege">
+        <b>Piège — la conf écrit à 5 914 personnes</b>
+        <span>Pour la confédération, le bouton vise <b>trois listes à la fois</b> : <code>news</code>, <code>news2</code> et <code>news3</code>, soit 5 914 abonnés, dont les sympathisants inscrits depuis des années. Ce n'est pas la seule liste des inscrits du site. N'envoie qu'après accord du responsable de la liste.</span>
+      </div>
+      <div class="repere">
+        <b>Syndicat sans liste OVH</b>
+        <span>L'envoi se fait alors adresse par adresse, aux inscrits confirmés du site, avec 18 secondes entre chaque courriel — deux cents abonnés demandent une heure. Ne ferme pas la page pendant ce temps.</span>
+      </div>
+      <div class="repere">
+        <b>Désabonnements</b>
+        <span>Un visiteur qui se désabonne par le lien du courriel sort de la base du site, mais <b>pas</b> de la liste OVH : c'est au responsable de la liste de l'y retirer. Sans cela, il continuera de recevoir les envois.</span>
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="pied">
+    <span>Fiches établies le 12 septembre 2026, d'après l'interface en service. Les libellés entre guillemets sont ceux affichés à l'écran.</span>
+    <span>Documentation complète pour les responsables : <code>docs/documentation-cms.md</code> dans le dépôt du site.</span>
+  </footer>
+</div>

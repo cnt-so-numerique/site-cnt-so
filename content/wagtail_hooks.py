@@ -532,6 +532,14 @@ def add_newsletter_send_button(model, **kwargs):
             return None
 
         def is_shown(self, context):
+            # Un bouton ne doit pas ouvrir une porte que la vue refermera :
+            # l'envoi est réservé aux rédacteurs en chef depuis le 12/09/2026.
+            # Sans ce filtre, un rédacteur verrait « Envoyer la newsletter »
+            # puis serait renvoyé au tableau de bord sans explication.
+            from content.admin_utils import is_chef
+            request = context.get('request')
+            if request is None or not is_chef(request.user):
+                return False
             instance = context.get('instance')
             return instance and instance.pk and instance.status == 'draft'
 
