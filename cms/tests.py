@@ -3123,12 +3123,19 @@ class UneSeuleDefinitionDePanneauxTest(TestCase):
                         for e in getattr(onglet, 'children', [])),
                     f"l'onglet {onglet.heading!r} en contient d'autres")
 
-    def test_in_carousel_et_featured_on_conf_sont_editables(self):
-        """Deux cases déclarées avec leur aide, mais absentes de l'écran Pages :
-        un rédacteur ne pouvait pas savoir qu'elles existaient."""
+    def test_les_cases_de_mise_en_avant_sont_editables(self):
+        """Des cases déclarées avec leur aide, mais absentes de l'écran Pages :
+        un rédacteur ne pouvait pas savoir qu'elles existaient.
+
+        Elles sont trois depuis le 12/09/2026 : le diaporama du syndicat, sa
+        manchette, et la une confédérale. Une case invisible ne vaut pas mieux
+        qu'une case absente — c'est exactement pourquoi la manchette est restée
+        automatique pendant des mois sans que personne ne le sache.
+        """
         onglets = {c.heading: c for c in ArticlePage.edit_handler.children}
         champs = self._champs(onglets['Contenu'])
         self.assertIn('in_carousel', champs)
+        self.assertIn('in_manchette', champs)
         self.assertIn('featured_on_conf', champs)
 
 
@@ -3794,12 +3801,25 @@ class CaseMiseEnAvantHonneteTest(TestCase):
 
     def test_chaque_case_nomme_son_accueil(self):
         """C'était toute la confusion : deux libellés parlant de « la
-        confédération » sans dire lequel faisait quoi."""
+        confédération » sans dire lequel faisait quoi.
+
+        Une TROISIÈME case est arrivée le 12/09/2026 (« À la une de mon
+        syndicat », la manchette). Chacune doit nommer sa zone, sans quoi la
+        même confusion recommence — et cette fois entre deux cases du même
+        accueil.
+        """
         conf = ArticlePage._meta.get_field('featured_on_conf')
-        mien = ArticlePage._meta.get_field('in_carousel')
+        diaporama = ArticlePage._meta.get_field('in_carousel')
+        une = ArticlePage._meta.get_field('in_manchette')
         self.assertIn('confédération', str(conf.verbose_name))
-        self.assertIn('syndicat', str(mien.verbose_name))
-        self.assertNotEqual(str(conf.verbose_name), str(mien.verbose_name))
+        self.assertIn('syndicat', str(diaporama.verbose_name))
+        self.assertIn('syndicat', str(une.verbose_name))
+        libelles = {str(conf.verbose_name), str(diaporama.verbose_name),
+                    str(une.verbose_name)}
+        self.assertEqual(len(libelles), 3, 'deux cases portent le même libellé')
+        # Et chacune dit LAQUELLE des deux zones du syndicat elle pilote.
+        self.assertIn('iaporama', str(diaporama.verbose_name))
+        self.assertIn('une', str(une.verbose_name))
 
     def test_la_une_confederale_reste_reservee_aux_chefs(self):
         """Le verrou existait sur `featured_on_conf` seul : `is_featured`, lui,
@@ -3880,6 +3900,90 @@ class CarrouselCompleteTest(TestCase):
             CarouselArticle.objects.create(page=self.site, article=art,
                                            sort_order=rang)
         self.assertEqual(len(self._carrousel()), 5)
+
+
+class ManchetteChoisieParLeSyndicatTest(TestCase):
+    """La manchette se choisit, comme le diaporama — Arnaud, 12/09/2026.
+
+    L'accueil d'un syndicat a DEUX zones et une seule case les désignait :
+    « À la une de mon syndicat » pilotait en réalité le DIAPORAMA, tandis que la
+    manchette — les cartes situées juste dessous — prenait mécaniquement les six
+    derniers articles illustrés, sans commande possible. Arnaud : « il faut
+    choisir les articles de la manchette et du carrousel ».
+
+    Même règle que pour le diaporama, et c'est tout l'intérêt de passer par le
+    même helper : les articles cochés tiennent la tête, le reste comble les
+    places libres. Mettre un article à la une ne doit pas en chasser cinq — la
+    leçon du 15/08/2026.
+    """
+
+    def _articles(self, n, prefixe):
+        from wagtail.images.models import Image
+        from wagtail.images.tests.utils import get_test_image_file
+        faits = []
+        for i in range(n):
+            img = Image.objects.create(title=f'img{prefixe}{i}',
+                                       file=get_test_image_file())
+            art = make_article_page(section_slug='13', title=f'{prefixe} {i}',
+                                    slug=f'{prefixe}-{i}')
+            art.featured_image = img
+            art.save()
+            faits.append(art)
+        return faits
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='13', name='CNT-SO 13')
+        self.site.section_type = 'regional'
+        self.site.save()
+        self.tous = self._articles(12, 'art')
+
+    def _zones(self):
+        reponse = self.client.get('/13/')
+        return ([a.pk for a in reponse.context['carousel_articles']],
+                [a.pk for a in reponse.context['manchette_articles']])
+
+    def test_sans_choix_la_manchette_se_remplit_toute_seule(self):
+        _, manchette = self._zones()
+        self.assertEqual(len(manchette), 6)
+
+    def test_un_article_a_la_une_tient_la_tete(self):
+        vieux = self.tous[0]          # le plus ancien : jamais là par défaut
+        vieux.in_manchette = True
+        vieux.save()
+        _, manchette = self._zones()
+        self.assertEqual(manchette[0], vieux.pk, "l'article choisi n'est pas en tête")
+
+    def test_un_article_a_la_une_n_en_chasse_pas_cinq(self):
+        """Le travers corrigé sur le diaporama le 15/08 ne doit pas renaître
+        ici : cocher une case ne vide pas la zone."""
+        self.tous[0].in_manchette = True
+        self.tous[0].save()
+        _, manchette = self._zones()
+        self.assertEqual(len(manchette), 6, 'cocher un article a vidé la manchette')
+
+    def test_un_article_du_diaporama_n_est_pas_repris_a_la_une(self):
+        """Les deux zones sont sur le même écran : l'y voir deux fois est le
+        défaut constaté sur /13/ le 31/08/2026.
+
+        On coche les DEUX cases sur l'article — le geste réel d'un rédacteur —
+        plutôt que de créer le `CarouselArticle` à la main : `ArticlePage.save()`
+        synchronise les deux sens, si bien qu'un enregistrement avec
+        `in_carousel=False` supprime l'épingle qu'on vient de poser. C'est ce
+        qui faisait échouer ce test à l'écriture.
+        """
+        art = self.tous[0]
+        art.in_carousel = True
+        art.in_manchette = True
+        art.save()
+        carrousel, manchette = self._zones()
+        self.assertIn(art.pk, carrousel)
+        self.assertNotIn(art.pk, manchette)
+
+    def test_aucun_doublon_dans_la_manchette(self):
+        self.tous[1].in_manchette = True
+        self.tous[1].save()
+        _, manchette = self._zones()
+        self.assertEqual(len(manchette), len(set(manchette)))
 
 
 class AucunCompteExposeAuxRedacteursTest(TestCase):

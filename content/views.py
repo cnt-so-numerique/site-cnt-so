@@ -146,12 +146,17 @@ class HomeView(ListView):
         # Compléter jusqu'à 5, plutôt que de tout couper au premier choisi.
         # Avant le 16/08/2026, un seul article épinglé faisait disparaître les
         # quatre autres : mettre un article en avant en retirait quatre.
-        carousel = _completer_carrousel(carousel, base_qs.exclude(featured_image=None))
+        carousel = _completer_vitrine(carousel, base_qs.exclude(featured_image=None))
         context['carousel_articles'] = carousel
         excl = [a.pk for a in carousel]
 
-        # Manchette : 6 articles conf avec image
-        manchette = list(base_qs.exclude(pk__in=excl).exclude(featured_image=None)[:6])
+        # Manchette : 6 articles avec image. Elle se choisit désormais depuis
+        # l'article, comme le diaporama — et se complète de la même façon, pour
+        # qu'un article mis à la une n'en chasse pas cinq (demande d'Arnaud,
+        # 12/09/2026 : « il faut choisir les articles de la manchette »).
+        restants = base_qs.exclude(pk__in=excl).exclude(featured_image=None)
+        manchette = _completer_vitrine(
+            list(restants.filter(in_manchette=True)), restants, maximum=6)
         context['manchette_articles'] = manchette
         excl += [a.pk for a in manchette]
 
@@ -283,8 +288,12 @@ def _reseau_tour_de_table(candidats, noms_de_sites, nb=9):
     return resultat
 
 
-def _completer_carrousel(choisis, candidats, maximum=5):
-    """Les articles épinglés d'abord, puis les récents illustrés jusqu'à 5.
+def _completer_vitrine(choisis, candidats, maximum=5):
+    """Les articles épinglés d'abord, puis les récents illustrés jusqu'au maximum.
+
+    Sert les DEUX zones de la vitrine depuis le 12/09/2026 : le diaporama
+    (5 places) et la manchette (6). La règle est la même pour les deux, et
+    c'est tout l'intérêt de les faire passer par ici.
 
     Le carrousel fonctionnait en tout ou rien : tant qu'aucun article n'était
     coché, l'accueil affichait les 5 récents illustrés ; dès qu'un seul était
@@ -361,9 +370,13 @@ class SiteHomeView(ListView):
             .order_by('-publication_date', '-first_published_at')[:20]
             if a.any_image_url
         ]
-        carousel = _completer_carrousel(carousel, candidats)
+        carousel = _completer_vitrine(carousel, candidats)
         deja = {a.pk for a in carousel}
-        manchette = [a for a in candidats if a.pk not in deja][:6]
+        # Même règle que le diaporama : les articles cochés « À la une de mon
+        # syndicat » tiennent la tête, le reste comble les places libres.
+        restants = [a for a in candidats if a.pk not in deja]
+        manchette = _completer_vitrine(
+            [a for a in restants if a.in_manchette], restants, maximum=6)
         self._vitrine_cache = (carousel, manchette)
         return self._vitrine_cache
 

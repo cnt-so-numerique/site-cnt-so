@@ -1080,6 +1080,7 @@ def panneaux_article():
             FieldPanel('author_name'),
             FieldPanel('cms_tags'),
             FieldPanel('in_carousel'),
+            FieldPanel('in_manchette'),
             # Réservés aux chefs : imposés par `form_valid` pour les autres,
             # et leur panneau disparaît au lieu de laisser une étiquette vide.
             PanneauChefSeulement('featured_on_conf'),
@@ -1238,14 +1239,29 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
     #
     # Les libellés disent maintenant DE QUEL accueil il s'agit — c'était toute
     # la confusion.
+    # L'accueil d'un syndicat a DEUX zones — le diaporama en haut, la manchette
+    # juste dessous — et une seule case les désignait. Son libellé disait « à la
+    # une » alors qu'elle pilotait le diaporama, et la manchette, elle, n'avait
+    # aucune commande : elle prenait les six derniers articles illustrés.
+    # Arnaud, 12/09/2026 : « il faut choisir les articles de la manchette et du
+    # carrousel ». Chaque case nomme donc sa zone.
     in_carousel = models.BooleanField(
         default=False,
+        verbose_name="Diaporama de mon syndicat",
+        help_text="Place l'article EN TÊTE du diaporama de VOTRE accueil — le "
+                  "grand bandeau qui défile — et l'y maintient. Vos articles "
+                  "récents illustrés y passent déjà tout seuls : cochez surtout "
+                  "pour y ramener un article plus ancien. 5 au maximum. "
+                  "Décoché, l'article n'est pas perdu — il redescend dans la page.",
+    )
+    in_manchette = models.BooleanField(
+        default=False,
         verbose_name="À la une de mon syndicat",
-        help_text="Place l'article EN TÊTE du diaporama de VOTRE accueil et l'y "
-                  "maintient. Vos articles récents illustrés y passent déjà "
-                  "tout seuls : cochez surtout pour y ramener un article plus "
-                  "ancien. 5 au maximum. Décoché, l'article n'est pas perdu — "
-                  "il redescend dans la page.",
+        help_text="Place l'article EN TÊTE de la manchette de VOTRE accueil — "
+                  "les cartes situées sous le diaporama. Même principe : les "
+                  "récents illustrés la remplissent tout seuls, cocher sert à y "
+                  "maintenir un article. 6 au maximum. Un article déjà au "
+                  "diaporama n'y est pas repris deux fois.",
     )
     featured_on_conf = models.BooleanField(
         default=False,
