@@ -304,6 +304,12 @@ un retour arrière met des heures à se propager.
    `@cnt-so.org` sont chez OVH et ne dépendent pas des enregistrements A. Une
    erreur ici coupe le courrier du syndicat, formulaires de contact compris.
 
+   ⚠️ **Ne toucher pas davantage aux A de `nextcloud`, `forum`, `testwp`, `ftp`.**
+   `nextcloud.cnt-so.org` est un **Nextcloud en service** sur l'ancienne machine
+   (Apache 2.4.59, page de connexion en 200 le 12/09/2026). Arnaud, 12/09 :
+   « il faut qu'il reste accessible ». Son enregistrement doit rester sur
+   5.196.74.69.
+
    Attendre la propagation : `dig +short cnt-so.org www.cnt-so.org educ.cnt-so.org old.cnt-so.org`
 5. **nginx** — ajouter `old.cnt-so.org` (+ `old-educ`) au vhost neuf, vérifier
    que les 3 noms de la bascule sont bien dans les DEUX blocs du vhost cntso
@@ -359,6 +365,24 @@ fiche Éducation, remettre `MAIN_SITE_BASE_URL` sur `newsite.cnt-so.org`,
 redémarrer. Le certificat multi-noms n'a pas besoin d'être défait.
 
 ---
+
+## Le Nextcloud vit sur l'ancienne machine (12/09/2026)
+
+La bascule ne le touche pas : son enregistrement DNS ne change pas, et le HSTS
+du nouveau site n'impose plus rien aux sous-domaines depuis le 11/09.
+
+Ce qui le menace, c'est la machine elle-même : deux pannes en un mois (MySQL),
+aucun accès SSH de notre côté, et un certificat Let's Encrypt qui ne se
+renouvelle que si elle tourne — échéance **31/10/2026**, et il couvre aussi
+`testwp.cnt-so.org`.
+
+À prévoir, hors chantier de bascule :
+
+- demander à qui administre cette machine une **sauvegarde des données**
+  Nextcloud (fichiers et base) ;
+- vérifier vers le **1er octobre** que le certificat s'est renouvelé ;
+- envisager de **déplacer le Nextcloud sur le serveur OVH** (88 Go libres) :
+  ce serait le dernier service vivant à quitter l'ancienne machine.
 
 ## Reproduire la liste des articles absents
 
