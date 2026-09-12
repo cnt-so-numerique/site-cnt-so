@@ -162,7 +162,14 @@ class Command(BaseCommand):
         migrated = 0
         for author in Author.objects.filter(user__isnull=False, site__isnull=False):
             site = author.site
-            slug = site.legacy_site_slug or site.slug
+            # Slug WAGTAIL, jamais le slug hérité : `provision_section` nomme
+            # les groupes d'après lui (« redacteur_numerique, pas
+            # redacteur_stnum »). Cette ligne cherchait `redacteur_<legacy>`,
+            # introuvable pour les DEUX sections où les slugs divergent —
+            # Éducation (fter) et Numérique (stnum) — et le `if group` d'après
+            # laissait alors l'utilisateur SANS AUCUN GROUPE, sans un mot.
+            # Relevé le 12/09/2026 en préparant la création des comptes.
+            slug = site.slug
             group = Group.objects.filter(name=f'redacteur_{slug}').first()
             if group and author.user:
                 author.user.groups.add(group)

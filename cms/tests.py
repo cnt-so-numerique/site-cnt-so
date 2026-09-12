@@ -6040,3 +6040,144 @@ class CreeRubriquesLuttesEducationTest(TestCase):
         creees = {slug for slug, _ in cmd.RUBRIQUES}
         au_menu = {e['categorie'] for e in menu.ENTREES if e['site'] == 'education'}
         self.assertEqual(au_menu, creees)
+
+
+class CreeComptesRedacteursTest(TestCase):
+    """Le site tournait avec UN seul compte ; les fiches étaient inutilisables.
+
+    WordPress n'a laissé que des noms et des adresses — aucun mot de passe,
+    le modèle `Author` n'a pas le champ. On ne récupère donc pas les anciens
+    comptes : on les recrée, en gardant le lien avec ce que chacun a écrit.
+    """
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        from content.models import Author
+
+        self.principal = _ensure_section_page(slug='principal', name='CNT-SO',
+                                              site_type='main')
+        self.educ = _ensure_section_page(slug='educ-test', name='Éducation test')
+        # Slug hérité DIVERGENT, comme l'Éducation (« fter ») et le Numérique
+        # (« stnum ») en production : c'est là que le rattachement se trompait.
+        self.educ.legacy_site_slug = 'fter-test'
+        self.educ.save(update_fields=['legacy_site_slug'])
+
+        for nom in ('redacteur_en_chef', 'redacteur_principal',
+                    'redacteur_educ-test'):
+            Group.objects.get_or_create(name=nom)
+
+        self.auteur_chef = Author.objects.create(
+            username='auteur-chef', email='vieux-chef@example.org')
+        self.auteur_educ = Author.objects.create(
+            username='auteur-educ', email='vieux-educ@example.org')
+
+    def _lancer(self, appliquer=False, table=None):
+        from django.core.management import call_command
+        from io import StringIO
+        from cms.management.commands import cree_comptes_redacteurs as cmd
+
+        table = table if table is not None else [
+            ('t-chef', 'chef@example.org', 'principal', True, 'auteur-chef'),
+            ('t-educ', 'educ@example.org', 'educ-test', False, 'auteur-educ'),
+        ]
+        s = StringIO()
+        with patch.object(cmd, 'COMPTES', table):
+            call_command('cree_comptes_redacteurs',
+                         *(['--appliquer'] if appliquer else []), stdout=s)
+        return s.getvalue()
+
+    def _compte(self, nom):
+        from django.contrib.auth.models import User
+        return User.objects.filter(username=nom).first()
+
+    # ── Le constat ───────────────────────────────────────────────────────────
+
+    def test_a_blanc_rien_n_est_ecrit(self):
+        sortie = self._lancer()
+        self.assertIn('constat seul', sortie)
+        self.assertIsNone(self._compte('t-chef'))
+        self.auteur_educ.refresh_from_db()
+        self.assertIsNone(self.auteur_educ.user_id)
+
+    def test_le_constat_annonce_ce_qu_il_ne_fait_pas(self):
+        sortie = self._lancer()
+        self.assertIn('t-chef', sortie)
+        self.assertIn('2 compte(s) créé(s)', sortie)
+        self.assertIsNone(self._compte('t-chef'))
+
+    # ── La création ──────────────────────────────────────────────────────────
+
+    def test_le_mot_de_passe_est_aleatoire_mais_utilisable(self):
+        """Le piège : `PasswordResetForm.get_users()` écarte les comptes sans
+        mot de passe utilisable. Créé avec `set_unusable_password()`, le compte
+        ne recevrait JAMAIS le courriel de réinitialisation — inaccessible à
+        vie, et sans le moindre message d'erreur."""
+        self._lancer(appliquer=True)
+        compte = self._compte('t-educ')
+        self.assertTrue(compte.has_usable_password())
+        # …et personne ne le connaît : aucun mot de passe évident ne passe.
+        for essai in ('t-educ', 'motdepasse', 'cnt-so', ''):
+            self.assertFalse(compte.check_password(essai))
+
+    def test_le_compte_rejoint_le_groupe_de_son_syndicat(self):
+        """Le groupe se déduit du slug WAGTAIL, jamais du slug hérité :
+        `provision_section` les nomme ainsi. Prendre le slug hérité chercherait
+        `redacteur_fter-test`, qui n'existe pas — et le compte se retrouverait
+        sans aucun droit, en silence."""
+        self._lancer(appliquer=True)
+        groupes = {g.name for g in self._compte('t-educ').groups.all()}
+        self.assertIn('redacteur_educ-test', groupes)
+
+    def test_le_chef_va_dans_le_groupe_des_chefs(self):
+        self._lancer(appliquer=True)
+        groupes = {g.name for g in self._compte('t-chef').groups.all()}
+        self.assertEqual(groupes, {'redacteur_en_chef'})
+
+    def test_l_auteur_herite_est_rattache_au_compte_et_au_syndicat(self):
+        """Sans `Author.site`, le CMS ne sait pas de quel syndicat relève le
+        compte ; sans `Author.user`, les signatures perdent leur propriétaire."""
+        self._lancer(appliquer=True)
+        self.auteur_educ.refresh_from_db()
+        self.assertEqual(self.auteur_educ.user_id, self._compte('t-educ').pk)
+        self.assertEqual(self.auteur_educ.site_id, self.educ.pk)
+
+    def test_relancee_elle_ne_cree_pas_de_doublon(self):
+        from django.contrib.auth.models import User
+        self._lancer(appliquer=True)
+        avant = User.objects.count()
+        sortie = self._lancer(appliquer=True)
+        self.assertEqual(User.objects.count(), avant)
+        self.assertIn('existait déjà', sortie)
+
+    # ── Les refus ────────────────────────────────────────────────────────────
+
+    def test_un_syndicat_introuvable_est_refuse_et_non_devine(self):
+        sortie = self._lancer(appliquer=True, table=[
+            ('t-perdu', 'perdu@example.org', 'syndicat-fantome', False, 'auteur-educ'),
+        ])
+        self.assertIsNone(self._compte('t-perdu'))
+        self.assertIn('introuvable', sortie)
+
+    def test_un_groupe_absent_est_refuse(self):
+        """Mieux vaut pas de compte qu'un compte sans droits : la personne
+        signalerait le premier, jamais le second."""
+        from django.contrib.auth.models import Group
+        Group.objects.filter(name='redacteur_educ-test').delete()
+        sortie = self._lancer(appliquer=True)
+        self.assertIsNone(self._compte('t-educ'))
+        self.assertIn('absent', sortie)
+
+    # ── La table de production ───────────────────────────────────────────────
+
+    def test_la_table_de_production_est_coherente(self):
+        from cms.management.commands import cree_comptes_redacteurs as cmd
+        identifiants = [c[0] for c in cmd.COMPTES]
+        self.assertEqual(len(identifiants), len(set(identifiants)),
+                         'deux comptes porteraient le même identifiant')
+        courriels = [c[1] for c in cmd.COMPTES]
+        self.assertEqual(len(courriels), len(set(courriels)),
+                         'deux comptes partageraient une adresse : la '
+                         'réinitialisation deviendrait ambiguë')
+        chefs = [c[0] for c in cmd.COMPTES if c[3]]
+        self.assertEqual(chefs, ['media'],
+                         'un seul chef était décidé le 12/09/2026 : media')
