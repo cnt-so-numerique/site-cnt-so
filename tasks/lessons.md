@@ -492,3 +492,27 @@ plus, et pourquoi. Même chose pour la documentation : les fiches pratiques
 annonçaient une rubrique « Première page » supprimée le matin même — **un
 changement de données périme aussi les documents**, il faut les relire dans la
 foulée.
+
+
+## Masquer après coup ne masque pas (12/09/2026)
+
+Pour lire la configuration de supervisor, j'ai affiché la ligne `environment=`
+entière en lui appliquant un `sed` de caviardage. L'expression a raté une
+variante, et **`ADHESION_WEBHOOK_SECRET` est apparu en clair** dans la
+conversation. Le caviardage a posteriori suppose qu'on a prévu toutes les
+formes du texte ; il suffit d'en oublier une.
+
+**Règles :**
+- ne jamais afficher un fichier de configuration en entier pour y chercher un
+  réglage. Extraire **par construction** : `grep -o` sur le NOM de la variable,
+  ou un test booléen (« renseigné / vide ») quand seule la présence importe ;
+- quand la valeur elle-même doit être manipulée, la faire circuler **sur le
+  serveur uniquement** — générer, écrire et vérifier dans un même script, sans
+  qu'elle traverse jamais l'affichage ;
+- un secret qui a fuité se **change**, il ne s'oublie pas. La rotation a pris
+  cinq minutes ; l'exposition, elle, aurait duré indéfiniment.
+
+Et un piège de rotation, propre à ce dépôt : `local_settings.py` étant importé
+après `settings.py`, il écrase l'environnement. Changer la variable dans
+supervisor seul n'aurait rien changé, et la vérification aurait « marché » —
+avec l'ancienne clé. Procédure complète dans `!DEPLOIEMENT.md`.

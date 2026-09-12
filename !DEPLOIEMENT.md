@@ -395,3 +395,37 @@ inter-domaines.
 
 ⚠️ Cas Éducation : reprendre `educ.cnt-so.org` (référencement existant) n'est
 possible qu'à la bascule DNS — ce nom pointe encore vers le vieux serveur WP.
+
+
+## Rotation du secret partagé avec cnt-adhesion
+
+Ce secret authentifie le webhook `/api/newsletter/sync/`, par lequel
+l'application d'adhésion pousse les préférences newsletter d'un adhérent après
+chaque encaissement. L'appel est signé `hmac-sha256(secret, corps)` dans
+l'en-tête `X-Webhook-Secret` ; le point d'entrée est `csrf_exempt` et n'a aucune
+autre garde. Qui détient ce secret peut inscrire ou désinscrire n'importe
+quelle adresse — y compris sur les listes OVH, la répercussion se faisant par
+un signal `post_save`. Il ne donne accès ni au CMS, ni à la liste des abonnés,
+ni aux paiements.
+
+**Deux noms pour une seule valeur**, des deux côtés de l'échange :
+
+| Côté | Fichier | Variable |
+|---|---|---|
+| site | `/var/www/cntso/cntso/local_settings.py` | `ADHESION_WEBHOOK_SECRET` |
+| adhésion | `/var/www/cnt-adhesion/.env` | `SITE_PRINCIPAL_WEBHOOK_SECRET` |
+
+⚠️ **`local_settings.py` est importé APRÈS `settings.py`** : sa valeur écrase la
+variable d'environnement de supervisor. Une rotation faite dans
+`/etc/supervisor/conf.d/cntso.conf` seul n'aurait donc **aucun effet**. Cette
+copie de supervisor a été retirée le 12/09/2026 : une seule source de vérité.
+
+**Procédure** (faite le 12/09/2026) : sauvegarder les trois fichiers, générer la
+valeur **sur le serveur** sans jamais l'afficher, l'écrire aux deux endroits,
+`supervisorctl restart cntso cnt-adhesion`, puis vérifier — un appel signé avec
+la nouvelle clé doit rendre **200**, un appel mal signé **403**. Sonder avec un
+corps sans clé `newsletter_*` : la réponse est alors `conf: inchangé` et rien
+n'est écrit en base.
+
+Entre l'écriture des deux côtés, le webhook répond 403 : sans gravité,
+cnt-adhesion repousse les préférences au prochain encaissement.
