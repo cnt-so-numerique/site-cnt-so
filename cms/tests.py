@@ -5768,6 +5768,25 @@ class RangeCategoriesEducationTest(TestCase):
         self.menu_voie_pro.refresh_from_db()
         self.assertEqual(self.menu_voie_pro.link_type, 'url')
 
+    def test_le_constat_annonce_le_repointage_qu_il_ne_fait_pas(self):
+        """Un constat qui ne montre pas ce que `--appliquer` fera ne sert à rien.
+
+        `ParentalManyToManyField.add()` ne travaille qu'en mémoire jusqu'au
+        `save()`. Tant que les étapes n'écrivaient pas en mode constat,
+        l'étape 3 comptait les articles dans une base où l'étape 2 n'avait rien
+        rangé : elle annonçait « rubrique trop maigre » pour les dix entrées,
+        l'exact inverse de ce que l'écriture allait produire (relevé sur la
+        production le 12/09/2026). Ce qui distingue le constat, c'est le
+        `rollback` de la fin — pas l'absence d'écriture.
+        """
+        sortie = self._lancer()
+        self.assertIn('→ rubrique « Voie professionnelle »', sortie)
+        self.assertNotIn('Voie professionnelle (3 article·s)', sortie)
+        # …et pourtant la base n'a pas bougé.
+        self.menu_voie_pro.refresh_from_db()
+        self.assertEqual(self.menu_voie_pro.link_type, 'url')
+        self.assertIn('premiere-page', self._rubriques(self.lp1))
+
     def test_le_residu_wordpress_quitte_les_articles(self):
         self._lancer(appliquer=True)
         for page in (self.lp1, self.lp2, self.sup, self.aesh):

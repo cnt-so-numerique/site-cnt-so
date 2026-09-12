@@ -150,6 +150,14 @@ class Command(BaseCommand):
             + ("ÉCRITURE EN BASE" if self.appliquer
                else "constat seul (--appliquer pour écrire)")))
 
+        # Les trois étapes écrivent POUR DE VRAI, y compris en constat seul : ce
+        # qui distingue le constat, c'est le `rollback` de la fin.
+        #
+        # Sans cela le constat mentait. `ParentalManyToManyField.add()` ne
+        # travaille qu'en mémoire jusqu'au `save()` : en sautant l'écriture,
+        # l'étape 3 comptait les articles dans une base où l'étape 2 n'avait
+        # rien rangé, et annonçait « rubrique trop maigre » pour les dix
+        # entrées — l'inverse de ce que `--appliquer` allait faire.
         with transaction.atomic():
             self._retire_le_residu_wordpress()
             self._range_les_articles()
@@ -208,8 +216,7 @@ class Command(BaseCommand):
                 gardees = [generique]
                 rhabilles += 1
             page.cms_categories.set(gardees)
-            if self.appliquer:
-                self._enregistre(page)
+            self._enregistre(page)
             nettoyes += 1
 
         self.stdout.write(
@@ -250,8 +257,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 f'   + {", ".join(c.name for c in a_ajouter):<28} {page.title[:58]}')
             page.cms_categories.add(*a_ajouter)
-            if self.appliquer:
-                self._enregistre(page)
+            self._enregistre(page)
             ranges += 1
 
         self.stdout.write(f'   {ranges} article(s) rangé(s)')
@@ -293,8 +299,7 @@ class Command(BaseCommand):
             # L'ancienne adresse tapée n'a plus cours : la laisser ferait croire
             # à une cible alors que `get_url()` ne la regarde plus.
             entree.url = ''
-            if self.appliquer:
-                entree.save(update_fields=['link_type', 'category', 'url'])
+            entree.save(update_fields=['link_type', 'category', 'url'])
             repointes += 1
 
         self.stdout.write(f'   {repointes} entrée(s) repointée(s)')
