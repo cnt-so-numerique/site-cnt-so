@@ -31,7 +31,9 @@ rame.
       table du réseau au même titre que les autres
 - [x] Gabarit : lien externe en nouvel onglet, signalé au lecteur
 - [x] Tests
-- [ ] Cron sur le serveur de production (horaire) — à faire au déploiement
+- [x] **Fait** : ce n'est pas un cron mais une **minuterie systemd**,
+      `cntso-flux.timer`, toutes les heures. Vérifiée le 12/09/2026 :
+      dernière exécution réussie, prochaine dans l'heure.
 
 ## Revue (17/08/2026)
 

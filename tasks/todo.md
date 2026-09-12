@@ -1,5 +1,12 @@
 # À FAIRE AVANT LA BASCULE DNS
 
+> **Attention, fiche en partie périmée (constaté le 12/09/2026).** Le plan de
+> la page « Rejoindre » décrit plus bas **a été appliqué le 17/08/2026** : le
+> second formulaire de contact a été retiré, les trois champs existent sur la
+> fiche du syndicat (`rejoindre_accroche`, `rejoindre_atouts`,
+> `rejoindre_bouton`) et le gabarit renvoie vers `/<syndicat>/contact/`.
+> Ses cases n'ont jamais été cochées.
+
 ## Quatre syndicats sans destinataire de contact
 
 Relevé sur la production le 26/08/2026. Ces quatre formulaires n'ont ni

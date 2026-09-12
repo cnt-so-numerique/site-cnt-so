@@ -1,5 +1,11 @@
 # Chantier — Domaines autonomes pour les fédérations sectorielles
 
+> **Chantier LIVRÉ (juillet 2026).** Huit domaines répondent aujourd'hui —
+> 13, 34, 86, auvergne, numerique, rhone-alpes, stucs, newsite. Les cases
+> ci-dessous sont celles du plan d'origine et n'ont **jamais été cochées** :
+> ne pas en conclure qu'il reste à faire. Reste seulement `educ`, au jour J
+> de la bascule (voir `tasks/chantier-bascule-dns.md`). Constaté le 12/09/2026.
+
 **Objectif** : servir les sous-sites sectoriels (STUCS, Éducation, Numérique)
 sur leur propre **sous-domaine de cnt-so.org** (`stucs.cnt-so.org`,
 `educ.cnt-so.org`, `numerique.cnt-so.org`), tout en gardant le site confédéral et

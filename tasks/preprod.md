@@ -30,10 +30,10 @@ Tout ce qui doit être fait **avant** la mise en prod de cnt-so.org.
 
 ### Configuration
 
-- [ ] **Ajouter `cnt-so.org` dans `ALLOWED_HOSTS`** ✅ déjà fait
+- [x] **Ajouter `cnt-so.org` dans `ALLOWED_HOSTS`** ✅ déjà fait
   - Vérifier aussi que `CSRF_TRUSTED_ORIGINS` contient `https://cnt-so.org`
 
-- [ ] **`WAGTAILADMIN_BASE_URL = 'https://cnt-so.org'`** ✅ déjà fait
+- [x] **`WAGTAILADMIN_BASE_URL = 'https://cnt-so.org'`** ✅ déjà fait
   - Était sur `http://localhost:8000` → liens emails cassés
 
 - [x] **`DEFAULT_CONTACT_EMAIL`** — ajouté le 2026-07-12 dans `cntso/settings.py` :
@@ -64,9 +64,9 @@ Tout ce qui doit être fait **avant** la mise en prod de cnt-so.org.
 
 ## NICE TO HAVE — améliorations non bloquantes
 
-- [ ] **`robots.txt`** ✅ déjà fait — `/robots.txt` → 200
-- [ ] **`favicon.ico`** ✅ déjà fait — redirige vers `/static/image/logocntso.png`
-- [ ] **Open Graph / meta description** ✅ déjà fait sur les articles
+- [x] **`robots.txt`** ✅ déjà fait — `/robots.txt` → 200
+- [x] **`favicon.ico`** ✅ déjà fait — redirige vers `/static/image/logocntso.png`
+- [x] **Open Graph / meta description** ✅ déjà fait sur les articles
   - À étendre aux autres pages (catégorie, sous-site, home) si besoin
 
 - [x] **Dépendances mises à jour** — 2026-07-12 : Django 6.0.2 → 6.0.7,

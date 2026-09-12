@@ -69,7 +69,8 @@ Séquence détaillée ci-dessous.
 
 ### D. Non bloquant, à faire après
 
-- [ ] GitHub Actions : suite de tests sur **PostgreSQL** + `pip-audit`
+- [x] (fait le 03/09/2026, vérifié le 12/09 : `.github/workflows/tests.yml`,
+      PostgreSQL 16 et `pip-audit` chaque lundi) GitHub Actions : suite de tests sur **PostgreSQL** + `pip-audit`
       hebdomadaire (la prod est sur PostgreSQL, les tests sur SQLite).
 - [ ] Menu de l'Éducation : 25 entrées en URL écrites à la main, dont trois
       sans cible réelle. À refaire avec le syndicat.
