@@ -72,7 +72,19 @@ Séquence détaillée ci-dessous.
 - [x] (fait le 03/09/2026, vérifié le 12/09 : `.github/workflows/tests.yml`,
       PostgreSQL 16 et `pip-audit` chaque lundi) GitHub Actions : suite de tests sur **PostgreSQL** + `pip-audit`
       hebdomadaire (la prod est sur PostgreSQL, les tests sur SQLite).
-- [ ] **Menu de l'Éducation — mesuré le 12/09/2026**, mes chiffres précédents
+- [x] **FAIT le 12/09/2026** — détail dans `chantier-categories-lancement.md`
+      §§ 7-8 : « Premiere Page » (résidu WordPress porté par 91 articles)
+      retirée puis supprimée, 23 articles rangés dans les rubriques que le menu
+      nommait déjà, quatre rubriques de lutte créées et remplies (Austérité et
+      budget 15, Militarisation – SNU 7, Féminisme 6, Antifascisme et
+      antiracisme 3), et **neuf entrées de menu** visent désormais une
+      **clé de rubrique** au lieu d'une adresse tapée. Restent les deux liens
+      morts et la faute « dégré » dans deux noms de rubriques.
+
+      Le constat d'origine, conservé parce qu'il dit pourquoi le travail était
+      un reclassement et non une réparation de liens :
+
+      **Menu de l'Éducation — mesuré le 12/09/2026**, mes chiffres précédents
       étaient faux (« 25 entrées, trois sans cible ») :
       - **37 entrées, dont 36 tapées à la main** (une adresse au clavier plutôt
         qu'une rubrique désignée). Le 13 n'en a qu'une sur 55 ; le STUCS, 10
@@ -100,6 +112,14 @@ Séquence détaillée ci-dessous.
 
       Aide possible : proposer un classement à partir des titres, à valider
       article par article avant d'être appliqué.
+
+      *Ce qui a été fait ensuite, et ce que ça a appris :* le classement par
+      mots-clés **proposait** mais ne **classait** pas — il donnait quatre
+      articles « antifascistes » en ramassant « réactionnaire » et « répression
+      antisyndicale ». La relecture titre par titre en a laissé un seul, d'où
+      une rubrique renommée « Antifascisme et antiracisme » pour décrire ce
+      qu'elle contient vraiment. Et 60 articles sont restés dans le seul fil
+      d'actualité, à raison : ce sont des appels à la grève.
 - [ ] `cntso/middleware.py:85` : la double barre oblique (`//13/…`) construit un
       hôte inexistant. Sans objet depuis que nginx sert `/wp-content/uploads/`,
       mais cinq lignes et un test d'hygiène.
