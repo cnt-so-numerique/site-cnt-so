@@ -33,6 +33,57 @@ Deux faits changent le plan par rapport à la note du 02/09 :
 
 ---
 
+## ✅ BASCULE FAITE LE 12/09/2026
+
+`cnt-so.org` et `educ.cnt-so.org` servent le nouveau site. Déroulé réel :
+sauvegarde (12 Mo), import de rattrapage à blanc (**0 créé, 700 + 102
+existants** — rien à rattraper), bascule des deux A par Arnaud, certbot sur les
+douze noms, adresse canonique Django, domaine autonome de l'Éducation.
+
+Vérifié après coup : apex et `educ` en **200**, `http://` redirigé en 301 vers
+HTTPS, `www` → apex, archive `old` en 302 vers le miroir avec `noindex`,
+`/cms/` qui renvoie à sa page de connexion, HSTS `max-age=31536000` **seul**,
+sitemap **733 entrées toutes en `https://cnt-so.org`**, accueil peuplé
+(40 liens d'article), fichiers hérités `/13/wp-content/uploads/…` servis en 200
+jusqu'à 2,3 Mo.
+
+### Le piège qui a fait une vraie panne
+
+**certbot n'a jamais posé les redirections HTTP→HTTPS de l'apex ni d'`educ`.**
+Il avorte sa phase d'*enhancement* dès le premier conflit — le nôtre sur `www`
+— et n'ajoute donc AUCUNE des redirections suivantes. Le bloc port 80 se
+terminant par `return 404`, `http://cnt-so.org` a répondu **404 aux visiteurs**
+pendant quelques minutes, alors même que `https://` fonctionnait.
+
+Remède appliqué : ajouter à la main, dans le bloc port 80 de
+`sites-enabled/cntso`, les deux `if ($host = …) { return 301 https://$host$request_uri; }`.
+**À refaire si certbot est relancé** — il les effacera peut-être.
+
+Et le piège connu a resservi : `systemctl reload nginx` rend la main **avant**
+que la configuration soit reprise. La vérification immédiate montrait encore
+404 ; une minute plus tard, 301. Ne jamais conclure sur un contrôle joué dans
+la foulée du rechargement.
+
+### Deux vérifications de cette note étaient fausses
+
+- `curl … sitemap.xml | grep -c "<loc>"` compte des **lignes**, or le XML tient
+  sur quelques lignes très longues : il renvoie `1`. Compter les occurrences :
+  `grep -o '<loc>' | wc -l` → **733** attendues.
+- `curl … old.cnt-so.org/ | grep -c 'old.cnt-so.org'` attendait `> 0` : le
+  miroir utilise des liens **relatifs** (`href="category/…/index.html"`), donc
+  `0` est le bon résultat. Les 7 seules adresses absolues restantes sont de la
+  tuyauterie WordPress (`/feed/`, `/wp-json/`, `xmlrpc.php`) dans l'en-tête,
+  qu'aucun lecteur ne clique.
+
+### Reste à faire
+
+- **hCaptcha** : ajouter `cnt-so.org`, `www.cnt-so.org`, `educ.cnt-so.org` aux
+  noms d'hôtes autorisés. La clé servie est bien la clé de production, mais un
+  hôte non déclaré fait échouer l'envoi **en silence** — seul un envoi réel le
+  révèle.
+- Prévenir les six titulaires de compte de passer par « Mot de passe oublié ? ».
+- `sites-available/cntso`, périmé, à supprimer ou resynchroniser.
+
 ## Ce qui reste à faire
 
 ### A. Contenu — à finir avant la bascule
