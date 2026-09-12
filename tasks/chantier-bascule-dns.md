@@ -72,8 +72,21 @@ Séquence détaillée ci-dessous.
 - [x] (fait le 03/09/2026, vérifié le 12/09 : `.github/workflows/tests.yml`,
       PostgreSQL 16 et `pip-audit` chaque lundi) GitHub Actions : suite de tests sur **PostgreSQL** + `pip-audit`
       hebdomadaire (la prod est sur PostgreSQL, les tests sur SQLite).
-- [ ] Menu de l'Éducation : 25 entrées en URL écrites à la main, dont trois
-      sans cible réelle. À refaire avec le syndicat.
+- [ ] **Menu de l'Éducation — mesuré le 12/09/2026**, mes chiffres précédents
+      étaient faux (« 25 entrées, trois sans cible ») :
+      - **37 entrées, dont 36 tapées à la main** (une adresse au clavier plutôt
+        qu'une rubrique désignée). Le 13 n'en a qu'une sur 55 ; le STUCS, 10
+        sur 10 ; le Numérique, 6 sur 8 ;
+      - **deux vrais liens morts** seulement : « Textes officiels » et
+        « Supérieur – Recherche » (`#`, sans enfant). Les huit autres `#` sont
+        des **en-têtes de sous-menu** — légitimes ;
+      - **le vrai défaut** : sept entrées de rubrique mènent à **un seul
+        article**, souvent ancien — « 1er degré » → droits syndicaux,
+        « 2nd degré » → grilles de salaires, « Primaire » → une motion du 13,
+        « Secondaire », « Supérieur », « Vie scolaire – AESH », « Pédagogie ».
+        Le visiteur attend une liste, il reçoit un texte daté.
+      Refonte à faire avec le syndicat ; en profiter pour désigner des
+      rubriques au lieu d'écrire des adresses.
 - [ ] `cntso/middleware.py:85` : la double barre oblique (`//13/…`) construit un
       hôte inexistant. Sans objet depuis que nginx sert `/wp-content/uploads/`,
       mais cinq lignes et un test d'hygiène.
