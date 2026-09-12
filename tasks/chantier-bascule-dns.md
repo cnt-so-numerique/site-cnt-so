@@ -126,6 +126,14 @@ Ceux du STUCS lui ont été rendus (`rend_au_syndicat`). Pour les autres,
 - Vhost `/etc/nginx/sites-available/old-cntso` : `old.cnt-so.org/` renvoie
   vers `/cnt-so.org/`, en-tête `X-Robots-Tag: noindex`, `robots.txt` qui
   interdit tout.
+- **Sous-site n° 4 : abandonné, décision d'Arnaud le 12/09/2026** (« si tu as
+  tout récupéré, on s'en fout de ce sous-site »). Un huitième dossier existe
+  bien sur l'ancien serveur (`uploads/sites/4/`, qui répond 403 quand un
+  dossier absent répond 500), mais il est **vide** — aucune année, donc aucune
+  image publiée —, il n'a laissé aucune trace en base ni dans la copie, et
+  soixante noms essayés n'ont rien donné. On ne peut prouver qu'il n'avait
+  aucun texte ; seule la table `wp_blogs` de l'ancien WordPress le dirait.
+  **Ne pas rouvrir le sujet.**
 - Outils relançables : `tasks/outils/copie-ancien-wp/` (finition, contrôle).
   Sauvegardes des pages avant chaque finition : `~/archive-wp-html-avant-finition-*.tgz`.
 
