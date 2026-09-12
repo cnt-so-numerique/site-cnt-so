@@ -304,11 +304,48 @@ annonce les trois chiffres projetés.
 
 ### Ce qui reste à décider par le syndicat
 
-- **Quatre thèmes reviennent sans avoir de rubrique** : militarisation/SNU (8
-  articles), austérité/budget (8), féminisme — 8 mars et 25 novembre — (6),
-  antifascisme (4). Créer une rubrique est une décision du syndicat : la
-  commande n'en crée aucune.
+- ~~**Quatre thèmes reviennent sans avoir de rubrique**~~ — **FAIT le
+  12/09/2026**, voir le § 8 ci-dessous. Arnaud : « crée les 4 et mets-les bien
+  dans le menu ».
 - **Deux entrées de menu restent mortes** (`#`) : « Textes officiels » et
   « Supérieur – Recherche ». Déjà relevé le 03/09, toujours sans réponse.
-- « Premiere Page », une fois vidée, reste visible dans la liste à cocher du
-  formulaire d'article. La supprimer est un mot à dire.
+- ~~« Premiere Page », une fois vidée, reste visible dans la liste à cocher~~
+  — **supprimée le 12/09/2026** (§ 8).
+- **Reste en suspens** : les deux entrées mortes (`#`), et les rubriques
+  « 1er **dégré** » / « 2nd **dégré** », dont le NOM porte une faute héritée de
+  WordPress — les slugs, eux, sont corrects, donc aucune adresse n'est en jeu.
+
+## 8. Éducation : les quatre rubriques de lutte (12/09/2026)
+
+Le § 7 avait laissé **60 articles** dans le seul fil « Actualités - Luttes », à
+raison. Quatre thèmes y revenaient pourtant assez pour mériter leur rubrique,
+créées à la demande d'Arnaud le 12/09.
+
+| Rubrique | Articles | Au menu |
+|---|---|---|
+| Austérité et budget | **15** | sous « Actualités – luttes », position 1 |
+| Militarisation – SNU | **7** | position 2 |
+| Féminisme | **6** | position 3 |
+| Antifascisme et antiracisme | **3** | position 4 |
+
+**Mes estimations du § 7 étaient fausses, et c'est la relecture à la main qui
+l'a montré.** Elles venaient d'un filtrage par mots-clés : « austérité/budget
+(8) » en valait 15, « militarisation (8) » 7, et « antifascisme (4) » n'avait en
+vérité **qu'un seul** article incontestable — le filtre ramassait
+« réactionnaire », « loi Darmanin » et « répression antisyndicale », qui n'en
+sont pas. D'où le nom élargi à **« Antifascisme et antiracisme »**, qui décrit
+ce que la rubrique contient vraiment : mieux vaut ajuster l'étiquette que
+bourrer un nom étroit avec des articles hors sujet. Règle : un filtre par
+mots-clés propose, il ne classe pas.
+
+Un article peut relever de deux luttes — « Contre l'austérité **et** la
+militarisation » est rangé dans les deux.
+
+`cree_rubriques_luttes_education` (constat seul par défaut) crée, range, et
+supprime « Premiere Page » après avoir refait les trois contrôles d'inertie.
+Le menu revient à `ajoute_menu_categorie`, qui savait déjà poser une entrée
+vers une rubrique. L'entrée parente garde son propre lien vers `/education/` :
+`base.html` rend toujours le `<a>` de l'item avant d'ouvrir son sous-menu.
+
+Vérifié après écriture : « Premiere Page » rend un 404, les quatre pages de
+rubrique répondent 200, et le syndicat compte 26 rubriques au lieu de 23.
