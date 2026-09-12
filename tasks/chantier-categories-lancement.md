@@ -231,3 +231,58 @@ poitiers (16), rhone-alpes (8), stucs (7), staa (7).
   sont vides en dev). Le sélecteur en production sert **8 syndicats** — les huit
   vrais —, STAA et TAS écartés comme sites externes, 4 fiches non publiées déjà
   invisibles.
+
+## 7. Éducation : les rubriques que le menu nommait déjà (12/09/2026)
+
+Mesuré en **production** le 12/09/2026 : 102 articles, tous publiés, tous
+catégorisés — et pourtant illisibles à la navigation.
+
+| Constat | Chiffre |
+|---|---|
+| Articles portant « Premiere Page » | **91** / 102 |
+| Articles portant « Actualités - Luttes » | 88 / 102 |
+| Articles ne portant QUE ces deux-là | **83** |
+| Rubriques du syndicat | 23, dont 20 à 1 ou 2 articles |
+| Entrées de menu visant **un article unique** | 11 |
+
+**« Premiere Page » est un résidu WordPress.** Le slug n'apparaît nulle part
+dans le code — ni vue, ni gabarit, ni flux (vérifié) : la « une » du syndicat
+vient de `_vitrine()`. Son seul effet est négatif, `article_detail.html`
+affichant TOUTES les rubriques d'un article : elle s'imprimait sous 91 articles.
+
+**La taxonomie n'était pas à inventer** : le syndicat l'a écrite dans son propre
+menu — « Revendications » (Primaire, Secondaire, Supérieur, Voie pro, Vie
+scolaire–AESH, Personnels médico-sociaux) et « Nos droits » (1er degré, 2nd
+degré, AED–AESH). Ces rubriques n'ayant qu'un article chacune, le menu pointait
+l'article au lieu de la liste.
+
+`python manage.py range_categories_education` (constat seul par défaut,
+`--appliquer` pour écrire) fait les trois choses, et **rien d'autre** :
+
+1. retire « Premiere Page » de 91 articles — la rubrique est **vidée, pas
+   supprimée** (« une catégorie vide n'est pas un déchet », 31/08/2026) ; un
+   article qui ne portait qu'elle est rhabillé en « Actualités - Luttes », le
+   formulaire d'article exigeant au moins une rubrique ;
+2. range **23 articles** dont le titre le dit sans ambiguïté. Les **60 autres
+   restent dans « Actualités - Luttes »** : ce sont des appels à la grève et des
+   communiqués : les ranger de force dans « Primaire » serait faux ;
+3. repointe les entrées de menu dont la rubrique atteint **3 articles** — en
+   posant la **clé** de la rubrique (`link_type='category'`), pas une adresse
+   tapée : elle survit à un changement de slug et rend d'elle-même la bonne
+   adresse sur `educ.cnt-so.org` (cf. `chantier-adresses-en-dur.md`).
+
+Projection sur les données réelles : Pédagogie 1 → 5, Supérieur 1 → 4, Voie
+professionnelle 1 → 9, Vie scolaire–AESH 2 → 8, 2nd degré 2 → 3 **repointées** ;
+Primaire (1), Secondaire (2), Personnels médico-sociaux (1), 1er degré (1),
+AED–AESH (2) **laissées sur leur article**, faute de matière.
+
+### Ce qui reste à décider par le syndicat
+
+- **Quatre thèmes reviennent sans avoir de rubrique** : militarisation/SNU (8
+  articles), austérité/budget (8), féminisme — 8 mars et 25 novembre — (6),
+  antifascisme (4). Créer une rubrique est une décision du syndicat : la
+  commande n'en crée aucune.
+- **Deux entrées de menu restent mortes** (`#`) : « Textes officiels » et
+  « Supérieur – Recherche ». Déjà relevé le 03/09, toujours sans réponse.
+- « Premiere Page », une fois vidée, reste visible dans la liste à cocher du
+  formulaire d'article. La supprimer est un mot à dire.

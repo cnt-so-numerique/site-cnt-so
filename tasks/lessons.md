@@ -403,3 +403,38 @@ pourtant ailleurs, et abîmait déjà le site.
   `<br>` doit donner `<br/>`, pas « contenir `<br/>` » ;
 - quand une mutation montre qu'un code est mort, se demander aussi s'il est
   juste : il est peut-être vivant ailleurs, sous le même nom.
+
+## Une espace invisible désactivait un garde-fou (12/09/2026)
+
+`range_categories_education` range 23 articles désignés par `(pk, fragment de
+titre)`. Le fragment est le garde-fou : il refuse d'écrire si le `pk` a été
+réattribué à un autre article. Or WordPress écrit la typographie française avec
+des **espaces insécables** (U+00A0) devant « : » et « ! » — **12 des 23 titres
+visés** en portent une. Mon fragment `AESH : face au mépris`, tapé avec une
+espace ordinaire, ne correspondait donc à rien.
+
+Deux choses l'ont attrapé avant toute écriture :
+
+- **la projection sur un export réel de la prod**, jouée avant de déployer quoi
+  que ce soit : « 22/23 rangés, 1 refusé ». Le garde-fou qui se déclenche est le
+  rapport de bug le moins cher qui soit ;
+- **`cat -A`**, ensuite, pour trancher. J'ai failli « corriger » un test qui
+  était déjà juste, parce que l'insécable qu'il contenait est invisible à la
+  lecture — et mon édition échouait sans que j'en comprenne la raison.
+
+**Règles :**
+- toute comparaison avec du texte hérité de WordPress porte sur **les mots**,
+  pas sur la typographie : `' '.join(texte.split())` des deux côtés. Ça
+  n'affaiblit pas le contrôle — il est là pour repérer un autre article, pas
+  pour arbitrer une espace ;
+- une commande pilotée par une table de données se **projette sur un export de
+  production** avant d'être déployée, jamais seulement sur des tests ;
+- quand un `Edit` échoue sur une chaîne qu'on croit exacte, lire les octets
+  (`cat -A`) avant de récrire à l'aveugle. Le fichier avait raison.
+
+Autre piège rencontré le même jour, celui-là dans le test : `page.latest_revision`
+rend l'objet **mis en cache** au moment de l'assignation. Un test qui écrit une
+révision, lance la commande, puis relit `page.latest_revision.content` relit son
+propre souvenir, pas la base — il échouait alors que le code était juste. Relire
+avec `revision.refresh_from_db()` (ou `ArticlePage.objects.get(pk=…)`, ce que
+fait le test jumeau de `rend_au_syndicat`).

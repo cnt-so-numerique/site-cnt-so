@@ -5646,3 +5646,209 @@ class UnSeulEcranDEditionTest(TestCase):
     def test_les_autres_pages_gardent_l_editeur_de_wagtail(self):
         """Contrôle positif : un crochet trop large fermerait tout."""
         self.assertEqual(self.client.get(f'/cms/pages/{self.section.pk}/edit/').status_code, 200)
+
+
+class RangeCategoriesEducationTest(TestCase):
+    """Le syndicat Éducation : 91 articles sur 102 portaient « Premiere Page ».
+
+    Cette rubrique est un résidu WordPress — elle n'apparaît nulle part dans le
+    code, mais `article_detail.html` affiche TOUTES les rubriques d'un article,
+    donc elle s'imprimait sous 91 articles. À côté, vingt rubriques
+    thématiques n'avaient qu'un article chacune, d'où un menu qui pointait onze
+    fois un article unique au lieu d'une liste.
+
+    Les `pk` sont ceux de la production : la commande refuse d'écrire si le
+    titre ne correspond plus, faute de quoi un futur import ferait ranger
+    n'importe quoi n'importe où, en silence.
+    """
+
+    def setUp(self):
+        from content.models import MenuItem
+        self.educ = _ensure_section_page(slug='education', name='CNT-SO Éducation')
+
+        def cat(nom, slug):
+            return make_cms_category(name=nom, slug=slug, section_slug='education')
+
+        self.residu = cat('Premiere Page', 'premiere-page')
+        self.generique = cat('Actualités - Luttes', 'actualites-luttes')
+        self.voie_pro = cat('Voie professionnelle', 'voie-pro')
+        self.superieur = cat('Supérieur', 'superieur')
+        self.vie_sco = cat('Vie scolaire - AESH', 'vie-sco-aesh')
+        self.aed = cat('AED - ASH', 'aed-ash')
+        self.primaire = cat('Primaire', 'primaire')
+
+        def art(cle, titre, rubriques):
+            # Pas de `pk` imposé : `Page.__init__` ne renseigne `content_type`
+            # que pour un objet sans identifiant, si bien qu'un pk passé au
+            # constructeur fait échouer la validation Wagtail. Les vrais pk de
+            # production sont donc injectés dans la table, pas dans les pages.
+            return make_article_page(section_slug='education', title=titre,
+                                     slug=cle, categories=rubriques)
+
+        base = [self.residu, self.generique]
+        self.lp1 = art('lp1', 'Le ministère recule sur les examens de terminale '
+                              'mais la casse du lycée pro public se poursuit !', base)
+        self.lp2 = art('lp2', 'La voie pro dans le viseur, défendons-la !', base)
+        self.lp3 = art('lp3', 'Macron revient à la charge contre la voie pro ! '
+                              'Mobilisons-nous !', base)
+        self.sup = art('sup', 'La sélection à l’université, c’est quoi ?', base)
+        self.aesh = art('aesh', 'AESH,  AED, des missions différentes mais les '
+                                'mêmes galères : toutes et tous en grève !', base)
+        # Celui-là ne porte QUE le résidu : le retirer le laisserait sans
+        # rubrique, ce que le formulaire d'article refuse.
+        self.nu = art('nu', 'Communiqué de rentrée', [self.residu])
+
+        def entree(titre, url):
+            return MenuItem.objects.create(site=self.educ, menu='main',
+                                           title=titre, url=url, order=1)
+
+        self.menu_voie_pro = entree(
+            'Voie professionnelle', '/education/revendications-voie-professionnelle/')
+        self.menu_superieur = entree(
+            'Supérieur', '/education/travailleureuse-du-superieur/')
+        self.menu_primaire = entree('Primaire', '/education/motion-de-la-ris/')
+
+    def _lancer(self, appliquer=False):
+        """Même table que la production, bâtie sur les pk du bac d'essai.
+
+        Les fragments de titre et les slugs sont ceux du vrai fichier : le
+        garde-fou du titre, le seuil de repointage et l'alignement de révision
+        sont donc exercés tels quels.
+        """
+        from django.core.management import call_command
+        from io import StringIO
+        from cms.management.commands import range_categories_education as commande
+
+        classement = [
+            (self.lp1.pk, 'casse du lycée pro public', ['voie-pro']),
+            (self.lp2.pk, 'La voie pro dans le viseur', ['voie-pro']),
+            (self.lp3.pk, 'contre la voie pro', ['voie-pro']),
+            (self.sup.pk, 'La sélection à l', ['superieur']),
+            (self.aesh.pk, 'des missions différentes mais les mêmes galères',
+             ['vie-sco-aesh', 'aed-ash']),
+        ]
+        menu = [
+            (self.menu_voie_pro.pk, 'Voie professionnelle', 'voie-pro'),
+            (self.menu_superieur.pk, 'Supérieur', 'superieur'),
+            (self.menu_primaire.pk, 'Primaire', 'primaire'),
+        ]
+        s = StringIO()
+        with patch.object(commande, 'CLASSEMENT', classement), \
+             patch.object(commande, 'MENU_VERS_RUBRIQUE', menu):
+            call_command('range_categories_education',
+                         *(['--appliquer'] if appliquer else []), stdout=s)
+        return s.getvalue()
+
+    def test_la_table_de_production_n_a_ni_doublon_ni_rubrique_inconnue(self):
+        """La table est de la donnée : une faute de frappe dans un slug y
+        passerait inaperçue, et l'article ne serait rangé nulle part."""
+        from cms.management.commands import range_categories_education as commande
+        pks = [pk for pk, _, _ in commande.CLASSEMENT]
+        self.assertEqual(len(pks), len(set(pks)), 'un article rangé deux fois')
+        # Les rubriques que le menu du syndicat nomme — et elles seules.
+        connues = {'voie-pro', 'superieur', 'vie-sco-aesh', 'aed-ash',
+                   'secondaire', '2nd-degre', 'pedagogie', 'primaire',
+                   '1er-degre', 'pers-medicaux-sociaux'}
+        for _, _, slugs in commande.CLASSEMENT:
+            for slug in slugs:
+                self.assertIn(slug, connues)
+        for _, _, slug in commande.MENU_VERS_RUBRIQUE:
+            self.assertIn(slug, connues)
+
+    def _rubriques(self, page):
+        page.refresh_from_db()
+        return {c.slug for c in page.cms_categories.all()}
+
+    # ── 1. le résidu WordPress ───────────────────────────────────────────────
+
+    def test_a_blanc_rien_n_est_ecrit(self):
+        sortie = self._lancer()
+        self.assertIn('constat seul', sortie)
+        self.assertIn('premiere-page', self._rubriques(self.lp1))
+        self.menu_voie_pro.refresh_from_db()
+        self.assertEqual(self.menu_voie_pro.link_type, 'url')
+
+    def test_le_residu_wordpress_quitte_les_articles(self):
+        self._lancer(appliquer=True)
+        for page in (self.lp1, self.lp2, self.sup, self.aesh):
+            self.assertNotIn('premiere-page', self._rubriques(page))
+
+    def test_un_article_qui_ne_portait_que_le_residu_n_est_pas_laisse_nu(self):
+        """Le formulaire d'article exige une rubrique : zéro le rendrait
+        impossible à réenregistrer par un rédacteur."""
+        self._lancer(appliquer=True)
+        self.assertEqual(self._rubriques(self.nu), {'actualites-luttes'})
+
+    def test_la_rubrique_videe_existe_toujours(self):
+        """« Une catégorie vide n'est pas un déchet » (Arnaud, 31/08/2026)."""
+        from cms.models import CmsCategory
+        self._lancer(appliquer=True)
+        self.assertTrue(CmsCategory.objects.filter(pk=self.residu.pk).exists())
+        self.assertEqual(self.residu.articles.count(), 0)
+
+    # ── 2. le classement ─────────────────────────────────────────────────────
+
+    def test_les_articles_rejoignent_la_rubrique_que_leur_titre_annonce(self):
+        self._lancer(appliquer=True)
+        for page in (self.lp1, self.lp2, self.lp3):
+            self.assertIn('voie-pro', self._rubriques(page))
+
+    def test_un_article_peut_recevoir_deux_rubriques(self):
+        """« AESH, AED » parle des deux métiers : il va dans les deux."""
+        self._lancer(appliquer=True)
+        self.assertTrue({'vie-sco-aesh', 'aed-ash'} <= self._rubriques(self.aesh))
+
+    def test_un_pk_dont_le_titre_a_change_n_est_pas_touche(self):
+        """Garde-fou : un `pk` réattribué par un import ne doit rien déclencher."""
+        self.lp2.title = 'Tout autre chose'
+        self.lp2.save(update_fields=['title'])
+        sortie = self._lancer(appliquer=True)
+        self.assertNotIn('voie-pro', self._rubriques(self.lp2))
+        self.assertIn('non touché', sortie)
+
+    def test_une_espace_insecable_n_empeche_pas_le_rangement(self):
+        """Douze des titres visés portent U+00A0 devant « : » ou « ! », legs de
+        la typographie française de WordPress. Un fragment tapé avec une espace
+        ordinaire doit viser quand même — sans quoi le garde-fou refuserait un
+        article parfaitement identifié."""
+        # L'espace entre « pro » et « dans » ci-dessous est une VRAIE
+        # U+00A0, invisible à la lecture : c'est tout l'objet du test.
+        self.lp2.title = 'La voie pro dans le viseur, défendons-la !'
+        self.lp2.save(update_fields=['title'])
+        self._lancer(appliquer=True)
+        self.assertIn('voie-pro', self._rubriques(self.lp2))
+
+    def test_la_revision_suit_le_cochage(self):
+        """Sans ça, le rédacteur qui rouvre l'article voit l'ancien cochage et
+        le réécrit au premier enregistrement."""
+        revision = self.lp1.save_revision()
+        self._lancer(appliquer=True)
+        # `page.latest_revision` rend l'objet mis en cache à l'assignation : le
+        # relire depuis la base est ce qui distingue un test qui observe d'un
+        # test qui se contente de son propre souvenir.
+        revision.refresh_from_db()
+        self.assertIn(self.voie_pro.pk, revision.content['cms_categories'])
+        self.assertNotIn(self.residu.pk, revision.content['cms_categories'])
+
+    # ── 3. le menu ───────────────────────────────────────────────────────────
+
+    def test_l_entree_de_menu_vise_la_rubrique_et_non_une_adresse_tapee(self):
+        """Une clé survit à un changement de slug et au domaine autonome ;
+        une adresse tapée ne survit ni à l'un ni à l'autre."""
+        self._lancer(appliquer=True)
+        self.menu_voie_pro.refresh_from_db()
+        self.assertEqual(self.menu_voie_pro.link_type, 'category')
+        self.assertEqual(self.menu_voie_pro.category_id, self.voie_pro.pk)
+        self.assertEqual(self.menu_voie_pro.url, '')
+
+    def test_une_rubrique_trop_maigre_garde_son_article(self):
+        """Remplacer un article par une liste d'un seul article serait pire."""
+        sortie = self._lancer(appliquer=True)
+        self.menu_superieur.refresh_from_db()
+        self.assertEqual(self.menu_superieur.link_type, 'url')
+        self.assertIn('Supérieur', sortie)
+
+    def test_une_rubrique_vide_ne_recoit_aucune_entree(self):
+        self._lancer(appliquer=True)
+        self.menu_primaire.refresh_from_db()
+        self.assertEqual(self.menu_primaire.link_type, 'url')
