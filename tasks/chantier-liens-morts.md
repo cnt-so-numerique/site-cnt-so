@@ -37,3 +37,18 @@ qui marchaient répondent toujours 200 sans redirection.
   2 adresses e-mail collées dans un href.
 
 À remesurer en prod avant tout correctif.
+
+### Commande `repare_liens_morts` (14/09/2026)
+
+Simulation par défaut, `--appliquer`, `--rapport`. Ne traite que les liens qui
+répondent **réellement** en erreur au moment où elle tourne. Familles réparées :
+SPIP (préfixe de titre), WordPress (slug exact), catégories, fichiers SPIP
+(documents rapatriés), courriels collés. 14 tests, 15 mutations détectées.
+
+Simulation sur la base de dev : 92 adresses en erreur, **47 liens réparables sur
+132**. Deux pièges trouvés en relisant le rapport, et corrigés :
+- **titres SPIP numérotés** (`Nettoyage-grilles-des-salaires653`) : SPIP avait
+  des homonymes, la date ne suffit pas à trancher → jamais reliés (6 écartés) ;
+- **articles redatés par l'import SPIP → WordPress** : la profession de foi TPE
+  est datée du 10/02/2021 mais citée le 14/11/2020 → tolérance de six mois
+  (`DELAI_REDATATION`), qui a rendu 5 liens justes, dont celui de l'article TPE.

@@ -180,6 +180,38 @@ def decoupe(valeur, remplacements):
     return blocs
 
 
+
+def document_pour(fichier, section_slug, appliquer, cache, stats):
+    """Le document de la médiathèque pour ce fichier, créé au besoin.
+
+    Retrouvé par empreinte : un PDF déjà versé n'est jamais dupliqué. En
+    simulation, rien n'est créé et la fonction rend None.
+    """
+    from django.core.files import File
+    from wagtail.documents import get_document_model
+
+    Document = get_document_model()
+    h = empreinte(fichier)
+    if h in cache:
+        return cache[h]
+    document = Document.objects.filter(file_hash=h).first()
+    if document is not None:
+        stats['documents_reutilises'] += 1
+    else:
+        stats['documents_crees'] += 1
+        if appliquer:
+            document = Document(
+                title=os.path.splitext(os.path.basename(fichier))[0][:255],
+                collection=collection_du_syndicat(section_slug),
+                file_hash=h,
+            )
+            with open(fichier, 'rb') as f:
+                document.file = File(f, name=os.path.basename(fichier))
+                document.save()
+    cache[h] = document
+    return document
+
+
 class Command(BaseCommand):
     help = "Remplace les noms de fichiers nus des articles par des blocs « Fichier à télécharger »"
 
@@ -245,7 +277,7 @@ class Command(BaseCommand):
                         })
                         if statut not in ('miroir', 'exact'):
                             continue
-                        document = self._document(fichier, page, appliquer, documents, stats)
+                        document = document_pour(fichier, page.section_slug, appliquer, documents, stats)
                         remplacements.append((m, {
                             'type': 'file',
                             'value': {'document': document.pk if document else None, 'title': nom},
@@ -297,29 +329,3 @@ class Command(BaseCommand):
                 w.writeheader()
                 w.writerows(lignes)
             self.stdout.write(f"\n  rapport : {options['rapport']} ({len(lignes)} lignes)")
-
-    def _document(self, fichier, page, appliquer, cache, stats):
-        """Le document de la médiathèque pour ce fichier, créé au besoin."""
-        from django.core.files import File
-        from wagtail.documents import get_document_model
-
-        Document = get_document_model()
-        h = empreinte(fichier)
-        if h in cache:
-            return cache[h]
-        document = Document.objects.filter(file_hash=h).first()
-        if document is not None:
-            stats['documents_reutilises'] += 1
-        else:
-            stats['documents_crees'] += 1
-            if appliquer:
-                document = Document(
-                    title=os.path.splitext(os.path.basename(fichier))[0][:255],
-                    collection=collection_du_syndicat(page.section_slug),
-                    file_hash=h,
-                )
-                with open(fichier, 'rb') as f:
-                    document.file = File(f, name=os.path.basename(fichier))
-                    document.save()
-        cache[h] = document
-        return document

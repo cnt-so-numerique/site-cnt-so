@@ -6483,3 +6483,183 @@ class AncienneAdresseArticleTest(TestCase):
 
     def test_les_sections_ne_sont_pas_interceptees(self):
         self.assertEqual(self.client.get('/principal/').status_code, 200)
+
+
+class RepareLiensMortsTest(TestCase):
+    """Les liens internes morts hérités de SPIP et WordPress (14/09/2026)."""
+
+    def setUp(self):
+        import shutil, tempfile
+        from datetime import datetime
+        from django.test import override_settings
+        self.media = tempfile.mkdtemp()
+        self.legacy = tempfile.mkdtemp()
+        reglages = override_settings(MEDIA_ROOT=self.media, LEGACY_UPLOADS_ROOT=self.legacy)
+        reglages.enable()
+        self.addCleanup(reglages.disable)
+        for d in (self.media, self.legacy):
+            self.addCleanup(shutil.rmtree, d, True)
+        self.conf = _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        self.treize = _ensure_section_page(slug='13', name='CNT-SO 13')
+        self.en_2020 = timezone.make_aware(datetime(2020, 6, 1))
+        self.en_2021 = timezone.make_aware(datetime(2021, 6, 1))
+        # Par défaut, tout lien répond 404 ; un test peut en déclarer d'autres.
+        self.codes = {}
+        patcheur = patch('cms.management.commands.repare_liens_morts.statut_http',
+                         side_effect=lambda a: self.codes.get(a, 404))
+        patcheur.start()
+        self.addCleanup(patcheur.stop)
+
+    def _article(self, slug, html='<p>texte</p>', section=None, date=None, live=True):
+        import json, uuid
+        section = section or self.conf
+        return section.add_child(instance=ArticlePage(
+            title=slug, slug=slug, section_slug=section.slug, live=live,
+            publication_date=date or self.en_2020,
+            body=json.dumps([{'type': 'rich_text', 'id': str(uuid.uuid4()), 'value': html}])))
+
+    def _citant(self, lien, **kwargs):
+        kwargs.setdefault('date', self.en_2021)
+        return self._article('citant', f'<p><a href="{lien}">voir</a></p>', **kwargs)
+
+    def _lancer(self, *args):
+        from io import StringIO
+        from django.core.management import call_command
+        sortie = StringIO()
+        call_command('repare_liens_morts', *args, stdout=sortie)
+        return sortie.getvalue()
+
+    def _href(self, page):
+        import re
+        page.refresh_from_db()
+        return re.search(r'href="([^"]*)"', json_du_corps(page)).group(1)
+
+    def test_titre_spip_tronque_retrouve_l_article(self):
+        self._article('covid-19-autotests-gratuits-pour-les-intervenants')
+        citant = self._citant('http://www.cnt-so.org/COVID-19-Autotests-gratuits-pour')
+        self._lancer('--appliquer')
+        self.assertTrue(self._href(citant).endswith('/article/covid-19-autotests-gratuits-pour-les-intervenants/'))
+
+    def test_deux_articles_differents_laisses_tels_quels(self):
+        # Un dans chaque syndicat : la préférence de syndicat ne doit pas trancher
+        # entre deux textes différents.
+        self._article('elections-professionnelles-tpe-2021-mode-demploi', section=self.treize)
+        self._article('elections-professionnelles-tpe-2021-cest-nous')
+        lien = 'http://www.cnt-so.org/Elections-professionnelles-TPE973'
+        citant = self._citant(lien)
+        self._lancer('--appliquer')
+        self.assertEqual(self._href(citant), lien)
+
+    def test_meme_texte_publie_par_deux_syndicats_prend_celui_du_citant(self):
+        self._article('large-victoire-des-grevistes-hemera')
+        self._article('large-victoire-des-grevistes-hemera', section=self.treize)
+        citant = self._citant('http://www.cnt-so.org/LARGE-VICTOIRE-DES-GREVISTES', section=self.treize)
+        self._lancer('--appliquer')
+        self.assertIn('/13/article/large-victoire-des-grevistes-hemera/', self._href(citant))
+
+    def test_article_publie_apres_le_citant_ecarte(self):
+        self._article('covid-19-autotests-gratuits-pour-les-intervenants', date=self.en_2021)
+        lien = 'http://www.cnt-so.org/COVID-19-Autotests-gratuits-pour'
+        citant = self._citant(lien, date=self.en_2020)
+        self._lancer('--appliquer')
+        self.assertEqual(self._href(citant), lien)
+
+    def test_un_lien_qui_marche_n_est_jamais_touche(self):
+        self._article('covid-19-autotests-gratuits-pour-les-intervenants')
+        lien = 'http://www.cnt-so.org/COVID-19-Autotests-gratuits-pour'
+        self.codes[lien] = 200
+        citant = self._citant(lien)
+        self._lancer('--appliquer')
+        self.assertEqual(self._href(citant), lien)
+
+    def test_site_injoignable_rien_n_est_touche(self):
+        self._article('covid-19-autotests-gratuits-pour-les-intervenants')
+        lien = 'http://www.cnt-so.org/COVID-19-Autotests-gratuits-pour'
+        self.codes[lien] = None
+        citant = self._citant(lien)
+        self._lancer('--appliquer')
+        self.assertEqual(self._href(citant), lien)
+
+    def test_categorie_wordpress_d_un_syndicat(self):
+        make_cms_category(name='Sans-papiers', slug='sans-papiers', section_slug='13')
+        citant = self._citant('https://cnt-so.org/13/category/luttes/sans-papiers/')
+        self._lancer('--appliquer')
+        self.assertIn('/13/categorie/sans-papiers/', self._href(citant))
+
+    def test_courriel_colle_a_l_adresse_devient_mailto(self):
+        citant = self._citant('https://cnt-so.org/brevets-vaccins/contact@exemple.org')
+        self._lancer('--appliquer')
+        self.assertEqual(self._href(citant), 'mailto:contact@exemple.org')
+
+    def test_fichier_spip_verse_en_mediatheque(self):
+        import os
+        from wagtail.documents import get_document_model
+        chemin = os.path.join(self.legacy, 'wp-content', 'uploads', '2017', '09', 'cnt_so_21_09_17.pdf')
+        os.makedirs(os.path.dirname(chemin))
+        with open(chemin, 'wb') as f:
+            f.write(b'%PDF tract')
+        citant = self._citant('http://www.cnt-so.org/IMG/pdf/cnt_so_21_09_17.pdf')
+        self._lancer('--appliquer')
+        document = get_document_model().objects.get()
+        self.assertEqual(self._href(citant), document.url)
+
+    def test_la_simulation_n_ecrit_rien(self):
+        self._article('covid-19-autotests-gratuits-pour-les-intervenants')
+        lien = 'http://www.cnt-so.org/COVID-19-Autotests-gratuits-pour'
+        citant = self._citant(lien)
+        sortie = self._lancer()
+        self.assertIn('pages à modifier : 1', sortie)
+        self.assertEqual(self._href(citant), lien)
+
+    def test_brouillon_en_cours_respecte(self):
+        self._article('covid-19-autotests-gratuits-pour-les-intervenants')
+        lien = 'http://www.cnt-so.org/COVID-19-Autotests-gratuits-pour'
+        citant = self._citant(lien)
+        citant.title = 'Brouillon en cours'
+        citant.save_revision()
+        self._lancer('--appliquer')
+        self.assertEqual(self._href(citant), lien)
+
+    def test_spip_numerique_irreparable(self):
+        import csv, os, tempfile
+        lien = 'http://www.cnt-so.org/13/spip.php?article124'
+        citant = self._citant(lien)
+        rapport = os.path.join(self.media, 'rapport.csv')
+        self._lancer('--appliquer', '--rapport', rapport)
+        self.assertEqual(self._href(citant), lien)
+        with open(rapport, encoding='utf-8') as f:
+            ligne, = list(csv.DictReader(f))
+        self.assertEqual((ligne['famille'], ligne['statut']), ('irreparable', 'laisse'))
+
+    # Deux pièges vus sur les vraies données le 14/09/2026.
+
+    def test_article_redate_par_l_import_reste_relie(self):
+        from datetime import datetime
+        # La profession de foi TPE : datée du 10/02/2021, citée le 14/11/2020.
+        self._article('election-tpe-tpa-2021-profession-de-foi-de-la-cnt-so',
+                      date=timezone.make_aware(datetime(2021, 2, 10)))
+        citant = self._citant('http://www.cnt-so.org/Election-TPE-TPA-2021-profession',
+                              date=timezone.make_aware(datetime(2020, 11, 14)))
+        self._lancer('--appliquer')
+        self.assertIn('/article/election-tpe-tpa-2021-profession-de-foi-de-la-cnt-so/', self._href(citant))
+
+    def test_titre_spip_numerote_jamais_relie(self):
+        import json, uuid
+        self._article('nettoyage-grilles-des-salaires-2018')
+        # Les deux variantes, citées par deux pages : SPIP avait deux homonymes.
+        simple = 'http://www.cnt-so.org/Nettoyage-grilles-des-salaires'
+        numerote = 'http://www.cnt-so.org/Nettoyage-grilles-des-salaires653'
+        citant = self._citant(simple)
+        autre = self.conf.add_child(instance=ArticlePage(
+            title='autre', slug='autre', section_slug='principal', publication_date=self.en_2021,
+            body=json.dumps([{'type': 'rich_text', 'id': str(uuid.uuid4()),
+                              'value': f'<p><a href="{numerote}">voir</a></p>'}])))
+        self._lancer('--appliquer')
+        self.assertEqual(self._href(citant), simple)
+        self.assertEqual(self._href(autre), numerote)
+
+
+def json_du_corps(page):
+    import json
+    return json.dumps(list(page.body.raw_data), ensure_ascii=False).replace('\\"', '"')
+
