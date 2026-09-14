@@ -9,6 +9,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 
 from django.conf import settings
 from django.http import JsonResponse
@@ -66,6 +67,49 @@ def _sync_sub(email: str, site, actif: bool) -> str:
         return 'unsubscribed' if updated else 'noop'
 
 
+NOM_LISTE_OVH = re.compile(r'^[a-z0-9][a-z0-9._-]{0,99}$')
+
+
+def _listes_confederales() -> set:
+    from cms.models import SectionPage
+    principal = SectionPage.objects.filter(slug='principal').first()
+    noms = {principal.ovh_mailing_list, principal.ovh_liste_inscription} if principal else set()
+    return {n.strip() for champ in noms if champ for n in champ.split(',') if n.strip()}
+
+
+def _sync_listes_internes(email: str, demande: dict) -> dict:
+    """Inscrit à — ou retire de — les listes de travail internes d'un syndicat.
+
+    Ce ne sont pas des newsletters : aucune ligne `Subscriber`, qui les ferait
+    passer pour un consentement à une lettre. cnt-adhesion nomme les listes ;
+    on n'accepte qu'un nom de liste OVH, et jamais une liste de la
+    confédération — une erreur de réglage ne doit pas pouvoir y toucher par
+    ce chemin. Une panne OVH est rapportée, pas levée : elle ne doit pas faire
+    échouer la synchronisation de la lettre confédérale.
+    """
+    from cms import ovh_client
+
+    inscrire = bool(demande.get('inscrire'))
+    confederales = _listes_confederales()
+    resultat = {'faites': [], 'refusees': [], 'erreurs': {}}
+    for nom in demande.get('listes') or []:
+        nom = str(nom).strip().lower()
+        if not NOM_LISTE_OVH.match(nom) or nom in confederales:
+            resultat['refusees'].append(nom)
+            continue
+        try:
+            if inscrire:
+                ovh_client.add_subscriber(nom, email)
+            else:
+                ovh_client.remove_subscriber(nom, email)
+            resultat['faites'].append(nom)
+        except Exception as e:
+            logger.warning("Liste interne %s (%s) pour %s : %s",
+                           nom, 'inscription' if inscrire else 'retrait', email, e)
+            resultat['erreurs'][nom] = str(e)[:200]
+    return resultat
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class NewsletterSyncView(View):
     """
@@ -77,7 +121,10 @@ class NewsletterSyncView(View):
         "email": "...",
         "newsletter_conf": true,      // facultatif
         "newsletter_synd": false,     // facultatif
-        "syndicat_slug": "paris"
+        "syndicat_slug": "paris",
+        "listes_internes": {          // facultatif
+            "inscrire": true, "listes": ["numerique"]
+        }
     }
 
     L'adhésion vaut consentement — pas de double opt-in pour ces abonnés.
@@ -122,6 +169,10 @@ class NewsletterSyncView(View):
             else:
                 result['synd'] = _sync_sub(email, site=section,
                                            actif=bool(newsletter_synd))
+
+        listes_internes = data.get('listes_internes')
+        if isinstance(listes_internes, dict):
+            result['listes_internes'] = _sync_listes_internes(email, listes_internes)
 
         logger.info("Sync newsletter adhesion %s : %s", email, result)
         return JsonResponse({'ok': True, 'result': result})

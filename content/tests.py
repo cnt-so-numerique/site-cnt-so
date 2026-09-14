@@ -3838,6 +3838,91 @@ class NewsletterSyncViewTest(TestCase):
         self.assertEqual(r.status_code, 403)
 
 
+@override_settings(ADHESION_WEBHOOK_SECRET='test-secret-abc')
+class ListeInterneAdherentsTest(TestCase):
+    """Les listes de diffusion internes d'un syndicat, réservées à ses membres.
+
+    Demandé le 14/09/2026. Depuis le 17/08, seule la confédération diffuse une
+    newsletter : les listes OVH des syndicats sont des listes de travail
+    internes, et plus rien n'y inscrivait les adhérent·es. La case « newsletter
+    du syndicat » de cnt-adhesion renvoyait, elle, sur les listes de la
+    confédération — une seconde inscription à la même lettre.
+
+    cnt-adhesion connaît les listes de chaque syndicat et les nomme dans la
+    requête : le site ne fait qu'inscrire ou retirer chez OVH.
+    """
+
+    def setUp(self):
+        self.url = reverse('content:newsletter_sync')
+        principal = _ensure_section_page(slug='principal', name='Confédération')
+        principal.ovh_mailing_list = 'news, news2'
+        principal.save()
+
+    def _post(self, data):
+        body = json_module.dumps(data).encode()
+        return self.client.post(self.url, data=body, content_type='application/json',
+                                HTTP_X_WEBHOOK_SECRET=_hmac_sig('test-secret-abc', body))
+
+    def _resultat(self, r):
+        return json_module.loads(r.content)['result']['listes_internes']
+
+    @patch('cms.ovh_client.add_subscriber')
+    def test_inscription_sur_chaque_liste(self, ajouter):
+        r = self._post({'email': 'Membre@Test.fr', 'syndicat_slug': 'stnum',
+                        'listes_internes': {'inscrire': True,
+                                            'listes': ['numerique', 'numerique-ca']}})
+        self.assertEqual(r.status_code, 200)
+        ajouter.assert_any_call('numerique', 'membre@test.fr')
+        ajouter.assert_any_call('numerique-ca', 'membre@test.fr')
+
+    @patch('cms.ovh_client.remove_subscriber')
+    def test_retrait(self, retirer):
+        self._post({'email': 'membre@test.fr', 'syndicat_slug': 'stnum',
+                    'listes_internes': {'inscrire': False, 'listes': ['numerique']}})
+        retirer.assert_called_once_with('numerique', 'membre@test.fr')
+
+    @patch('cms.ovh_client.add_subscriber')
+    def test_cle_absente_ne_touche_a_rien(self, ajouter):
+        r = self._post({'email': 'membre@test.fr', 'syndicat_slug': 'stnum'})
+        self.assertEqual(r.status_code, 200)
+        ajouter.assert_not_called()
+        self.assertNotIn('listes_internes', json_module.loads(r.content)['result'])
+
+    @patch('cms.ovh_client.add_subscriber')
+    def test_ne_cree_aucun_abonne_newsletter(self, ajouter):
+        """Une liste de travail n'est pas une newsletter : pas de ligne
+        Subscriber, qui la ferait passer pour un consentement à une lettre."""
+        self._post({'email': 'membre@test.fr', 'syndicat_slug': 'stnum',
+                    'listes_internes': {'inscrire': True, 'listes': ['numerique']}})
+        self.assertFalse(Subscriber.objects.filter(email='membre@test.fr').exists())
+
+    @patch('cms.ovh_client.remove_subscriber')
+    @patch('cms.ovh_client.add_subscriber')
+    def test_les_listes_de_la_confederation_sont_hors_d_atteinte(self, ajouter, retirer):
+        """Une liste confédérale nommée par erreur comme liste interne en
+        ferait sortir l'adhérent à sa résiliation par un autre chemin que la
+        lettre elle-même — et hors de toute trace Subscriber."""
+        r = self._post({'email': 'membre@test.fr', 'syndicat_slug': 'stnum',
+                        'listes_internes': {'inscrire': False, 'listes': ['news2', 'numerique']}})
+        retirer.assert_called_once_with('numerique', 'membre@test.fr')
+        self.assertIn('news2', self._resultat(r)['refusees'])
+
+    @patch('cms.ovh_client.add_subscriber')
+    def test_nom_de_liste_invalide_refuse(self, ajouter):
+        r = self._post({'email': 'membre@test.fr', 'syndicat_slug': 'stnum',
+                        'listes_internes': {'inscrire': True, 'listes': ['../autre', '']}})
+        ajouter.assert_not_called()
+        self.assertEqual(len(self._resultat(r)['refusees']), 2)
+
+    @patch('cms.ovh_client.add_subscriber', side_effect=Exception('OVH indisponible'))
+    def test_une_panne_ovh_ne_casse_pas_la_synchronisation(self, ajouter):
+        r = self._post({'email': 'membre@test.fr', 'newsletter_conf': True,
+                        'listes_internes': {'inscrire': True, 'listes': ['numerique']}})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('numerique', self._resultat(r)['erreurs'])
+        self.assertTrue(Subscriber.objects.filter(email='membre@test.fr', site=None).exists())
+
+
 # ════════════════════════════════════════════════════════════════════════════════
 # NEWSLETTER VIEWS — chemins non couverts
 # ════════════════════════════════════════════════════════════════════════════════
