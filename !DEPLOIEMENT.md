@@ -24,11 +24,18 @@ ssh -T git@github.com
 ssh-add ~/.ssh/id_ed25519
 ```
 
-### 2. Pusher le code depuis la machine locale
+### 2. Pusher le code depuis la machine locale — sur les DEUX dépôts
 ```bash
 cd "/home/arnaud/PycharmProjects/site cnt"
-git push cnt main
+git push origin main   # arnaud2riviere/site-cnt — celui que le serveur tire
+git push cnt main      # cnt-so-numerique/site-cnt-so — le dépôt de l'organisation
 ```
+
+⚠️ **Le serveur ne tire pas `cnt-so-numerique`.** Sa branche `main` suit
+`origin`, c'est-à-dire `arnaud2riviere/site-cnt` (vérifiable là-bas avec
+`git branch -vv`). Constaté le 14/09/2026 : le code poussé seulement sur `cnt`
+n'est jamais arrivé en production, et `git pull` a répondu « Already up to
+date » sans rien signaler. D'où l'étape 4.
 
 ### 3. Déployer sur le serveur
 ```bash
@@ -46,6 +53,16 @@ python manage.py collectstatic --noinput
 python manage.py fix_cms_sessions --dry-run   # puis sans --dry-run si besoin
 sudo supervisorctl restart cntso
 ```
+
+### 4. Vérifier que c'est bien le bon commit qui tourne
+```bash
+git rev-parse --short HEAD          # sur le serveur
+git rev-parse --short HEAD          # en local : les deux doivent être égaux
+```
+
+« Already up to date » ne prouve rien : il répond ainsi quand le serveur tire
+un dépôt qui n'a pas reçu la poussée. Seule la comparaison des deux commits
+dit que la production tourne sur le code voulu.
 
 ⚠️ **La sauvegarde doit passer par `sudo -u postgres`.** La base appartient au
 rôle `cntso` ; un `pg_dump cntso` lancé tel quel par l'utilisateur `debian`
