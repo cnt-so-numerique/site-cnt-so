@@ -24,18 +24,19 @@ ssh -T git@github.com
 ssh-add ~/.ssh/id_ed25519
 ```
 
-### 2. Pusher le code depuis la machine locale — sur les DEUX dépôts
+### 2. Pusher le code depuis la machine locale
 ```bash
 cd "/home/arnaud/PycharmProjects/site cnt"
-git push origin main   # arnaud2riviere/site-cnt — celui que le serveur tire
-git push cnt main      # cnt-so-numerique/site-cnt-so — le dépôt de l'organisation
+git push cnt main
 ```
 
-⚠️ **Le serveur ne tire pas `cnt-so-numerique`.** Sa branche `main` suit
-`origin`, c'est-à-dire `arnaud2riviere/site-cnt` (vérifiable là-bas avec
-`git branch -vv`). Constaté le 14/09/2026 : le code poussé seulement sur `cnt`
-n'est jamais arrivé en production, et `git pull` a répondu « Already up to
-date » sans rien signaler. D'où l'étape 4.
+Le serveur tire `origin`, noté `arnaud2riviere/site-cnt` : c'est l'ancienne
+adresse du même dépôt, que GitHub redirige vers `cnt-so-numerique/site-cnt-so`.
+Pousser sur l'un met l'autre à jour — inutile de pousser deux fois.
+
+⚠️ Un `git pull` lancé juste après la poussée peut ne pas encore voir le
+nouveau commit, et répondre sans rien signaler. Constaté le 14/09/2026 : il a
+fallu le relancer. D'où l'étape 4.
 
 ### 3. Déployer sur le serveur
 ```bash
@@ -60,9 +61,10 @@ git rev-parse --short HEAD          # sur le serveur
 git rev-parse --short HEAD          # en local : les deux doivent être égaux
 ```
 
-« Already up to date » ne prouve rien : il répond ainsi quand le serveur tire
-un dépôt qui n'a pas reçu la poussée. Seule la comparaison des deux commits
-dit que la production tourne sur le code voulu.
+Un `git pull` sans erreur ne prouve rien : il peut ne pas avoir vu la poussée.
+Seule la comparaison des deux commits dit que la production tourne sur le code
+voulu. S'ils diffèrent : relancer `git pull --ff-only`, puis `migrate` et le
+redémarrage.
 
 ⚠️ **La sauvegarde doit passer par `sudo -u postgres`.** La base appartient au
 rôle `cntso` ; un `pg_dump cntso` lancé tel quel par l'utilisateur `debian`
