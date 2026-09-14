@@ -1,6 +1,6 @@
 # Chantier : les liens morts
 
-## 1. Anciennes adresses d'articles en 404 depuis la bascule — CORRIGÉ (à déployer)
+## 1. Anciennes adresses d'articles en 404 depuis la bascule — CORRIGÉ ET DÉPLOYÉ (14/09/2026, d0641d0)
 
 Mesuré le 14/09/2026 de l'extérieur : sur les 680 articles du site principal
 (plan du site), **46 répondent 404 à `cnt-so.org/<slug>/`**, dont **38 existaient
@@ -15,6 +15,10 @@ Correctif : `AncienSlugArticleConverter` + `AncienneAdresseArticleView`
 (content/urls.py, content/views.py) → 301 vers `/article/<slug>/`, seulement si
 un article en ligne porte ce slug et que Wagtail ne sert rien à cette adresse.
 Tests : `AncienneAdresseArticleTest` (cms/tests.py).
+
+Contrôle après déploiement, de l'extérieur : **les 46 adresses répondent 301 vers
+`/article/<même slug>/`, qui répond 200** ; 20 témoins tirés au sort parmi les 633
+qui marchaient répondent toujours 200 sans redirection.
 
 ## 2. Liens morts dans les corps d'articles (base de dev, testés contre la prod)
 
