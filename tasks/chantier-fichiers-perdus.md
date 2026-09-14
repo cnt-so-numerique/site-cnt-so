@@ -56,3 +56,33 @@ jamais de relien automatique sur préfixe sans une source qui le confirme.
    titre vers les articles Wagtail — pas dans `repare_liens_fichiers`. Exemple : sur l'article TPE, « Voir notre profession de foi » pointe vers
    une adresse SPIP morte (`/Election-TPE-TPA-2021-profession`, 404) ; l'article
    `election-tpe-tpa-2021-profession-de-foi-de-la-cnt-so` existe.
+
+## Simulation en production (14/09/2026, commit 7e99a60 déployé)
+
+1 397 documents indexés (les 1 302 + 95 du 02/09), miroir présent. **180 pages à
+modifier ; 225 liens sur 256 reliés** : 124 d'après le miroir, 101 par nom exact
+(10 ne diffèrent que par la casse ou un point final, contrôlés un à un). 196
+documents à verser. Rapport : `tasks/donnees/liens-fichiers-simulation-2026-09-14.csv`.
+
+Restent **31 pour relecture humaine** :
+- 2 douteux : deux copies différentes (site principal / `sites/2`) —
+  `cnt_so_educ_30_10_20.pdf`, `caisse_de_greve_nh-3.pdf` ;
+- 29 introuvables, surtout 13 (2014-2020) : 12 ont un nom approchant sur l'ancien
+  serveur (ex. `cnt_so_retraites_dec_2019` ~ `…_dec_2019-4.pdf`), 17 rien du tout ;
+  ⚠️ `tract_1er_mai.pdf` ~ `Tract-1er-mai-2025.pdf` est un FAUX ami.
+- Sur l'article TPE, la profession de foi générale (« Profession de foi - CNT-SO »,
+  `cnt_so_tpe_2021_4_p_11112020_-_merged-1.pdf`) n'est pas un nom nu : non traitée.
+
+## Passage réel en production (14/09/2026, 16 h 52)
+
+Sauvegarde préalable : `~/cntso-avant-liens-fichiers-20260914-1652.sql.gz` (12 Mo).
+**180 pages modifiées, 225 liens reliés, 196 documents versés** en médiathèque.
+Contrôle par nouvelle simulation : 0 page à modifier ; restent les 2 douteux et les
+29 introuvables, plus **3 « brouillon en cours »** — déduction : ce sont des liens
+de pages **hors ligne**, dont la réparation a été enregistrée en révision sans
+publication (le premier passage n'avait compté aucun brouillon).
+Contrôle public : article TPE = 8 encadrés « Télécharger », PDF BTP en 200
+(675 352 octets, identique à l'original) ; `13.cnt-so.org` et `86.cnt-so.org`
+servent aussi leurs PDF en 200.
+
+Retour arrière : révision précédente page par page dans /cms/, ou la sauvegarde.
