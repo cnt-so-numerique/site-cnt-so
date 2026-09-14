@@ -6285,3 +6285,148 @@ class CreeComptesRedacteursTest(TestCase):
         chefs = [c[0] for c in cmd.COMPTES if c[3]]
         self.assertEqual(chefs, ['media'],
                          'un seul chef était décidé le 12/09/2026 : media')
+
+
+class RepareLiensFichiersTest(TestCase):
+    """Les liens de téléchargement perdus au premier import (14/09/2026).
+
+    205 articles en production affichaient `<p>cnt_so_tpe_2021_btp</p>` à la
+    place du lien vers le PDF. On ne relie que ce qui est sûr.
+    """
+
+    def setUp(self):
+        import shutil, tempfile
+        from django.test import override_settings
+        self.media = tempfile.mkdtemp()
+        self.legacy = tempfile.mkdtemp()
+        self.miroir = tempfile.mkdtemp()
+        reglages = override_settings(MEDIA_ROOT=self.media, LEGACY_UPLOADS_ROOT=self.legacy)
+        reglages.enable()
+        self.addCleanup(reglages.disable)
+        for d in (self.media, self.legacy, self.miroir):
+            self.addCleanup(shutil.rmtree, d, True)
+
+    def _fichier(self, rel, contenu=b'%PDF-1.4 tract'):
+        import os
+        chemin = os.path.join(self.legacy, 'wp-content', 'uploads', rel)
+        os.makedirs(os.path.dirname(chemin), exist_ok=True)
+        with open(chemin, 'wb') as f:
+            f.write(contenu)
+        return chemin
+
+    def _article(self, html, slug='tpe', publication=None, **kwargs):
+        import json
+        import uuid
+        from datetime import datetime
+        return make_article_page(
+            title=slug, slug=slug,
+            publication_date=publication or timezone.make_aware(datetime(2021, 3, 1)),
+            body=json.dumps([{'type': 'rich_text', 'id': str(uuid.uuid4()), 'value': html}]),
+            **kwargs)
+
+    def _lancer(self, *args):
+        from io import StringIO
+        from django.core.management import call_command
+        sortie = StringIO()
+        call_command('repare_liens_fichiers', *args, '--miroir', self.miroir, stdout=sortie)
+        return sortie.getvalue()
+
+    def _types(self, page):
+        page.refresh_from_db()
+        return [b['type'] for b in page.body.raw_data]
+
+    def test_nom_unique_devient_un_bloc_fichier(self):
+        from wagtail.documents import get_document_model
+        self._fichier('2021/02/cnt_so_tpe_2021_btp.pdf')
+        art = self._article('<h2>BTP</h2><p>cnt_so_tpe_2021_btp</p><p>Votez !</p>')
+        self._lancer('--appliquer')
+        self.assertEqual(self._types(art), ['rich_text', 'file', 'rich_text'])
+        blocs = art.body.raw_data
+        self.assertEqual(blocs[0]['value'], '<h2>BTP</h2>')
+        self.assertEqual(blocs[2]['value'], '<p>Votez !</p>')
+        document = get_document_model().objects.get(pk=blocs[1]['value']['document'])
+        self.assertTrue(document.file_hash)
+        self.assertFalse(art.has_unpublished_changes)
+
+    def test_la_simulation_n_ecrit_rien(self):
+        from wagtail.documents import get_document_model
+        self._fichier('2021/02/cnt_so_tpe_2021_btp.pdf')
+        art = self._article('<p>cnt_so_tpe_2021_btp</p>')
+        sortie = self._lancer()
+        self.assertIn('1  reliés par nom exact', sortie)
+        self.assertEqual(self._types(art), ['rich_text'])
+        self.assertFalse(get_document_model().objects.exists())
+        self.assertEqual(art.get_latest_revision(), art.live_revision)
+
+    def test_homonymes_differents_laisses_tels_quels(self):
+        self._fichier('2019/03/appel_18_mars.pdf', b'appel 2019')
+        self._fichier('sites/5/2020/03/appel_18_mars.pdf', b'appel 2020')
+        art = self._article('<p>appel_18_mars.pdf</p>')
+        sortie = self._lancer('--appliquer')
+        self.assertIn('1  douteux', sortie)
+        self.assertEqual(self._types(art), ['rich_text'])
+
+    def test_copies_identiques_reliees(self):
+        self._fichier('2020/11/tract_noz.pdf', b'meme contenu')
+        self._fichier('sites/7/2020/11/tract_noz.pdf', b'meme contenu')
+        art = self._article('<p>tract_noz</p>')
+        self._lancer('--appliquer')
+        self.assertEqual(self._types(art), ['file'])
+
+    def test_fichier_envoye_apres_l_article_ecarte(self):
+        self._fichier('2025/04/tract_1er_mai.pdf')
+        art = self._article('<p>tract_1er_mai</p>')
+        self._lancer('--appliquer')
+        self.assertEqual(self._types(art), ['rich_text'])
+
+    def test_debut_de_nom_ne_suffit_pas_sans_le_miroir(self):
+        self._fichier('2020/11/cnt_so_tpe_2021_btp_25022021-2.pdf')
+        art = self._article('<p>cnt_so_tpe_2021_btp</p>')
+        self._lancer('--appliquer')
+        self.assertEqual(self._types(art), ['rich_text'])
+
+    def test_le_miroir_donne_l_adresse_exacte(self):
+        import os
+        self._fichier('2020/11/cnt_so_tpe_2021_btp_25022021-2.pdf')
+        os.makedirs(os.path.join(self.miroir, 'tpe'))
+        with open(os.path.join(self.miroir, 'tpe', 'index.html'), 'w') as f:
+            f.write('<p><a href="https://testwp.cnt-so.org/wp-content/uploads/2020/11/'
+                    'cnt_so_tpe_2021_btp_25022021-2.pdf">cnt_so_tpe_2021_btp</a></p>')
+        art = self._article('<p>cnt_so_tpe_2021_btp</p>')
+        sortie = self._lancer('--appliquer')
+        self.assertIn("reliés d'après le miroir", sortie)
+        self.assertEqual(self._types(art), ['file'])
+
+    def test_brouillon_en_cours_respecte(self):
+        self._fichier('2021/02/cnt_so_tpe_2021_btp.pdf')
+        art = self._article('<p>cnt_so_tpe_2021_btp</p><p>ancien</p>')
+        art.title = 'Brouillon de quelqu’un'
+        art.save_revision()
+        sortie = self._lancer('--appliquer')
+        self.assertIn('brouillon en cours', sortie)
+        self.assertEqual(self._types(art), ['rich_text'])
+
+    def test_document_deja_en_mediatheque_reutilise(self):
+        from django.core.files.base import ContentFile
+        from wagtail.documents import get_document_model
+        Document = get_document_model()
+        self._fichier('2021/02/cnt_so_tpe_2021_btp.pdf', b'le tract')
+        connu = Document(title='Tract BTP')
+        connu.file.save('tract.pdf', ContentFile(b'le tract'), save=False)
+        connu._set_file_hash()
+        connu.save()
+        art = self._article('<p>cnt_so_tpe_2021_btp</p>')
+        self._lancer('--appliquer')
+        art.refresh_from_db()
+        self.assertEqual(art.body.raw_data[0]['value']['document'], connu.pk)
+        self.assertEqual(Document.objects.count(), 1)
+
+    def test_page_publique_affiche_le_telechargement(self):
+        self._fichier('2021/02/cnt_so_tpe_2021_btp.pdf')
+        _ensure_section_page(slug='principal', name='CNT-SO')
+        self._article('<p>cnt_so_tpe_2021_btp</p>')
+        self._lancer('--appliquer')
+        r = self.client.get('/article/tpe/')
+        self.assertContains(r, 'bloc-document')
+        self.assertContains(r, 'Télécharger')
+        self.assertNotContains(r, '<p>cnt_so_tpe_2021_btp</p>', html=False)
