@@ -894,6 +894,22 @@ class WordPressRedirectView(View):
         raise Http404("Contenu non trouvé")
 
 
+class AncienneAdresseArticleView(View):
+    """`/<slug>/` → l'article, pour les adresses WordPress du site principal.
+
+    Voir `AncienSlugArticleConverter` : la route n'est atteinte que pour un
+    article en ligne que Wagtail ne sert pas à la racine. À slug égal, l'article
+    de la confédération l'emporte — c'était le seul publié à cette adresse.
+    """
+
+    def get(self, request, slug):
+        articles = ArticlePage.objects.live().filter(slug=slug)
+        article = articles.filter(section_slug='principal').first() or articles.first()
+        if article is None:
+            raise Http404("Contenu non trouvé")
+        return redirect(article.get_absolute_url(), permanent=True)
+
+
 def _send_contact_email(site, message_obj):
     """Envoie le message de contact à l'adresse configurée sur le site ou le formulaire."""
     from django.conf import settings

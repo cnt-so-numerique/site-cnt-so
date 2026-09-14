@@ -23,6 +23,40 @@ class SectionSlugConverter:
 
 register_converter(SectionSlugConverter, 'section_slug')
 
+
+class AncienSlugArticleConverter:
+    """L'adresse WordPress `/<slug>/` d'un article que Wagtail ne sert pas là.
+
+    WordPress publiait les articles du site principal à la racine. Les articles
+    importés avant l'été sont rangés directement sous l'accueil : Wagtail sert
+    encore `/<slug>/`. Ceux repris le 06/09/2026 sont rangés sous la section
+    `principal` et vivent donc à `/principal/<slug>/` — leur ancienne adresse,
+    la plus partagée puisque la plus récente, répondait 404 depuis la bascule
+    DNS du 12/09 (38 articles, mesuré le 14/09/2026).
+
+    Ne correspond que si un article en ligne porte ce slug ET qu'aucune page
+    n'est servie par Wagtail à cette adresse : on n'intercepte rien de ce qui
+    marche déjà.
+    """
+    regex = r'[\w-]+'
+
+    def to_python(self, value):
+        from wagtail.models import Page, Site
+        from cms.models import ArticlePage
+        if not ArticlePage.objects.live().filter(slug=value).exists():
+            raise ValueError
+        racine = (Site.objects.filter(is_default_site=True)
+                  .values_list('root_page__url_path', flat=True).first())
+        if racine and Page.objects.live().filter(url_path=f'{racine}{value}/').exists():
+            raise ValueError
+        return value
+
+    def to_url(self, value):
+        return value
+
+
+register_converter(AncienSlugArticleConverter, 'ancien_slug_article')
+
 app_name = 'content'
 
 urlpatterns = [
@@ -109,6 +143,7 @@ urlpatterns = [
     path('<slug:site_slug>/contact/merci/', views.site_contact_success, name='site_contact_success'),
     path('<slug:site_slug>/plan-du-site/', views.PlanDuSiteView.as_view(), name='site_plan_du_site'),
     path('<section_slug:site_slug>/', views.SiteHomeView.as_view(), name='site_home'),
+    path('<ancien_slug_article:slug>/', views.AncienneAdresseArticleView.as_view(), name='ancienne_adresse_article'),
     path('<slug:site_slug>/article/<slug:slug>/', views.SiteArticleDetailView.as_view(), name='site_article_detail'),
     path('<slug:site_slug>/article/<slug:slug>/tract/', views.ArticleTractView.as_view(), name='site_article_tract'),
     path('<slug:site_slug>/page/<slug:slug>/', views.SitePageDetailView.as_view(), name='site_page_detail'),

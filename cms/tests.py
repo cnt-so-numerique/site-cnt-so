@@ -6430,3 +6430,56 @@ class RepareLiensFichiersTest(TestCase):
         self.assertContains(r, 'bloc-document')
         self.assertContains(r, 'Télécharger')
         self.assertNotContains(r, '<p>cnt_so_tpe_2021_btp</p>', html=False)
+
+
+class AncienneAdresseArticleTest(TestCase):
+    """`cnt-so.org/<slug>/` répondait 404 pour 38 articles récents (14/09/2026).
+
+    Repris le 06/09, ils sont rangés sous la section `principal` : Wagtail les
+    sert à `/principal/<slug>/`, plus à l'adresse que WordPress avait diffusée.
+    """
+
+    def setUp(self):
+        from wagtail.models import Site
+        from content.tests import _get_article_parent
+        self.home = _get_article_parent()
+        # Comme en production : l'accueil est la racine du site servi.
+        Site.objects.update(root_page=self.home)
+        self.conf = _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+
+    def _sous(self, parent, slug, section_slug='principal', live=True):
+        return parent.add_child(instance=ArticlePage(
+            title=slug, slug=slug, section_slug=section_slug, live=live))
+
+    def test_article_range_sous_la_section_redirige(self):
+        self._sous(self.conf, 'bourses-du-travail')
+        r = self.client.get('/bourses-du-travail/')
+        self.assertEqual(r.status_code, 301)
+        self.assertTrue(r['Location'].endswith('cnt-so.org/article/bourses-du-travail/'), r['Location'])
+
+    def test_article_a_la_racine_reste_servi_par_wagtail(self):
+        self._sous(self.home, 'canicule-et-travail')
+        r = self.client.get('/canicule-et-travail/')
+        self.assertEqual(r.status_code, 200)
+
+    def test_slug_inconnu_reste_404(self):
+        self.assertEqual(self.client.get('/rien-de-tel/').status_code, 404)
+
+    def test_article_hors_ligne_reste_404(self):
+        self._sous(self.conf, 'brouillon-secret', live=False)
+        self.assertEqual(self.client.get('/brouillon-secret/').status_code, 404)
+
+    def test_la_confederation_l_emporte_a_slug_egal(self):
+        # Dans les deux ordres de création : un simple « premier trouvé » passerait l'un des deux.
+        treize = _ensure_section_page(slug='13', name='CNT-SO 13')
+        self._sous(treize, 'appel-avant', section_slug='13')
+        self._sous(self.conf, 'appel-avant')
+        self._sous(self.conf, 'appel-apres')
+        self._sous(treize, 'appel-apres', section_slug='13')
+        for slug in ('appel-avant', 'appel-apres'):
+            r = self.client.get(f'/{slug}/')
+            self.assertTrue(r['Location'].endswith(f'cnt-so.org/article/{slug}/'), r['Location'])
+            self.assertNotIn('13', r['Location'])
+
+    def test_les_sections_ne_sont_pas_interceptees(self):
+        self.assertEqual(self.client.get('/principal/').status_code, 200)
