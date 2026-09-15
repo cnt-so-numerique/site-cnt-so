@@ -1683,9 +1683,14 @@ def adherer(request, site_slug):
         Q(slug=site_slug) | Q(legacy_site_slug=site_slug), live=True
     ).first()
 
-    if getattr(_s, 'ADHESION_USE_NEW_APP', False):
+    # Ouverte syndicat par syndicat (`adhesion_en_ligne`, 15/09/2026) : le
+    # réglage global aurait envoyé huit boutons vers une application qui n'en
+    # connaît que trois. Le nom qui compte est celui de l'application, porté
+    # par `legacy_site_slug` : le Numérique y est `stnum`, et `numerique` y
+    # rend 404.
+    if getattr(_s, 'ADHESION_USE_NEW_APP', False) or (section and section.adhesion_en_ligne):
         base = getattr(_s, 'ADHESION_BASE_URL', 'https://adhesion.cnt-so.org')
-        slug = (section.slug if section else site_slug)
+        slug = (section.legacy_site_slug or section.slug) if section else site_slug
         return redirect(f'{base}/adherer/{slug}/')
 
     # Une `framaform_url` qui pointe vers l'application d'adhésion contredit le

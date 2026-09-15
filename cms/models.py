@@ -716,6 +716,14 @@ class SectionPage(SeoMixin, Page):
     agenda_url = models.URLField(blank=True)
     linkstack_url = models.URLField(blank=True, verbose_name="URL Linkstack")
     framaform_url = models.URLField(blank=True, verbose_name="URL Framaform adhésion")
+    adhesion_en_ligne = models.BooleanField(
+        default=False,
+        verbose_name="Adhésion en ligne ouverte",
+        help_text="Coché : le bouton « Adhérer » mène au formulaire de "
+                  "l'application d'adhésion (adhesion.cnt-so.org), avant tout "
+                  "Framaform. Ne cocher qu'une fois le syndicat ouvert dans "
+                  "l'application : sinon le bouton mène à une erreur.",
+    )
     banque_images_propre = models.BooleanField(
         default=False,
         verbose_name="Banque d'images propre à ce syndicat",
@@ -856,6 +864,7 @@ class SectionPage(SeoMixin, Page):
         FieldPanel('banque_images_propre'),
         FieldPanel('intro_text'),
         MultiFieldPanel([
+            FieldPanel('adhesion_en_ligne'),
             FieldPanel('rejoindre_accroche'),
             FieldPanel('rejoindre_atouts'),
             FieldPanel('rejoindre_bouton'),

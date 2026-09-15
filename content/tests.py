@@ -9151,6 +9151,60 @@ class BoutonAdhererTest(TestCase):
         self.assertContains(r, '/adherer/principal/')
 
 
+class AdhesionEnLigneParSyndicatTest(TestCase):
+    """Ouvrir l'adhésion en ligne syndicat par syndicat.
+
+    Le réglage global enverrait les huit boutons vers l'application, qui n'en
+    connaît que trois (15/09/2026 : stnum, stucs, cnt-interpro-ra). Le STUCS
+    restait donc sur son Framaform et le Numérique sur la page « bientôt »,
+    alors que leurs formulaires en ligne fonctionnaient.
+    """
+
+    def setUp(self):
+        make_site(slug='principal')
+        self.stucs = _ensure_section_page(slug='stucs', name='CNT-SO STUCS', site_type='sectoral')
+        self.stucs.framaform_url = 'https://framaforms.org/adherer-au-stucs'
+        self.stucs.save(update_fields=['framaform_url'])
+        self.numerique = _ensure_section_page(slug='numerique', name='CNT-SO Numérique')
+        # Le Numérique s'appelle `stnum` dans l'application d'adhésion.
+        self.numerique.legacy_site_slug = 'stnum'
+        self.numerique.save(update_fields=['legacy_site_slug'])
+
+    def _ouvrir(self, section):
+        section.adhesion_en_ligne = True
+        section.save(update_fields=['adhesion_en_ligne'])
+
+    @override_settings(ADHESION_USE_NEW_APP=False, ADHESION_BASE_URL='https://adhesion.cnt-so.org')
+    def test_un_syndicat_ouvert_va_vers_l_application_avant_son_framaform(self):
+        self._ouvrir(self.stucs)
+        r = self.client.get('/adherer/stucs/')
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r['Location'], 'https://adhesion.cnt-so.org/adherer/stucs/')
+
+    @override_settings(ADHESION_USE_NEW_APP=False, ADHESION_BASE_URL='https://adhesion.cnt-so.org')
+    def test_le_nom_du_syndicat_dans_l_application_est_celui_qui_compte(self):
+        """Le slug Wagtail `numerique` rend 404 dans l'application : c'est
+        `stnum`, porté par `legacy_site_slug`."""
+        self._ouvrir(self.numerique)
+        for adresse in ('/adherer/numerique/', '/adherer/stnum/'):
+            with self.subTest(adresse=adresse):
+                r = self.client.get(adresse)
+                self.assertEqual(r['Location'], 'https://adhesion.cnt-so.org/adherer/stnum/')
+
+    @override_settings(ADHESION_USE_NEW_APP=True, ADHESION_BASE_URL='https://adhesion.cnt-so.org')
+    def test_le_reglage_global_prend_aussi_le_bon_nom(self):
+        r = self.client.get('/adherer/numerique/')
+        self.assertEqual(r['Location'], 'https://adhesion.cnt-so.org/adherer/stnum/')
+
+    @override_settings(ADHESION_USE_NEW_APP=False)
+    def test_un_syndicat_non_ouvert_ne_change_pas(self):
+        r = self.client.get('/adherer/stucs/')
+        self.assertEqual(r['Location'], 'https://framaforms.org/adherer-au-stucs')
+        r = self.client.get('/adherer/numerique/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "arrive bientôt")
+
+
 def _url_contact_attendu(section):
     from content.views import url_contact_du_syndicat
     return url_contact_du_syndicat(section)
