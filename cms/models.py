@@ -760,7 +760,7 @@ class SectionPage(SeoMixin, Page):
     rejoindre_atouts = models.TextField(
         blank=True,
         default="Formulaire en ligne, 5 minutes\n"
-                "Cotisation libre et solidaire\n"
+                "Cotisation solidaire\n"
                 "Un·e militant·e te recontacte pour finaliser",
         verbose_name="Bandeau : arguments",
         help_text="Une ligne par argument, chacun précédé d'une coche. "
