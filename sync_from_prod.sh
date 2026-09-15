@@ -2,6 +2,10 @@
 # sync_from_prod.sh — Resynchronise la DB locale (SQLite) depuis la prod (PostgreSQL).
 # Usage: ./sync_from_prod.sh
 # Prérequis : ssh debian@51.91.242.64 sans mot de passe (clé SSH configurée)
+#             et le mot de passe du rôle PostgreSQL cntso, jamais dans ce fichier :
+#             soit la variable PGPASSWORD_PROD, soit une ligne dans ~/.pgpass (chmod 600) :
+#             127.0.0.1:5433:cntso:cntso:<mot de passe>
+#             Il se lit sur le serveur, dans /var/www/cntso/cntso/local_settings.py.
 #
 # Tables synchronisées :
 #   cms_cmscategory              — catégories (DELETE + INSERT)
@@ -17,7 +21,6 @@ set -euo pipefail
 PROD_HOST="debian@51.91.242.64"
 SSH_KEY="${HOME}/.ssh/id_ed25519"
 TUNNEL_PORT=5433
-PGPASSWORD_PROD='gtNalZ@U7&r@%s3hJ@'
 PGUSER="cntso"
 PGDB="cntso"
 TMP_DIR="$(mktemp -d)"
@@ -40,7 +43,12 @@ else
     sleep 1
 fi
 
-export PGPASSWORD="$PGPASSWORD_PROD"
+if [ -n "${PGPASSWORD_PROD:-}" ]; then
+    export PGPASSWORD="$PGPASSWORD_PROD"
+elif ! grep -qs "^127.0.0.1:${TUNNEL_PORT}:${PGDB}:${PGUSER}:" "${HOME}/.pgpass"; then
+    echo "✘ Mot de passe PostgreSQL absent : définir PGPASSWORD_PROD ou ~/.pgpass (voir l'en-tête)." >&2
+    exit 1
+fi
 
 # ── 2. Export CSV depuis PostgreSQL ───────────────────────────────────────────
 echo "▶ Export des tables depuis la prod..."
