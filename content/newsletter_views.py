@@ -19,7 +19,7 @@ from django.views import View
 from content.admin_utils import (WagtailChefRequiredMixin,
                                  WagtailSyndicatRequiredMixin,
                                  get_current_site_for_view, is_chef)
-from content.courriel import destinataire_de_reponse
+from content.courriel import destinataire_de_reponse, expediteur_liste
 from content.models import Newsletter, Subscriber
 
 
@@ -228,7 +228,7 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
                     msg = EmailMultiAlternatives(
                         subject=newsletter.title,
                         body=text_body,
-                        from_email=None,
+                        from_email=expediteur_liste(),
                         to=[list_email],
                         reply_to=destinataire_de_reponse(),
                     )

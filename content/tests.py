@@ -3428,6 +3428,36 @@ class NewsletterSendOvhPostTest(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('actu-test-cntso@cnt-so.info', mail.outbox[0].to)
 
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
+    def test_lenvoi_par_liste_part_du_domaine_des_listes(self, mock_subs):
+        """La liste OVH renvoie le courriel sous une enveloppe @cnt-so.info et
+        lui ajoute un pied de page, ce qui casse la signature DKIM cnt-so.org.
+        Avec un expéditeur @cnt-so.org, DMARC échouait pour 86 % des courriels
+        vus par Gmail (rapports du 01/08 au 13/09/2026). Seul un expéditeur du
+        domaine des listes s'aligne sur l'enveloppe : dmarc=pass, prouvé chez
+        Gmail le 15/09/2026."""
+        from email.utils import parseaddr
+        from django.core import mail
+        _chef_client(self.site).post(self.url, {'mode': 'send'})
+        nom, adresse = parseaddr(mail.outbox[0].from_email)
+        self.assertEqual(adresse, 'newsletter@cnt-so.info')
+        self.assertEqual(nom, 'CNT-SO')
+        self.assertEqual(mail.outbox[0].reply_to, ['contact@cnt-so.org'])
+
+    def test_lenvoi_direct_garde_lexpediteur_du_site(self):
+        """Sans liste, le courriel part tel quel, signé DKIM par OVH pour
+        cnt-so.org : c'est cette signature qui fait passer DMARC. Un expéditeur
+        @cnt-so.info n'y aurait ni signature ni enveloppe alignée."""
+        from email.utils import parseaddr
+        from django.core import mail
+        self.site.ovh_mailing_list = ''
+        self.site.save(update_fields=['ovh_mailing_list'])
+        Subscriber.objects.create(site=self.site, email='p1@example.com', is_active=True)
+        with override_settings(NEWSLETTER_SEND_DELAY=0):
+            _chef_client(self.site).post(self.url, {'mode': 'send'})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(parseaddr(mail.outbox[0].from_email)[1], 'newsletter@cnt-so.org')
+
     @override_settings(NEWSLETTER_SEND_DELAY=18)
     @patch('content.newsletter_views.time.sleep')
     def test_lenvoi_direct_respecte_le_plafond_ovh(self, dormir):
