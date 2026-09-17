@@ -106,3 +106,16 @@ envoyé par le formulaire **de Wagtail** (`/cms/password_reset/`).
 ⚠️ Piège : `PasswordResetForm` de Django échoue ici (`NoReverseMatch:
 password_reset_confirm`) — les URLs d'auth de Django ne sont pas branchées, seul
 le circuit Wagtail existe. Passer par le formulaire, pas par le formulaire Django.
+
+## Décision d'Arnaud, 17/09/2026 : les 21 noms restent en clair
+
+Les 21 fichiers introuvables (19 articles du 13 de 2014-2020, 1 Poitiers, 1 Rhône-Alpes)
+n'existent nulle part : ni sur l'ancien serveur, ni en médiathèque. Leur nom reste
+affiché tel quel dans le texte de l'article — `Tract_1ermai2014`, `grille_classif`…
+
+**Ne pas les retirer.** Le nom est la seule trace qu'un document accompagnait l'article :
+il permet de le reconnaître si quelqu'un en retrouve une copie. Un chantier « propreté »
+qui les effacerait ferait perdre cette information sans rien gagner.
+
+Restent donc, côté fichiers : ces 21 noms (laissés volontairement) et 4 fichiers +
+3 liens bloqués par des brouillons en cours sur 5 pages.
