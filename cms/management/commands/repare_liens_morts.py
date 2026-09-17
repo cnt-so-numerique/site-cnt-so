@@ -30,6 +30,11 @@ Quand plusieurs articles conviennent, on ne tranche que s'ils portent le même
 slug — c'est alors le même texte publié par deux syndicats : on prend celui du
 syndicat qui cite, sinon celui de la confédération. Tout le reste est listé.
 
+Avec `--delier`, les liens qu'on ne sait pas réparer sont **retirés** : le texte
+reste, le lien disparaît. Le lecteur ne tombe plus sur une erreur 404, mais
+l'adresse d'origine n'est plus visible — elle reste dans l'historique des
+révisions de la page. À demander explicitement, jamais par défaut.
+
 Usage :
     python manage.py repare_liens_morts                     # simulation
     python manage.py repare_liens_morts --rapport liens.csv
@@ -69,6 +74,16 @@ PREFIXE_MINIMUM = 12
 DELAI_REDATATION = timedelta(days=183)
 
 COURRIEL = re.compile(r'^[\w.+-]+@[\w-]+(?:\.[\w-]+)+$')
+
+
+def delie(brut, adresse):
+    """Retire le lien vers cette adresse, en gardant le texte qu'il portait.
+
+    Le texte peut porter de la mise en forme (`<strong>`) : on garde l'intérieur
+    de la balise tel quel.
+    """
+    motif = re.compile(r'<a\s[^>]*href=\\"' + re.escape(adresse) + r'\\"[^>]*>(.*?)</a>')
+    return motif.subn(lambda m: m.group(1), brut)
 
 
 def statut_http(adresse):
@@ -215,12 +230,20 @@ class Command(BaseCommand):
             '--appliquer', action='store_true',
             help="Enregistre et publie. Sans cette option, rien n'est écrit.",
         )
+        parser.add_argument(
+            '--delier', action='store_true',
+            help="Retire les liens qu'on ne sait pas réparer, en gardant leur texte",
+        )
         parser.add_argument('--rapport', default=None, help="Fichier CSV : un lien par ligne")
 
     def handle(self, *args, **options):
         from cms.models import ArticlePage, ContentPage
 
         appliquer = options['appliquer']
+        delier = options['delier']
+        if delier:
+            self.stdout.write(self.style.WARNING(
+                "Les liens non réparables seront retirés (leur texte reste).\n"))
         if not appliquer:
             self.stdout.write(self.style.WARNING("Simulation : rien ne sera enregistré.\n"))
 
@@ -267,6 +290,11 @@ class Command(BaseCommand):
                 statut = 'repare' if cible else 'laisse'
                 if cible and brouillon:
                     statut = 'brouillon'
+                elif not cible and delier and not brouillon:
+                    nouveau, retires = delie(nouveau, adresse)
+                    if retires:
+                        statut = 'delie'
+                        repares += retires
                 stats[f'{famille}:{statut}'] += 1
                 lignes.append({
                     'page': page.pk, 'titre': page.title, 'adresse_page': page.url or '',
@@ -290,11 +318,11 @@ class Command(BaseCommand):
 
         self.stdout.write(f"  pages {'modifiées' if appliquer else 'à modifier'} : {pages_modifiees}\n")
         familles = ('spip', 'wordpress', 'categorie', 'fichier_spip', 'courriel', 'irreparable')
-        self.stdout.write(f"    {'famille':<14}{'réparés':>9}{'laissés':>9}{'brouillon':>11}")
+        self.stdout.write(f"    {'famille':<14}{'réparés':>9}{'déliés':>9}{'laissés':>9}{'brouillon':>11}")
         for f in familles:
-            if any(stats[f'{f}:{s}'] for s in ('repare', 'laisse', 'brouillon')):
-                self.stdout.write(f"    {f:<14}{stats[f + ':repare']:>9}{stats[f + ':laisse']:>9}"
-                                  f"{stats[f + ':brouillon']:>11}")
+            if any(stats[f'{f}:{s}'] for s in ('repare', 'delie', 'laisse', 'brouillon')):
+                self.stdout.write(f"    {f:<14}{stats[f + ':repare']:>9}{stats[f + ':delie']:>9}"
+                                  f"{stats[f + ':laisse']:>9}{stats[f + ':brouillon']:>11}")
         if stats['documents_crees'] or stats['documents_reutilises']:
             self.stdout.write(f"    documents {'versés' if appliquer else 'à verser'} : "
                               f"{stats['documents_crees']}, réutilisés : {stats['documents_reutilises']}")

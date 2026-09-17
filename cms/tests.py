@@ -6658,8 +6658,156 @@ class RepareLiensMortsTest(TestCase):
         self.assertEqual(self._href(citant), simple)
         self.assertEqual(self._href(autre), numerote)
 
+    # --delier : retirer le lien, garder le texte (17/09/2026).
+
+    def test_delier_retire_le_lien_et_garde_le_texte(self):
+        lien = 'http://www.cnt-so.org/13/spip.php?article124'
+        citant = self._citant(lien)
+        sortie = self._lancer('--appliquer', '--delier')
+        corps = json_du_corps(citant)
+        self.assertNotIn('<a ', corps)
+        self.assertIn('voir', corps)
+        self.assertIn('déliés', sortie)
+
+    def test_delier_garde_la_mise_en_forme_du_texte(self):
+        lien = 'http://www.cnt-so.org/13/spip.php?article124'
+        citant = self._article('citant', f'<p><a href="{lien}"><strong>notre appel</strong></a></p>',
+                               date=self.en_2021)
+        self._lancer('--appliquer', '--delier')
+        self.assertIn('<p><strong>notre appel</strong></p>', json_du_corps(citant))
+
+    def test_sans_delier_le_lien_mort_reste(self):
+        lien = 'http://www.cnt-so.org/13/spip.php?article124'
+        citant = self._citant(lien)
+        self._lancer('--appliquer')
+        self.assertEqual(self._href(citant), lien)
+
+    def test_delier_ne_touche_pas_un_lien_qui_marche(self):
+        lien = 'https://cnt-so.org/13/'
+        self.codes[lien] = 200
+        citant = self._citant(lien)
+        self._lancer('--appliquer', '--delier')
+        self.assertEqual(self._href(citant), lien)
+
+    def test_delier_repare_quand_meme_ce_qui_est_reparable(self):
+        self._article('covid-19-autotests-gratuits-pour-les-intervenants')
+        citant = self._citant('http://www.cnt-so.org/COVID-19-Autotests-gratuits-pour')
+        self._lancer('--appliquer', '--delier')
+        self.assertIn('/article/covid-19-autotests-gratuits-pour-les-intervenants/', self._href(citant))
+
+    def test_delier_respecte_les_brouillons(self):
+        lien = 'http://www.cnt-so.org/13/spip.php?article124'
+        citant = self._citant(lien)
+        citant.title = 'Brouillon en cours'
+        citant.save_revision()
+        self._lancer('--appliquer', '--delier')
+        self.assertEqual(self._href(citant), lien)
+
+    def test_delier_ne_fait_rien_en_simulation(self):
+        lien = 'http://www.cnt-so.org/13/spip.php?article124'
+        citant = self._citant(lien)
+        self._lancer('--delier')
+        self.assertEqual(self._href(citant), lien)
+
 
 def json_du_corps(page):
     import json
+    # Relire en base : la commande a écrit une révision, l'objet en mémoire est
+    # resté sur l'ancien corps — deux tests de `--delier` passaient à côté.
+    page.refresh_from_db()
     return json.dumps(list(page.body.raw_data), ensure_ascii=False).replace('\\"', '"')
 
+
+
+class ListesMailsCloisonnementTest(TestCase):
+    """Personne ne gardait la porte des listes OVH (constaté le 17/09/2026).
+
+    Le code cloisonnait déjà — un rédacteur ne voit que la liste de son
+    syndicat —, mais aucun test ne le vérifiait. Vu les 5 895 adresses qui
+    vivent chez OVH et qu'un écran suffit à retirer, c'est ici que ça se garde.
+    """
+
+    def setUp(self):
+        from django.contrib.auth.models import Group, User
+        self.conf = _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        self.stucs = _ensure_section_page(slug='stucs', name='STUCS', site_type='sectoral')
+        self.auvergne = _ensure_section_page(slug='auvergne', name='Auvergne')
+        for section, listes in ((self.conf, 'news,news2,news3'),
+                                (self.stucs, 'actu-stucs-cntso'),
+                                (self.auvergne, 'auvergne')):
+            section.ovh_mailing_list = listes
+            section.save()
+        self.redacteur = User.objects.create_user('spectacle', 'spectacle@cnt-so.org', 'x')
+        self.redacteur.groups.add(Group.objects.get(name='redacteur_stucs'))
+        self.toutes = ['news', 'news2', 'news3', 'actu-stucs-cntso', 'auvergne']
+        for cible, valeur in (('list_mailing_lists', self.toutes),
+                              ('get_subscribers', ['a@exemple.org'])):
+            p = patch(f'cms.ovh_client.{cible}', return_value=valeur)
+            p.start()
+            self.addCleanup(p.stop)
+
+    def _connecte(self, user=None):
+        self.client.force_login(user or self.redacteur)
+
+    def test_l_index_ne_propose_que_la_liste_du_syndicat(self):
+        self._connecte()
+        r = self.client.get('/cms/mailing-lists/')
+        self.assertEqual(r.status_code, 200)
+        corps = r.content.decode()
+        self.assertIn('actu-stucs-cntso', corps)
+        for autre in ('news', 'auvergne'):
+            self.assertNotIn(f'<option value="{autre}"', corps)
+
+    def test_sa_propre_liste_est_accessible(self):
+        self._connecte()
+        self.assertEqual(self.client.get('/cms/mailing-lists/actu-stucs-cntso/').status_code, 200)
+
+    def test_la_liste_d_un_autre_syndicat_est_refusee(self):
+        self._connecte()
+        for autre in ('news', 'news2', 'auvergne'):
+            self.assertEqual(self.client.get(f'/cms/mailing-lists/{autre}/').status_code, 403, autre)
+
+    def test_aucune_adresse_n_est_envoyee_a_ovh_sur_une_liste_refusee(self):
+        self._connecte()
+        with patch('cms.ovh_client.add_subscriber') as ajout, \
+             patch('cms.ovh_client.remove_subscriber') as retrait:
+            for action in ('add', 'remove'):
+                r = self.client.post('/cms/mailing-lists/news/',
+                                     {'action': action, 'email': 'cible@exemple.org'})
+                self.assertEqual(r.status_code, 403)
+        ajout.assert_not_called()
+        retrait.assert_not_called()
+
+    def test_import_csv_refuse_sur_la_liste_d_un_autre(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self._connecte()
+        fichier = SimpleUploadedFile('abonnes.csv', b'cible@exemple.org\n', content_type='text/csv')
+        with patch('cms.ovh_client.add_subscriber') as ajout:
+            r = self.client.post('/cms/mailing-lists/news/', {'action': 'import', 'csv_file': fichier})
+        self.assertEqual(r.status_code, 403)
+        ajout.assert_not_called()
+
+    def test_syndicat_sans_liste_renseignee_est_econduit(self):
+        from django.contrib.auth.models import Group, User
+        self.auvergne.ovh_mailing_list = ''
+        self.auvergne.save()
+        sans_liste = User.objects.create_user('auvergne', 'a@cnt-so.org', 'x')
+        sans_liste.groups.add(Group.objects.get(name='redacteur_auvergne'))
+        self._connecte(sans_liste)
+        r = self.client.get('/cms/mailing-lists/')
+        self.assertEqual(r.status_code, 403)
+        self.assertIn('Aucune liste mail', r.content.decode())
+
+    def test_le_superutilisateur_voit_toutes_les_listes(self):
+        self._connecte(make_superuser())
+        corps = self.client.get('/cms/mailing-lists/').content.decode()
+        for nom in self.toutes:
+            self.assertIn(nom, corps)
+
+    def test_sur_sa_liste_l_ajout_part_bien_chez_ovh(self):
+        self._connecte()
+        with patch('cms.ovh_client.add_subscriber', return_value=True) as ajout:
+            r = self.client.post('/cms/mailing-lists/actu-stucs-cntso/',
+                                 {'action': 'add', 'email': 'nouvelle@exemple.org'})
+        self.assertEqual(r.status_code, 200)
+        ajout.assert_called_once_with('actu-stucs-cntso', 'nouvelle@exemple.org')
