@@ -73,7 +73,7 @@ urlpatterns = [
 
     # Espace presse
     path('espace-presse/', views.EspacePresse.as_view(), name='espace_presse'),
-    path('<slug:site_slug>/espace-presse/', views.SiteEspacePresse.as_view(), name='site_espace_presse'),
+    path('<slug:site_slug>/espace-presse/', views.sans_syndicat_externe(views.SiteEspacePresse.as_view()), name='site_espace_presse'),
 
     # Contact
     path('contact/', views.ContactView.as_view(), name='contact'),
@@ -132,16 +132,16 @@ urlpatterns = [
          name='site_newsletter_desabonnement'),
 
     # Sous-sites — pages fonctionnelles génériques
-    path('<slug:site_slug>/rejoindre/', views.SiteRejoindreView.as_view(), name='site_rejoindre'),
-    path('<slug:site_slug>/ressources/', views.SiteRessourcesView.as_view(), name='site_ressources'),
-    path('<slug:site_slug>/agenda/', views.SiteAgendaView.as_view(), name='site_agenda'),
+    path('<slug:site_slug>/rejoindre/', views.sans_syndicat_externe(views.SiteRejoindreView.as_view()), name='site_rejoindre'),
+    path('<slug:site_slug>/ressources/', views.sans_syndicat_externe(views.SiteRessourcesView.as_view()), name='site_ressources'),
+    path('<slug:site_slug>/agenda/', views.sans_syndicat_externe(views.SiteAgendaView.as_view()), name='site_agenda'),
     # Le flux doit précéder la page : sans lui, `<slug:slug>` avalerait
     # « feed » comme s'il s'agissait d'une catégorie.
     path('<slug:site_slug>/categorie/<slug:slug>/feed/', SiteCategoryFeed(), name='site_category_rss_feed'),
     path('<slug:site_slug>/categorie/<slug:slug>/', views.SiteCategoryDetailView.as_view(), name='site_category_detail'),
-    path('<slug:site_slug>/contact/', views.SiteContactView.as_view(), name='site_contact'),
-    path('<slug:site_slug>/contact/merci/', views.site_contact_success, name='site_contact_success'),
-    path('<slug:site_slug>/plan-du-site/', views.PlanDuSiteView.as_view(), name='site_plan_du_site'),
+    path('<slug:site_slug>/contact/', views.sans_syndicat_externe(views.SiteContactView.as_view()), name='site_contact'),
+    path('<slug:site_slug>/contact/merci/', views.sans_syndicat_externe(views.site_contact_success), name='site_contact_success'),
+    path('<slug:site_slug>/plan-du-site/', views.sans_syndicat_externe(views.PlanDuSiteView.as_view()), name='site_plan_du_site'),
     path('<section_slug:site_slug>/', views.SiteHomeView.as_view(), name='site_home'),
     path('<ancien_slug_article:slug>/', views.AncienneAdresseArticleView.as_view(), name='ancienne_adresse_article'),
     path('<slug:site_slug>/article/<slug:slug>/', views.SiteArticleDetailView.as_view(), name='site_article_detail'),

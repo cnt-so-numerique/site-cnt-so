@@ -6934,3 +6934,47 @@ class RelieFichiersChoisisTest(TestCase):
         sortie = self._lancer(self._csv([('Tract_DGH', '2014/02/tract_dgh_au_20_fevrier.pdf')]), '--appliquer')
         self.assertIn('jamais rencontré', sortie)
         self.assertIn('Tract_DGH', sortie)
+
+
+class SyndicatExterneTest(TestCase):
+    """STAA et TAS ont leur propre site, mais six pages restaient servies ici.
+
+    Dont un formulaire de contact qui, faute d'adresse propre, écrivait à la
+    confédération (constaté en production le 17/09/2026).
+    """
+
+    PAGES = ('contact/', 'contact/merci/', 'rejoindre/', 'ressources/',
+             'agenda/', 'espace-presse/', 'plan-du-site/')
+
+    def setUp(self):
+        self.externe = _ensure_section_page(
+            slug='staa', name='STAA', site_type='sectoral',
+            external_url='https://staa-cnt-so.org/')
+        self.interne = _ensure_section_page(slug='stucs', name='STUCS', site_type='sectoral')
+
+    def test_toutes_les_pages_renvoient_au_site_du_syndicat(self):
+        for page in self.PAGES:
+            r = self.client.get(f'/staa/{page}')
+            self.assertEqual(r.status_code, 302, page)
+            self.assertEqual(r['Location'], 'https://staa-cnt-so.org/', page)
+
+    def test_aucun_message_ne_peut_partir_de_ces_pages(self):
+        from content.models import ContactMessage
+        avant = ContactMessage.objects.count()
+        r = self.client.post('/staa/contact/', {
+            'nom': 'Quelqu’un', 'email': 'q@exemple.org',
+            'objet': 'Bonjour', 'message': 'Un message'})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r['Location'], 'https://staa-cnt-so.org/')
+        self.assertEqual(ContactMessage.objects.count(), avant)
+
+    def test_un_syndicat_heberge_ici_n_est_pas_touche(self):
+        for page in ('contact/', 'rejoindre/', 'ressources/', 'agenda/'):
+            r = self.client.get(f'/stucs/{page}')
+            self.assertEqual(r.status_code, 200, page)
+
+    def test_la_redirection_suit_l_adresse_du_syndicat(self):
+        self.externe.external_url = 'https://autre-adresse.example.org/'
+        self.externe.save()
+        r = self.client.get('/staa/contact/')
+        self.assertEqual(r['Location'], 'https://autre-adresse.example.org/')

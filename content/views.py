@@ -2,6 +2,8 @@ import logging
 from datetime import datetime, timezone as dt_timezone
 from itertools import chain
 
+from functools import wraps
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView, DetailView, View, CreateView, TemplateView
 from django.http import Http404
@@ -892,6 +894,27 @@ class WordPressRedirectView(View):
             return redirect(page.get_absolute_url(), permanent=True)
 
         raise Http404("Contenu non trouvé")
+
+
+def sans_syndicat_externe(vue):
+    """Renvoie un syndicat qui a son propre site chez lui.
+
+    STAA et TAS vivent sur staa-cnt-so.org et cnt-tas.org, et leur accueil y
+    renvoie déjà. Restaient six coquilles servies ici — contact, rejoindre,
+    ressources, agenda, espace presse, plan du site —, dont **un formulaire de
+    contact qui écrivait à la confédération** faute d'adresse propre (constaté
+    le 17/09/2026 : aucun message reçu, mais la page était bien servie).
+
+    La garde est posée au routage, là où la liste de ces pages est visible :
+    une page fonctionnelle ajoutée demain se protège d'une seule ligne.
+    """
+    @wraps(vue)
+    def _vue(request, *args, **kwargs):
+        section = get_section_or_404(kwargs.get('site_slug', ''))
+        if section is not None and section.external_url:
+            return redirect(section.external_url)
+        return vue(request, *args, **kwargs)
+    return _vue
 
 
 class AncienneAdresseArticleView(View):
