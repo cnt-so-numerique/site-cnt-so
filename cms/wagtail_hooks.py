@@ -1050,9 +1050,16 @@ def _allowed_mailing_lists(request):
     if request.user.is_superuser:
         return None  # None = pas de restriction
     current = get_current_site(request)
-    if current and current.ovh_mailing_list:
-        return [n.strip() for n in current.ovh_mailing_list.split(',') if n.strip()]
-    return []
+    if current is None:
+        return []
+    # Deux champs : les listes qui reçoivent la newsletter, et celles que le
+    # syndicat gère sans les recevoir. Les fondre en un seul enverrait la
+    # lettre confédérale à toutes les listes de travail (17/09/2026).
+    noms = []
+    for champ in (current.ovh_mailing_list, current.ovh_listes_gerees):
+        noms += [n.strip() for n in (champ or '').split(',') if n.strip()]
+    # `dict.fromkeys` : sans doublon, et l'ordre de saisie est conservé.
+    return list(dict.fromkeys(noms))
 
 
 def _can_access_list(request, list_name):

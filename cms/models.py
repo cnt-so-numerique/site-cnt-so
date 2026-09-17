@@ -804,6 +804,14 @@ class SectionPage(SeoMixin, Page):
         help_text="Noms des listes sur cnt-so.info, séparés par des virgules. "
                   "La newsletter part à TOUTES ces listes.",
     )
+    ovh_listes_gerees = models.TextField(
+        blank=True,
+        verbose_name="Listes OVH gérées ici (hors newsletter)",
+        help_text="Listes que ce syndicat peut consulter et modifier depuis "
+                  "« Listes mails », SANS jamais recevoir la newsletter. "
+                  "Séparées par des virgules. Sert aux listes de travail que "
+                  "personne d'autre ne gère.",
+    )
     newsletter_active = models.BooleanField(
         default=False,
         verbose_name="Proposer la newsletter sur ce site",
@@ -876,6 +884,11 @@ class SectionPage(SeoMixin, Page):
             FieldPanel('newsletter_active'),
             FieldPanel('ovh_mailing_list', widget=OVHMailingListWidget),
             FieldPanel('ovh_liste_inscription'),
+            # Deux champs, deux rôles : celui du dessus dit À QUI part la
+            # newsletter, celui-ci dit seulement QUI a le droit de gérer la
+            # liste. Les confondre enverrait la lettre confédérale à toutes
+            # les listes de travail — ce qui a failli arriver le 17/09/2026.
+            FieldPanel('ovh_listes_gerees'),
         ], heading="Newsletter OVH"),
         MultiFieldPanel([
             FieldPanel('social_mastodon'),

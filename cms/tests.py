@@ -6804,6 +6804,21 @@ class ListesMailsCloisonnementTest(TestCase):
         self.assertEqual(r.status_code, 403)
         self.assertIn('Aucune liste mail', r.content.decode())
 
+    def test_un_compte_sans_syndicat_n_a_acces_a_rien(self):
+        """Le cas le plus dangereux : aucun syndicat résolu.
+
+        Si l'absence de syndicat était traitée comme « pas de restriction »,
+        un compte mal rattaché verrait — et modifierait — les cinquante listes,
+        `news` comprise. Aucun test ne le couvrait (trouvé par mutation le
+        17/09/2026).
+        """
+        from django.contrib.auth.models import Group, User
+        orphelin = User.objects.create_user('sans_syndicat', 'o@cnt-so.org', 'x')
+        orphelin.groups.add(Group.objects.get(name='redacteur'))   # socle, sans section
+        self._connecte(orphelin)
+        self.assertEqual(self.client.get('/cms/mailing-lists/').status_code, 403)
+        self.assertEqual(self.client.get('/cms/mailing-lists/news/').status_code, 403)
+
     def test_le_superutilisateur_voit_toutes_les_listes(self):
         self._connecte(make_superuser())
         corps = self.client.get('/cms/mailing-lists/').content.decode()
@@ -7057,3 +7072,66 @@ class CarrouselDesSyndicatsTest(TestCase):
         html = self.client.get('/stucs/').content.decode()
         self.assertNotIn('id="sc-pause"', html,
                          "un seul visuel : rien ne bouge, donc pas de bouton pause")
+
+
+class ListesGereesSansNewsletterTest(TestCase):
+    """Deux champs, deux rôles (17/09/2026).
+
+    Arnaud a demandé que les 38 listes OVH sans propriétaire reviennent à la
+    conf. Les poser dans `ovh_mailing_list` les aurait rendues **destinataires
+    de la newsletter confédérale** — `lists_for_site` lit ce champ pour bâtir
+    la liste d'envoi. La lettre serait partie à `contactdeputes`, `juridique`,
+    `litige-rp`… Seule la limite de 500 caractères l'a empêché.
+    """
+
+    def setUp(self):
+        from django.contrib.auth.models import Group, User
+        self.conf = _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        self.conf.ovh_mailing_list = 'news,news2,news3'
+        self.conf.ovh_listes_gerees = 'juridique,contactdeputes,litige-rp'
+        self.conf.save()
+        self.chef = User.objects.create_user('chef_listes', 'chef@cnt-so.org', 'x')
+        self.chef.groups.add(Group.objects.get(name='redacteur_principal'))
+
+    def test_la_newsletter_ne_part_qu_aux_listes_de_diffusion(self):
+        from content.ovh_sync import lists_for_site
+        self.assertEqual(lists_for_site(self.conf), ['news', 'news2', 'news3'])
+
+    def test_le_chef_gere_les_deux_ensembles(self):
+        self.client.force_login(self.chef)
+        toutes = ['news', 'news2', 'news3', 'juridique', 'contactdeputes',
+                  'litige-rp', 'cnt-so13']
+        with patch('cms.ovh_client.list_mailing_lists', return_value=toutes), \
+             patch('cms.ovh_client.get_subscribers', return_value=[]):
+            corps = self.client.get('/cms/mailing-lists/').content.decode()
+        self.assertNotIn('value="cnt-so13"', corps, "la liste du 13 n'est pas à la conf")
+        for nom in ('news', 'news2', 'news3', 'juridique', 'contactdeputes', 'litige-rp'):
+            self.assertIn(f'value="{nom}"', corps, nom)
+
+    def test_une_liste_geree_est_bien_modifiable(self):
+        self.client.force_login(self.chef)
+        with patch('cms.ovh_client.get_subscribers', return_value=[]), \
+             patch('cms.ovh_client.add_subscriber', return_value=True) as ajout:
+            r = self.client.post('/cms/mailing-lists/juridique/',
+                                 {'action': 'add', 'email': 'q@exemple.org'})
+        self.assertEqual(r.status_code, 200)
+        ajout.assert_called_once_with('juridique', 'q@exemple.org')
+
+    def test_un_autre_syndicat_n_y_touche_pas(self):
+        from django.contrib.auth.models import Group, User
+        treize = _ensure_section_page(slug='13', name='CNT-SO 13')
+        treize.ovh_mailing_list = 'cnt-so13'
+        treize.save()
+        u = User.objects.create_user('red13_listes', 'r@cnt-so.org', 'x')
+        u.groups.add(Group.objects.get(name='redacteur_13'))
+        self.client.force_login(u)
+        with patch('cms.ovh_client.get_subscribers', return_value=[]):
+            self.assertEqual(self.client.get('/cms/mailing-lists/juridique/').status_code, 403)
+
+    def test_le_champ_de_diffusion_reste_seul_maitre_de_l_envoi(self):
+        """Même vidé de ses listes gérées, l'envoi ne change pas."""
+        from content.ovh_sync import lists_for_site
+        avant = lists_for_site(self.conf)
+        self.conf.ovh_listes_gerees = 'une-liste-de-plus,encore-une'
+        self.conf.save()
+        self.assertEqual(lists_for_site(self.conf), avant)
