@@ -73,3 +73,18 @@ irréparables, 6 fichiers SPIP, 5 WordPress, 2 catégories).
 Contrôle public : sur l'article TPE, « Voir notre profession de foi » mène à
 `/article/election-tpe-tpa-2021-profession-de-foi-de-la-cnt-so/` (200), les 8
 encadrés « Télécharger » sont intacts, plus aucun lien `www.cnt-so.org`.
+
+### Retrait des liens non réparables (17/09/2026, `--delier`)
+
+Sauvegarde : `~/cntso-avant-delier-20260917-1349.sql.gz` (12,5 Mo).
+**67 pages, 75 liens retirés** (texte conservé) : 43 titres SPIP, 20 `spip.php?articleNNN`,
+6 fichiers SPIP absents, 6 adresses WordPress/catégories. Contrôle : 0 page à modifier,
+adresses en erreur tombées de 52 à 3 — **les 3 restantes sont dans des pages qui portent
+un brouillon non publié**, jamais touchées.
+Contrôle public : 4 pages tirées du rapport répondent 200, sans lien mort résiduel.
+
+⚠️ **Le retour arrière par révision n'existe pas pour ces pages** : elles n'avaient
+AUCUNE révision avant celle créée par la commande (articles importés, jamais réédités).
+La sauvegarde de base est le seul retour arrière. À dire tel quel la prochaine fois.
+
+Rapport : `/tmp/delier-applique.csv` sur le serveur.
