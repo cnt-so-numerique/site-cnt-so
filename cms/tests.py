@@ -6817,3 +6817,120 @@ class ListesMailsCloisonnementTest(TestCase):
                                  {'action': 'add', 'email': 'nouvelle@exemple.org'})
         self.assertEqual(r.status_code, 200)
         ajout.assert_called_once_with('actu-stucs-cntso', 'nouvelle@exemple.org')
+
+
+class RelieFichiersChoisisTest(TestCase):
+    """Les rapprochements décidés à la main (17/09/2026).
+
+    `repare_liens_fichiers` laisse ce dont il n'est pas sûr ; huit cas ont été
+    tranchés par Arnaud sur le rapport. Cette commande applique ce choix-là, et
+    rien d'autre.
+    """
+
+    def setUp(self):
+        import shutil, tempfile
+        from datetime import datetime
+        from django.test import override_settings
+        self.media = tempfile.mkdtemp()
+        self.legacy = tempfile.mkdtemp()
+        reglages = override_settings(MEDIA_ROOT=self.media, LEGACY_UPLOADS_ROOT=self.legacy)
+        reglages.enable()
+        self.addCleanup(reglages.disable)
+        for d in (self.media, self.legacy):
+            self.addCleanup(shutil.rmtree, d, True)
+        self.conf = _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        self.treize = _ensure_section_page(slug='13', name='CNT-SO 13')
+        self.date = timezone.make_aware(datetime(2017, 11, 1))
+
+    def _fichier(self, rel, contenu=b'%PDF tract'):
+        import os
+        chemin = os.path.join(self.legacy, 'wp-content', 'uploads', rel)
+        os.makedirs(os.path.dirname(chemin), exist_ok=True)
+        with open(chemin, 'wb') as f:
+            f.write(contenu)
+        return chemin
+
+    def _csv(self, lignes):
+        import os
+        chemin = os.path.join(self.media, 'choix.csv')
+        with open(chemin, 'w', encoding='utf-8') as f:
+            f.write('nom;fichier\n')
+            for nom, fichier in lignes:
+                f.write(f'{nom};{fichier}\n')
+        return chemin
+
+    def _article(self, slug, html, section=None):
+        import json, uuid
+        section = section or self.conf
+        return section.add_child(instance=ArticlePage(
+            title=slug, slug=slug, section_slug=section.slug, live=True,
+            publication_date=self.date,
+            body=json.dumps([{'type': 'rich_text', 'id': str(uuid.uuid4()), 'value': html}])))
+
+    def _lancer(self, chemin_csv, *args):
+        from io import StringIO
+        from django.core.management import call_command
+        sortie = StringIO()
+        call_command('relie_fichiers_choisis', '--csv', chemin_csv, *args, stdout=sortie)
+        return sortie.getvalue()
+
+    def _types(self, page):
+        page.refresh_from_db()
+        return [b['type'] for b in page.body.raw_data]
+
+    def test_relie_le_fichier_decide(self):
+        from wagtail.documents import get_document_model
+        self._fichier('2017/11/pe_tition_aade_a_10.pdf')
+        art = self._article('cui', '<h2>Pétition</h2><p>pe_tition_aade</p>')
+        self._lancer(self._csv([('pe_tition_aade', '2017/11/pe_tition_aade_a_10.pdf')]), '--appliquer')
+        self.assertEqual(self._types(art), ['rich_text', 'file'])
+        doc = get_document_model().objects.get()
+        self.assertEqual(art.body.raw_data[1]['value']['document'], doc.pk)
+        self.assertEqual(art.body.raw_data[1]['value']['title'], 'pe_tition_aade')
+
+    def test_la_copie_d_un_autre_syndicat_est_reliee_aussi(self):
+        self._fichier('2017/11/pe_tition_aade_a_10.pdf')
+        conf = self._article('cui', '<p>pe_tition_aade</p>')
+        treize = self._article('cui-13', '<p>pe_tition_aade</p>', section=self.treize)
+        self._lancer(self._csv([('pe_tition_aade', '2017/11/pe_tition_aade_a_10.pdf')]), '--appliquer')
+        self.assertEqual(self._types(conf), ['file'])
+        self.assertEqual(self._types(treize), ['file'])
+
+    def test_un_nom_absent_du_csv_n_est_pas_touche(self):
+        self._fichier('2017/11/pe_tition_aade_a_10.pdf')
+        art = self._article('cui', '<p>pe_tition_aade</p><p>tract_1er_mai</p>')
+        self._lancer(self._csv([('pe_tition_aade', '2017/11/pe_tition_aade_a_10.pdf')]), '--appliquer')
+        art.refresh_from_db()
+        self.assertEqual(self._types(art), ['file', 'rich_text'])
+        self.assertIn('tract_1er_mai', art.body.raw_data[1]['value'])
+
+    def test_fichier_introuvable_arrete_tout(self):
+        from django.core.management.base import CommandError
+        art = self._article('cui', '<p>pe_tition_aade</p>')
+        with self.assertRaises(CommandError):
+            self._lancer(self._csv([('pe_tition_aade', '2017/11/jamais_vu.pdf')]), '--appliquer')
+        self.assertEqual(self._types(art), ['rich_text'])
+
+    def test_la_simulation_n_ecrit_rien(self):
+        from wagtail.documents import get_document_model
+        self._fichier('2017/11/pe_tition_aade_a_10.pdf')
+        art = self._article('cui', '<p>pe_tition_aade</p>')
+        sortie = self._lancer(self._csv([('pe_tition_aade', '2017/11/pe_tition_aade_a_10.pdf')]))
+        self.assertIn('pages à modifier : 1', sortie)
+        self.assertEqual(self._types(art), ['rich_text'])
+        self.assertFalse(get_document_model().objects.exists())
+
+    def test_brouillon_en_cours_respecte(self):
+        self._fichier('2017/11/pe_tition_aade_a_10.pdf')
+        art = self._article('cui', '<p>pe_tition_aade</p>')
+        art.title = 'Brouillon en cours'
+        art.save_revision()
+        sortie = self._lancer(self._csv([('pe_tition_aade', '2017/11/pe_tition_aade_a_10.pdf')]), '--appliquer')
+        self.assertEqual(self._types(art), ['rich_text'])
+        self.assertIn('brouillon en cours', sortie)
+
+    def test_un_nom_jamais_rencontre_est_signale(self):
+        self._fichier('2014/02/tract_dgh_au_20_fevrier.pdf')
+        sortie = self._lancer(self._csv([('Tract_DGH', '2014/02/tract_dgh_au_20_fevrier.pdf')]), '--appliquer')
+        self.assertIn('jamais rencontré', sortie)
+        self.assertIn('Tract_DGH', sortie)
