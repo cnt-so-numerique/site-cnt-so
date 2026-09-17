@@ -6978,3 +6978,38 @@ class SyndicatExterneTest(TestCase):
         self.externe.save()
         r = self.client.get('/staa/contact/')
         self.assertEqual(r['Location'], 'https://autre-adresse.example.org/')
+
+
+class FichePratiqueRetireeDeLEditeurTest(TestCase):
+    """La case « Fiche pratique » n'est plus proposée (Arnaud, 17/09/2026).
+
+    Elle promettait un tract A4 pour n'importe quel article ; un seul avait été
+    mis en page pour ça. Le champ reste, l'article du forfait jours garde son
+    bouton — c'est le seul coché en production (vérifié le 17/09).
+    """
+
+    def setUp(self):
+        self.conf = _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+
+    def test_la_case_a_disparu_de_l_editeur(self):
+        from cms.models import ArticlePage
+        champs = ArticlePage.get_edit_handler().get_form_class().base_fields
+        self.assertNotIn('fiche_pratique', champs)
+        # Les voisines du même panneau sont toujours là : on n'a pas vidé le panneau.
+        self.assertIn('in_carousel', champs)
+
+    def test_un_article_deja_coche_garde_son_tract(self):
+        art = make_article_page(title='Forfait jours', slug='forfait-jours',
+                                fiche_pratique=True)
+        self.assertTrue(ArticlePage.objects.get(pk=art.pk).fiche_pratique)
+        r = self.client.get('/article/forfait-jours/tract/')
+        self.assertEqual(r.status_code, 200)
+
+    def test_le_bouton_reste_affiche_sous_l_article(self):
+        make_article_page(title='Forfait jours', slug='forfait-jours', fiche_pratique=True)
+        r = self.client.get('/article/forfait-jours/')
+        self.assertContains(r, '/tract/')
+
+    def test_un_article_ordinaire_n_a_toujours_pas_de_tract(self):
+        make_article_page(title='Brève', slug='breve')
+        self.assertEqual(self.client.get('/article/breve/tract/').status_code, 404)

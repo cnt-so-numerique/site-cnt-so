@@ -5376,15 +5376,25 @@ class NavigationClavierTest(TestCase):
                       "le carrousel devrait être rendu")
         return html
 
-    def test_le_carrousel_ne_defile_pas_tout_seul(self):
+    def test_un_carrousel_qui_defile_seul_peut_etre_arrete(self):
         """WCAG 2.2.2 (niveau A) : tout contenu qui défile seul au-delà de
-        5 secondes doit pouvoir être arrêté. Le carrousel se passe de bouton
-        pause parce qu'il ne bouge que sur clic — supprimer la minuterie sans
-        remettre la pause rouvrirait le manquement."""
+        5 secondes doit pouvoir être arrêté.
+
+        Le carrousel n'a longtemps bougé que sur clic, ce qui dispensait du
+        bouton pause ; Arnaud a demandé le défilement automatique le
+        17/09/2026. Le test garde l'exigence, pas la façon de la tenir : si la
+        minuterie est là, la pause doit l'être aussi."""
         html = self._accueil_avec_carrousel()
-        self.assertNotIn('setInterval', html,
-                         "le carrousel ne doit pas défiler de lui-même : sans "
-                         "minuterie, aucun bouton pause n'est exigible")
+        if 'setInterval' not in html:
+            return   # pas de défilement : rien à arrêter
+        self.assertIn('id="hp-pause"', html,
+                      "le carrousel défile seul : il faut un bouton pour l'arrêter")
+        self.assertIn('aria-label="Mettre le défilement en pause"', html,
+                      "le bouton pause doit être nommé pour un lecteur d'écran")
+        self.assertIn("mouseenter", html,
+                      "le défilement doit se suspendre au survol : on lit une manchette")
+        self.assertIn("focusin", html,
+                      "et se suspendre aussi quand le clavier entre dans le carrousel")
 
     def test_le_carrousel_respecte_le_reglage_animations_reduites(self):
         html = self._accueil_avec_carrousel()
@@ -9720,3 +9730,77 @@ class ExpediteurDesAlertesTest(TestCase):
                      to=['a@b.fr']).message()  # lève si l'adresse est invalide
 
 
+
+
+class ContactListActionsTest(TestCase):
+    """Agir depuis la liste des messages (Arnaud, 17/09/2026).
+
+    La liste n'offrait que « Lire » : marquer non lu ou supprimer imposait
+    d'ouvrir chaque message, et rien ne permettait d'en traiter plusieurs.
+    Le point qui compte : une action ne doit jamais franchir le syndicat.
+    """
+
+    def setUp(self):
+        self.site_a = make_site(slug='site-a', wp_blog_id=10, name='Site A')
+        self.site_b = make_site(slug='site-b', wp_blog_id=11, name='Site B')
+        self.msg_a = make_contact_message(self.site_a, name='Alice')
+        self.msg_a2 = make_contact_message(self.site_a, name='Anne')
+        self.msg_b = make_contact_message(self.site_b, name='Bob')
+        self.chef = make_chef(username='chef_actions', site=self.site_a)
+        self.client.force_login(self.chef)
+        _set_chef_site(self.client, self.site_a)
+
+    def _post(self, donnees):
+        return self.client.post('/cms/contact/', donnees, follow=True)
+
+    def test_marquer_lu_puis_non_lu(self):
+        self.assertFalse(ContactMessage.objects.get(pk=self.msg_a.pk).is_read)
+        self._post({'action': 'lu', 'pk': self.msg_a.pk})
+        self.assertTrue(ContactMessage.objects.get(pk=self.msg_a.pk).is_read)
+        self._post({'action': 'non_lu', 'pk': self.msg_a.pk})
+        self.assertFalse(ContactMessage.objects.get(pk=self.msg_a.pk).is_read)
+
+    def test_supprimer_un_message(self):
+        self._post({'action': 'supprimer', 'pk': self.msg_a.pk})
+        self.assertFalse(ContactMessage.objects.filter(pk=self.msg_a.pk).exists())
+
+    def test_supprimer_une_selection(self):
+        self._post({'action': 'supprimer_selection',
+                    'pks': [str(self.msg_a.pk), str(self.msg_a2.pk)]})
+        self.assertEqual(ContactMessage.objects.filter(site=self.site_a).count(), 0)
+
+    def test_le_message_d_un_autre_syndicat_est_intouchable(self):
+        for action in ('lu', 'non_lu', 'supprimer'):
+            self._post({'action': action, 'pk': self.msg_b.pk})
+            self.assertTrue(ContactMessage.objects.filter(pk=self.msg_b.pk).exists(), action)
+        self.assertFalse(ContactMessage.objects.get(pk=self.msg_b.pk).is_read)
+
+    def test_la_suppression_de_masse_ne_deborde_pas(self):
+        self._post({'action': 'supprimer_selection',
+                    'pks': [str(self.msg_a.pk), str(self.msg_b.pk)]})
+        self.assertFalse(ContactMessage.objects.filter(pk=self.msg_a.pk).exists())
+        self.assertTrue(ContactMessage.objects.filter(pk=self.msg_b.pk).exists())
+
+    def test_la_ligne_entiere_mene_au_message(self):
+        r = self.client.get('/cms/contact/')
+        self.assertContains(r, f'class="cnt-msg-lien" href="/cms/contact/{self.msg_a.pk}/"')
+        self.assertContains(r, 'value="supprimer_selection"')
+        self.assertContains(r, 'Marquer lu')
+
+    def test_action_inconnue_ne_fait_rien(self):
+        avant = ContactMessage.objects.count()
+        self._post({'action': 'n_importe_quoi', 'pk': self.msg_a.pk})
+        self.assertEqual(ContactMessage.objects.count(), avant)
+
+    def test_le_lien_de_reponse_est_correctement_encode(self):
+        msg = make_contact_message(self.site_a, name='Zoé')
+        msg.subject = 'Congés payés : où en est-on ?'
+        msg.save()
+        r = self.client.get(f'/cms/contact/{msg.pk}/')
+        corps = r.content.decode()
+        self.assertIn('subject=Re%3A%20Cong%C3%A9s%20pay%C3%A9s', corps)
+        self.assertNotIn('?subject=Re: ', corps)
+        # L'arobase reste littérale : encodée en %40, des logiciels de courrier
+        # refusent d'ouvrir le message.
+        self.assertIn(f'mailto:{msg.email}?subject=', corps)
+        self.assertIn('cnt-copier-adresse', corps)

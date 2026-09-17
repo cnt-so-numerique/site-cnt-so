@@ -42,7 +42,45 @@ class ContactSubmissionListView(ChefRequiredMixin, View):
             'current_site': current_site,
             'q': q,
             'status_filter': status_filter,
+            'nb_non_lus': qs.filter(is_read=False).count(),
         })
+
+    def post(self, request):
+        """Marquer lu/non lu et supprimer, depuis la liste (Arnaud, 17/09/2026).
+
+        La liste n'offrait que « Lire » : marquer non lu ou supprimer imposait
+        d'ouvrir chaque message. Toute action repasse par le même filtrage que
+        l'affichage — `_borner_au_syndicat` —, sans quoi un identifiant deviné
+        dans le formulaire aurait touché le message d'un autre syndicat.
+        """
+        current_site = _get_current_site(request)
+        qs = _borner_au_syndicat(ContactMessage.objects.all(), request, current_site)
+        action = request.POST.get('action')
+        retour = request.META.get('HTTP_REFERER') or '/cms/contact/'
+
+        if action in ('lu', 'non_lu'):
+            vise = qs.filter(pk=request.POST.get('pk'))
+            nb = vise.update(is_read=(action == 'lu'))
+            if nb:
+                messages.success(request, 'Message marqué comme '
+                                          + ('lu.' if action == 'lu' else 'non lu.'))
+        elif action == 'supprimer':
+            vise = qs.filter(pk=request.POST.get('pk'))
+            nb, _ = vise.delete()
+            if nb:
+                messages.success(request, 'Message supprimé.')
+        elif action == 'supprimer_selection':
+            # `getlist` puis filtrage : les identifiants qui ne sont pas au
+            # syndicat courant disparaissent d'eux-mêmes du queryset.
+            choisis = [p for p in request.POST.getlist('pks') if p.isdigit()]
+            vise = qs.filter(pk__in=choisis)
+            nb = vise.count()
+            vise.delete()
+            messages.success(request, f'{nb} message(s) supprimé(s).' if nb
+                             else 'Aucun message supprimé.')
+        else:
+            messages.error(request, 'Action inconnue.')
+        return redirect(retour if retour.startswith('/cms/contact') else '/cms/contact/')
 
 
 class ContactSubmissionDetailView(ChefRequiredMixin, View):

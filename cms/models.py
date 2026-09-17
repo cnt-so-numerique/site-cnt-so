@@ -1093,7 +1093,11 @@ def panneaux_article():
             # Réservés aux chefs : imposés par `form_valid` pour les autres,
             # et leur panneau disparaît au lieu de laisser une étiquette vide.
             PanneauChefSeulement('featured_on_conf'),
-            FieldPanel('fiche_pratique'),
+            # `fiche_pratique` n'est plus proposé (Arnaud, 17/09/2026) : la
+            # case promettait un tract A4 pour n'importe quel article, alors
+            # qu'un seul avait été mis en page pour ça. Le champ, la route
+            # `/article/<slug>/tract/` et le gabarit restent : l'article du
+            # forfait jours (le seul coché en production) garde son bouton.
             PanneauChefSeulement('section_slug'),
         ], heading="Réglages", classname='cnt-reglages'),
         FieldPanel('cms_categories', widget=forms.CheckboxSelectMultiple,

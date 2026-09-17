@@ -145,6 +145,15 @@
 .hp-carousel-btn--next { order: 3; }
 
 /* Points de pagination */
+.hp-carousel-btn--pause {
+    order: 3;
+    /* Le carrousel défile seul : WCAG 2.2.2 exige de pouvoir l'arrêter. Le
+       bouton n'apparaît que si le défilement est réellement actif — il est
+       posé `hidden` et le script le révèle. */
+    font-size: .7rem;
+    letter-spacing: .1em;
+}
+
 .hp-carousel-dots {
     order: 2;
     /* Les pastilles occupent la place libre entre les deux flèches. */
@@ -826,6 +835,9 @@
             <div class="hp-carousel-cmd">
                 <button class="hp-carousel-btn hp-carousel-btn--prev" id="hp-prev" aria-label="Précédent">&#8249;</button>
                 <button class="hp-carousel-btn hp-carousel-btn--next" id="hp-next" aria-label="Suivant">&#8250;</button>
+                <button class="hp-carousel-btn hp-carousel-btn--pause" id="hp-pause"
+                        aria-pressed="false" aria-label="Mettre le défilement en pause"
+                        title="Mettre le défilement en pause" hidden>&#10073;&#10073;</button>
                 <div class="hp-carousel-dots" id="hp-carousel-dots">
                     {% for article in carousel_articles %}
                     <button class="hp-carousel-dot{% if forloop.first %} hp-carousel-dot--active{% endif %}" data-index="{{ forloop.counter0 }}" aria-label="Article {{ forloop.counter }}"></button>
@@ -971,17 +983,72 @@
         if (dots[current]) dots[current].classList.add('hp-carousel-dot--active');
     }
 
-    // Le carrousel ne tourne QUE sur action : pas de minuterie. C'est ce qui
-    // permet de se passer du bouton pause qu'exigeait WCAG 2.2.2 — la règle ne
-    // vise que les contenus qui défilent d'eux-mêmes plus de 5 secondes.
-    if (prev) prev.addEventListener('click', function() { goTo(current - 1); });
-    if (next) next.addEventListener('click', function() { goTo(current + 1); });
+    // Le carrousel défile seul (Arnaud, 17/09/2026, après l'avoir retiré en
+    // août). WCAG 2.2.2 l'autorise à condition de pouvoir l'arrêter : d'où le
+    // bouton pause, l'arrêt au survol et au clavier, et le respect du réglage
+    // « limiter les animations » du système, qui suffit à ne jamais démarrer.
+    var DELAI = 6000;
+    var pause  = document.getElementById('hp-pause');
+    var minuterie = null;
+    var arretParLUtilisateur = false;
+    var animationsReduites = window.matchMedia
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function demarre() {
+        if (animationsReduites || arretParLUtilisateur || minuterie) return;
+        minuterie = setInterval(function() { goTo(current + 1); }, DELAI);
+    }
+    function arrete() {
+        if (minuterie) { clearInterval(minuterie); minuterie = null; }
+    }
+    function relance() {   // après une action : on repart du plein délai
+        arrete();
+        demarre();
+    }
+
+    if (prev) prev.addEventListener('click', function() { goTo(current - 1); relance(); });
+    if (next) next.addEventListener('click', function() { goTo(current + 1); relance(); });
 
     dots.forEach(function(dot) {
         dot.addEventListener('click', function() {
             goTo(parseInt(dot.getAttribute('data-index'), 10));
+            relance();
         });
     });
+
+    if (pause && !animationsReduites) {
+        pause.hidden = false;
+        pause.addEventListener('click', function() {
+            arretParLUtilisateur = !arretParLUtilisateur;
+            if (arretParLUtilisateur) {
+                arrete();
+                pause.innerHTML = '&#9654;';
+                pause.setAttribute('aria-pressed', 'true');
+                pause.setAttribute('aria-label', 'Reprendre le défilement');
+                pause.setAttribute('title', 'Reprendre le défilement');
+            } else {
+                pause.innerHTML = '&#10073;&#10073;';
+                pause.setAttribute('aria-pressed', 'false');
+                pause.setAttribute('aria-label', 'Mettre le défilement en pause');
+                pause.setAttribute('title', 'Mettre le défilement en pause');
+                demarre();
+            }
+        });
+    }
+
+    // Lire une manchette demande du temps : le survol et le clavier suspendent.
+    track.addEventListener('mouseenter', arrete);
+    track.addEventListener('mouseleave', demarre);
+    var section = track.closest('.hp-carousel');
+    if (section) {
+        section.addEventListener('focusin', arrete);
+        section.addEventListener('focusout', demarre);
+    }
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) { arrete(); } else { demarre(); }
+    });
+
+    demarre();
 })();
 </script>
 {% endif %}

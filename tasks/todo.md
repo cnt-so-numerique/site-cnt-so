@@ -1,192 +1,49 @@
-# À FAIRE AVANT LA BASCULE DNS
+# À faire — demandé le 17/09/2026
 
-> **Attention, fiche en partie périmée (constaté le 12/09/2026).** Le plan de
-> la page « Rejoindre » décrit plus bas **a été appliqué le 17/08/2026** : le
-> second formulaire de contact a été retiré, les trois champs existent sur la
-> fiche du syndicat (`rejoindre_accroche`, `rejoindre_atouts`,
-> `rejoindre_bouton`) et le gabarit renvoie vers `/<syndicat>/contact/`.
-> Ses cases n'ont jamais été cochées.
+## 1. Retirer la case « Fiche pratique — téléchargeable en tract »
+- [x] Compter en prod les articles qui l'ont cochée (attendu : le forfait jours)
+- [x] Retirer `FieldPanel('fiche_pratique')` de l'éditeur (cms/models.py)
+- [x] Garder le champ, la route `/article/<slug>/tract/` et le gabarit : l'article
+      du forfait jours garde son tract
+- [x] Décocher les autres articles s'il y en a (à valider avec Arnaud)
 
-## Quatre syndicats sans destinataire de contact
+## 2. Carrousel : remettre le défilement automatique
+- [x] Minuterie (≈6 s), **avec bouton pause** — WCAG 2.2.2 l'exige au-delà de 5 s
+- [x] Arrêt au survol et au focus clavier ; respect de `prefers-reduced-motion`
+- [x] Le défilement reprend là où l'on est après un clic sur flèche/pastille
 
-Relevé sur la production le 26/08/2026. Ces quatre formulaires n'ont ni
-adresse propre ni adresse sur la fiche du syndicat : leurs messages partent
-vers `contact@cnt-so.org` par repli.
+## 3. Écran des messages reçus (/cms/contact/)
+- [x] Ligne entière cliquable (le lien « Lire » devient superflu)
+- [x] Par ligne : marquer lu / non lu, supprimer (avec confirmation)
+- [x] Sélection multiple + suppression de masse (avec confirmation et compte)
+- [x] Cloisonnement : un rédacteur n'agit que sur les messages de son syndicat
 
-Sans conséquence aujourd'hui — aucune personne réelle n'a jamais écrit par le
-formulaire, le site n'étant public que sur `newsite.cnt-so.org` (les 6 messages
-en base datent tous du 30/05 et sont des essais). **Mais le jour où
-`cnt-so.org` pointera ici, les messages de ces quatre syndicats arriveront à
-la confédération, et personne ne s'en apercevra.**
+## 4. « Répondre par mail »
+- [x] Encoder correctement le `mailto:` (objet, accents, espaces)
+- [x] Ajouter « copier l'adresse » : marche même sans logiciel de courrier associé
 
-- [x] **CNT-SO 13 (Marseille)** → `contact13@cnt-so.org`
-- [x] **CNT-SO Auvergne** → `auvergne@cnt-so.org`
-- [x] **CNT-SO Rhône-Alpes** → `ur-ra@cnt-so.org`
-- [x] **CNT-SO Poitiers** → `poitoucharentes@cnt-so.org`
+## Vérification
+- [x] Tests + mutation pour chaque point ; suite complète
+- [x] Contrôle dans un vrai navigateur pour le carrousel et l'écran des messages
 
-**Fait le 27/08/2026.** Adresses renseignées sur la *fiche du syndicat*
-(`contact_email`), pas sur le formulaire : une seule adresse à tenir, qui sert
-aussi au pied du tract. Les quatre boîtes existent réellement — choisies parmi
-les 98 comptes du domaine `cnt-so.org` chez OVH, pas inventées : la convention
-n'est pas dérivable du slug (`stucs` → `spectacle@`, `education` →
-`fede.education.public@`). La révision Wagtail a été publiée en même temps que
-la ligne, sans quoi l'éditeur aurait ouvert un champ vide et l'aurait effacé.
+## Fait le 17/09/2026 — en attente de déploiement
 
-Vérifié : les quatre `/contact/` répondent 200 sur leur domaine, `aucun`
-formulaire ne reste sans destinataire, et l'adresse n'apparaît pas en clair
-dans la page.
-
-Deux façons de faire, au choix pour chacun :
-
-1. renseigner **« E-mail de destination »** sur le formulaire lui-même ;
-2. ou renseigner **« E-mail de contact »** sur la fiche du syndicat — le
-   formulaire s'en sert quand il n'a pas d'adresse propre, et l'adresse sert
-   aussi ailleurs (tract, pied de page).
-
-La seconde est préférable : une seule adresse à tenir par syndicat.
-
-### Vérifier après coup
-
-```bash
-ssh debian@51.91.242.64
-cd /var/www/cntso && venv/bin/python -c "
-import os,django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE','cntso.settings'); django.setup()
-from content.models import FormulaireContact
-sans = [f.site.title for f in FormulaireContact.objects.select_related('site')
-        if not f.get_email_destination()]
-print('sans destinataire :', sans or 'aucun')
-"
-```
-
-Et, depuis le 26/08/2026, un message qui ne trouve aucun destinataire laisse
-une trace : `grep 'SANS DESTINATAIRE' logs/django.log`.
-
-## Le webhook cnt-adhesion est muet
-
-`ADHESION_WEBHOOK_SECRET` est **vide en production** (vérifié le 27/08/2026),
-alors que `ADHESION_BASE_URL` pointe bien vers `https://adhesion.cnt-so.org`.
-Sans secret partagé, `_verify_adhesion_signature` refuse **tout** appel : les
-préférences newsletter des adhérents ne remontent pas au site.
-
-Sans conséquence aujourd'hui : le journal ne montre aucun appel refusé sur les
-sept derniers jours, donc cnt-adhesion n'émet pas encore. Mais le jour où les
-adhésions passeront par là, la synchronisation échouera en silence.
-
-- [x] Secret aligné des deux côtés.
-
-**Fait le 27/08/2026.** Le secret existait déjà côté cnt-adhesion
-(`SITE_PRINCIPAL_WEBHOOK_SECRET`, 64 caractères) : il ne manquait que côté
-site. Sa valeur a été recopiée dans `local_settings.py` — **rien n'a été
-touché sur cnt-adhesion**, dépôt autonome. Sauvegarde du fichier avant
-modification : `local_settings.py.bak-20260827-*`.
-
-Vérifié par un appel réellement signé, sans effet de bord (sans les clés
-`newsletter_*`, la vue répond « inchangé » et ne crée aucune ligne) :
-
-    signature valide  → 200  {"ok": true, "result": {"conf": "inchangé"}}
-    signature fausse  → 403
-    abonnés : 1 avant, 1 après
-
-⚠️ Ne rien déployer côté cnt-adhesion depuis une session « site cnt » : c'est
-un dépôt autonome. Le secret se choisit une fois et se pose des deux côtés.
-
-### Le reste de la bascule
-
-La procédure complète est dans `!DEPLOIEMENT.md`, section « Bascule DNS ».
-Rappel du point encore ouvert : **educ** — le DNS pointe toujours sur l'ancien
-serveur et le domaine est absent du certificat.
-
----
-
-# Terminé
-
-# Chantier — la page « Nous rejoindre » des sous-sites
-
-Demandé par Arnaud le 17/08/2026, à partir de https://stucs.cnt-so.org/rejoindre/ :
-« revoir cette page en la rendant modifiable et surtout mettre un bouton vers un
-formulaire de contact et non mettre le formulaire dans la page ».
-
-## Ce qui cloche aujourd'hui
-
-1. **Le formulaire de contact est en dur dans la page.** Colonne droite de
-   `templates/content/site_rejoindre.html` : champs, captcha, envoi. C'est un
-   doublon exact de `/<slug>/contact/` — même formulaire dynamique, même
-   destinataire, même `_send_contact_email`. Deux chemins à maintenir, et
-   `SiteRejoindreView` traîne pour ça un `ContactFormMixin` et un `post()`.
-2. **Rien n'est modifiable, ou presque.** Seul `rejoindre_text` l'est, et en
-   tout ou rien : tant qu'il est vide, deux cartes écrites en dur s'affichent ;
-   dès qu'un rédacteur y écrit un mot, elles disparaissent toutes les deux. Il
-   ne voit donc jamais le texte qu'il est en train de remplacer. Sur 14 sites,
-   un seul l'a rempli.
-3. **Le bandeau « Adhérer » est entièrement figé** : titre, accroche, les trois
-   puces, le libellé du bouton.
-
-## Le plan
-
-### A. Le formulaire devient un bouton
-
-- [ ] `site_rejoindre.html` : la colonne droite garde son cartouche « Une
-      question avant d'adhérer ? » mais son contenu devient un bouton vers
-      `{% section_url 'content:site_contact' site %}`.
-- [ ] `SiteRejoindreView` perd `ContactFormMixin` et sa méthode `post()` — la
-      page redevient une simple vue en lecture.
-- [ ] Le CSS `.rj-form-wrap` / `.success-box` devenu inutile est retiré.
-
-### B. Le corps de la page devient vraiment modifiable
-
-- [ ] Migration de données : pour chaque `SectionPage` dont `rejoindre_text`
-      est vide, y écrire le contenu affiché aujourd'hui (les deux cartes, avec
-      le nom du syndicat). **Rien ne change à l'écran**, mais le texte existe
-      désormais dans `/cms/` et se modifie bloc par bloc.
-- [ ] Le gabarit perd sa branche `{% else %}` : il ne rend plus que
-      `rejoindre_text`.
-
-### C. Le bandeau « Adhérer » devient modifiable
-
-- [ ] Trois champs sur `SectionPage`, groupés avec `rejoindre_text` dans un
-      `MultiFieldPanel` « Page Nous rejoindre » :
-      - `rejoindre_accroche` (CharField) — la phrase sous le titre
-      - `rejoindre_atouts` (TextField, une ligne = une puce)
-      - `rejoindre_bouton` (CharField, défaut « Adhérer maintenant »)
-- [ ] La même migration les remplit avec les libellés actuels. Vidés
-      volontairement, l'accroche et les puces disparaissent ; le bouton, lui,
-      garde son libellé par défaut pour ne jamais casser le parcours d'adhésion.
-
-### D. Tests
-
-- [ ] `test_contact_form_present` → vérifie le **lien** vers `/stucs/contact/`.
-- [ ] Les deux tests POST sont remplacés par un test « la page ne reçoit plus
-      de POST » et un test « aucun `ContactMessage` créé depuis cette URL ».
-- [ ] Nouveau test : un syndicat qui réécrit `rejoindre_text` voit son texte,
-      et lui seul.
-- [ ] Nouveau test : `rejoindre_bouton` vidé retombe sur le libellé par défaut.
-
-## Hors périmètre
-
-Le titre `<h1>` « Nous rejoindre » et le libellé du cartouche de droite restent
-en dur : ils nomment la page et sont repris dans le menu et la barre latérale,
-les laisser diverger par site créerait plus de confusion que de liberté.
-
-## Revue — 17/08/2026
-
-Fait, **1 018 tests verts**. Trois pièges rencontrés :
-
-1. **Les révisions Wagtail auraient avalé le semis.** L'éditeur ouvre la page
-   via `get_latest_revision_as_object()`, pas la ligne en base : semer
-   `rejoindre_text` sans toucher à la révision aurait donné un champ vide à
-   l'écran de rédaction, et le texte aurait disparu à la première modification
-   de la fiche. La migration 0027 corrige donc la ligne **et** la révision la
-   plus récente. Vérifié : `/cms/pages/<pk>/edit/` affiche bien le texte semé.
-2. **Les trois champs du bandeau n'ont pas ce problème** : absents des
-   révisions existantes, c'est le `default=` du modèle qui parle. D'où le choix
-   de vrais défauts plutôt qu'un repli dans le gabarit — le rédacteur voit le
-   texte qu'il peut changer.
-3. **Le rendu devait rester identique au mot près.** Les puces fléchées de
-   `.rj-list` sont reprises par `.rj-info-card ul li`, sinon le texte migré
-   serait passé aux puces rondes du navigateur. Contrôlé dans le navigateur :
-   fond `#F1F1F1`, bordure 1 px, flèche `→` en rouge de charte `#E81C24`.
-
-Différence assumée : le syndicat Éducation, seul à avoir déjà rempli
-`rejoindre_text`, gagne l'encadré gris que son texte n'avait pas — cohérent
-avec les treize autres.
+- **Case « Fiche pratique » retirée de l'éditeur.** Un seul article la portait en
+  production (« Forfait jours », pk 1917) : il garde son tract, le champ et la
+  route restent. 4 tests.
+- **Carrousel : défilement automatique (6 s) avec bouton pause.** Suspendu au
+  survol, au focus clavier et quand l'onglet passe en arrière-plan ; ne démarre
+  pas si l'utilisateur a réduit les animations. Vérifié dans un vrai navigateur :
+  défile, la pause tient, la reprise repart, le survol suspend.
+  Le test qui interdisait `setInterval` est réécrit autour de l'exigence réelle
+  (WCAG 2.2.2) : si ça défile, la pause doit exister. Validé par mutation.
+- **Écran des messages** : ligne entière cliquable (lien étendu, utilisable au
+  clavier), boutons « marquer lu/non lu » et « supprimer » par ligne, sélection
+  multiple et suppression de masse avec confirmation chiffrée. Toute action
+  repasse par le filtre de syndicat. 8 tests, 5 mutations détectées.
+- **« Répondre par mail »** : objet encodé (`Re%3A%20…`), arobase laissée
+  littérale, plus un bouton « copier l'adresse » qui marche sans logiciel de
+  courrier.
+- **Piège trouvé au passage** : `{# … #}` sur plusieurs lignes n'est PAS un
+  commentaire Django — le texte s'affichait dans la page. Utiliser
+  `{% comment %}`. C'est un test qui l'a attrapé.

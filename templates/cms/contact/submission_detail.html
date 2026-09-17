@@ -56,10 +56,19 @@
       {% if submission.is_read %}Marquer non lu{% else %}Marquer lu{% endif %}
     </button>
   </form>
-  <a href="mailto:{{ submission.email }}?subject=Re: {{ submission.subject|urlencode }}"
+  {% comment %} 17/09/2026 : « le bouton répondre par mail n'ouvre rien ». L'adresse était
+     écrite `?subject=Re: Objet` — espace et deux-points non encodés, que des
+     navigateurs refusent en silence. Et même correcte, une adresse `mailto:`
+     ne mène nulle part quand aucun logiciel de courrier n'est associé (cas
+     d'un webmail) : d'où le bouton « copier l'adresse », qui marche toujours. {% endcomment %}
+  <a href="mailto:{{ submission.email }}?subject=Re%3A%20{{ submission.subject|urlencode }}"
      style="padding:.4rem .9rem;background:#E81C24;color:white;border-radius:4px;text-decoration:none;font-size:.875rem;">
     Répondre par email ↗
   </a>
+  <button type="button" id="cnt-copier-adresse" data-adresse="{{ submission.email }}"
+          style="padding:.4rem .9rem;background:transparent;border:1px solid var(--w-color-border-field-default);color:var(--w-color-text-context);border-radius:4px;cursor:pointer;font-size:.875rem;">
+    Copier l'adresse
+  </button>
   <form method="post" onsubmit="return confirm('Supprimer ce message définitivement ?')">
     {% csrf_token %}
     <input type="hidden" name="action" value="delete">
@@ -68,4 +77,34 @@
     </button>
   </form>
 </div>
+
+<script>
+(function() {
+    var bouton = document.getElementById('cnt-copier-adresse');
+    if (!bouton) return;
+    bouton.addEventListener('click', function() {
+        var adresse = bouton.getAttribute('data-adresse');
+        function confirme() {
+            var avant = bouton.textContent;
+            bouton.textContent = 'Adresse copiée';
+            setTimeout(function() { bouton.textContent = avant; }, 2000);
+        }
+        // `navigator.clipboard` n'existe qu'en HTTPS : repli sur la sélection.
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(adresse).then(confirme);
+            return;
+        }
+        var zone = document.createElement('textarea');
+        zone.value = adresse;
+        zone.setAttribute('readonly', '');
+        zone.style.position = 'absolute';
+        zone.style.left = '-9999px';
+        document.body.appendChild(zone);
+        zone.select();
+        try { document.execCommand('copy'); confirme(); } catch (e) { window.prompt('Adresse :', adresse); }
+        document.body.removeChild(zone);
+    });
+})();
+</script>
+
 {% endblock %}

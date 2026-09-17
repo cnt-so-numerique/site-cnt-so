@@ -25,40 +25,137 @@
 </div>
 {% endif %}
 
-<div style="overflow-x:auto;">
-  <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
-    <thead>
-      <tr style="border-bottom:1px solid var(--w-color-border-furniture);color:var(--w-color-text-meta);text-align:left;">
-        <th style="padding:.5rem .75rem;"></th>
-        <th style="padding:.5rem .75rem;">Nom</th>
-        <th style="padding:.5rem .75rem;">Email</th>
-        <th style="padding:.5rem .75rem;">Objet</th>
-        <th style="padding:.5rem .75rem;">Syndicat</th>
-        <th style="padding:.5rem .75rem;">Date</th>
-        <th style="padding:.5rem .75rem;"></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for s in submissions %}
-      <tr style="border-bottom:1px solid var(--w-color-border-furniture);{% if not s.is_read %}background:rgba(230,57,70,.07);{% endif %}">
-        <td style="padding:.5rem .75rem;">
-          {% if not s.is_read %}
-          <span style="display:inline-block;width:8px;height:8px;background:#E81C24;border-radius:50%;"></span>
-          {% endif %}
-        </td>
-        <td style="padding:.5rem .75rem;font-weight:{% if not s.is_read %}600{% else %}400{% endif %};">{{ s.name }}</td>
-        <td style="padding:.5rem .75rem;color:var(--w-color-text-meta);">{{ s.email }}</td>
-        <td style="padding:.5rem .75rem;">{{ s.subject|default:"—" }}</td>
-        <td style="padding:.5rem .75rem;color:var(--w-color-text-meta);">{{ s.site.name|default:"—" }}</td>
-        <td style="padding:.5rem .75rem;color:var(--w-color-text-meta);">{{ s.created_at|date:"d/m/Y H:i" }}</td>
-        <td style="padding:.5rem .75rem;">
-          <a href="/cms/contact/{{ s.pk }}/" style="color:#E81C24;font-size:.875rem;">Lire</a>
-        </td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="7" style="padding:2rem;text-align:center;color:var(--w-color-text-meta);">Aucun message.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+{% comment %} Tableau réécrit le 17/09/2026 : la liste n'offrait que « Lire ».
+   La ligne entière est cliquable (lien étendu sur le nom, technique du
+   ::after : un vrai lien, donc utilisable au clavier et par un lecteur
+   d'écran, contrairement à un onclick sur la ligne). Les boutons d'action
+   passent au-dessus grâce à leur position relative. {% endcomment %}
+<style>
+  .cnt-msg-tbl { width:100%; border-collapse:collapse; font-size:.9rem; }
+  .cnt-msg-tbl th { padding:.5rem .75rem; text-align:left; color:var(--w-color-text-meta); }
+  .cnt-msg-tbl td { padding:.5rem .75rem; }
+  .cnt-msg-ligne { position:relative; border-bottom:1px solid var(--w-color-border-furniture); }
+  .cnt-msg-ligne:hover { background:var(--w-color-surface-menus, rgba(0,0,0,.04)); }
+  .cnt-msg-ligne--non-lu { background:rgba(230,57,70,.07); }
+  .cnt-msg-lien { color:inherit; text-decoration:none; }
+  .cnt-msg-lien::after { content:""; position:absolute; inset:0; }
+  .cnt-msg-lien:focus-visible::after { outline:2px solid #E81C24; outline-offset:-2px; }
+  .cnt-msg-actions { position:relative; z-index:1; display:flex; gap:.4rem; justify-content:flex-end; }
+  .cnt-msg-btn { position:relative; z-index:1; padding:.25rem .6rem; font-size:.8rem; cursor:pointer;
+                 border:1px solid var(--w-color-border-field-default); border-radius:4px;
+                 background:transparent; color:var(--w-color-text-context); }
+  .cnt-msg-btn--sup { border-color:rgba(239,68,68,.5); color:#ef4444; }
+  .cnt-msg-case { position:relative; z-index:1; }
+  .cnt-msg-barre { display:flex; align-items:center; gap:.75rem; margin:.75rem 0; }
+</style>
+
+<form method="post" id="cnt-msg-form">
+  {% csrf_token %}
+  <div class="cnt-msg-barre">
+    <label style="font-size:.85rem;display:flex;align-items:center;gap:.4rem;">
+      <input type="checkbox" id="cnt-msg-tout"> Tout sélectionner
+    </label>
+    <button type="submit" name="action" value="supprimer_selection" class="cnt-msg-btn cnt-msg-btn--sup"
+            id="cnt-msg-sup-lot" disabled
+            data-confirmation="Supprimer définitivement les messages sélectionnés ?">
+      Supprimer la sélection (<span id="cnt-msg-compte">0</span>)
+    </button>
+    <span style="font-size:.85rem;color:var(--w-color-text-meta);">
+      {{ nb_non_lus }} non lu{{ nb_non_lus|pluralize }} sur {{ submissions|length }} affiché{{ submissions|length|pluralize }}
+    </span>
+  </div>
+
+  <div style="overflow-x:auto;">
+    <table class="cnt-msg-tbl">
+      <thead>
+        <tr style="border-bottom:1px solid var(--w-color-border-furniture);">
+          <th><span class="w-sr-only">Sélection</span></th>
+          <th></th>
+          <th>Nom</th>
+          <th>Email</th>
+          <th>Objet</th>
+          <th>Syndicat</th>
+          <th>Date</th>
+          <th><span class="w-sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in submissions %}
+        <tr class="cnt-msg-ligne{% if not s.is_read %} cnt-msg-ligne--non-lu{% endif %}">
+          <td><input type="checkbox" name="pks" value="{{ s.pk }}" class="cnt-msg-case"
+                     aria-label="Sélectionner le message de {{ s.name }}"></td>
+          <td>
+            {% if not s.is_read %}
+            <span style="display:inline-block;width:8px;height:8px;background:#E81C24;border-radius:50%;"
+                  aria-label="Non lu" title="Non lu"></span>
+            {% endif %}
+          </td>
+          <td style="font-weight:{% if not s.is_read %}600{% else %}400{% endif %};">
+            <a class="cnt-msg-lien" href="/cms/contact/{{ s.pk }}/">{{ s.name }}</a>
+          </td>
+          <td style="color:var(--w-color-text-meta);">{{ s.email }}</td>
+          <td>{{ s.subject|default:"—" }}</td>
+          <td style="color:var(--w-color-text-meta);">{{ s.site.name|default:"—" }}</td>
+          <td style="color:var(--w-color-text-meta);">{{ s.created_at|date:"d/m/Y H:i" }}</td>
+          <td>
+            <div class="cnt-msg-actions">
+              <button type="submit" name="action" value="{% if s.is_read %}non_lu{% else %}lu{% endif %}"
+                      class="cnt-msg-btn" formmethod="post"
+                      onclick="document.getElementById('cnt-msg-pk').value='{{ s.pk }}';">
+                Marquer {% if s.is_read %}non lu{% else %}lu{% endif %}
+              </button>
+              <button type="submit" name="action" value="supprimer" class="cnt-msg-btn cnt-msg-btn--sup"
+                      data-confirmation="Supprimer définitivement le message de {{ s.name|escapejs }} ?"
+                      onclick="document.getElementById('cnt-msg-pk').value='{{ s.pk }}';">
+                Supprimer
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" style="padding:2rem;text-align:center;color:var(--w-color-text-meta);">Aucun message.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <input type="hidden" name="pk" id="cnt-msg-pk" value="">
+</form>
+
+<script>
+(function() {
+    var form  = document.getElementById('cnt-msg-form');
+    if (!form) return;
+    var cases = form.querySelectorAll('.cnt-msg-case');
+    var tout  = document.getElementById('cnt-msg-tout');
+    var lot   = document.getElementById('cnt-msg-sup-lot');
+    var compte = document.getElementById('cnt-msg-compte');
+
+    function majCompte() {
+        var n = form.querySelectorAll('.cnt-msg-case:checked').length;
+        compte.textContent = n;
+        lot.disabled = (n === 0);
+    }
+    cases.forEach(function(c) { c.addEventListener('change', majCompte); });
+    if (tout) tout.addEventListener('change', function() {
+        cases.forEach(function(c) { c.checked = tout.checked; });
+        majCompte();
+    });
+
+    // Une suppression ne se rattrape pas : on demande confirmation, et on
+    // annonce le nombre exact plutôt qu'un « les éléments sélectionnés ».
+    form.addEventListener('submit', function(e) {
+        var bouton = e.submitter;
+        if (!bouton) return;
+        var question = bouton.getAttribute('data-confirmation');
+        if (!question) return;
+        if (bouton.value === 'supprimer_selection') {
+            var n = form.querySelectorAll('.cnt-msg-case:checked').length;
+            question = 'Supprimer définitivement ' + n + ' message' + (n > 1 ? 's' : '') + ' ?';
+        }
+        if (!window.confirm(question)) e.preventDefault();
+    });
+    majCompte();
+})();
+</script>
 </div>
 {% endblock %}
