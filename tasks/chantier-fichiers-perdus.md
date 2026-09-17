@@ -86,3 +86,23 @@ Contrôle public : article TPE = 8 encadrés « Télécharger », PDF BTP en 200
 servent aussi leurs PDF en 200.
 
 Retour arrière : révision précédente page par page dans /cms/, ou la sauvegarde.
+
+## Les 8 rapprochements validés à la main (17/09/2026)
+
+Sauvegarde : `~/cntso-avant-fichiers-choisis-20260917-1403.sql.gz`.
+`relie_fichiers_choisis --csv tasks/donnees/fichiers-choisis.csv --appliquer` :
+**7 pages, 8 liens**, 6 documents versés et 2 réutilisés. Contrôle public : les
+encadrés « Télécharger » s'affichent et les PDF se téléchargent (200) sur 13.cnt-so.org.
+
+**Reste 26 cas** (au lieu de 31) : 2 douteux, 21 introuvables, 3 dans des pages à
+brouillon. Les 17 sans aucun fichier approchant ne sont pas récupérables ;
+`tract_1er_mai.pdf` reste un faux ami à ne PAS relier au tract de 2025.
+
+## Compte STUCS (17/09/2026)
+
+Compte `spectacle` / spectacle@cnt-so.org, groupe `redacteur_stucs`, liste OVH du
+syndicat posée à `actu-stucs-cntso` (152 abonnés). Courriel de réinitialisation
+envoyé par le formulaire **de Wagtail** (`/cms/password_reset/`).
+⚠️ Piège : `PasswordResetForm` de Django échoue ici (`NoReverseMatch:
+password_reset_confirm`) — les URLs d'auth de Django ne sont pas branchées, seul
+le circuit Wagtail existe. Passer par le formulaire, pas par le formulaire Django.
