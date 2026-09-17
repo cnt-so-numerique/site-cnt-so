@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}CNT-SO - Confédération Nationale du Travail - Solidarité Ouvrière{% endblock %}
 
@@ -962,6 +963,7 @@
 
 {% block extra_js %}
 {% if carousel_articles|length > 1 %}
+<script src="{% static 'js/carrousel-auto.js' %}"></script>
 <script>
 (function() {
     var track = document.getElementById('hp-carousel-track');
@@ -984,71 +986,25 @@
     }
 
     // Le carrousel défile seul (Arnaud, 17/09/2026, après l'avoir retiré en
-    // août). WCAG 2.2.2 l'autorise à condition de pouvoir l'arrêter : d'où le
-    // bouton pause, l'arrêt au survol et au clavier, et le respect du réglage
-    // « limiter les animations » du système, qui suffit à ne jamais démarrer.
-    var DELAI = 6000;
-    var pause  = document.getElementById('hp-pause');
-    var minuterie = null;
-    var arretParLUtilisateur = false;
-    var animationsReduites = window.matchMedia
-        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // août). Tout ce que WCAG 2.2.2 impose alors — pause, arrêt au survol et
+    // au clavier, respect des animations réduites — vit dans `carrousel-auto`,
+    // partagé avec les syndicats : une seule règle, un seul endroit.
+    var auto = carrouselAuto({
+        section: track.closest('.hp-carousel'),
+        survol:  track,
+        avance:  function () { goTo(current + 1); },
+        bouton:  document.getElementById('hp-pause')
+    });
 
-    function demarre() {
-        if (animationsReduites || arretParLUtilisateur || minuterie) return;
-        minuterie = setInterval(function() { goTo(current + 1); }, DELAI);
-    }
-    function arrete() {
-        if (minuterie) { clearInterval(minuterie); minuterie = null; }
-    }
-    function relance() {   // après une action : on repart du plein délai
-        arrete();
-        demarre();
-    }
-
-    if (prev) prev.addEventListener('click', function() { goTo(current - 1); relance(); });
-    if (next) next.addEventListener('click', function() { goTo(current + 1); relance(); });
+    if (prev) prev.addEventListener('click', function() { goTo(current - 1); auto.relance(); });
+    if (next) next.addEventListener('click', function() { goTo(current + 1); auto.relance(); });
 
     dots.forEach(function(dot) {
         dot.addEventListener('click', function() {
             goTo(parseInt(dot.getAttribute('data-index'), 10));
-            relance();
+            auto.relance();
         });
     });
-
-    if (pause && !animationsReduites) {
-        pause.hidden = false;
-        pause.addEventListener('click', function() {
-            arretParLUtilisateur = !arretParLUtilisateur;
-            if (arretParLUtilisateur) {
-                arrete();
-                pause.innerHTML = '&#9654;';
-                pause.setAttribute('aria-pressed', 'true');
-                pause.setAttribute('aria-label', 'Reprendre le défilement');
-                pause.setAttribute('title', 'Reprendre le défilement');
-            } else {
-                pause.innerHTML = '&#10073;&#10073;';
-                pause.setAttribute('aria-pressed', 'false');
-                pause.setAttribute('aria-label', 'Mettre le défilement en pause');
-                pause.setAttribute('title', 'Mettre le défilement en pause');
-                demarre();
-            }
-        });
-    }
-
-    // Lire une manchette demande du temps : le survol et le clavier suspendent.
-    track.addEventListener('mouseenter', arrete);
-    track.addEventListener('mouseleave', demarre);
-    var section = track.closest('.hp-carousel');
-    if (section) {
-        section.addEventListener('focusin', arrete);
-        section.addEventListener('focusout', demarre);
-    }
-    document.addEventListener('visibilitychange', function() {
-        if (document.hidden) { arrete(); } else { demarre(); }
-    });
-
-    demarre();
 })();
 </script>
 {% endif %}

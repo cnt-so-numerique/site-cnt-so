@@ -543,3 +543,23 @@ site alors que seule ma sonde était fautive.
 - et devant un résultat qui contredit un correctif qu'on vient de valider par
   les tests, **suspecter la sonde avant le code**. Les trois fois, le site avait
   raison.
+
+## 17/09/2026 — Un script en gabarit : les tests Django n'en voient pas la syntaxe
+
+**Ce qui s'est passé.** En mettant en commun la minuterie des deux carrousels,
+ma découpe du script a laissé la moitié de l'ancien code derrière elle. Le
+JavaScript rendu ne compilait plus : plus rien ne bougeait sur l'accueil, ni
+défilement ni flèches. **Les 1 428 tests passaient** — ils cherchent du
+balisage et des chaînes, jamais un programme valide. C'est le pilotage du
+navigateur qui l'a montré, puis `node --check` qui a donné la ligne exacte.
+
+**Règles :**
+- après toute modification d'un `<script>` inclus dans un gabarit, extraire le
+  script **rendu** (pas le gabarit) et le passer à `node --check` : trente
+  secondes, et l'erreur est localisée ;
+- ne jamais découper du code par index de chaîne sans relire la zone ensuite ;
+- un test qui cherche `id="hp-pause"` prouve que le bouton est écrit, **pas**
+  qu'il fonctionne : pour un comportement, piloter le navigateur ;
+- le serveur local met les gabarits en cache quand `DEBUG` est faux : après
+  modification d'un gabarit, **redémarrer** avant de conclure — j'ai cru un
+  instant que ma correction n'avait rien changé.

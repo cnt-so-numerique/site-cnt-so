@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}{{ site.name }}{% endblock %}
 {% if site.description %}
@@ -115,6 +116,8 @@
 .sc-arrow:focus-visible { background: var(--primary-color); color: #fff; }
 #sc-prev { order: 1; }
 #sc-next { order: 3; }
+/* La pause ferme la barre : posée `hidden`, le script la révèle s'il défile. */
+#sc-pause { order: 4; font-size: .8rem; }
 
 .sc-dots-wrap {
     order: 2;
@@ -162,6 +165,9 @@
     <button class="sc-arrow" id="sc-next" aria-label="Suivant">
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
     </button>
+    <button class="sc-arrow" id="sc-pause" aria-pressed="false"
+            aria-label="Mettre le défilement en pause"
+            title="Mettre le défilement en pause" hidden>&#10074;&#10074;</button>
     <div class="sc-dots-wrap" id="sc-dots">
       {% for article in carousel_articles %}
       <button class="sc-dot{% if forloop.first %} on{% endif %}" data-i="{{ forloop.counter0 }}" aria-label="Article {{ forloop.counter }}"></button>
@@ -171,6 +177,7 @@
   {% endif %}
 </section>
 
+<script src="{% static 'js/carrousel-auto.js' %}"></script>
 <script>
 (function(){
   var wrap = document.getElementById('sc-wrap');
@@ -190,12 +197,18 @@
     if (dots[cur]) dots[cur].classList.add('on');
   }
 
-  // Aucune minuterie : le carrousel ne bouge que sur action. C'est ce qui
-  // dispense du bouton d'arrêt qu'exigerait WCAG 2.2.2 — et qui manquait.
-  document.getElementById('sc-prev').addEventListener('click', function(){ go(cur - 1); });
-  document.getElementById('sc-next').addEventListener('click', function(){ go(cur + 1); });
+  // Le carrousel des syndicats défile comme celui de la conf (Arnaud,
+  // 17/09/2026) : même minuterie, mêmes garde-fous, même fichier.
+  var auto = carrouselAuto({
+    section: wrap,
+    avance:  function(){ go(cur + 1); },
+    bouton:  document.getElementById('sc-pause')
+  });
+
+  document.getElementById('sc-prev').addEventListener('click', function(){ go(cur - 1); auto.relance(); });
+  document.getElementById('sc-next').addEventListener('click', function(){ go(cur + 1); auto.relance(); });
   Array.prototype.forEach.call(dots, function(d){
-    d.addEventListener('click', function(){ go(+d.getAttribute('data-i')); });
+    d.addEventListener('click', function(){ go(+d.getAttribute('data-i')); auto.relance(); });
   });
 })();
 </script>

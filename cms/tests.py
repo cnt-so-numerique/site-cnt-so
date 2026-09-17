@@ -7013,3 +7013,47 @@ class FichePratiqueRetireeDeLEditeurTest(TestCase):
     def test_un_article_ordinaire_n_a_toujours_pas_de_tract(self):
         make_article_page(title='Brève', slug='breve')
         self.assertEqual(self.client.get('/article/breve/tract/').status_code, 404)
+
+
+class CarrouselDesSyndicatsTest(TestCase):
+    """Le carrousel des syndicats défile aussi (Arnaud, 17/09/2026).
+
+    « Pour l'instant celui de la conf, mais pour les autres ? » — les sous-sites
+    ont leur propre carrousel, écrit séparément. Il ne bougeait que sur clic.
+    """
+
+    def setUp(self):
+        from cms.models import CarouselArticle
+        self.syndicat = _ensure_section_page(slug='stucs', name='STUCS', site_type='sectoral')
+        for titre, slug in (('Une A', 'une-a'), ('Une B', 'une-b')):
+            CarouselArticle.objects.create(
+                page=self.syndicat,
+                article=make_article_page(section_slug='stucs', title=titre, slug=slug))
+
+    def _accueil(self):
+        r = self.client.get('/stucs/')
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertIn('id="sc-wrap"', html, "le carrousel du syndicat devrait être rendu")
+        return html
+
+    def test_le_carrousel_du_syndicat_defile_et_peut_etre_arrete(self):
+        html = self._accueil()
+        self.assertIn('js/carrousel-auto.js', html,
+                      "le syndicat doit charger le même défilement que la conf")
+        self.assertIn('id="sc-pause"', html,
+                      "il défile seul : il faut un bouton pour l'arrêter (WCAG 2.2.2)")
+        self.assertIn('aria-label="Mettre le défilement en pause"', html)
+
+    def test_les_fleches_relancent_la_minuterie(self):
+        html = self._accueil()
+        self.assertIn('auto.relance()', html,
+                      "après un clic, le défilement doit repartir du plein délai")
+
+    def test_un_seul_article_a_la_une_ne_fait_pas_defiler(self):
+        from cms.models import CarouselArticle
+        CarouselArticle.objects.filter(page=self.syndicat).exclude(
+            pk=CarouselArticle.objects.filter(page=self.syndicat).first().pk).delete()
+        html = self.client.get('/stucs/').content.decode()
+        self.assertNotIn('id="sc-pause"', html,
+                         "un seul visuel : rien ne bouge, donc pas de bouton pause")

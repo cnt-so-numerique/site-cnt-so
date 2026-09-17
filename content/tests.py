@@ -5382,19 +5382,38 @@ class NavigationClavierTest(TestCase):
 
         Le carrousel n'a longtemps bougé que sur clic, ce qui dispensait du
         bouton pause ; Arnaud a demandé le défilement automatique le
-        17/09/2026. Le test garde l'exigence, pas la façon de la tenir : si la
-        minuterie est là, la pause doit l'être aussi."""
+        17/09/2026. Le test garde l'exigence, pas la façon de la tenir.
+
+        La minuterie vit maintenant dans un fichier partagé : chercher
+        `setInterval` dans la page ne prouverait plus rien — ce test passait
+        en silence après la mise en commun, sans rien vérifier.
+        """
         html = self._accueil_avec_carrousel()
-        if 'setInterval' not in html:
-            return   # pas de défilement : rien à arrêter
+        self.assertIn('js/carrousel-auto.js', html,
+                      "le défilement automatique doit être chargé")
         self.assertIn('id="hp-pause"', html,
                       "le carrousel défile seul : il faut un bouton pour l'arrêter")
         self.assertIn('aria-label="Mettre le défilement en pause"', html,
                       "le bouton pause doit être nommé pour un lecteur d'écran")
-        self.assertIn("mouseenter", html,
-                      "le défilement doit se suspendre au survol : on lit une manchette")
-        self.assertIn("focusin", html,
-                      "et se suspendre aussi quand le clavier entre dans le carrousel")
+
+    def test_le_defilement_partage_tient_les_regles_d_accessibilite(self):
+        """Le fichier commun aux deux carrousels porte les quatre garanties."""
+        from django.conf import settings
+        chemin = settings.BASE_DIR / 'static' / 'js' / 'carrousel-auto.js'
+        code = chemin.read_text(encoding='utf-8')
+        # On vérifie le BRANCHEMENT, pas la présence du mot : remplacer le
+        # gestionnaire par une fonction vide garde le mot et casse la garantie.
+        for attendu, pourquoi in (
+            ("prefers-reduced-motion", "ne pas démarrer si les animations sont réduites"),
+            ("survol.addEventListener('mouseenter', arrete)",
+             "suspendre au survol : on lit une manchette"),
+            ("survol.addEventListener('mouseleave', demarre)", "repartir quand on s'éloigne"),
+            ("section.addEventListener('focusin', arrete)",
+             "suspendre quand le clavier entre dans le carrousel"),
+            ("visibilitychange", "ne pas tourner dans un onglet caché"),
+            ("aria-pressed", "dire au lecteur d'écran si la pause est enclenchée"),
+        ):
+            self.assertIn(attendu, code, f"le défilement doit {pourquoi}")
 
     def test_le_carrousel_respecte_le_reglage_animations_reduites(self):
         html = self._accueil_avec_carrousel()
