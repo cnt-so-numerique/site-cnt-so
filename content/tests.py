@@ -9792,6 +9792,28 @@ class ContactListActionsTest(TestCase):
         self._post({'action': 'n_importe_quoi', 'pk': self.msg_a.pk})
         self.assertEqual(ContactMessage.objects.count(), avant)
 
+    def test_repondre_par_le_webmail_sans_logiciel_de_courrier(self):
+        """Un `mailto:` ne mène nulle part sans logiciel associé (17/09/2026).
+
+        Arnaud : « mon bouton répondre par mail ne marche toujours pas ». D'où
+        un chemin par webmail, qui ne dépend d'aucun réglage de la machine.
+        """
+        msg = make_contact_message(self.site_a, name='Zoé')
+        msg.email = 'zoe@exemple.org'
+        msg.subject = 'Congés payés : où en est-on ?'
+        msg.save()
+        corps = self.client.get(f'/cms/contact/{msg.pk}/').content.decode()
+        self.assertIn('ssl0.ovh.net/roundcube', corps)
+        self.assertIn('mail.google.com/mail/?view=cm', corps)
+        # Destinataire ET objet pré-remplis dans les deux cas.
+        self.assertIn('_to=zoe%40exemple.org', corps)
+        self.assertIn('to=zoe%40exemple.org', corps)
+        self.assertEqual(corps.count('Re%3A%20Cong%C3%A9s%20pay%C3%A9s'), 3)
+        # Et le repli qui marche partout, sans réglage ni compte : le BOUTON,
+        # pas seulement son nom cité dans le script.
+        self.assertIn('<button type="button" id="cnt-copier-adresse"', corps)
+        self.assertIn('data-adresse="zoe@exemple.org"', corps)
+
     def test_le_lien_de_reponse_est_correctement_encode(self):
         msg = make_contact_message(self.site_a, name='Zoé')
         msg.subject = 'Congés payés : où en est-on ?'

@@ -56,14 +56,28 @@
       {% if submission.is_read %}Marquer non lu{% else %}Marquer lu{% endif %}
     </button>
   </form>
-  {% comment %} 17/09/2026 : « le bouton répondre par mail n'ouvre rien ». L'adresse était
-     écrite `?subject=Re: Objet` — espace et deux-points non encodés, que des
-     navigateurs refusent en silence. Et même correcte, une adresse `mailto:`
-     ne mène nulle part quand aucun logiciel de courrier n'est associé (cas
-     d'un webmail) : d'où le bouton « copier l'adresse », qui marche toujours. {% endcomment %}
-  <a href="mailto:{{ submission.email }}?subject=Re%3A%20{{ submission.subject|urlencode }}"
+  {% comment %}
+  17/09/2026 : « le bouton répondre par mail ne marche toujours pas ».
+  L'adresse était d'abord mal encodée (`?subject=Re: Objet`) ; corrigée, elle
+  ne servait toujours à rien, car un lien `mailto:` ne mène nulle part quand
+  aucun logiciel de courrier n'est associé au navigateur — le cas de qui lit
+  son courrier dans un webmail. D'où trois chemins plutôt qu'un, et la copie
+  de l'adresse qui, elle, marche partout.
+  {% endcomment %}
+  <a href="https://ssl0.ovh.net/roundcube/?_task=mail&amp;_action=compose&amp;_to={{ submission.email|urlencode }}&amp;_subject=Re%3A%20{{ submission.subject|urlencode }}"
+     target="_blank" rel="noopener"
      style="padding:.4rem .9rem;background:#E81C24;color:white;border-radius:4px;text-decoration:none;font-size:.875rem;">
-    Répondre par email ↗
+    Répondre — webmail OVH ↗
+  </a>
+  <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to={{ submission.email|urlencode }}&amp;su=Re%3A%20{{ submission.subject|urlencode }}"
+     target="_blank" rel="noopener"
+     style="padding:.4rem .9rem;background:transparent;border:1px solid var(--w-color-border-field-default);color:var(--w-color-text-context);border-radius:4px;text-decoration:none;font-size:.875rem;">
+    Répondre — Gmail ↗
+  </a>
+  <a href="mailto:{{ submission.email }}?subject=Re%3A%20{{ submission.subject|urlencode }}"
+     style="padding:.4rem .9rem;background:transparent;border:1px solid var(--w-color-border-field-default);color:var(--w-color-text-context);border-radius:4px;text-decoration:none;font-size:.875rem;"
+     title="Ouvre le logiciel de courrier installé sur cet ordinateur, s'il y en a un">
+    Logiciel de courrier
   </a>
   <button type="button" id="cnt-copier-adresse" data-adresse="{{ submission.email }}"
           style="padding:.4rem .9rem;background:transparent;border:1px solid var(--w-color-border-field-default);color:var(--w-color-text-context);border-radius:4px;cursor:pointer;font-size:.875rem;">
