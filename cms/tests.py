@@ -6696,12 +6696,18 @@ class RepareLiensMortsTest(TestCase):
         self.assertIn('/article/covid-19-autotests-gratuits-pour-les-intervenants/', self._href(citant))
 
     def test_delier_respecte_les_brouillons(self):
+        import csv, os
         lien = 'http://www.cnt-so.org/13/spip.php?article124'
         citant = self._citant(lien)
         citant.title = 'Brouillon en cours'
         citant.save_revision()
-        self._lancer('--appliquer', '--delier')
+        rapport = os.path.join(self.media, 'rapport.csv')
+        self._lancer('--appliquer', '--delier', '--rapport', rapport)
         self.assertEqual(self._href(citant), lien)
+        with open(rapport, encoding='utf-8') as f:
+            ligne, = list(csv.DictReader(f))
+        # Le rapport doit dire POURQUOI le lien est resté.
+        self.assertEqual(ligne['statut'], 'brouillon')
 
     def test_delier_ne_fait_rien_en_simulation(self):
         lien = 'http://www.cnt-so.org/13/spip.php?article124'

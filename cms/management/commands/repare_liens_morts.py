@@ -288,9 +288,13 @@ class Command(BaseCommand):
                     document = document_pour(cible[1], page.section_slug, appliquer, documents, stats)
                     cible = document.url if document else '/documents/(à verser)'
                 statut = 'repare' if cible else 'laisse'
-                if cible and brouillon:
+                # Une page qui porte un brouillon non publié n'est pas à nous.
+                # Le rapport doit le dire : sans ce `or delier`, un lien laissé
+                # pour cette raison se lisait « laissé », comme un lien qu'on
+                # n'a pas su traiter (relevé le 17/09/2026 sur la page 113).
+                if brouillon and (cible or delier):
                     statut = 'brouillon'
-                elif not cible and delier and not brouillon:
+                elif not cible and delier:
                     nouveau, retires = delie(nouveau, adresse)
                     if retires:
                         statut = 'delie'
