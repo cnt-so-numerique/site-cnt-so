@@ -2,13 +2,18 @@
 {% load static %}
 
 {% block title %}{{ site.name }}{% endblock %}
-{% if site.description %}
-{% block meta_description %}{{ site.description|striptags|truncatechars:160 }}{% endblock %}
+{% comment %}Condition DANS chaque bloc : autour, Django l'ignore (il collecte les
+   BlockNode à la compilation). Les 10 syndicats publiés sans description
+   émettaient donc `<meta name="description" content="">`, qui ÉCRASAIT le
+   repli de base.html — Google fabriquait alors son propre extrait, et les
+   partages n'avaient aucun texte (audit du 17/09/2026).
+   Le repli nomme le syndicat plutôt que de recopier le texte confédéral :
+   chaque sous-site garde ainsi une description qui lui est propre.{% endcomment %}
+{% block meta_description %}{% if site.description %}{{ site.description|striptags|truncatechars:160 }}{% else %}{{ site.name }} — CNT-SO, syndicat anarcho-syndicaliste.{% endif %}{% endblock %}
 {% block og_title %}{{ site.name }}{% endblock %}
-{% block og_description %}{{ site.description|striptags|truncatechars:200 }}{% endblock %}
+{% block og_description %}{% if site.description %}{{ site.description|striptags|truncatechars:200 }}{% else %}{{ site.name }} — CNT-SO, syndicat anarcho-syndicaliste.{% endif %}{% endblock %}
 {% block twitter_title %}{{ site.name }}{% endblock %}
-{% block twitter_description %}{{ site.description|striptags|truncatechars:200 }}{% endblock %}
-{% endif %}
+{% block twitter_description %}{% if site.description %}{{ site.description|striptags|truncatechars:200 }}{% else %}{{ site.name }} — CNT-SO, syndicat anarcho-syndicaliste.{% endif %}{% endblock %}
 
 {% block content %}
 

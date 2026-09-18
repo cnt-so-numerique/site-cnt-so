@@ -92,6 +92,23 @@ class ContentSecurityPolicyMiddleware:
         return response
 
 
+def _chemin_sur_ce_site(chemin):
+    """Ramène un chemin à une adresse qui reste sur ce site.
+
+    Trouvé à l'audit du 17/09/2026. La redirection qui retire le préfixe de
+    syndicat renvoyait le reste du chemin tel quel : `/stucs//evil.com/x`
+    donnait un **301 vers `//evil.com/x`**, c'est-à-dire une URL
+    protocole-relative — le navigateur part sur `https://evil.com`. Et comme
+    la redirection est permanente, elle se met en cache chez le visiteur.
+    Hameçonnage au départ d'un domaine légitime du syndicat.
+
+    On écrase donc toute suite de barres obliques initiales. La barre inverse
+    est traitée de même : plusieurs navigateurs la normalisent en `/`, si bien
+    que `/\\evil.com` vaut `//evil.com` pour eux.
+    """
+    return '/' + (chemin or '').lstrip('/\\')
+
+
 class SectionDomainMiddleware:
     """
     Sert les sous-sites sur leur domaine autonome (SectionPage.custom_domain).
@@ -162,7 +179,7 @@ class SectionDomainMiddleware:
         if path == f'/{slug}/' or path.startswith(f'/{slug}/'):
             if safe_method:
                 from django.http import HttpResponsePermanentRedirect
-                stripped = path[len(slug) + 1:] or '/'
+                stripped = _chemin_sur_ce_site(path[len(slug) + 1:] or '/')
                 qs = request.META.get('QUERY_STRING', '')
                 return HttpResponsePermanentRedirect(stripped + (f'?{qs}' if qs else ''))
             # POST sur l'URL préfixée (action de formulaire) : servie telle quelle

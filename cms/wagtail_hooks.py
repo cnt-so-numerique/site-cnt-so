@@ -1059,7 +1059,22 @@ def _allowed_mailing_lists(request):
     for champ in (current.ovh_mailing_list, current.ovh_listes_gerees):
         noms += [n.strip() for n in (champ or '').split(',') if n.strip()]
     # `dict.fromkeys` : sans doublon, et l'ordre de saisie est conservé.
-    return list(dict.fromkeys(noms))
+    noms = list(dict.fromkeys(noms))
+
+    # Défense en profondeur (audit du 17/09/2026). Les champs qui alimentent
+    # cette fonction sont désormais réservés aux superutilisateurs, mais ils
+    # restent une donnée de configuration : une faute de frappe ou un futur
+    # chemin d'écriture ne doit pas suffire à ouvrir `news` / `news2` — les
+    # 5 895 sympathisants historiques — à un syndicat qui n'est pas la conf.
+    # Le webhook d'adhésion pose exactement la même garde
+    # (`content.api_views._listes_confederales`) ; on la réemploie telle quelle
+    # plutôt que d'en écrire une seconde qui dériverait.
+    if current.slug != 'principal':
+        from content.api_views import _listes_confederales
+        confederales = _listes_confederales()
+        noms = [n for n in noms if n not in confederales]
+
+    return noms
 
 
 def _can_access_list(request, list_name):
@@ -1645,12 +1660,28 @@ _ECRANS_SNIPPET = {
     'contentpage': 'wagtailsnippets_cms_contentpage',
 }
 
+# Édition seulement : ces modèles doivent passer par leur écran snippet, mais
+# leur CRÉATION reste dans l'arbre des pages (un SectionPage a besoin d'un
+# parent, que l'écran « add » des snippets ne sait pas lui donner).
+#
+# Motif (audit du 17/09/2026) : `SectionPage` porte des champs réservés aux
+# superutilisateurs (`custom_domain`, et les trois champs de listes OVH qui
+# servent de source d'autorité). Le formulaire du VIEWSET les retire bien —
+# `permissionedforms` fait `del self.fields[nom]`. Mais le formulaire de
+# l'éditeur de PAGES, lui, a `field_permissions` à None : il se contente de les
+# masquer à l'affichage, et un POST forgé sur `/cms/pages/<pk>/edit/` les
+# écrivait encore. On renvoie donc vers l'écran qui protège réellement.
+_ECRANS_SNIPPET_EDITION_SEULE = {
+    'sectionpage': 'wagtailsnippets_cms_sectionpage',
+}
+
 
 @hooks.register('before_edit_page')
 def editer_par_l_ecran_snippet(request, page):
     from django.shortcuts import redirect
     from django.urls import reverse
-    espace = _ECRANS_SNIPPET.get(page.specific_class._meta.model_name)
+    nom = page.specific_class._meta.model_name
+    espace = _ECRANS_SNIPPET.get(nom) or _ECRANS_SNIPPET_EDITION_SEULE.get(nom)
     if espace:
         return redirect(reverse(f'{espace}:edit', args=[page.pk]))
 

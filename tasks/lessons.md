@@ -563,3 +563,30 @@ navigateur qui l'a montré, puis `node --check` qui a donné la ligne exacte.
 - le serveur local met les gabarits en cache quand `DEBUG` est faux : après
   modification d'un gabarit, **redémarrer** avant de conclure — j'ai cru un
   instant que ma correction n'avait rien changé.
+
+## 18/09/2026 — Un test qui interroge une page d'erreur ne teste rien
+
+En couvrant le correctif des métadonnées de partage, j'ai écrit trois tests qui
+passaient au vert **sans rien vérifier** : ils cherchaient l'absence d'un
+`og:image` sur une adresse qui répondait 404. Sur une page d'erreur, tout
+`assertNotIn` est trivialement vrai. Un seul des quatre tests a échoué — celui
+qui cherchait une présence — et c'est lui qui a révélé les trois autres.
+
+C'est la même famille que « chercher dans la page ce que la page contient »
+(12/09) et que le test du tract (18/08), mais par l'autre bout : là, la sonde
+mentait ; ici, la page n'existait pas.
+
+**Règles :**
+- tout test qui lit du HTML **affirme d'abord le statut** (`assertEqual(r.status_code, 200)`),
+  et dans le helper commun plutôt que dans chaque test ;
+- un test bâti sur des `assertNotIn` seuls doit être accompagné d'un **contrôle
+  positif** : sans lui, « ne rien annoncer » est vrai même quand le gabarit ne
+  rend plus rien du tout ;
+- en test, `page.url` de Wagtail vaut `None` (pas d'enregistrement `Site` sur
+  l'arbre d'essai) — passer `None` au client donne une 404 silencieuse. Viser la
+  route explicite (`/article/<slug>/`) ou rendre le gabarit directement.
+
+Et, deuxième fois en deux jours : **`{# … #}` ne couvre pas plusieurs lignes.**
+Le commentaire que j'écrivais pour expliquer le correctif contenait un
+`{% if %}` d'illustration ; le gabarit est tombé en `TemplateSyntaxError`.
+Pour tout commentaire de plus d'une ligne, ou qui cite une balise : `{% comment %}`.

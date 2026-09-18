@@ -1212,10 +1212,25 @@ NEWSLETTER_MAX_DESABO_PAR_IP = 20
 
 
 def _ip_du_visiteur(request):
-    """L'IP réelle derrière le reverse proxy nginx."""
+    """L'IP réelle derrière le reverse proxy nginx.
+
+    Le **dernier** élément, et non le premier (corrigé à l'audit du
+    17/09/2026). nginx passe `$proxy_add_x_forwarded_for`, qui **ajoute** l'IP
+    qu'il observe à la suite de ce que le client a envoyé. La chaîne reçue vaut
+    donc « ce que le client prétend, …, ce que nginx a vu » : seul le dernier
+    élément est posé par nous, tout le reste est de l'entrée utilisateur.
+
+    En prendre le premier laissait n'importe qui choisir son compteur : il
+    suffisait d'envoyer son propre `X-Forwarded-For` et de le faire tourner
+    pour neutraliser `_trop_de_demandes` (3/h) et `_trop_de_desabonnements`
+    (20/h) — précisément la défense posée après les ~2 000 courriels de
+    confirmation détournés en juillet-août 2026.
+    """
     transmis = request.META.get('HTTP_X_FORWARDED_FOR', '')
     if transmis:
-        return transmis.split(',')[0].strip()
+        elements = [p.strip() for p in transmis.split(',') if p.strip()]
+        if elements:
+            return elements[-1]
     return request.META.get('REMOTE_ADDR', '')
 
 

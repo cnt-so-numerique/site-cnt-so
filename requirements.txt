@@ -31,8 +31,11 @@ ovh==1.2.0
 pillow==12.3.0
 pillow_heif==1.6.0
 playwright==1.60.0
+# Le pilote PostgreSQL : la production en dépend, il n'était déclaré nulle part
+# et ne tenait qu'à une installation manuelle dans le venv du serveur. Un venv
+# reconstruit donnait un site incapable de joindre sa base (audit du 17/09/2026).
+psycopg[binary]==3.3.5
 pyee==13.0.1
-PyMySQL==1.2.0
 qrcode==8.2
 requests==2.34.2
 requests-oauthlib==2.0.0

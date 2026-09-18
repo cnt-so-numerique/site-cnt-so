@@ -56,6 +56,13 @@ jobs:
       # à vrai ferait tourner la suite sur une application qui n'est pas celle
       # des visiteurs.
       DJANGO_DEBUG: 'False'
+      # `settings.py` refuse aussi de démarrer hors développement avec les clés
+      # d'essai d'hCaptcha, qui valident n'importe quel jeton (audit du
+      # 17/09/2026). Valeurs factices : la suite simule de toute façon la
+      # validation du captcha, elle n'appelle jamais hCaptcha. Elles sont là
+      # pour que le garde-fou soit franchi, pas pour protéger quoi que ce soit.
+      HCAPTCHA_SITEKEY: 'ci-factice-sitekey'
+      HCAPTCHA_SECRET: 'ci-factice-secret'
 
     steps:
       - uses: actions/checkout@v4

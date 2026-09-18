@@ -10,7 +10,7 @@ Tests pour les fonctionnalités récentes :
 from datetime import date, timedelta
 from unittest.mock import patch, MagicMock
 
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -5747,9 +5747,29 @@ class UnSeulEcranDEditionTest(TestCase):
         self.assertRedirects(r, '/cms/snippets/cms/articlepage/add/',
                              fetch_redirect_response=False)
 
+    def test_la_fiche_syndicat_renvoie_aussi_vers_son_ecran(self):
+        """Ajouté à l'audit du 17/09/2026, pour une raison de sécurité.
+
+        `SectionPage` porte des champs réservés aux superutilisateurs
+        (`custom_domain`, et les trois champs de listes OVH qui servent de
+        source d'autorité à « Listes mails »). Le formulaire du VIEWSET les
+        retire vraiment — `permissionedforms` fait `del self.fields[nom]`. Mais
+        celui de l'éditeur de PAGES a `field_permissions` à None : il se
+        contentait de les masquer, et un POST forgé sur `/cms/pages/<pk>/edit/`
+        les écrivait encore. D'où ce renvoi vers l'écran qui protège.
+        """
+        r = self.client.get(f'/cms/pages/{self.section.pk}/edit/')
+        self.assertRedirects(r, f'/cms/snippets/cms/sectionpage/edit/{self.section.pk}/',
+                             fetch_redirect_response=False)
+
     def test_les_autres_pages_gardent_l_editeur_de_wagtail(self):
-        """Contrôle positif : un crochet trop large fermerait tout."""
-        self.assertEqual(self.client.get(f'/cms/pages/{self.section.pk}/edit/').status_code, 200)
+        """Contrôle positif : un crochet trop large fermerait tout.
+
+        On prend la HomePage — l'exemple d'origine était la fiche syndicat, qui
+        est désormais renvoyée elle aussi (cf. le test ci-dessus).
+        """
+        accueil = self.section.get_parent()
+        self.assertEqual(self.client.get(f'/cms/pages/{accueil.pk}/edit/').status_code, 200)
 
 
 class RangeCategoriesEducationTest(TestCase):
@@ -7135,3 +7155,209 @@ class ListesGereesSansNewsletterTest(TestCase):
         self.conf.ovh_listes_gerees = 'une-liste-de-plus,encore-une'
         self.conf.save()
         self.assertEqual(lists_for_site(self.conf), avant)
+
+
+class EscaladeListesOVHTest(TestCase):
+    """L'escalade trouvée à l'audit du 17/09/2026, et les deux verrous posés.
+
+    Un rédacteur de syndicat édite légitimement la fiche « Mon syndicat ». Or
+    `_allowed_mailing_lists()` lisait `ovh_listes_gerees` — un champ de cette
+    même fiche — comme source d'autorité. Il suffisait donc d'y écrire « news »
+    et d'enregistrer pour que `/cms/mailing-lists/news/` passe de 403 à 200,
+    puis de repartir avec le CSV des 5 895 sympathisants historiques.
+
+    Le test existant (`test_redacteur_gets_forbidden_on_index`) ne l'a pas vu
+    parce qu'il employait le groupe socle `redacteur`, SANS syndicat :
+    `get_current_site` renvoyait None, donc 403, donc vert. Un vrai rédacteur
+    est dans `redacteur_<slug>` et a un syndicat — c'est ce compte-là qu'on
+    prend ici.
+    """
+
+    def setUp(self):
+        from django.core.management import call_command
+        self.conf = _ensure_section_page(slug='principal', name='Confédération',
+                                         site_type='main')
+        self.conf.ovh_mailing_list = 'news'
+        self.conf.ovh_liste_inscription = 'news3'
+        self.conf.save(update_fields=['ovh_mailing_list', 'ovh_liste_inscription'])
+
+        self.stucs = make_stucs_section()
+        self.stucs.ovh_mailing_list = 'actu-stucs-cntso'
+        self.stucs.ovh_listes_gerees = ''
+        self.stucs.save(update_fields=['ovh_mailing_list', 'ovh_listes_gerees'])
+
+        call_command('setup_cms_permissions', verbosity=0)
+
+    def _redacteur_du_stucs(self):
+        from django.contrib.auth.models import Group, User
+        u = User.objects.create_user('redac-stucs-escalade', password='pass')
+        u.groups.add(Group.objects.get(name=f'redacteur_{self.stucs.slug}'))
+        return _client_with_site(User.objects.get(pk=u.pk), self.stucs)
+
+    # ── Verrou 1 : le champ n'est plus modifiable par un rédacteur ───────────
+
+    def test_le_redacteur_ne_voit_pas_les_champs_ovh_sur_sa_fiche(self):
+        c = self._redacteur_du_stucs()
+        r = c.get(f'/cms/snippets/cms/sectionpage/edit/{self.stucs.pk}/')
+        self.assertEqual(r.status_code, 200, "le rédacteur doit bien accéder à sa fiche")
+        html = r.content.decode()
+        self.assertNotIn('ovh_listes_gerees', html,
+                         "le champ qui sert de source d'autorité est exposé au rédacteur")
+        self.assertNotIn('ovh_mailing_list', html)
+
+    def test_les_champs_ovh_sont_retires_du_formulaire_du_redacteur(self):
+        """Le cœur de la faille : écrire dans le champ qui autorise.
+
+        On vérifie le mécanisme lui-même plutôt qu'un POST de formulaire
+        complet — `permissionedforms` fait `del self.fields[nom]` quand la
+        permission manque, donc un champ absent ici est un champ qu'aucun POST
+        forgé ne peut écrire. Un test qui se contenterait de regarder le HTML
+        ne prouverait qu'un masquage.
+        """
+        from django.contrib.auth.models import Group, User
+        from cms.wagtail_hooks import SectionPageViewSet
+
+        redac = User.objects.create_user('redac-form-escalade', password='pass')
+        redac.groups.add(Group.objects.get(name=f'redacteur_{self.stucs.slug}'))
+        su = make_superuser(username='su-form-escalade')
+
+        # Le formulaire du viewset, celui que sert réellement « Mon syndicat » —
+        # `get_edit_handler(SectionPage)` renvoie l'éditeur de PAGES, dont les
+        # `field_permissions` sont vides : s'en servir ici rendrait le test
+        # rouge à tort, et surtout il ne prouverait rien de l'écran visé.
+        form_class = SectionPageViewSet().get_edit_handler().get_form_class()
+        champs_redac = set(form_class(instance=self.stucs, for_user=redac).fields)
+        champs_su = set(form_class(instance=self.stucs, for_user=su).fields)
+
+        for champ in ('ovh_listes_gerees', 'ovh_mailing_list',
+                      'ovh_liste_inscription', 'newsletter_active'):
+            self.assertNotIn(champ, champs_redac,
+                             f"« {champ} » reste écrivable par un rédacteur")
+            self.assertIn(champ, champs_su,
+                          f"« {champ} » a disparu aussi pour le superutilisateur")
+
+    def test_lediteur_de_pages_ne_sert_pas_de_porte_derobee(self):
+        """La seconde porte, trouvée en vérifiant l'écran réellement ouvert.
+
+        `SectionPage` est une page Wagtail : `/cms/pages/<pk>/edit/` reste
+        atteignable. Or le formulaire de l'éditeur de PAGES a
+        `field_permissions` à None — il masque les champs à l'affichage sans
+        les retirer, donc un POST forgé les écrivait encore. On vérifie que cet
+        écran renvoie vers celui qui protège vraiment.
+        """
+        c = self._redacteur_du_stucs()
+        r = c.get(f'/cms/pages/{self.stucs.pk}/edit/')
+        self.assertEqual(r.status_code, 302,
+                         "l'éditeur de pages sert encore la fiche syndicat")
+        self.assertIn(f'/cms/snippets/cms/sectionpage/edit/{self.stucs.pk}/',
+                      r['Location'])
+
+    # ── Verrou 2 : même écrit, le nom confédéral n'autorise rien ─────────────
+
+    def test_une_liste_confederale_inscrite_de_force_nautorise_pas(self):
+        """Défense en profondeur : on court-circuite le formulaire et on écrit
+        directement en base, comme le ferait une faute de réglage ou un futur
+        chemin d'écriture."""
+        self.stucs.ovh_listes_gerees = 'news'
+        self.stucs.save(update_fields=['ovh_listes_gerees'])
+        c = self._redacteur_du_stucs()
+        r = c.get('/cms/mailing-lists/news/')
+        self.assertEqual(r.status_code, 403,
+                         "un syndicat accède à une liste de la confédération")
+
+    def test_lexport_csv_de_la_liste_confederale_est_refuse(self):
+        self.stucs.ovh_listes_gerees = 'news'
+        self.stucs.save(update_fields=['ovh_listes_gerees'])
+        c = self._redacteur_du_stucs()
+        r = c.get('/cms/mailing-lists/news/?export=csv')
+        self.assertEqual(r.status_code, 403)
+
+    def test_la_suppression_dabonne_sur_la_liste_confederale_est_refusee(self):
+        self.stucs.ovh_listes_gerees = 'news'
+        self.stucs.save(update_fields=['ovh_listes_gerees'])
+        c = self._redacteur_du_stucs()
+        r = c.post('/cms/mailing-lists/news/',
+                   {'action': 'remove', 'email': 'militant@example.org'})
+        self.assertEqual(r.status_code, 403)
+
+    # ── Pas de régression : chacun garde ce qui lui revient ──────────────────
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['alice@example.com'])
+    def test_le_syndicat_garde_sa_propre_liste(self, mock_subs):
+        c = self._redacteur_du_stucs()
+        r = c.get('/cms/mailing-lists/actu-stucs-cntso/')
+        self.assertEqual(r.status_code, 200)
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['alice@example.com'])
+    def test_la_conf_garde_acces_a_sa_liste(self, mock_subs):
+        """Le filtre ne doit pas se retourner contre la confédération
+        elle-même, à qui ces listes appartiennent."""
+        chef = _make_chef(username='chef-conf-escalade')
+        c = _client_with_site(chef, self.conf)
+        r = c.get('/cms/mailing-lists/news/')
+        self.assertEqual(r.status_code, 200)
+
+    def test_le_superutilisateur_garde_tout(self):
+        from unittest.mock import patch as _patch
+        c = Client()
+        c.force_login(make_superuser(username='su-escalade'))
+        with _patch('cms.ovh_client.get_subscribers', return_value=[]):
+            r = c.get('/cms/mailing-lists/news/')
+        self.assertEqual(r.status_code, 200)
+
+
+@override_settings(ALLOWED_HOSTS=['stucs-redir.cnt-so.org', 'testserver'])
+class RedirectionDeDomaineSansEvasionTest(TestCase):
+    """Open redirect trouvé à l'audit du 17/09/2026.
+
+    Sur un domaine de fédération, le middleware retire le préfixe de syndicat
+    et renvoie le reste du chemin en 301. Il le renvoyait TEL QUEL :
+    `/stucs//evil.com/x` donnait un `Location: //evil.com/x`, c'est-à-dire une
+    URL protocole-relative — le navigateur part sur `https://evil.com`. Et la
+    redirection étant permanente, elle se met en cache chez le visiteur :
+    hameçonnage au départ d'un domaine légitime du syndicat.
+    """
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='stucs-redir', name='STUCS redir')
+        self.site.custom_domain = 'stucs-redir.cnt-so.org'
+        self.site.save(update_fields=['custom_domain'])
+
+    def _location(self, chemin):
+        r = self.client.get(chemin, HTTP_HOST='stucs-redir.cnt-so.org')
+        return r.status_code, r.get('Location', '')
+
+    def test_la_double_barre_ne_fabrique_pas_un_hote(self):
+        code, loc = self._location('/stucs-redir//evil.com/x')
+        if code in (301, 302):
+            self.assertFalse(loc.startswith('//'),
+                             f"redirection protocole-relative : {loc!r}")
+            self.assertNotIn('evil.com', loc.split('/')[0] if '//' in loc else '',
+                             f"l'hôte a été détourné : {loc!r}")
+
+    def test_la_barre_inverse_non_plus(self):
+        r"""Plusieurs navigateurs normalisent `/\` en `//`."""
+        code, loc = self._location('/stucs-redir/\\evil.com/x')
+        if code in (301, 302):
+            self.assertFalse(loc.startswith('//'), f"{loc!r}")
+            self.assertFalse(loc.startswith('/\\'), f"{loc!r}")
+
+    def test_le_chemin_normal_est_toujours_servi(self):
+        """Contrôle positif : la redirection légitime doit continuer de marcher."""
+        code, loc = self._location('/stucs-redir/contact/')
+        self.assertEqual(code, 301)
+        self.assertEqual(loc, '/contact/')
+
+    def test_la_chaine_de_requete_est_conservee(self):
+        code, loc = self._location('/stucs-redir/recherche/?q=greve')
+        self.assertEqual(code, 301)
+        self.assertEqual(loc, '/recherche/?q=greve')
+
+    def test_le_helper_ecrase_toute_barre_initiale(self):
+        """Le cœur du correctif, isolé de la vue."""
+        from cntso.middleware import _chemin_sur_ce_site
+        self.assertEqual(_chemin_sur_ce_site('//evil.com/x'), '/evil.com/x')
+        self.assertEqual(_chemin_sur_ce_site('///evil.com'), '/evil.com')
+        self.assertEqual(_chemin_sur_ce_site('/\\evil.com'), '/evil.com')
+        self.assertEqual(_chemin_sur_ce_site('/contact/'), '/contact/')
+        self.assertEqual(_chemin_sur_ce_site('/'), '/')

@@ -880,16 +880,26 @@ class SectionPage(SeoMixin, Page):
         ], heading="Page Nous rejoindre"),
         FieldPanel('agenda_text'),
         FieldPanel('logo'),
+        # Réservé aux superutilisateurs (audit du 17/09/2026). Ces trois champs
+        # ne décrivent pas seulement un réglage : `_allowed_mailing_lists()`
+        # (cms/wagtail_hooks.py) s'en sert comme SOURCE D'AUTORITÉ pour dire
+        # quelles listes un compte peut consulter, exporter et vider. Laissés
+        # ouverts, un rédacteur écrivait « news » dans « listes gérées »,
+        # enregistrait, et l'écran « Listes mails » passait de 403 à 200 sur
+        # les 5 895 sympathisants historiques. Le portier était bon ; c'est la
+        # liste des invités qui était modifiable par les invités.
+        # Même traitement que `custom_domain` plus bas, et pour la même raison.
         MultiFieldPanel([
-            FieldPanel('newsletter_active'),
-            FieldPanel('ovh_mailing_list', widget=OVHMailingListWidget),
-            FieldPanel('ovh_liste_inscription'),
+            FieldPanel('newsletter_active', permission='superuser'),
+            FieldPanel('ovh_mailing_list', widget=OVHMailingListWidget,
+                       permission='superuser'),
+            FieldPanel('ovh_liste_inscription', permission='superuser'),
             # Deux champs, deux rôles : celui du dessus dit À QUI part la
             # newsletter, celui-ci dit seulement QUI a le droit de gérer la
             # liste. Les confondre enverrait la lettre confédérale à toutes
             # les listes de travail — ce qui a failli arriver le 17/09/2026.
-            FieldPanel('ovh_listes_gerees'),
-        ], heading="Newsletter OVH"),
+            FieldPanel('ovh_listes_gerees', permission='superuser'),
+        ], heading="Newsletter OVH", permission='superuser'),
         MultiFieldPanel([
             FieldPanel('social_mastodon'),
             FieldPanel('social_bluesky'),

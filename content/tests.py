@@ -9845,3 +9845,145 @@ class ContactListActionsTest(TestCase):
         # refusent d'ouvrir le message.
         self.assertIn(f'mailto:{msg.email}?subject=', corps)
         self.assertIn('cnt-copier-adresse', corps)
+
+
+class IpDuVisiteurTest(TestCase):
+    """`X-Forwarded-For` est de l'entrée utilisateur, sauf son dernier élément.
+
+    Corrigé à l'audit du 17/09/2026. nginx passe `$proxy_add_x_forwarded_for`,
+    qui AJOUTE l'IP observée à la suite de ce que le client a envoyé. Prendre
+    le premier élément laissait donc n'importe qui choisir son propre
+    compteur : il suffisait d'envoyer son `X-Forwarded-For` et de le faire
+    tourner pour neutraliser les limites posées après les ~2 000 courriels de
+    confirmation détournés en juillet-août 2026.
+    """
+
+    def setUp(self):
+        from django.test import RequestFactory
+        self.rf = RequestFactory()
+
+    def _ip(self, **meta):
+        from content.views import _ip_du_visiteur
+        return _ip_du_visiteur(self.rf.get('/', **meta))
+
+    def test_l_ip_posee_par_nginx_est_la_derniere(self):
+        self.assertEqual(
+            self._ip(HTTP_X_FORWARDED_FOR='198.51.100.7', REMOTE_ADDR='127.0.0.1'),
+            '198.51.100.7')
+
+    def test_une_ip_forgee_par_le_client_ne_masque_pas_la_vraie(self):
+        """Le cœur du correctif : le client prétend 1.2.3.4, nginx a vu la vraie."""
+        self.assertEqual(
+            self._ip(HTTP_X_FORWARDED_FOR='1.2.3.4, 198.51.100.7',
+                     REMOTE_ADDR='127.0.0.1'),
+            '198.51.100.7')
+
+    def test_une_chaine_entiere_forgee_ne_change_rien(self):
+        self.assertEqual(
+            self._ip(HTTP_X_FORWARDED_FOR='1.1.1.1, 2.2.2.2, 3.3.3.3, 198.51.100.7'),
+            '198.51.100.7')
+
+    def test_sans_en_tete_on_retombe_sur_remote_addr(self):
+        self.assertEqual(self._ip(REMOTE_ADDR='203.0.113.9'), '203.0.113.9')
+
+    def test_un_en_tete_vide_ne_masque_pas_remote_addr(self):
+        self.assertEqual(
+            self._ip(HTTP_X_FORWARDED_FOR='  ,  ', REMOTE_ADDR='203.0.113.9'),
+            '203.0.113.9')
+
+    def test_deux_visiteurs_forgeant_le_meme_en_tete_restent_distincts(self):
+        """Ce que la faille permettait : deux requêtes derrière la même IP
+        réelle comptaient comme deux visiteurs différents."""
+        a = self._ip(HTTP_X_FORWARDED_FOR='10.0.0.1, 198.51.100.7')
+        b = self._ip(HTTP_X_FORWARDED_FOR='10.0.0.2, 198.51.100.7')
+        self.assertEqual(a, b, "le compteur de limite reste contournable")
+
+
+class MetadonneesDePartageTest(TestCase):
+    """Un `{% if %}` autour d'un `{% block %}` : Django l'ignore.
+
+    Trouvé à l'audit du 17/09/2026. Django collecte les `BlockNode` à la
+    compilation, en traversant l'`IfNode` — la condition ne s'applique donc
+    jamais. Il en sortait un `og:image` VIDE accompagné de
+    `twitter:card=summary_large_image` sur ~760 articles publiés : une grande
+    carte blanche à chaque partage sur Mastodon, Facebook ou Bluesky.
+    """
+
+    def setUp(self):
+        _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+
+    def _html(self, url):
+        """Le statut est vérifié ici, et pas ailleurs : sur une page d'erreur,
+        tous les `assertNotIn` de cette classe passeraient à vide."""
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 200, f"{url} répond {r.status_code}")
+        return r.content.decode()
+
+    def test_un_article_sans_image_n_annonce_pas_d_image(self):
+        make_article_page(title='Sans visuel', slug='sans-visuel-partage')
+        html = self._html('/article/sans-visuel-partage/')
+        self.assertNotIn('property="og:image"', html,
+                         "un og:image vide est annoncé")
+        self.assertIn('name="twitter:card" content="summary"', html,
+                      "la grande carte est promise sans image à mettre dedans")
+
+    def test_un_article_sans_image_ne_promet_pas_la_grande_carte(self):
+        make_article_page(title='Sans visuel 2', slug='sans-visuel-2')
+        self.assertNotIn('summary_large_image',
+                         self._html('/article/sans-visuel-2/'))
+
+    def test_une_page_sans_image_n_annonce_pas_l_adresse_du_site(self):
+        """Rendu direct du gabarit : `/page/<slug>/` sert `page_detail.html`,
+        un autre fichier. Celui corrigé ici est `cms/content_page.html`, que
+        seul Wagtail sert — et le service Wagtail ne se résout pas en test,
+        faute d'enregistrement `Site` sur l'arbre d'essai."""
+        from django.template.loader import render_to_string
+        from django.test import RequestFactory
+        page = make_content_page(title='Page nue', slug='page-nue-partage')
+        requete = RequestFactory().get('/page-nue-partage/')
+        html = render_to_string('cms/content_page.html',
+                                {'page': page, 'site_base_url': 'https://cnt-so.org'},
+                                request=requete)
+        self.assertNotIn('property="og:image"', html,
+                         "l'adresse du site est annoncée en guise d'image")
+        self.assertNotIn('summary_large_image', html)
+
+    def test_le_gabarit_de_page_annonce_bien_l_image_quand_il_y_en_a_une(self):
+        """Contrôle positif : la condition déplacée doit encore laisser passer
+        le cas normal — sans lui, « ne rien annoncer » serait trivialement vrai."""
+        from django.template.loader import render_to_string
+        from django.test import RequestFactory
+        from wagtail.images import get_image_model
+        from django.core.files.base import ContentFile
+        import io
+        from PIL import Image as PILImage
+        tampon = io.BytesIO()
+        PILImage.new('RGB', (10, 10), 'white').save(tampon, format='PNG')
+        image = get_image_model().objects.create(
+            title='Affiche', width=10, height=10,
+            file=ContentFile(tampon.getvalue(), name='affiche-test.png'))
+        page = make_content_page(title='Page illustrée', slug='page-illustree-partage')
+        page.featured_image = image
+        page.save()
+        html = render_to_string('cms/content_page.html',
+                                {'page': page, 'site_base_url': 'https://cnt-so.org'},
+                                request=RequestFactory().get('/page-illustree-partage/'))
+        self.assertIn('property="og:image"', html,
+                      "l'image n'est plus annoncée du tout")
+        self.assertIn('summary_large_image', html)
+
+    def test_un_sous_site_sans_description_garde_une_description(self):
+        """Le bloc vide ÉCRASAIT le repli de base.html : Google fabriquait
+        alors son propre extrait, et les partages n'avaient aucun texte."""
+        import re
+        site = make_site(slug='sans-desc-partage', name='CNT-SO Essai',
+                         site_type='sectoral')
+        site.description = ''
+        site.save(update_fields=['description'])
+        html = self._html(f'/{site.slug}/')
+        trouve = re.search(r'<meta name="description" content="([^"]*)"', html)
+        self.assertIsNotNone(trouve, "plus aucune meta description")
+        self.assertNotEqual(trouve.group(1).strip(), '',
+                            "la description est vide et écrase le repli")
+        self.assertIn('CNT-SO Essai', trouve.group(1),
+                      "le repli ne nomme pas le syndicat")

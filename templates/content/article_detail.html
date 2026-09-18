@@ -8,11 +8,14 @@
 {% block twitter_title %}{{ article.title }}{% endblock %}
 {% block twitter_description %}{{ article.meta_description|default:article.title|truncatechars:200 }}{% endblock %}
 {% block og_type %}article{% endblock %}
-{% if article.any_image_url %}
-{% block og_image %}<meta property="og:image" content="{% absolute_url article.any_image_url site_base_url %}">{% endblock %}
-{% block twitter_card_type %}summary_large_image{% endblock %}
-{% block twitter_image %}<meta name="twitter:image" content="{% absolute_url article.any_image_url site_base_url %}">{% endblock %}
-{% endif %}
+{% comment %}La condition est DANS chaque bloc, jamais autour : Django collecte les
+   BlockNode à la compilation, en traversant l'IfNode, si bien qu'un
+   `{% if %}` enveloppant ne s'applique pas. Il en sortait un
+   `og:image` VIDE avec `summary_large_image` sur ~760 articles — soit une
+   grande carte blanche à chaque partage (audit du 17/09/2026).{% endcomment %}
+{% block og_image %}{% if article.any_image_url %}<meta property="og:image" content="{% absolute_url article.any_image_url site_base_url %}">{% endif %}{% endblock %}
+{% block twitter_card_type %}{% if article.any_image_url %}summary_large_image{% else %}summary{% endif %}{% endblock %}
+{% block twitter_image %}{% if article.any_image_url %}<meta name="twitter:image" content="{% absolute_url article.any_image_url site_base_url %}">{% endif %}{% endblock %}
 {% block structured_data %}
 {% article_structured_data article site_base_url canonical_url as article_sd %}
 <script type="application/ld+json">{{ article_sd|json_ld }}</script>

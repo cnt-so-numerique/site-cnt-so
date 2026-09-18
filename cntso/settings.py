@@ -280,6 +280,14 @@ WAGTAILADMIN_COMMENTS_ENABLED = False
 # Créer un compte sur https://dashboard.hcaptcha.com/
 HCAPTCHA_SITEKEY = _os.environ.get('HCAPTCHA_SITEKEY', '10000000-ffff-ffff-ffff-000000000001')
 HCAPTCHA_SECRET = _os.environ.get('HCAPTCHA_SECRET', '0x0000000000000000000000000000000000000000')
+# Les deux valeurs ci-dessus sont les clés d'essai publiques d'hCaptcha : elles
+# valident N'IMPORTE QUEL jeton. En production, le captcha devient alors un
+# décor. Le bloc de durcissement en fin de fichier refuse de démarrer avec —
+# voir le commentaire là-bas.
+HCAPTCHA_CLES_DE_TEST = (
+    '10000000-ffff-ffff-ffff-000000000001',
+    '0x0000000000000000000000000000000000000000',
+)
 
 # ── Caches ────────────────────────────────────────────────────────────────────
 #
@@ -472,6 +480,19 @@ if not DEBUG:
         raise ImproperlyConfigured(
             "SECRET_KEY absente en production : définir la variable "
             "d'environnement SECRET_KEY (ou la surcharger dans local_settings.py)."
+        )
+    # Même traitement pour hCaptcha (audit du 17/09/2026). Les clés d'essai
+    # valident tout : une variable d'environnement perdue à un redéploiement
+    # rouvrait en silence la porte au botnet de juillet-août 2026, et rien ne
+    # l'aurait signalé — un captcha inopérant s'affiche exactement comme un
+    # captcha qui marche. Mieux vaut un démarrage refusé qu'un formulaire nu.
+    if (HCAPTCHA_SITEKEY in HCAPTCHA_CLES_DE_TEST
+            or HCAPTCHA_SECRET in HCAPTCHA_CLES_DE_TEST):
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured(
+            "hCaptcha tourne avec les clés d'essai, qui valident n'importe "
+            "quel jeton : définir HCAPTCHA_SITEKEY et HCAPTCHA_SECRET "
+            "(variables d'environnement ou local_settings.py)."
         )
     # Cookies uniquement sur HTTPS
     SESSION_COOKIE_SECURE = True
