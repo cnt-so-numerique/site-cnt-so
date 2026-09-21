@@ -122,14 +122,14 @@
     display: grid; gap: .35rem;
     font-size: .97rem;
   }
-  .piege b {
+  .piege > b {
     font-family: "IBM Plex Mono", monospace;
     font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
     color: var(--encre-douce); font-weight: 500;
   }
 
   .repere { display: grid; gap: .3rem; padding: .8rem 1rem; border: 1px solid var(--filet); border-radius: 2px; box-shadow: var(--ombre); font-size: .97rem; }
-  .repere b { font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: .04em; font-size: .82rem; }
+  .repere > b { font-family: Oswald, sans-serif; text-transform: uppercase; letter-spacing: .04em; font-size: .82rem; }
 
   dl.champs { display: grid; grid-template-columns: minmax(9rem, auto) 1fr; gap: .45rem 1rem; margin: 0; font-size: .97rem; }
   dl.champs dt { font-family: "IBM Plex Mono", monospace; font-size: .85em; color: var(--encre); }
@@ -171,13 +171,21 @@
       <header>
         <div class="numero">1</div>
         <h2>Se connecter</h2>
-        <p>Un compte par personne, jamais un compte partagé : c'est ce qui permet de savoir qui a écrit quoi.</p>
+        <p>Un compte par syndicat, que plusieurs personnes peuvent se partager. Il est rattaché à l'adresse de fonction du syndicat.</p>
       </header>
       <ol class="etapes">
-        <li>Ouvre <code>cnt-so.org/cms/</code> et saisis ton identifiant et ton mot de passe.</li>
-        <li>Mot de passe perdu ? Clique sur <span class="ecran">Mot de passe oublié ?</span> sous le formulaire. Un courriel arrive dans la minute ; regarde les indésirables.</li>
+        <li><b>La première fois</b>, le compte n'a pas encore de mot de passe connu. Ouvre <code>cnt-so.org/cms/</code>, clique sur <span class="ecran">Mot de passe oublié ?</span> et saisis l'adresse du compte. Un courriel arrive dans la minute (regarde les indésirables) : clique sur le lien et choisis le mot de passe.</li>
+        <li><b>Ensuite</b>, ouvre <code>cnt-so.org/cms/</code> et saisis l'identifiant <b>ou</b> l'adresse courriel du compte, puis le mot de passe. Mot de passe perdu : même chemin que la première fois.</li>
         <li>En haut de la colonne de gauche, vérifie le <b>sélecteur de syndicat</b> : il indique le syndicat sur lequel tu travailles. Tout ce que tu écris part dans celui-là.</li>
       </ol>
+      <div class="piege">
+        <b>Piège — le lien du courriel</b>
+        <span>Il ne sert qu'une fois, dure trois jours, et <b>meurt dès que quelqu'un se connecte au compte</b>. Sur un compte partagé, demande-le quand tu es prêt·e à t'en servir, clique aussitôt, et préviens les autres d'attendre. S'il s'affiche comme invalide, redemandes-en un : rien n'est perdu.</span>
+      </div>
+      <div class="repere">
+        <b>Le mot de passe partagé</b>
+        <span>Range-le dans un coffre de mots de passe commun, jamais dans une conversation ou un courriel. Quand quelqu'un quitte l'équipe, change-le : sinon il garde l'accès au site.</span>
+      </div>
       <div class="piege">
         <b>Piège</b>
         <span>Si tu ouvres un article d'un autre syndicat, le CMS bascule automatiquement sur lui et te le dit par un message. Pense à revenir sur le tien avant d'écrire un nouvel article — sinon il sera publié chez le voisin.</span>
@@ -314,20 +322,20 @@
         <b>Piège — la conf écrit à 5 914 personnes</b>
         <span>Pour la confédération, le bouton vise <b>trois listes à la fois</b> : <code>news</code>, <code>news2</code> et <code>news3</code>, soit 5 914 abonnés, dont les sympathisants inscrits depuis des années. Ce n'est pas la seule liste des inscrits du site. N'envoie qu'après accord du responsable de la liste.</span>
       </div>
-      <div class="repere">
+      <div class="piege">
         <b>Syndicat sans liste OVH</b>
-        <span>L'envoi se fait alors adresse par adresse, aux inscrits confirmés du site, avec 18 secondes entre chaque courriel — deux cents abonnés demandent une heure. Ne ferme pas la page pendant ce temps.</span>
+        <span><b>N'envoie pas.</b> Sans liste, le site essaie d'écrire à chaque inscrit l'un après l'autre, et le serveur interrompt cet envoi au bout de quelques secondes : seuls les premiers reçoivent la lettre, qui reste pourtant en brouillon — un second essai leur écrirait deux fois. Demande d'abord au responsable du site de rattacher une liste OVH à ton syndicat.</span>
       </div>
       <div class="repere">
         <b>Désabonnements</b>
-        <span>Un visiteur qui se désabonne par le lien du courriel sort de la base du site, mais <b>pas</b> de la liste OVH : c'est au responsable de la liste de l'y retirer. Sans cela, il continuera de recevoir les envois.</span>
+        <span>Un lecteur qui se désabonne par le lien du courriel est retiré <b>automatiquement</b>, de la base du site comme de la liste OVH. Il n'y a rien à faire à la main.</span>
       </div>
     </section>
 
   </div>
 
   <footer class="pied">
-    <span>Fiches établies le 12 septembre 2026, d'après l'interface en service. Les libellés entre guillemets sont ceux affichés à l'écran.</span>
+    <span>Fiches établies le 12 septembre 2026, mises à jour le 21 septembre 2026, d'après l'interface en service. Les libellés entre guillemets sont ceux affichés à l'écran.</span>
     <span>Documentation complète pour les responsables : <code>docs/documentation-cms.md</code> dans le dépôt du site.</span>
   </footer>
 </div>

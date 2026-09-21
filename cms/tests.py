@@ -7361,3 +7361,98 @@ class RedirectionDeDomaineSansEvasionTest(TestCase):
         self.assertEqual(_chemin_sur_ce_site('/\\evil.com'), '/evil.com')
         self.assertEqual(_chemin_sur_ce_site('/contact/'), '/contact/')
         self.assertEqual(_chemin_sur_ce_site('/'), '/')
+
+
+class ConnexionParIdentifiantOuCourrielTest(TestCase):
+    """21/09/2026 : un collègue réinitialise le mot de passe de `media`, puis
+    échoue trois fois à se connecter. Le parcours de réinitialisation demandait
+    son ADRESSE ; la connexion n'acceptait que l'IDENTIFIANT. Les deux marchent
+    désormais — l'identifiant restant prioritaire."""
+
+    MDP = 'Un-mot-de-passe-solide-2026'
+
+    def _compte(self, username, email, actif=True):
+        from django.contrib.auth.models import Permission, User
+        u = User.objects.create_user(username, email, self.MDP, is_active=actif)
+        u.user_permissions.add(Permission.objects.get(codename='access_admin'))
+        return u
+
+    def _connexion(self, saisie, mdp=None):
+        return self.client.post('/cms/login/', {
+            'username': saisie, 'password': mdp or self.MDP})
+
+    def _connecte(self):
+        return '_auth_user_id' in self.client.session
+
+    # ── Les deux marchent ────────────────────────────────────────────────────
+
+    def test_par_identifiant(self):
+        self._compte('media-essai', 'media-essai@cnt-so.org')
+        r = self._connexion('media-essai')
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(self._connecte())
+
+    def test_par_adresse(self):
+        """Le cas du 21/09."""
+        self._compte('media-essai', 'media-essai@cnt-so.org')
+        r = self._connexion('media-essai@cnt-so.org')
+        self.assertEqual(r.status_code, 302, "l'adresse courriel est refusée")
+        self.assertTrue(self._connecte())
+
+    def test_l_adresse_ignore_la_casse_et_les_espaces(self):
+        self._compte('media-essai', 'media-essai@cnt-so.org')
+        self._connexion('  Media-Essai@CNT-SO.org ')
+        self.assertTrue(self._connecte())
+
+    # ── Ce qui doit rester refusé ────────────────────────────────────────────
+
+    def test_adresse_et_mauvais_mot_de_passe(self):
+        self._compte('media-essai', 'media-essai@cnt-so.org')
+        r = self._connexion('media-essai@cnt-so.org', 'mauvais')
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(self._connecte())
+
+    def test_une_adresse_partagee_par_deux_comptes_ne_choisit_pas(self):
+        """On refuse plutôt que de deviner à quel compte l'adresse renvoie."""
+        self._compte('premier', 'commune@cnt-so.org')
+        self._compte('second', 'commune@cnt-so.org')
+        self._connexion('commune@cnt-so.org')
+        self.assertFalse(self._connecte())
+
+    def test_un_compte_desactive_ne_rentre_pas_par_son_adresse(self):
+        self._compte('ancien', 'ancien@cnt-so.org', actif=False)
+        self._connexion('ancien@cnt-so.org')
+        self.assertFalse(self._connecte())
+
+    def test_un_compte_desactive_ne_bloque_pas_le_compte_actif_de_meme_adresse(self):
+        self._compte('ancien', 'fonction@cnt-so.org', actif=False)
+        self._compte('actuel', 'fonction@cnt-so.org')
+        self._connexion('fonction@cnt-so.org')
+        self.assertTrue(self._connecte())
+
+    def test_l_identifiant_est_prioritaire_et_seul_essaye(self):
+        """Si la saisie est l'identifiant d'un compte, c'est lui et lui seul :
+        le mot de passe n'est jamais essayé sur un second compte."""
+        from django.contrib.auth.models import User
+        self._compte('piege@cnt-so.org', 'autre@cnt-so.org')      # identifiant = une adresse
+        cible = self._compte('cible', 'piege@cnt-so.org')          # adresse = cette même chaîne
+        cible.set_password('mdp-de-la-cible-2026')
+        cible.save()
+        self._connexion('piege@cnt-so.org', 'mdp-de-la-cible-2026')
+        self.assertFalse(self._connecte(),
+                         "le mot de passe a été essayé sur un second compte")
+
+    # ── Rien ne casse autour ─────────────────────────────────────────────────
+
+    def test_la_page_annonce_les_deux(self):
+        html = self.client.get('/cms/login/').content.decode()
+        self.assertIn('Identifiant ou adresse courriel', html)
+
+    def test_une_session_ouverte_avant_le_changement_reste_ouverte(self):
+        """Une session porte le nom du module qui l'a authentifiée. Si
+        `ModelBackend` sortait de la liste, le déploiement déconnecterait tout
+        le monde."""
+        u = self._compte('deja-la', 'deja-la@cnt-so.org')
+        self.client.force_login(u, backend='django.contrib.auth.backends.ModelBackend')
+        r = self.client.get('/cms/')
+        self.assertEqual(r.status_code, 200, "la session d'avant a été perdue")

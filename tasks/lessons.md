@@ -590,3 +590,36 @@ Et, deuxième fois en deux jours : **`{# … #}` ne couvre pas plusieurs lignes.
 Le commentaire que j'écrivais pour expliquer le correctif contenait un
 `{% if %}` d'illustration ; le gabarit est tombé en `TemplateSyntaxError`.
 Pour tout commentaire de plus d'une ligne, ou qui cite une balise : `{% comment %}`.
+
+## 21/09/2026 — Se connecter à un vrai compte en prod tue ses liens de réinitialisation
+
+**Ce qui s'est passé.** Le 17/09, les comptes rédacteurs ont reçu leur lien
+d'invitation (« Mot de passe oublié ? » est le SEUL moyen d'y entrer : leur mot
+de passe est aléatoire et connu de personne). Dans la même séance, une
+vérification côté serveur s'est **connectée à ces comptes** par script
+(`Client().force_login()` ou équivalent) pour contrôler leurs droits. Trois
+passages, reconnaissables à leurs paires de connexions à une seconde d'écart :
+`auvergne`/`felix86` (14:12:20-21), `cntso`/`contact34` (14:20:38-40),
+`media`/`nicolas13` (19:12:19-28). Aucune ne figure dans nginx : zéro
+`POST /cms/login/` ce soir-là.
+
+Or le jeton de réinitialisation de Django est signé avec `last_login` : toute
+connexion l'annule. Le lien de `media`, envoyé à 18:56, est mort à 19:12. Le
+21/09, son destinataire a vu « lien expiré ». Au décompte, **cinq comptes sur
+neuf n'avaient jamais pu entrer**.
+
+Le diagnostic est venu de la partie datée du jeton (avant le tiret, non
+secrète) : `lien fabriqué 17/09 20:56`, comparée à `last_login` et aux clics
+dans nginx. Un clic valide donne un **302** vers `set-password` ; un **200 seul**
+est la page « lien invalide ».
+
+**Règles :**
+- **ne jamais se connecter à un compte réel en production** pour vérifier ses
+  droits — pas de `force_login` sur la base de prod. Vérifier par
+  `user.has_perm()`, par le queryset cloisonné, ou avec un compte jetable créé
+  puis supprimé pour l'occasion ;
+- une vérification qui écrit en base n'est pas une lecture : `force_login`
+  déclenche `user_logged_in`, donc `update_last_login` ;
+- avec des comptes **partagés**, la même chose arrive sans script : si un
+  co-titulaire se connecte entre la demande et le clic, le lien meurt. Consigne
+  aux syndicats : demander le lien et l'utiliser tout de suite.

@@ -34,7 +34,10 @@ playwright==1.60.0
 # Le pilote PostgreSQL : la production en dépend, il n'était déclaré nulle part
 # et ne tenait qu'à une installation manuelle dans le venv du serveur. Un venv
 # reconstruit donnait un site incapable de joindre sa base (audit du 17/09/2026).
-psycopg[binary]==3.3.5
+# C'est psycopg2, la version relevée sur le serveur le 21/09 : déclarer psycopg 3
+# aurait installé un second pilote, que Django préfère — le déploiement aurait
+# changé de pilote en silence. Passer à psycopg 3 sera un changement à part.
+psycopg2-binary==2.9.12
 pyee==13.0.1
 qrcode==8.2
 requests==2.34.2

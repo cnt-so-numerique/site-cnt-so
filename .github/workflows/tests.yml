@@ -80,7 +80,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install psycopg[binary] pip-audit
+          # Le pilote PostgreSQL vient de requirements.txt, comme en production
+          # (psycopg2). Installer psycopg 3 ici en plus faisait tourner la suite
+          # sur un autre pilote que celui du serveur (relevé le 21/09/2026).
+          pip install pip-audit
 
       - name: Cohérence des dépendances
         run: pip check

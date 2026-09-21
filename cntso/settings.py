@@ -152,6 +152,18 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Connexion par identifiant OU par adresse courriel (21/09/2026) — voir
+# cntso/connexion.py. `ModelBackend` reste listé en second, et c'est voulu :
+# chaque session ouverte garde le nom du module qui l'a authentifiée, et Django
+# déconnecte toute session dont le module n'est plus dans cette liste. Sans lui,
+# le déploiement aurait mis tout le monde dehors. Il ne peut plus réussir une
+# connexion que le premier aurait refusée.
+AUTHENTICATION_BACKENDS = [
+    'cntso.connexion.IdentifiantOuCourrielBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+WAGTAILADMIN_USER_LOGIN_FORM = 'cntso.connexion.FormulaireConnexion'
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
