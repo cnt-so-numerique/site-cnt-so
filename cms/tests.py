@@ -7456,3 +7456,61 @@ class ConnexionParIdentifiantOuCourrielTest(TestCase):
         self.client.force_login(u, backend='django.contrib.auth.backends.ModelBackend')
         r = self.client.get('/cms/')
         self.assertEqual(r.status_code, 200, "la session d'avant a été perdue")
+
+
+class PublierEnBoutonPrincipalTest(TestCase):
+    """21/09/2026 : un article écrit par `media` n'apparaissait pas. Le gros
+    bouton était « Enregistrer le brouillon » (ordre par défaut de Wagtail) et
+    « Publier » dormait dans la flèche — alors que Wagtail 7.4 enregistre déjà
+    le brouillon tout seul, une demi-seconde après chaque modification."""
+
+    def setUp(self):
+        self.article = make_article_page(title='Amazon', slug='amazon-bouton')
+
+    def _menu(self, user, modele_instance=None):
+        from django.test import RequestFactory
+        from wagtail.snippets.action_menu import SnippetActionMenu
+        requete = RequestFactory().get('/')
+        requete.user = user
+        return SnippetActionMenu(requete, view='edit',
+                                 instance=modele_instance or self.article)
+
+    def test_le_bouton_principal_d_un_article_publie(self):
+        menu = self._menu(make_superuser(username='su-bouton'))
+        self.assertEqual(menu.default_item.name, 'action-publish',
+                         "« Publier » n'est pas le gros bouton")
+
+    def test_le_brouillon_reste_accessible_dans_la_fleche(self):
+        menu = self._menu(make_superuser(username='su-fleche'))
+        self.assertIn('action-save', [i.name for i in menu.menu_items],
+                      "« Enregistrer le brouillon » a disparu")
+
+    def test_un_compte_sans_droit_de_publier_garde_son_bouton(self):
+        """Sans le droit de publier, le menu ne propose pas « Publier » : le
+        réglage ne doit pas lui laisser un menu sans bouton principal."""
+        from django.contrib.auth.models import User
+        sans_droit = User.objects.create_user('sans-droit-bouton', password='x')
+        menu = self._menu(sans_droit)
+        self.assertEqual(menu.default_item.name, 'action-save')
+
+    def test_la_page_d_edition_affiche_publier_en_premier(self):
+        """Le rendu réel : dans le HTML, « Publier » vient avant la flèche."""
+        self.client.force_login(make_superuser(username='su-rendu-bouton'))
+        html = self.client.get(
+            f'/cms/snippets/cms/articlepage/edit/{self.article.pk}/').content.decode()
+        publier = html.find('name="action-publish"')
+        brouillon = html.find('action-save')
+        self.assertNotEqual(publier, -1, "aucun bouton « Publier » dans la page")
+        self.assertLess(publier, brouillon,
+                        "« Publier » n'est pas rendu avant le brouillon")
+
+    def test_mon_syndicat_garde_son_propre_reglage(self):
+        """Contrôle : l'autre réglage, celui de la fiche syndicat, n'est pas
+        perturbé — son bouton principal publie et s'appelle « Enregistrer »."""
+        from cms.models import SectionPage
+        section = SectionPage.objects.get(slug='principal') if SectionPage.objects.filter(
+            slug='principal').exists() else _ensure_section_page(
+            slug='principal', name='CNT-SO', site_type='main')
+        menu = self._menu(make_superuser(username='su-syndicat-bouton'), section)
+        self.assertEqual(menu.default_item.name, 'action-publish')
+        self.assertEqual(str(menu.default_item.label), 'Enregistrer')

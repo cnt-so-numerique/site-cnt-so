@@ -488,6 +488,33 @@ def syndicat_enregistrer_publie_directement(menu_items, request, context):
     ]
 
 
+@hooks.register('construct_snippet_action_menu')
+def article_publier_en_bouton_principal(menu_items, request, context):
+    """Sur un article, le gros bouton publie ; le brouillon passe dans la flèche.
+
+    21/09/2026 : le compte `media` écrit un article, clique sur le gros bouton,
+    et l'article n'apparaît nulle part. Ce bouton était « Enregistrer le
+    brouillon » — l'ordre par défaut de Wagtail — et « Publier » dormait dans
+    la flèche. Les journaux ne montrent qu'un seul clic, et c'était celui-là.
+
+    Or Wagtail 7.4 enregistre déjà le brouillon tout seul, une demi-seconde
+    après chaque modification (`WAGTAIL_AUTOSAVE_INTERVAL`, 500 ms par défaut).
+    Le gros bouton offrait donc la seule action que la machine fait déjà, et
+    cachait la seule qu'elle ne fait pas.
+
+    « Enregistrer le brouillon » reste dans la flèche : un article préparé à
+    l'avance doit pouvoir attendre. Et on ne touche à rien pour un compte qui
+    n'a pas le droit de publier — il garderait sinon un menu sans bouton.
+    """
+    if context.get('model') is not ArticlePage:
+        return
+    publish = next((i for i in menu_items if i.name == 'action-publish'), None)
+    if publish is None:
+        return
+    menu_items.remove(publish)
+    menu_items.insert(0, publish)
+
+
 # ── Événements ────────────────────────────────────────────────────────────────
 
 class EventViewSet(ViewSetCloisonne, SnippetViewSet):
