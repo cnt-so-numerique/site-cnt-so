@@ -5,6 +5,7 @@ Anciennement dans redaction/views.py — maintenant exposées via Wagtail admin 
 import csv
 import logging
 import time
+from datetime import timedelta
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
@@ -210,7 +211,7 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
         # de personnes. Désactiver le bouton côté navigateur ne suffit pas.
         reservee = Newsletter.objects.filter(
             pk=newsletter.pk, status='draft',
-        ).update(status='sending')
+        ).update(status='sending', envoi_commence_le=timezone.now())
         if not reservee:
             messages.error(request, 'Cette newsletter est déjà en cours d’envoi.')
             return redirect('/cms/snippets/content/newsletter/')
@@ -359,6 +360,21 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
         return redirect('/cms/snippets/content/newsletter/'), True
 
 
+#: Délai avant de pouvoir débloquer. gunicorn abat un worker à 30 s : passé
+#: ce délai, un envoi « en cours » est forcément terminé ou mort.
+DELAI_AVANT_DEBLOCAGE = timedelta(minutes=2)
+
+
+def _compter_abonnes(site):
+    """Abonnés des listes OVH du site, ou None si OVH ne répond pas."""
+    from cms.ovh_client import get_subscribers
+    try:
+        return sum(len(get_subscribers(nom)) for nom in _ovh_list_names(site))
+    except Exception as e:
+        logger.warning("Comptage des listes OVH impossible au déblocage : %s", e)
+        return None
+
+
 class NewsletterDebloquerView(NewsletterSendView):
     """Sortir une lettre restée « en cours d'envoi ».
 
@@ -370,25 +386,50 @@ class NewsletterDebloquerView(NewsletterSendView):
     On ne peut pas trancher à la place du chef : le worker a pu tomber avant
     ou après le départ des courriels. Il vérifie (boîte de test, archives de
     la liste OVH) puis choisit. Même garde et même cloisonnement que l'envoi.
+
+    Refusé pendant `DELAI_AVANT_DEBLOCAGE` : sans quoi un chef pourrait rendre
+    au brouillon une lettre en train de partir, la renvoyer, et recréer le
+    double envoi que la réservation ferme.
     """
+
+    def _trop_tot(self, newsletter):
+        debut = newsletter.envoi_commence_le
+        return debut is not None and timezone.now() - debut < DELAI_AVANT_DEBLOCAGE
 
     def get(self, request, pk):
         newsletter = self._get_newsletter(request, pk)
         if newsletter.status != 'sending':
             return redirect('/cms/snippets/content/newsletter/')
-        return render(request, 'content/newsletter_debloquer.html',
-                      {'newsletter': newsletter})
+        return render(request, 'content/newsletter_debloquer.html', {
+            'newsletter': newsletter, 'trop_tot': self._trop_tot(newsletter),
+        })
 
     def post(self, request, pk):
         newsletter = self._get_newsletter(request, pk)
+        if self._trop_tot(newsletter):
+            messages.error(request, "L'envoi vient de commencer et se poursuit peut-être : "
+                                    "réessayez dans deux minutes.")
+            return redirect(request.path)
         partie = request.POST.get('issue') == 'partie'
-        champs = ({'status': 'sent', 'sent_at': timezone.now(), 'sent_by': request.user}
-                  if partie else {'status': 'draft'})
+        if partie:
+            nombre = _compter_abonnes(newsletter.site)
+            champs = {'status': 'sent', 'sent_at': timezone.now(),
+                      'sent_by': request.user, 'sent_count': nombre or 0}
+        else:
+            nombre = None
+            champs = {'status': 'draft', 'envoi_commence_le': None}
         # Conditionnel, comme la réservation : si un autre chef a déjà tranché,
         # on ne réécrit pas par-dessus.
-        if Newsletter.objects.filter(pk=newsletter.pk, status='sending').update(**champs):
-            messages.success(request, 'Newsletter marquée comme envoyée.' if partie
-                             else 'Newsletter rendue au brouillon : elle peut être renvoyée.')
+        if not Newsletter.objects.filter(pk=newsletter.pk, status='sending').update(**champs):
+            return redirect('/cms/snippets/content/newsletter/')
+        if not partie:
+            messages.success(request, 'Newsletter rendue au brouillon : elle peut être renvoyée.')
+        elif nombre is None:
+            # Pas de « 0 abonné » : ce serait annoncer un envoi dans le vide.
+            messages.warning(request, "Newsletter marquée comme envoyée. Le nombre de "
+                                      "destinataires est inconnu (OVH n'a pas répondu).")
+        else:
+            messages.success(request, f'Newsletter marquée comme envoyée ({nombre} abonné(s) OVH).')
         return redirect('/cms/snippets/content/newsletter/')
 
 

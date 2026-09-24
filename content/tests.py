@@ -10246,3 +10246,33 @@ class NewsletterDebloquerTest(TestCase):
         r = _chef_client(self.site).get(
             f'/cms/snippets/content/newsletter/edit/{self.newsletter.pk}/')
         self.assertContains(r, f'/cms/newsletter/{self.newsletter.pk}/debloquer/')
+
+    def test_un_envoi_qui_vient_de_commencer_ne_se_debloque_pas(self):
+        """Sinon : brouillon, renvoi, et le double envoi revient."""
+        Newsletter.objects.filter(pk=self.newsletter.pk).update(
+            envoi_commence_le=timezone.now())
+        _chef_client(self.site).post(self.url, {'issue': 'brouillon'})
+        self.assertEqual(self._statut(), 'sending')
+
+    def test_passe_le_delai_on_peut_debloquer(self):
+        Newsletter.objects.filter(pk=self.newsletter.pk).update(
+            envoi_commence_le=timezone.now() - timedelta(minutes=3))
+        _chef_client(self.site).post(self.url, {'issue': 'brouillon'})
+        self.assertEqual(self._statut(), 'draft')
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.org', 'c@d.org'])
+    def test_marquee_envoyee_elle_compte_ses_abonnes(self, _):
+        self.site.ovh_mailing_list = 'actu-test-cntso'
+        self.site.save(update_fields=['ovh_mailing_list'])
+        _chef_client(self.site).post(self.url, {'issue': 'partie'})
+        self.newsletter.refresh_from_db()
+        self.assertEqual(self.newsletter.sent_count, 2)
+
+    @patch('cms.ovh_client.get_subscribers', side_effect=OSError('ovh muet'))
+    def test_sans_ovh_le_nombre_est_dit_inconnu(self, _):
+        """Pas de « 0 abonné » : ce serait annoncer un envoi dans le vide."""
+        self.site.ovh_mailing_list = 'actu-test-cntso'
+        self.site.save(update_fields=['ovh_mailing_list'])
+        r = _chef_client(self.site).post(self.url, {'issue': 'partie'}, follow=True)
+        self.assertEqual(self._statut(), 'sent')
+        self.assertContains(r, 'inconnu')

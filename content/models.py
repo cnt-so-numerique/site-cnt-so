@@ -668,6 +668,10 @@ class Newsletter(ClusterableModel, models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     created_at = models.DateTimeField(auto_now_add=True)
     sent_at = models.DateTimeField(null=True, blank=True)
+    # Quand l'envoi a été réservé (statut `sending`). Sans cette date, on ne
+    # distinguait pas un envoi coincé d'un envoi en train de partir : débloquer
+    # ce dernier aurait rouvert la porte au double envoi.
+    envoi_commence_le = models.DateTimeField(null=True, blank=True, editable=False)
     sent_by = models.ForeignKey(
         User, null=True, blank=True,
         on_delete=models.SET_NULL, related_name='sent_newsletters'

@@ -23,6 +23,12 @@
     à la liste, ou dans les archives de la liste chez OVH. Puis choisissez.
   </p>
 
+  {% if trop_tot %}
+  <p class="help-block help-warning" role="alert">
+    L'envoi a commencé il y a moins de deux minutes : il se poursuit peut-être.
+    Revenez sur cette page dans un instant.
+  </p>
+  {% else %}
   <form method="post" style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:1.5rem;">
     {% csrf_token %}
     <button type="submit" name="issue" value="partie" class="button">
@@ -33,5 +39,6 @@
       Rien n'est parti : la rendre au brouillon
     </button>
   </form>
+  {% endif %}
 </div>
 {% endblock %}
