@@ -2,20 +2,127 @@
 
 {% block titletag %}Statistiques{% endblock %}
 
+{% block extra_css %}
+{{ block.super }}
+<style>
+  /* Couleurs du thème Wagtail : le mode sombre de l'admin suit tout seul. */
+  .stats { max-width: 60rem; }
+  .stats-aide { color: var(--w-color-text-meta); margin: .25rem 0 2rem; }
+  .stats-chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+                    gap: 1rem; margin-bottom: 2.5rem; }
+  .stats-chiffre { border: 1px solid var(--w-color-border-furniture); border-radius: 6px; padding: 1rem 1.25rem; }
+  .stats-chiffre strong { display: block; font-size: 2rem; line-height: 1.1; color: var(--w-color-text-context); }
+  .stats-chiffre span { color: var(--w-color-text-meta); }
+  .stats h2 { font-size: 1.15rem; margin: 2.5rem 0 1rem; }
+
+  /* Visiteurs par jour : barres fines, bout arrondi, 2 px d'écart. */
+  .stats-jours { display: flex; align-items: flex-end; gap: 2px; height: 10rem;
+                 border-bottom: 1px solid var(--w-color-border-furniture); }
+  .stats-jour { flex: 1; height: 100%; display: flex; align-items: flex-end; position: relative; }
+  .stats-jour i { display: block; width: 100%; background: var(--w-color-secondary);
+                  border-radius: 4px 4px 0 0; }
+  .stats-jour:hover i, .stats-jour:focus i { background: var(--w-color-secondary-200, var(--w-color-secondary)); opacity: .8; }
+  .stats-jour b { position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+                  white-space: nowrap; font-weight: 600; font-size: .8rem; padding: .15rem .4rem;
+                  border-radius: 4px; background: var(--w-color-surface-tooltip, #262626);
+                  color: var(--w-color-text-button, #fff); display: none; }
+  .stats-jour:hover b, .stats-jour:focus b { display: block; }
+  .stats-dates { display: flex; gap: 2px; margin-top: .35rem; color: var(--w-color-text-meta); font-size: .75rem; }
+  .stats-dates span { flex: 1; text-align: center; }
+
+  /* Classements : libellé, nombre, et une barre fine sous le libellé. */
+  .stats-liste { list-style: none; margin: 0; padding: 0; }
+  .stats-liste li { margin-bottom: .85rem; }
+  .stats-ligne { display: flex; justify-content: space-between; gap: 1rem; }
+  .stats-ligne em { font-style: normal; color: var(--w-color-text-meta); white-space: nowrap; }
+  .stats-barre { height: 6px; margin-top: .3rem; border-radius: 3px; background: var(--w-color-secondary); }
+  .stats details { margin-top: 1rem; color: var(--w-color-text-meta); }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="nice-padding">
+<div class="nice-padding stats">
   <h1 class="w-h1">Statistiques de fréquentation</h1>
-  <p class="help-block">
-    Calculées chaque heure à partir des journaux du serveur, sur les 14 derniers
-    jours : aucun cookie, aucun script de suivi, adresses IP anonymisées.
-    Les robots d'indexation connus sont écartés.
+  <p class="stats-aide">
+    Les {{ stats.nb_jours|default:14 }} derniers jours, mis à jour chaque heure. Aucun cookie,
+    aucun suivi des personnes : on compte les visites, pas les visiteurs nommément.
   </p>
-  {% if disponible %}
-  <iframe src="{% url 'cms_statistiques_rapport' %}" title="Rapport de fréquentation" sandbox="allow-scripts"
-          style="width:100%;height:calc(100vh - 12rem);border:1px solid var(--w-color-border-furniture);border-radius:4px;"></iframe>
+
+  {% if not stats %}
+  <p>Les statistiques n'ont pas encore été calculées. Elles apparaissent ici au
+  premier passage de la tâche horaire sur le serveur.</p>
   {% else %}
-  <p>Le rapport n'a pas encore été généré. Il apparaît ici après le premier passage de
-  la tâche horaire sur le serveur.</p>
+
+  <div class="stats-chiffres">
+    <div class="stats-chiffre"><strong>{{ stats.visiteurs }}</strong><span>visiteurs sur la période</span></div>
+    <div class="stats-chiffre"><strong>{{ stats.moyenne }}</strong><span>visiteurs par jour en moyenne</span></div>
+  </div>
+
+  {% if stats.jours %}
+  <h2>Visiteurs par jour</h2>
+  <div class="stats-jours" role="img" aria-label="Visiteurs par jour, du {{ stats.jours.0.jour|date:'j F' }} au {{ stats.jours|last|date:'j F' }}">
+    {% for j in stats.jours %}
+    <div class="stats-jour" tabindex="0" aria-label="{{ j.jour|date:'l j F' }} : {{ j.visiteurs }} visiteurs">
+      <i style="height:{{ j.hauteur }}%"></i>
+      <b>{{ j.jour|date:'D j' }} · {{ j.visiteurs }}</b>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="stats-dates" aria-hidden="true">
+    {% for j in stats.jours %}<span>{% if forloop.first or forloop.last or forloop.counter|divisibleby:3 %}{{ j.jour|date:'d/m' }}{% endif %}</span>{% endfor %}
+  </div>
+  <details>
+    <summary>Voir les chiffres jour par jour</summary>
+    <table class="listing">
+      <thead><tr><th>Jour</th><th>Visiteurs</th></tr></thead>
+      <tbody>{% for j in stats.jours %}<tr><td>{{ j.jour|date:'l j F' }}</td><td>{{ j.visiteurs }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </details>
+  {% endif %}
+
+  <h2>Les contenus les plus lus</h2>
+  {% if stats.contenus %}
+  <ol class="stats-liste">
+    {% for c in stats.contenus %}
+    <li>
+      <div class="stats-ligne"><span>{{ c.libelle }}</span><em>{{ c.visiteurs }} visiteur{{ c.visiteurs|pluralize }}</em></div>
+      <div class="stats-barre" style="width:{{ c.largeur }}%"></div>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}<p>Pas encore de lecture comptée.</p>{% endif %}
+
+  <h2>D'où viennent les visiteurs</h2>
+  {% if stats.provenances %}
+  <ul class="stats-liste">
+    {% for p in stats.provenances %}
+    <li>
+      <div class="stats-ligne"><span>{{ p.libelle }}</span><em>{{ p.part }} % · {{ p.visiteurs }}</em></div>
+      <div class="stats-barre" style="width:{{ p.part }}%"></div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p>Pas encore de provenance connue.</p>{% endif %}
+
+  <h2>Par syndicat</h2>
+  {% if stats.sites %}
+  <ul class="stats-liste">
+    {% for s in stats.sites %}
+    <li>
+      <div class="stats-ligne"><span>{{ s.libelle }}</span><em>{{ s.visiteurs }} visiteur{{ s.visiteurs|pluralize }}</em></div>
+      <div class="stats-barre" style="width:{{ s.largeur }}%"></div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p>Pas encore de visite comptée.</p>{% endif %}
+
+  {% endif %}
+
+  {% if rapport_complet %}
+  <p class="stats-aide" style="margin-top:3rem;">
+    Pour le détail technique (navigateurs, systèmes, erreurs…) :
+    <a href="{% url 'cms_statistiques_rapport' %}" target="_blank" rel="noopener">rapport complet, en anglais</a>.
+  </p>
   {% endif %}
 </div>
 {% endblock %}

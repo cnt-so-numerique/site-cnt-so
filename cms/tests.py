@@ -7618,7 +7618,7 @@ class HcaptchaSeulementSurLesFormulairesTest(TestCase):
 
 
 class StatistiquesTest(TestCase):
-    """Le rapport GoAccess, servi dans /cms/ aux seuls chefs."""
+    """Les statistiques, en français et lisibles, servies aux seuls chefs."""
 
     def setUp(self):
         import tempfile
@@ -7626,25 +7626,62 @@ class StatistiquesTest(TestCase):
         self.site = _ensure_section_page(slug='stats-site', name='Stats', site_type='sectoral')
         self.dossier = tempfile.TemporaryDirectory()
         self.addCleanup(self.dossier.cleanup)
+        self.json = Path(self.dossier.name) / 'rapport.json'
         self.rapport = Path(self.dossier.name) / 'rapport.html'
-        reglage = override_settings(STATS_RAPPORT=str(self.rapport))
+        reglage = override_settings(STATS_RAPPORT=str(self.rapport), STATS_DONNEES=str(self.json))
         reglage.enable()
         self.addCleanup(reglage.disable)
 
-    def _chef(self):
-        return _client_with_site(_make_chef(), self.site)
+    def _ecrire(self, **panneaux):
+        import json
+        v = lambda n: {'count': n, 'percent': '0'}
+        donnees = {'general': {'unique_visitors': 42}}
+        for nom, lignes in panneaux.items():
+            donnees[nom] = {'data': [{'data': d, 'visitors': v(n), 'hits': v(n)} for d, n in lignes]}
+        self.json.write_text(json.dumps(donnees), encoding='utf-8')
 
-    def test_sans_rapport_la_page_explique_au_lieu_de_planter(self):
+    def _chef(self, nom='chef'):
+        return _client_with_site(_make_chef(nom), self.site)
+
+    def test_sans_donnees_la_page_explique_au_lieu_de_planter(self):
         r = self._chef().get('/cms/statistiques/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "pas encore été généré")
-        self.assertEqual(self._chef_rapport_status(), 404)
+        self.assertContains(r, "pas encore été calculées")
 
-    def _chef_rapport_status(self):
-        return _client_with_site(_make_chef('chef-bis'), self.site).get(
-            '/cms/statistiques/rapport/').status_code
+    def test_les_articles_sont_nommes_par_leur_titre(self):
+        make_article_page(title='Grève féministe du 8 mars', slug='greve-8-mars')
+        self._ecrire(requests=[('/article/greve-8-mars/', 30), ('/', 12),
+                               ('/static/css/polices.0d482353a1b5.css', 99),
+                               ('/cms/pages/', 50)])
+        from cms.statistiques import _lire_donnees, resume
+        contenus = [c['libelle'] for c in resume(_lire_donnees())['contenus']]
+        # Ni fichiers techniques ni administration dans les « contenus lus ».
+        self.assertEqual(contenus, ['Grève féministe du 8 mars', 'Accueil'])
+        self.assertContains(self._chef().get('/cms/statistiques/'), 'Grève féministe du 8 mars')
 
-    def test_un_chef_voit_le_rapport(self):
+    def test_les_provenances_sont_regroupees_en_familles(self):
+        from cms.statistiques import _provenances
+        familles = {p['libelle']: p['visiteurs'] for p in _provenances({
+            'referring_sites': {'data': [
+                {'data': 'www.google.com', 'visitors': {'count': 10}},
+                {'data': 'm.facebook.com', 'visitors': {'count': 5}},
+                {'data': 'cnt-so.org', 'visitors': {'count': 99}},
+            ]},
+            'referrers': {'data': [{'data': '-', 'visitors': {'count': 3}}]},
+        })}
+        self.assertEqual(familles['Moteurs de recherche (Google…)'], 10)
+        self.assertEqual(familles['Réseaux sociaux'], 5)
+        self.assertEqual(familles['Accès direct (favori, adresse tapée, appli)'], 3)
+        # Un clic d'une page du site à une autre n'est pas une provenance.
+        self.assertEqual(sum(familles.values()), 18)
+
+    def test_les_jours_sont_dans_l_ordre(self):
+        self._ecrire(visitors=[('20260924', 5), ('20260922', 9)])
+        from cms.statistiques import _lire_donnees, resume
+        jours = [j['jour'].day for j in resume(_lire_donnees())['jours']]
+        self.assertEqual(jours, [22, 24])
+
+    def test_le_rapport_complet_reste_en_bac_a_sable(self):
         self.rapport.write_text('<html><body>GOACCESS-OK</body></html>', encoding='utf-8')
         c = self._chef()
         self.assertContains(c.get('/cms/statistiques/'), 'cms/statistiques/rapport/')
@@ -7653,7 +7690,8 @@ class StatistiquesTest(TestCase):
         # Sans bac à sable, un rapport piégé tournerait avec la session du chef.
         self.assertEqual(r['Content-Security-Policy'], 'sandbox allow-scripts')
 
-    def test_un_redacteur_ne_voit_pas_le_rapport(self):
+    def test_un_redacteur_ne_voit_pas_les_statistiques(self):
+        self._ecrire(requests=[('/', 12)])
         self.rapport.write_text('<html><body>GOACCESS-OK</body></html>', encoding='utf-8')
         c = _client_with_site(_make_redacteur(self.site), self.site)
         for url in ('/cms/statistiques/', '/cms/statistiques/rapport/'):
@@ -7663,5 +7701,4 @@ class StatistiquesTest(TestCase):
 
     def test_un_anonyme_ne_voit_pas_le_rapport(self):
         self.rapport.write_text('<html><body>GOACCESS-OK</body></html>', encoding='utf-8')
-        r = Client().get('/cms/statistiques/rapport/')
-        self.assertEqual(r.status_code, 302)
+        self.assertEqual(Client().get('/cms/statistiques/rapport/').status_code, 302)
