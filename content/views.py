@@ -308,7 +308,12 @@ def _completer_vitrine(choisis, candidats, maximum=5):
     """
     resultat = list(choisis)[:maximum]
     deja = {a.pk for a in resultat}
-    for article in candidats:
+    # Borner AVANT de parcourir : `for` sur un queryset le charge en entier, et
+    # `break` n'y change rien. L'accueil chargeait ainsi deux fois tous les
+    # articles illustrés de la confédération, catégories comprises, pour en
+    # garder onze : 1 s par affichage en prod (mesuré le 24/09/2026). Au pire,
+    # chaque déjà-choisi revient une fois en doublon, d'où `+ len(deja)`.
+    for article in candidats[:maximum + len(deja)]:
         if len(resultat) >= maximum:
             break
         if article.pk not in deja:

@@ -10105,3 +10105,22 @@ class NewsletterDoubleEnvoiTest(TestCase):
         _chef_client(self.site).post(self.url, {'mode': 'send'})
         self.newsletter.refresh_from_db()
         self.assertEqual(self.newsletter.status, 'draft')
+
+
+class VitrineBorneeTest(TestCase):
+    """L'accueil chargeait tous les articles de la confédération pour en
+    garder onze : 1 s par affichage en prod (24/09/2026)."""
+
+    def test_la_vitrine_ne_lit_que_ce_quelle_peut_garder(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+        from content.views import _completer_vitrine
+        make_site()
+        articles = [make_article_page(title=f'Vitrine {i}') for i in range(12)]
+        qs = ArticlePage.objects.live().filter(section_slug='principal').order_by('pk')
+        with CaptureQueriesContext(connection) as requetes:
+            resultat = _completer_vitrine([articles[0]], qs, maximum=5)
+        self.assertEqual([a.pk for a in resultat],
+                         [articles[0].pk] + [a.pk for a in articles[1:5]])
+        self.assertTrue(any('LIMIT 6' in r['sql'] for r in requetes.captured_queries),
+                        [r['sql'][-80:] for r in requetes.captured_queries])
