@@ -655,3 +655,32 @@ valeurs par défaut, il faut aller les lire.
   jamais « absent » ;
 - pour un réglage de bibliothèque (délai, nombre d'essais, taille), lire la
   valeur par défaut dans le paquet du `venv` avant de conclure à son absence.
+
+---
+
+## 24/09/2026 — Plusieurs sessions sur le même dépôt : jamais `git add` d'un fichier entier
+
+Trois sessions Claude travaillaient en même temps dans `site cnt`. J'ai committé
+ma purge RGPD par `git add content/tests.py` : le fichier contenait aussi un test
+qu'une autre session avait écrit, **sans sa correction** (restée dans
+`content/urls.py`, non commitée). Résultat : `main` a porté un test sans son code
+pendant trois commits, dont un déployé. Puis, en rattrapant le coup, j'ai attribué
+la correction à la mauvaise session, sur la foi d'une supposition (« c'est
+forcément celle qui a touché `base.html` »), sans lancer `git log -S`.
+
+Et je l'ai refait aussitôt : en écrivant cette leçon, j'ai « corrigé » en
+nommant une troisième session, de nouveau sans preuve. Elle n'avait touché aucun
+fichier de code. L'auteur réel est inconnu : une session fermée depuis, dont
+l'historique ne garde pas le nom. Quand on ne sait pas, on écrit « inconnu ».
+
+J'avais pourtant vérifié `git diff --stat` avant certains commits, mais pas
+celui-là. La vérification n'était pas systématique.
+
+**Règles :**
+- quand une autre session est active, relire `git diff <fichier>` **hunk par hunk**
+  avant chaque `git add`, et n'indexer que ses propres hunks (`git add -p`, ou
+  une copie du fichier réduite à ses changements) ;
+- avant d'attribuer un changement à quelqu'un, `git log -S "<ligne>"` ; ne jamais
+  déduire l'auteur de qui « a l'air » de travailler sur ce fichier ;
+- `ListAgents` au début d'un commit : savoir combien de sessions écrivent dans
+  le dépôt.
