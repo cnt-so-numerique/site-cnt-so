@@ -309,3 +309,13 @@ Plus rien à vérifier en prod pour cet audit.
 - **17** : un `verifier-sites.timer` tourne toutes les 10 min **sur le serveur
   lui-même**. À lire avant de conclure ; s'il sonde la disponibilité, il tombe
   avec la machine et ne peut pas signaler une panne du serveur.
+
+## Appliqué en prod le 24/09
+
+- Déploiement `6d3e89c` : migration `content/0037` appliquée, 7 pages de contrôle OK.
+- nginx, `/etc/nginx/conf.d/robustesse.conf` (retrait = supprimer le fichier) :
+  `client_max_body_size 20m` et `gzip_types`. Mesuré de l'extérieur : un POST de
+  5 Mo sur `/cms/` atteint Django (403 CSRF, plus de 413) ; 25 Mo reste en 413 ;
+  le JS statique part en `Content-Encoding: gzip`.
+- `verifier-sites.sh` sonde désormais `https://cnt-so.org/` (copie
+  `.bak-20260924`). Reste la sonde **extérieure**.
