@@ -4026,9 +4026,11 @@ class AucunCompteExposeAuxRedacteursTest(TestCase):
             with self.subTest(compte=compte):
                 self.assertNotIn(compte, html)
 
-    def test_le_champ_auteur_reste(self):
-        """Contrôle positif : c'est celui que remplissent les 1709 articles."""
-        self.assertIn('id_author_name', self._formulaire())
+    def test_plus_aucun_auteur_a_saisir(self):
+        """Depuis le 24/09/2026, l'article est signé par son syndicat
+        (`ArticlePage.signature`) : plus de champ « Auteur » à remplir, où
+        traînaient des identifiants WordPress (décision d'Arnaud)."""
+        self.assertNotIn('id_author_name', self._formulaire())
 
     def test_le_modele_n_a_plus_ce_champ(self):
         champs = {f.name for f in ArticlePage._meta.get_fields()}

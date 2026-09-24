@@ -77,7 +77,7 @@
         <h1 class="article-title">{{ article.title }}</h1>
 
         <div class="article-meta">
-            <span>{{ article.published_at|date:"d F Y" }}</span>
+            <span>{% if article.signature %}Par {{ article.signature }} · {% endif %}{{ article.published_at|date:"d F Y" }}</span>
         </div>
 
         <div style="margin-bottom: 1rem;">

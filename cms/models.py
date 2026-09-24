@@ -1112,7 +1112,8 @@ def panneaux_article():
             # d'où sa place en tête des réglages plutôt qu'au milieu.
             FieldPanel('featured_image'),
             FieldPanel('publication_date'),
-            FieldPanel('author_name'),
+            # Pas d'auteur à saisir : l'article est signé par son syndicat
+            # (`signature`).
             FieldPanel('cms_tags'),
             FieldPanel('in_carousel'),
             FieldPanel('in_manchette'),
@@ -1494,6 +1495,24 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
         # Même gabarit que les vues publiques (content.views) : la préview
         # dans l'éditeur est ainsi fidèle au rendu réel de l'article.
         return 'content/article_detail.html'
+
+    @property
+    def signature(self):
+        """Qui signe l'article : son syndicat, jamais une personne.
+
+        Décision d'Arnaud (24/09/2026) : une signature collective n'expose aucun
+        militant, et reste juste avec les comptes partagés. Déduite du syndicat
+        plutôt que saisie : `author_name` portait surtout des identifiants
+        WordPress (« cursive », « nicolas13 »…), recopiés dans le JSON-LD de
+        chaque page, et restait vide sur tout article récent.
+        """
+        if self.section_slug in ('', 'principal'):
+            return 'CNT-SO'
+        from django.db.models import Q
+        section = SectionPage.objects.filter(
+            Q(slug=self.section_slug) | Q(legacy_site_slug=self.section_slug),
+        ).only('title').first()
+        return section.title if section else 'CNT-SO'
 
     def get_absolute_url(self):
         from django.urls import reverse, NoReverseMatch

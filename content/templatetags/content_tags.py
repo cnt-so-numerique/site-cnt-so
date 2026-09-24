@@ -103,7 +103,8 @@ def article_structured_data(article, base_url, canonical_url):
         'headline': article.title,
         'description': article.meta_description or article.title,
         'datePublished': article.published_at.isoformat() if article.published_at else None,
-        'author': {'@type': 'Organization', 'name': article.author_name or 'CNT-SO'},
+        'author': {'@type': 'Organization',
+                   'name': getattr(article, 'signature', None) or 'CNT-SO'},
         'publisher': {
             '@type': 'Organization',
             'name': 'CNT-SO',

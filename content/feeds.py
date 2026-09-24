@@ -31,7 +31,9 @@ class LatestArticlesFeed(Feed):
         return item.published_at
 
     def item_author_name(self, item):
-        return item.author_name or "CNT-SO"
+        # Le syndicat, pas `author_name` : ce champ portait des identifiants
+        # WordPress (« cursive », « nicolas13 »…) publiés dans chaque flux.
+        return getattr(item, 'signature', None) or "CNT-SO"
 
 
 class SiteArticlesFeed(Feed):

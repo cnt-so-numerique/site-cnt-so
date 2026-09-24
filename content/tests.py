@@ -10276,3 +10276,35 @@ class NewsletterDebloquerTest(TestCase):
         r = _chef_client(self.site).post(self.url, {'issue': 'partie'}, follow=True)
         self.assertEqual(self._statut(), 'sent')
         self.assertContains(r, 'inconnu')
+
+
+class SignatureArticleTest(TestCase):
+    """Un article est signé par son syndicat, jamais par un identifiant de
+    connexion (décision d'Arnaud, 24/09/2026)."""
+
+    def setUp(self):
+        make_site()
+        self.syndicat = _ensure_section_page(slug='education', name='CNT-SO Éducation',
+                                             site_type='sectoral')
+        from cms.models import SectionPage
+        SectionPage.objects.filter(pk=self.syndicat.pk).update(
+            legacy_site_slug='fter', title='CNT-SO Éducation')
+
+    def test_la_signature_est_le_syndicat(self):
+        art = make_article_page(title='Rentrée', section_slug='education',
+                                author_name='nicolas13')
+        self.assertEqual(art.signature, 'CNT-SO Éducation')
+
+    def test_le_slug_herite_designe_le_meme_syndicat(self):
+        art = make_article_page(title='Ancien', section_slug='fter')
+        self.assertEqual(art.signature, 'CNT-SO Éducation')
+
+    def test_la_confederation_signe_cnt_so(self):
+        self.assertEqual(make_article_page(title='Conf').signature, 'CNT-SO')
+
+    def test_lidentifiant_wordpress_ne_sort_plus_nulle_part(self):
+        art = make_article_page(title='Tract rentrée', slug='tract-rentree',
+                                section_slug='education', author_name='nicolas13')
+        html = self.client.get(art.get_absolute_url(), follow=True).content.decode()
+        self.assertIn('Par CNT-SO Éducation', html)
+        self.assertNotIn('nicolas13', html)
