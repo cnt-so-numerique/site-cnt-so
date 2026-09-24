@@ -10,7 +10,7 @@
 {% comment %}Condition DANS le bloc — cf. article_detail.html : autour, elle ne
    s'applique pas, et les 57 pages publiées annonçaient l'adresse du site en
    guise d'image (audit du 17/09/2026).{% endcomment %}
-{% block og_image %}{% if page.featured_image %}<meta property="og:image" content="{{ site_base_url }}{{ page.featured_image.file.url }}">{% endif %}{% endblock %}
+{% block og_image %}{% if page.featured_image %}<meta property="og:image" content="{{ site_base_url }}{{ page.featured_image.file.url }}">{% else %}{{ block.super }}{% endif %}{% endblock %}
 {% block twitter_card_type %}{% if page.featured_image %}summary_large_image{% else %}summary{% endif %}{% endblock %}
 {% block twitter_image %}{% if page.featured_image %}<meta name="twitter:image" content="{{ site_base_url }}{{ page.featured_image.file.url }}">{% endif %}{% endblock %}
 

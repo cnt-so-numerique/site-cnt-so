@@ -296,6 +296,12 @@ WAGTAILADMIN_COMMENTS_ENABLED = False
 # Créer un compte sur https://dashboard.hcaptcha.com/
 HCAPTCHA_SITEKEY = _os.environ.get('HCAPTCHA_SITEKEY', '10000000-ffff-ffff-ffff-000000000001')
 HCAPTCHA_SECRET = _os.environ.get('HCAPTCHA_SECRET', '0x0000000000000000000000000000000000000000')
+# Le widget charge son script lui-même, là où un formulaire l'affiche. Par
+# défaut depuis https://hcaptcha.com, que la CSP (cntso/middleware.py)
+# n'autorise pas : c'était un second chargement, dans base.html et sur toutes
+# les pages, qui faisait marcher le captcha. Retiré le 24/09/2026 (cookie tiers
+# posé dès l'accueil) ; le widget pointe donc sur l'adresse autorisée.
+HCAPTCHA_JS_API_URL = 'https://js.hcaptcha.com/1/api.js'
 # Les deux valeurs ci-dessus sont les clés d'essai publiques d'hCaptcha : elles
 # valident N'IMPORTE QUEL jeton. En production, le captcha devient alors un
 # décor. Le bloc de durcissement en fin de fichier refuse de démarrer avec —

@@ -13,9 +13,9 @@
    `{% if %}` enveloppant ne s'applique pas. Il en sortait un
    `og:image` VIDE avec `summary_large_image` sur ~760 articles — soit une
    grande carte blanche à chaque partage (audit du 17/09/2026).{% endcomment %}
-{% block og_image %}{% if article.any_image_url %}<meta property="og:image" content="{% absolute_url article.any_image_url site_base_url %}">{% endif %}{% endblock %}
+{% block og_image %}{% if article.any_image_url %}<meta property="og:image" content="{% absolute_url article.image_partage_url site_base_url %}">{% else %}{{ block.super }}{% endif %}{% endblock %}
 {% block twitter_card_type %}{% if article.any_image_url %}summary_large_image{% else %}summary{% endif %}{% endblock %}
-{% block twitter_image %}{% if article.any_image_url %}<meta name="twitter:image" content="{% absolute_url article.any_image_url site_base_url %}">{% endif %}{% endblock %}
+{% block twitter_image %}{% if article.any_image_url %}<meta name="twitter:image" content="{% absolute_url article.image_partage_url site_base_url %}">{% endif %}{% endblock %}
 {% block structured_data %}
 {% article_structured_data article site_base_url canonical_url as article_sd %}
 <script type="application/ld+json">{{ article_sd|json_ld }}</script>
@@ -102,7 +102,7 @@
     aucun gabarit : la plomberie attendait qu'on la branche.
     {% endcomment %}
     <p class="telecharger-visuel">
-        <a href="{{ article.any_image_url }}" download
+        <a href="{{ article.image_originale_url }}" download
            title="Enregistrer ce visuel sur votre appareil">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2" stroke-linecap="round"

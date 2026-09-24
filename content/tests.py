@@ -9899,6 +9899,9 @@ class IpDuVisiteurTest(TestCase):
         self.assertEqual(a, b, "le compteur de limite reste contournable")
 
 
+APERCU_PAR_DEFAUT = 'https://cnt-so.org/static/image/apercu-partage.jpg'
+
+
 class MetadonneesDePartageTest(TestCase):
     """Un `{% if %}` autour d'un `{% block %}` : Django l'ignore.
 
@@ -9922,8 +9925,10 @@ class MetadonneesDePartageTest(TestCase):
     def test_un_article_sans_image_n_annonce_pas_d_image(self):
         make_article_page(title='Sans visuel', slug='sans-visuel-partage')
         html = self._html('/article/sans-visuel-partage/')
-        self.assertNotIn('property="og:image"', html,
-                         "un og:image vide est annoncé")
+        # Depuis le 24/09/2026, une page sans visuel annonce le logo : jamais
+        # une balise vide, jamais la grande carte.
+        self.assertIn(f'property="og:image" content="{APERCU_PAR_DEFAUT}"', html,
+                      "un og:image vide est annoncé")
         self.assertIn('name="twitter:card" content="summary"', html,
                       "la grande carte est promise sans image à mettre dedans")
 
@@ -9944,8 +9949,8 @@ class MetadonneesDePartageTest(TestCase):
         html = render_to_string('cms/content_page.html',
                                 {'page': page, 'site_base_url': 'https://cnt-so.org'},
                                 request=requete)
-        self.assertNotIn('property="og:image"', html,
-                         "l'adresse du site est annoncée en guise d'image")
+        self.assertIn(f'property="og:image" content="{APERCU_PAR_DEFAUT}"', html,
+                      "l'adresse du site est annoncée en guise d'image")
         self.assertNotIn('summary_large_image', html)
 
     def test_le_gabarit_de_page_annonce_bien_l_image_quand_il_y_en_a_une(self):

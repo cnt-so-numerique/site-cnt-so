@@ -7514,3 +7514,102 @@ class PublierEnBoutonPrincipalTest(TestCase):
         menu = self._menu(make_superuser(username='su-syndicat-bouton'), section)
         self.assertEqual(menu.default_item.name, 'action-publish')
         self.assertEqual(str(menu.default_item.label), 'Enregistrer')
+
+
+# ── Poids des pages et partage (Lighthouse, 24/09/2026) ──────────────────────
+
+def _grande_image(titre='Grande', taille=(2560, 1440), mode='RGB'):
+    import io
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image as PilImage
+    from wagtail.images.models import Image as WagtailImage
+    buf = io.BytesIO()
+    PilImage.new(mode, taille, color='red').save(buf, format='PNG')
+    img = WagtailImage(title=titre)
+    img.file.save('grande.png', SimpleUploadedFile('grande.png', buf.getvalue()), save=True)
+    return img
+
+
+@override_settings(MEDIA_ROOT=__import__('tempfile').mkdtemp(prefix='cms-tests-media-'))
+class ImagesAlleegeesTest(TestCase):
+    """La page d'accueil pesait 3,6 Mo et son image principale s'affichait au
+    bout de 19,7 s sur mobile : chaque vignette servait le fichier déposé tel
+    quel (`/media/original_images/…`, jusqu'à 960 Ko), quelle que soit la
+    taille à l'écran."""
+
+    def setUp(self):
+        # Wagtail met les renditions en cache par identifiant d'image, et les
+        # identifiants reviennent d'un test à l'autre.
+        from django.core.cache import caches
+        for cache in caches.all():
+            cache.clear()
+
+    def test_l_affichage_passe_par_une_version_reduite(self):
+        art = make_article_page(title='Lourde', slug='lourde', featured_image=_grande_image())
+        url = art.any_image_url
+        self.assertNotIn('original_images', url)
+        self.assertTrue(url.endswith('.webp'), url)
+
+    def test_le_partage_et_les_courriels_restent_en_jpeg(self):
+        """Outlook ne lit pas le WebP, et tous les réseaux ne l'acceptent pas
+        pour l'aperçu d'un lien."""
+        art = make_article_page(title='Partage', slug='partage',
+                                featured_image=_grande_image(mode='RGBA'))
+        url = art.image_partage_url
+        self.assertNotIn('original_images', url)
+        self.assertTrue(url.endswith('.jpg'), url)
+
+    def test_le_telechargement_garde_l_original(self):
+        img = _grande_image()
+        banque = make_cms_category(name="Banque d'images", slug='banque-dimage',
+                                   section_slug='principal')
+        art = make_article_page(title='Originale', slug='originale', featured_image=img,
+                                categories=[banque])
+        r = self.client.get(art.get_absolute_url())
+        self.assertContains(r, f'href="{img.file.url}"')
+
+    def test_une_image_absente_du_disque_ne_casse_pas_la_page(self):
+        img = _grande_image()
+        img.file.storage.delete(img.file.name)
+        art = make_article_page(title='Disparue', slug='disparue', featured_image=img)
+        self.assertEqual(art.any_image_url, img.file.url)
+
+
+class ApercuEtIconeTest(TestCase):
+
+    def test_apercu_par_defaut_et_icone(self):
+        _ensure_section_page('principal', site_type='main')
+        r = self.client.get('/')
+        self.assertContains(r, 'property="og:image"')
+        self.assertContains(r, 'rel="icon"')
+
+    def test_polices_servies_par_le_site(self):
+        """fonts.googleapis.com recevait l'adresse IP de chaque visiteur."""
+        _ensure_section_page('principal', site_type='main')
+        r = self.client.get('/')
+        self.assertNotContains(r, 'fonts.googleapis.com')
+        self.assertNotContains(r, 'fonts.gstatic.com')
+
+
+class HcaptchaSeulementSurLesFormulairesTest(TestCase):
+    """hCaptcha se chargeait sur toutes les pages, accueil compris : un cookie
+    tiers et 100 Ko de script pour des visiteurs qui ne remplissent rien. Le
+    widget apporte déjà son script là où le champ s'affiche."""
+
+    def test_pas_de_hcaptcha_sur_l_accueil(self):
+        _ensure_section_page('principal', site_type='main')
+        r = self.client.get('/')
+        self.assertNotContains(r, 'hcaptcha.com')
+
+    def test_hcaptcha_toujours_charge_sur_le_contact(self):
+        _ensure_section_page('principal', site_type='main')
+        r = self.client.get(reverse('content:contact'))
+        self.assertContains(r, 'js.hcaptcha.com/1/api.js')
+
+    def test_le_script_du_widget_est_autorise_par_la_csp(self):
+        """Sans cela, le captcha ne marchait que grâce au script global."""
+        from cntso.middleware import ContentSecurityPolicyMiddleware as Csp
+        _ensure_section_page('principal', site_type='main')
+        r = self.client.get(reverse('content:contact'))
+        self.assertContains(r, '<script src="https://js.hcaptcha.com/1/api.js"')
+        self.assertIn('https://js.hcaptcha.com', Csp.POLICY)

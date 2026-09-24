@@ -113,7 +113,7 @@ def article_structured_data(article, base_url, canonical_url):
     if canonical_url:
         data['mainEntityOfPage'] = {'@type': 'WebPage', '@id': canonical_url}
     if article.any_image_url:
-        data['image'] = [absolute_url(article.any_image_url, base_url)]
+        data['image'] = [absolute_url(article.image_partage_url, base_url)]
     return {k: v for k, v in data.items() if v is not None}
 
 

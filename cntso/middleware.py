@@ -63,10 +63,9 @@ class ContentSecurityPolicyMiddleware:
         "default-src 'self'",
         "script-src 'self' 'unsafe-inline' https://js.hcaptcha.com "
         "https://*.hcaptcha.com https://unpkg.com",
-        "style-src 'self' 'unsafe-inline' https://unpkg.com "
-        "https://fonts.googleapis.com https://*.hcaptcha.com",
+        "style-src 'self' 'unsafe-inline' https://unpkg.com https://*.hcaptcha.com",
         "img-src 'self' data: https:",
-        "font-src 'self' data: https://fonts.gstatic.com",
+        "font-src 'self' data:",
         "connect-src 'self' https://*.hcaptcha.com",
         "frame-src https:",
         "media-src 'self' https:",

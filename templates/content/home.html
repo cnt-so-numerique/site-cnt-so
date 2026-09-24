@@ -161,23 +161,29 @@
     flex: 1;
     display: flex;
     justify-content: center;
-    gap: .4rem;
+    gap: 0;
 }
 
 .hp-carousel-dot {
-    width: 9px;
-    height: 9px;
+    /* 24 px de cible pour le doigt, 9 px de pastille visible : le fond ne
+       peint que la zone de contenu. À 9 px, les pastilles étaient trop
+       petites pour être touchées sans viser (Lighthouse, 24/09/2026). */
+    width: 24px;
+    height: 24px;
+    padding: 7.5px;
+    background-clip: content-box;
     border-radius: 50%;
-    background: rgba(0,0,0,.22);
+    background-color: rgba(0,0,0,.22);
     border: none;
     cursor: pointer;
-    padding: 0;
     transition: background .2s, transform .2s;
 }
 
 .hp-carousel-dot--active {
-    background: var(--primary-color);
-    transform: scale(1.3);
+    background-color: var(--primary-color);
+    /* Pastille agrandie par le rembourrage, pas par `transform` : agrandir
+       tout le bouton le faisait mordre sur la cible de ses voisins. */
+    padding: 6px;
 }
 
 .hp-hero-content {

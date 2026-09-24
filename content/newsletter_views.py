@@ -35,7 +35,8 @@ def _annotate_image_urls(articles, site_url):
     (image legacy, article d'une section à domaine autonome)."""
     base = site_url.rstrip('/')
     for na in articles:
-        img = na.article.any_image_url
+        # JPEG : Outlook ne lit pas le WebP de l'affichage.
+        img = na.article.image_partage_url
         if img and not img.startswith('http'):
             img = base + img
         na.image_url = img

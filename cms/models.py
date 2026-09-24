@@ -1,5 +1,6 @@
 import re
 
+import logging
 from django import forms
 from django.db import models
 from cms.widgets import OVHMailingListWidget
@@ -23,6 +24,8 @@ from wagtail.search import index
 from wagtail.snippets.models import register_snippet
 from wagtail.admin.forms import WagtailAdminPageForm
 from wagtailseo.models import SeoMixin
+
+logger = logging.getLogger(__name__)
 
 
 def url_site_principal(url):
@@ -1560,11 +1563,49 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
                     return text
         return ''
 
+    # Versions servies à la place du fichier déposé. L'accueil pesait 3,6 Mo et
+    # son image principale s'affichait en 19,7 s sur mobile (Lighthouse,
+    # 24/09/2026) : chaque vignette envoyait l'original, jusqu'à 960 Ko.
+    # 1200 px couvre le carrousel en pleine largeur et l'aperçu de partage.
+    RENDITION_AFFICHAGE = 'max-1200x1200|format-webp'
+    # Outlook ne lit pas le WebP, et tous les réseaux ne l'acceptent pas pour
+    # l'aperçu d'un lien. Fond blanc : un PNG transparent virerait au noir.
+    RENDITION_PARTAGE = 'max-1200x1200|bgcolor-ffffff|format-jpeg'
+
+    def _url_rendition(self, filtre):
+        """URL d'une version réduite, ou l'original si elle ne peut être faite
+        (fichier absent du disque) : une vignette manquante ne doit pas faire
+        tomber la page."""
+        try:
+            return self.featured_image.get_rendition(filtre).url
+        except Exception:
+            logger.warning("Rendition %s impossible pour l'image %s",
+                           filtre, self.featured_image_id, exc_info=True)
+            return self.featured_image.file.url
+
     @property
     def any_image_url(self):
-        """Wagtail featured_image d'abord, puis URL de l'image legacy (content.Media) en fallback."""
+        """Wagtail featured_image d'abord (version réduite), puis URL de
+        l'image legacy (content.Media) en fallback."""
+        if self.featured_image_id:
+            return self._url_rendition(self.RENDITION_AFFICHAGE)
+        return self._url_image_legacy()
+
+    @property
+    def image_partage_url(self):
+        """Pour og:image, les données structurées et les courriels."""
+        if self.featured_image_id:
+            return self._url_rendition(self.RENDITION_PARTAGE)
+        return self._url_image_legacy()
+
+    @property
+    def image_originale_url(self):
+        """Le fichier tel que déposé — pour le téléchargement."""
         if self.featured_image_id:
             return self.featured_image.file.url
+        return self._url_image_legacy()
+
+    def _url_image_legacy(self):
         if self.legacy_article_id:
             from content.models import Article as LegacyArticle
             leg = LegacyArticle.objects.select_related('featured_image').filter(

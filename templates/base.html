@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-{% load menu_tags static content_tags %}
+{% load menu_tags static content_tags wagtailimages_tags %}
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -20,16 +20,21 @@
     <link rel="canonical" href="{{ canonical_url }}">
     <meta property="og:url" content="{{ canonical_url }}">
     {% endif %}
-    {% block og_image %}{% endblock %}
+    {% comment %}Sans image, un lien partagé s'affichait sans visuel : le logo
+    sert d'aperçu aux pages qui n'en fournissent pas.{% endcomment %}
+    {% block og_image %}<meta property="og:image" content="{{ site_base_url }}{% static 'image/apercu-partage.jpg' %}">{% endblock %}
     <meta name="twitter:card" content="{% block twitter_card_type %}summary{% endblock %}">
     <meta name="twitter:title" content="{% block twitter_title %}CNT-SO{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}Confédération Nationale du Travail — Solidarité Ouvrière.{% endblock %}">
     {% block twitter_image %}{% endblock %}
     <script type="application/ld+json">{{ org_structured_data|json_ld }}</script>
     {% block structured_data %}{% endblock %}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Sans:wght@400;600;700&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="{% static 'image/favicon.png' %}" type="image/png">
+    <link rel="apple-touch-icon" href="{% static 'image/apple-touch-icon.png' %}">
+    {% comment %}Polices servies par le site. Chargées auparavant depuis
+    fonts.googleapis.com, elles transmettaient l'adresse IP de chaque visiteur
+    à Google, sans consentement (24/09/2026).{% endcomment %}
+    <link rel="stylesheet" href="{% static 'css/polices.css' %}">
     <link rel="alternate" type="application/rss+xml" title="Flux RSS CNT-SO" href="{% url 'content:rss_feed' %}">
     <style>
         :root {
@@ -1372,9 +1377,12 @@
             line-height: 1.2;
         }
 
+        /* Gris du pied de page : #999 au minimum sur #111 (6,6:1). Les #444 à
+           #777 d'avant tombaient entre 1,9 et 4,2:1, sous le seuil de 4,5:1
+           (Lighthouse, 24/09/2026). */
         .footer-brand-desc {
             font-size: 14px;
-            color: #666;
+            color: #999;
             line-height: 1.65;
             margin-bottom: 1rem;
         }
@@ -1386,14 +1394,14 @@
             font-size: 14px;
         }
 
-        .footer-brand-links a { color: #777; }
+        .footer-brand-links a { color: #999; }
         .footer-brand-links a:hover { color: #fff; text-decoration: none; }
 
         .footer-confed-link {
             margin-top: .6rem !important;
             padding-top: .6rem !important;
             border-top: 1px solid #222 !important;
-            color: #555 !important;
+            color: #999 !important;
             font-size: 13px !important;
         }
         .footer-confed-link:hover { color: var(--primary-color) !important; }
@@ -1423,7 +1431,7 @@
         .footer-nav-list li { padding: .3rem 0; }
         .footer-nav-list a { color: #888; font-size: var(--texte-courant); }
         .footer-nav-list a:hover { color: #fff; text-decoration: none; }
-        .footer-nav-list span { color: #555; font-size: var(--texte-courant); }
+        .footer-nav-list span { color: #999; font-size: var(--texte-courant); }
 
         /* Colonne RS */
         .footer-social-col {}
@@ -1447,8 +1455,9 @@
             flex-wrap: wrap;
         }
 
-        .footer-bottom p { font-size: 13px; color: #444; }
-        .footer-bottom a { color: #555; font-size: 13px; }
+        .footer-bottom p { font-size: 13px; color: #999; }
+        /* Même gris que le texte : c'est le soulignement qui signale le lien. */
+        .footer-bottom a { color: #999; font-size: 13px; text-decoration: underline; }
         .footer-bottom a:hover { color: #fff; text-decoration: none; }
 
         /* ── Blocs PDF (wp-block-file) ── */
@@ -1613,7 +1622,7 @@
             color: inherit;
         }
         .cta-vignette:hover .cta-vignette-title { color: var(--primary-color); }
-        .cta-vignette:hover .cta-vignette-arrow { color: var(--primary-dark); }
+        .cta-vignette:hover .cta-vignette-arrow { color: var(--primary-color); }
 
         .cta-vignette-body { flex: 1; min-width: 0; }
         .cta-vignette-title {
@@ -1626,7 +1635,8 @@
             display: inline-block;
             font-size: var(--texte-courant);
             font-weight: 700;
-            color: var(--primary-color);
+            /* Le rouge de la charte sur #f1f1f1 : 4,0:1, sous le seuil. */
+            color: var(--primary-dark);
             margin-bottom: 0.6rem;
             letter-spacing: .3px;
             transition: color .2s;
@@ -1703,7 +1713,7 @@
             font-size: 18px; margin-bottom: 0.5rem; line-height: 1.2;
         }
         .hp-bloc-soutenir p {
-            color: rgba(255,255,255,0.85); font-size: var(--texte-courant);
+            color: #fff; font-size: var(--texte-courant);
             line-height: 1.5; margin-bottom: 0.75rem;
         }
         .hp-bloc-social {
@@ -1989,9 +1999,10 @@
         <div class="subsite-header-main">
             <a href="{{ site.get_absolute_url }}" class="subsite-logo">
                 {% if site.logo %}
-                <img src="{{ site.logo.file.url }}" alt="Logo {{ site.name }}">
+                {% image site.logo height-240 as logo_site %}
+                <img src="{{ logo_site.url }}" alt="Logo {{ site.name }}">
                 {% else %}
-                <img src="{% static 'image/CNT SO.jpg' %}" alt="Logo CNT-SO">
+                <img src="{% static 'image/cnt-so-entete.jpg' %}" alt="Logo CNT-SO">
                 {% endif %}
                 <div class="subsite-logo-info">
                     <div class="subsite-type">{{ site.get_site_type_display }}</div>
@@ -2002,14 +2013,14 @@
                 </div>
             </a>
             <a href="{{ main_site_url }}" class="subsite-back-btn">
-                <img src="{% static 'image/CNT SO.jpg' %}" alt="CNT-SO">
+                <img src="{% static 'image/cnt-so-entete.jpg' %}" alt="CNT-SO">
                 ← Retour au site confédéral
             </a>
         </div>
         {% else %}
         <div class="header-main">
             <a href="{% url 'content:home' %}" class="logo">
-                <img src="{% static 'image/CNT SO.jpg' %}" alt="Logo CNT-SO">
+                <img src="{% static 'image/cnt-so-entete.jpg' %}" alt="Logo CNT-SO">
                 <div class="logo-info">
                     <div class="logo-text">CNT<span>-SO</span></div>
                     <div class="logo-subtitle">Confédération Nationale du Travail<br>Solidarité Ouvrière</div>
@@ -2218,7 +2229,6 @@
         });
     </script>
     {% block extra_js %}{% endblock %}
-    <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
 
     <!-- ── Lightbox galerie ────────────────────────────────────────── -->
     <style>
