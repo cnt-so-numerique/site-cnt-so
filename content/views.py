@@ -19,7 +19,7 @@ from .courriel import destinataire_de_reponse
 from .ovh_sync import site_de_diffusion
 from .forms import (ContactForm, DynamicContactForm, NewsletterCaptchaForm,
                     NewsletterSubscribeForm, NewsletterUnsubscribeForm)
-from cms.models import (ArticlePage, CmsCategory, SectionPage, _cle_de_nom,
+from cms.models import (MANCHETTE_MAX, ArticlePage, CmsCategory, SectionPage, _cle_de_nom,
                         section_base_url)
 from taggit.models import Tag as TaggitTag
 
@@ -157,8 +157,10 @@ class HomeView(ListView):
         # qu'un article mis à la une n'en chasse pas cinq (demande d'Arnaud,
         # 12/09/2026 : « il faut choisir les articles de la manchette »).
         restants = base_qs.exclude(pk__in=excl).exclude(featured_image=None)
+        # Le dernier coché d'abord, comme sur les accueils de syndicat.
         manchette = _completer_vitrine(
-            list(restants.filter(in_manchette=True)), restants, maximum=6)
+            list(restants.filter(in_manchette=True).order_by('-last_published_at')),
+            restants, maximum=MANCHETTE_MAX)
         context['manchette_articles'] = manchette
         excl += [a.pk for a in manchette]
 
@@ -381,9 +383,23 @@ class SiteHomeView(ListView):
         deja = {a.pk for a in carousel}
         # Même règle que le diaporama : les articles cochés « À la une de mon
         # syndicat » tiennent la tête, le reste comble les places libres.
+        #
+        # Les cochés sont cherchés dans TOUT le syndicat, et le dernier coché
+        # passe devant (`last_published_at` : cocher, c'est publier). Ils
+        # n'étaient pris que parmi les 20 plus récents, par date d'écriture :
+        # cocher un article ancien pour le remettre en avant ne faisait rien,
+        # contrairement à ce qu'annonce l'aide de la case (24/09/2026).
+        coches = [
+            a for a in ArticlePage.objects.live()
+            .filter(section_slug__in=site.slugs_contenu, in_manchette=True)
+            .exclude(pk__in=deja)
+            .select_related('featured_image')
+            .prefetch_related('cms_categories')
+            .order_by('-last_published_at')[:MANCHETTE_MAX]
+            if a.any_image_url
+        ]
         restants = [a for a in candidats if a.pk not in deja]
-        manchette = _completer_vitrine(
-            [a for a in restants if a.in_manchette], restants, maximum=6)
+        manchette = _completer_vitrine(coches, restants, maximum=MANCHETTE_MAX)
         self._vitrine_cache = (carousel, manchette)
         return self._vitrine_cache
 

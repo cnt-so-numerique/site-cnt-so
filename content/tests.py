@@ -8750,6 +8750,94 @@ class MiseEnAvantDepuisLarticleTest(TestCase):
         self.assertTrue(
             CarouselArticle.objects.filter(page=self.syndicat, article=art).exists())
 
+    def _diaporama(self):
+        from cms.models import CarouselArticle
+        return list(CarouselArticle.objects.filter(page=self.syndicat)
+                    .order_by('sort_order').values_list('article__slug', flat=True))
+
+    def test_cocher_place_l_article_en_tete_du_diaporama(self):
+        """L'aide promet « EN TÊTE » ; il s'ajoutait en queue (24/09/2026)."""
+        for i in range(3):
+            make_article_page(section_slug='stucs', title=f'Ancien {i}',
+                              slug=f'ancien-{i}', in_carousel=True)
+        make_article_page(section_slug='stucs', title='Le 29 septembre',
+                          slug='le-29-septembre', in_carousel=True)
+        self.assertEqual(self._diaporama(),
+                         ['le-29-septembre', 'ancien-2', 'ancien-1', 'ancien-0'])
+
+    def test_diaporama_plein_le_dernier_redescend_dans_la_page(self):
+        """Plein, la case cochée ne faisait RIEN, sans le dire."""
+        from cms.models import ArticlePage, CAROUSEL_MAX
+        for i in range(CAROUSEL_MAX):
+            make_article_page(section_slug='stucs', title=f'Ancien {i}',
+                              slug=f'ancien-{i}', in_carousel=True)
+        make_article_page(section_slug='stucs', title='Nouveau', slug='nouveau',
+                          in_carousel=True)
+        diaporama = self._diaporama()
+        self.assertEqual(len(diaporama), CAROUSEL_MAX)
+        self.assertEqual(diaporama[0], 'nouveau')
+        self.assertNotIn('ancien-0', diaporama)
+        # Sa case suit : sinon le prochain enregistrement l'y remettrait.
+        self.assertFalse(ArticlePage.objects.get(slug='ancien-0').in_carousel)
+
+    def test_reenregistrer_un_article_deja_au_diaporama_ne_le_deplace_pas(self):
+        make_article_page(section_slug='stucs', title='A', slug='a', in_carousel=True)
+        b = make_article_page(section_slug='stucs', title='B', slug='b', in_carousel=True)
+        make_article_page(section_slug='stucs', title='C', slug='c', in_carousel=True)
+        b.title = 'B corrigé'
+        b.save()
+        self.assertEqual(self._diaporama(), ['c', 'b', 'a'])
+
+    def _manchette_du_syndicat(self):
+        r = self.client.get('/stucs/')
+        return [a.slug for a in r.context['manchette_articles']]
+
+    def test_un_article_ancien_coche_remonte_a_la_une(self):
+        """Les cochés n'étaient cherchés que parmi les 20 plus récents."""
+        from datetime import datetime, timezone as tz
+        image = self._image()
+        make_article_page(section_slug='stucs', title='Archive', slug='archive',
+                          featured_image=image, in_manchette=True,
+                          publication_date=datetime(2020, 1, 1, tzinfo=tz.utc))
+        for i in range(22):
+            make_article_page(section_slug='stucs', title=f'Récent {i}',
+                              slug=f'recent-{i}', featured_image=image)
+        self.assertEqual(self._manchette_du_syndicat()[0], 'archive')
+
+    def test_le_dernier_coche_passe_devant(self):
+        from cms.models import ArticlePage
+        image = self._image()
+        # Le diaporama se remplit d'abord : on l'occupe, pour que A et B
+        # soient bien jugés par la une.
+        for i in range(5):
+            make_article_page(section_slug='stucs', title=f'Diapo {i}', slug=f'diapo-{i}',
+                              featured_image=image, in_carousel=True)
+        a = make_article_page(section_slug='stucs', title='A', slug='a',
+                              featured_image=image, in_manchette=True)
+        b = make_article_page(section_slug='stucs', title='B', slug='b',
+                              featured_image=image, in_manchette=True)
+        maintenant = timezone.now()
+        ArticlePage.objects.filter(pk=b.pk).update(last_published_at=maintenant - timedelta(days=2))
+        ArticlePage.objects.filter(pk=a.pk).update(last_published_at=maintenant)
+        self.assertEqual(self._manchette_du_syndicat()[:2], ['a', 'b'])
+
+    def test_une_pleine_le_plus_ancien_coche_est_decoche(self):
+        """Sinon sa case restait cochée sans qu'il soit plus nulle part en tête."""
+        from cms.models import ArticlePage, MANCHETTE_MAX
+        maintenant = timezone.now()
+        for i in range(MANCHETTE_MAX):
+            art = make_article_page(section_slug='stucs', title=f'Une {i}',
+                                    slug=f'une-{i}', in_manchette=True)
+            ArticlePage.objects.filter(pk=art.pk).update(
+                last_published_at=maintenant - timedelta(days=10 - i))
+        make_article_page(section_slug='stucs', title='Nouvelle', slug='nouvelle',
+                          in_manchette=True)
+        coches = set(ArticlePage.objects.filter(in_manchette=True)
+                     .values_list('slug', flat=True))
+        self.assertEqual(len(coches), MANCHETTE_MAX)
+        self.assertIn('nouvelle', coches)
+        self.assertNotIn('une-0', coches)
+
     # ── La une confédérale, depuis n'importe quel syndicat ───────────────────
 
     def test_un_article_de_syndicat_hisse_a_la_une_apparait_sur_laccueil(self):

@@ -1436,7 +1436,11 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
                     self.section_slug = specific.slug
                 else:
                     self.section_slug = 'principal'
+        vient_d_etre_mis_a_la_une = self.in_manchette and not (
+            self.pk and ArticlePage.objects.filter(pk=self.pk, in_manchette=True).exists())
         super().save(*args, **kwargs)
+        if vient_d_etre_mis_a_la_une:
+            self._laisser_place_a_la_une()
         # Sync in_carousel ↔ CarouselArticle, sur TOUS les sites.
         #
         # Le filtre valait `section_type__in=['sectoral', 'regional']` : la
@@ -1454,15 +1458,44 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
             if section:
                 already_in = CarouselArticle.objects.filter(page=section, article=self).exists()
                 if self.in_carousel and not already_in:
-                    count = CarouselArticle.objects.filter(page=section).count()
-                    if count < 5:
-                        CarouselArticle.objects.create(
-                            page=section,
-                            article=self,
-                            sort_order=count,
-                        )
+                    # EN TÊTE, comme l'annonce l'aide de la case. L'article
+                    # s'ajoutait en queue, et plus du tout une fois les cinq
+                    # places prises, case cochée comprise : le 29 septembre
+                    # d'Éducation n'apparaissait qu'en cinquième diapositive,
+                    # derrière des textes d'avril (Arnaud, 24/09/2026). Les
+                    # autres reculent d'un cran ; au-delà de cinq, le dernier
+                    # sort du diaporama et redescend dans la page.
+                    en_place = list(CarouselArticle.objects.filter(page=section)
+                                    .order_by('sort_order', 'pk'))
+                    for sortant in en_place[CAROUSEL_MAX - 1:]:
+                        sortant.delete()
+                        ArticlePage.objects.filter(pk=sortant.article_id).update(in_carousel=False)
+                    for rang, item in enumerate(en_place[:CAROUSEL_MAX - 1], start=1):
+                        if item.sort_order != rang:
+                            CarouselArticle.objects.filter(pk=item.pk).update(sort_order=rang)
+                    CarouselArticle.objects.create(page=section, article=self, sort_order=0)
                 elif not self.in_carousel and already_in:
                     CarouselArticle.objects.filter(page=section, article=self).delete()
+
+    def _laisser_place_a_la_une(self):
+        """Au-delà de `MANCHETTE_MAX` articles à la une, le plus ancien coché
+        redescend dans la page, case décochée.
+
+        Même règle que le diaporama (24/09/2026) : sans elle, sa case restait
+        cochée alors qu'il n'était plus affiché nulle part en tête.
+        """
+        slugs = {self.section_slug}
+        section = SectionPage.objects.filter(
+            models.Q(slug=self.section_slug) | models.Q(legacy_site_slug=self.section_slug),
+        ).first()
+        if section:
+            slugs = section.slugs_contenu
+        autres = list(ArticlePage.objects.filter(section_slug__in=slugs, in_manchette=True)
+                      .exclude(pk=self.pk).order_by('-last_published_at', '-pk')
+                      .values_list('pk', flat=True))
+        sortants = autres[MANCHETTE_MAX - 1:]
+        if sortants:
+            ArticlePage.objects.filter(pk__in=sortants).update(in_manchette=False)
 
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)
@@ -1733,6 +1766,11 @@ class ContentPage(ContenuDeSyndicatMixin, Page):
 
 
 # ── Sous-sites spécialisés (proxy) ───────────────────────────────────────────
+
+#: Places du diaporama et de la une d'un syndicat (l'aide des cases les annonce).
+CAROUSEL_MAX = 5
+MANCHETTE_MAX = 6
+
 
 class CarouselArticle(Orderable):
     """Article sélectionné pour le carrousel d'un sous-site (sectoriel ou régional)."""
