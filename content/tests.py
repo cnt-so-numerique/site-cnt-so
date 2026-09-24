@@ -921,6 +921,21 @@ class TagDetailViewTest(TestCase):
         response = self.client.get(url)
         self.assertNotIn(art_no_tag, response.context['articles'])
 
+    def test_tag_accentue_ne_fait_pas_planter_l_article(self):
+        # Taggit garde les accents dans le slug (« rentrée ») : avec une route
+        # `<slug:slug>`, le lien vers le tag levait NoReverseMatch et l'article
+        # entier tombait en 500 (educ, 23/09/2026).
+        from cms.models import CmsArticleTag
+        tag = TaggitTag.objects.create(name='rentrée', slug='rentrée')
+        art = make_article_page(section_slug='principal', title='Rentrée', slug='rentree')
+        CmsArticleTag.objects.create(content_object=art, tag=tag)
+        response = self.client.get(
+            reverse('content:article_detail', kwargs={'slug': 'rentree'}))
+        self.assertEqual(response.status_code, 200)
+        url_tag = reverse('content:tag_detail', kwargs={'slug': 'rentrée'})
+        self.assertContains(response, url_tag)
+        self.assertIn(art, self.client.get(url_tag).context['articles'])
+
 
 class SearchViewTest(TestCase):
     def setUp(self):
@@ -10129,3 +10144,50 @@ class VitrineBorneeTest(TestCase):
                          [articles[0].pk] + [a.pk for a in articles[1:5]])
         self.assertTrue(any('LIMIT 6' in r['sql'] for r in requetes.captured_queries),
                         [r['sql'][-80:] for r in requetes.captured_queries])
+
+
+class PurgeDonneesPersonnellesTest(TestCase):
+    """Les durées promises par les mentions légales sont tenues."""
+
+    def _vieillir(self, modele, objet, champ, jours):
+        modele.objects.filter(pk=objet.pk).update(
+            **{champ: timezone.now() - timedelta(days=jours)})
+
+    def _purger(self, *args):
+        from django.core.management import call_command
+        sortie = StringIO()
+        call_command('purge_donnees_personnelles', *args, stdout=sortie)
+        return sortie.getvalue()
+
+    def test_un_message_de_plus_de_deux_ans_est_supprime(self):
+        vieux = ContactMessage.objects.create(name='A', email='a@example.org')
+        recent = ContactMessage.objects.create(name='B', email='b@example.org')
+        self._vieillir(ContactMessage, vieux, 'created_at', 731)
+        self._vieillir(ContactMessage, recent, 'created_at', 729)
+        self._purger()
+        self.assertEqual(list(ContactMessage.objects.values_list('email', flat=True)),
+                         ['b@example.org'])
+
+    def test_un_abonne_actif_nest_jamais_supprime(self):
+        site = make_site()
+        actif = Subscriber.objects.create(site=site, email='fidele@example.org', is_active=True)
+        self._vieillir(Subscriber, actif, 'subscribed_at', 5000)
+        self._purger()
+        self.assertTrue(Subscriber.objects.filter(pk=actif.pk).exists())
+
+    def test_un_abonne_inactif_part_apres_trente_jours(self):
+        site = make_site()
+        vieux = Subscriber.objects.create(site=site, email='parti@example.org')
+        recent = Subscriber.objects.create(site=site, email='en-attente@example.org')
+        self._vieillir(Subscriber, vieux, 'subscribed_at', 31)
+        self._vieillir(Subscriber, recent, 'subscribed_at', 29)
+        self._purger()
+        self.assertEqual(list(Subscriber.objects.values_list('email', flat=True)),
+                         ['en-attente@example.org'])
+
+    def test_le_mode_essai_ne_supprime_rien(self):
+        vieux = ContactMessage.objects.create(name='A', email='a@example.org')
+        self._vieillir(ContactMessage, vieux, 'created_at', 800)
+        sortie = self._purger('--dry-run')
+        self.assertIn('1 message(s)', sortie)
+        self.assertTrue(ContactMessage.objects.filter(pk=vieux.pk).exists())
