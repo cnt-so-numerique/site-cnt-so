@@ -357,3 +357,20 @@ mais avec 2 à 5 s d'attente si 25 à 50 personnes arrivent en même temps.
 
 ⚠️ Les ~3 500 requêtes du test apparaissent dans les statistiques GoAccess
 pendant 14 jours (User-Agent `cnt-test-de-charge`, un seul « visiteur »).
+
+### Après réglages (24/09, 15 h 15)
+
+6 workers (`/etc/supervisor/conf.d/cntso.conf`, copie `.bak-20260924`) et cache
+navigateur d'un an sur les seuls fichiers à empreinte
+(`/etc/nginx/conf.d/cache-statique.conf`). Même protocole, zéro erreur :
+
+| Simultanés | req/s avant → après | médiane avant → après |
+|---|---|---|
+| 5 | 8,3 → 9,1 | 565 → 519 ms |
+| 10 | 8,7 → 13,4 | 1,1 → 0,71 s |
+| 25 | 8,5 → 13,4 | 2,8 → 1,75 s |
+| 50 | 8,8 → 13,8 | 5,3 → 3,45 s |
+
++57 % et non ×2 : le goulot n'est plus seulement le nombre de workers. Piste
+suivante, les 223 ms de SQL de l'accueil (`EXPLAIN ANALYZE`).
+Le trafic du test est écarté des statistiques (`grep -v cnt-test-de-charge`).
