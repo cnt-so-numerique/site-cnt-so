@@ -1,0 +1,21 @@
+{% extends "wagtailadmin/base.html" %}
+
+{% block titletag %}Statistiques{% endblock %}
+
+{% block content %}
+<div class="nice-padding">
+  <h1 class="w-h1">Statistiques de fréquentation</h1>
+  <p class="help-block">
+    Calculées chaque heure à partir des journaux du serveur, sur les 14 derniers
+    jours : aucun cookie, aucun script de suivi, adresses IP anonymisées.
+    Les robots d'indexation connus sont écartés.
+  </p>
+  {% if disponible %}
+  <iframe src="{% url 'cms_statistiques_rapport' %}" title="Rapport de fréquentation" sandbox="allow-scripts"
+          style="width:100%;height:calc(100vh - 12rem);border:1px solid var(--w-color-border-furniture);border-radius:4px;"></iframe>
+  {% else %}
+  <p>Le rapport n'a pas encore été généré. Il apparaît ici après le premier passage de
+  la tâche horaire sur le serveur.</p>
+  {% endif %}
+</div>
+{% endblock %}

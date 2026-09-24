@@ -7613,3 +7613,53 @@ class HcaptchaSeulementSurLesFormulairesTest(TestCase):
         r = self.client.get(reverse('content:contact'))
         self.assertContains(r, '<script src="https://js.hcaptcha.com/1/api.js"')
         self.assertIn('https://js.hcaptcha.com', Csp.POLICY)
+
+
+class StatistiquesTest(TestCase):
+    """Le rapport GoAccess, servi dans /cms/ aux seuls chefs."""
+
+    def setUp(self):
+        import tempfile
+        from pathlib import Path
+        self.site = _ensure_section_page(slug='stats-site', name='Stats', site_type='sectoral')
+        self.dossier = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dossier.cleanup)
+        self.rapport = Path(self.dossier.name) / 'rapport.html'
+        reglage = override_settings(STATS_RAPPORT=str(self.rapport))
+        reglage.enable()
+        self.addCleanup(reglage.disable)
+
+    def _chef(self):
+        return _client_with_site(_make_chef(), self.site)
+
+    def test_sans_rapport_la_page_explique_au_lieu_de_planter(self):
+        r = self._chef().get('/cms/statistiques/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "pas encore été généré")
+        self.assertEqual(self._chef_rapport_status(), 404)
+
+    def _chef_rapport_status(self):
+        return _client_with_site(_make_chef('chef-bis'), self.site).get(
+            '/cms/statistiques/rapport/').status_code
+
+    def test_un_chef_voit_le_rapport(self):
+        self.rapport.write_text('<html><body>GOACCESS-OK</body></html>', encoding='utf-8')
+        c = self._chef()
+        self.assertContains(c.get('/cms/statistiques/'), 'cms/statistiques/rapport/')
+        r = c.get('/cms/statistiques/rapport/')
+        self.assertContains(r, 'GOACCESS-OK')
+        # Sans bac à sable, un rapport piégé tournerait avec la session du chef.
+        self.assertEqual(r['Content-Security-Policy'], 'sandbox allow-scripts')
+
+    def test_un_redacteur_ne_voit_pas_le_rapport(self):
+        self.rapport.write_text('<html><body>GOACCESS-OK</body></html>', encoding='utf-8')
+        c = _client_with_site(_make_redacteur(self.site), self.site)
+        for url in ('/cms/statistiques/', '/cms/statistiques/rapport/'):
+            r = c.get(url)
+            self.assertNotEqual(r.status_code, 200, url)
+            self.assertNotContains(r, 'GOACCESS-OK', status_code=r.status_code)
+
+    def test_un_anonyme_ne_voit_pas_le_rapport(self):
+        self.rapport.write_text('<html><body>GOACCESS-OK</body></html>', encoding='utf-8')
+        r = Client().get('/cms/statistiques/rapport/')
+        self.assertEqual(r.status_code, 302)

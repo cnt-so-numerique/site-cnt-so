@@ -188,6 +188,10 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Rapport GoAccess (statistiques de fréquentation, /cms/statistiques/). Écrit
+# chaque heure par le timer `cntso-stats`, HORS de media/ qui est public.
+STATS_RAPPORT = _os.environ.get('STATS_RAPPORT', '/var/lib/cntso-stats/rapport.html')
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

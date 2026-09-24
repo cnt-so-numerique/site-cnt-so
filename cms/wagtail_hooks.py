@@ -796,6 +796,17 @@ def add_mailing_lists_menu_item():
         order=315,
     )
 
+@hooks.register('register_admin_menu_item')
+def add_statistiques_menu_item():
+    return ChefOnlyMenuItem(
+        'Statistiques',
+        '/cms/statistiques/',
+        name='statistiques',
+        icon_name='table',
+        order=170,
+    )
+
+
 # "Menus" supprimé — "Navigation" redirige vers /cms/menus/ (voir MenuItemViewSet)
 
 
@@ -1372,6 +1383,9 @@ class MailingListDetailView(View):
         return self._render(request, list_name, msg_ok=msg_ok, msg_err=msg_err)
 
 
+from cms.statistiques import RapportStatistiquesView, StatistiquesView  # noqa: E402
+
+
 @hooks.register('register_admin_urls')
 def register_site_admin_urls():
     return [
@@ -1384,6 +1398,8 @@ def register_site_admin_urls():
         path('menus/reorder/', ReorderMenuItemsView.as_view(), name='cms_menu_reorder'),
         path('mailing-lists/', MailingListIndexView.as_view(), name='cms_mailing_list_index'),
         path('mailing-lists/<str:list_name>/', MailingListDetailView.as_view(), name='cms_mailing_list_detail'),
+        path('statistiques/', StatistiquesView.as_view(), name='cms_statistiques'),
+        path('statistiques/rapport/', RapportStatistiquesView.as_view(), name='cms_statistiques_rapport'),
     ]
 
 
