@@ -29,6 +29,16 @@
   {% if not item.is_active %}
   <span style="font-size:.875rem;color:#4b5563;background:var(--w-color-surface-field);padding:.1rem .4rem;border-radius:3px;flex-shrink:0;">masqué</span>
   {% endif %}
+  {% if item.is_active and item.est_impasse %}
+  {# Le site masque les liens qui ne mènent nulle part (adresse vide ou « # »,  #}
+  {# cible supprimée) et qui n'ouvrent aucun sous-menu. Sans ce badge, le      #}
+  {# rédacteur voyait son entrée ici et nulle part sur le site, sans savoir     #}
+  {# pourquoi (« Revendications » d'Éducation, 24/09/2026).                    #}
+  <span class="menu-impasse" style="font-size:.875rem;color:#8a1c12;background:#fdecea;padding:.1rem .4rem;border-radius:3px;flex-shrink:0;"
+        title="Cette entrée n'a pas de destination : choisissez le type « Catégorie du site », « Page du site »… et sa cible, ou ajoutez-lui des sous-entrées.">
+    invisible : ne mène nulle part
+  </span>
+  {% endif %}
 
   <a href="/cms/snippets/content/menuitem/edit/{{ item.pk }}/"
      style="font-size:.875rem;color:var(--w-color-text-meta);text-decoration:none;padding:.2rem .5rem;border:1px solid var(--w-color-border-furniture);border-radius:4px;white-space:nowrap;flex-shrink:0;">

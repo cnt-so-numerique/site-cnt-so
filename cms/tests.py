@@ -1109,6 +1109,24 @@ class AdminChefOnlyViewsTest(TestCase):
         r = self._chef_client('chef-menus').get('/cms/menus/')
         self.assertEqual(r.status_code, 200)
 
+    def test_une_entree_qui_ne_mene_nulle_part_est_signalee(self):
+        """« Revendications » d'Éducation (24/09/2026) : type URL, adresse
+        « # », aucune sous-entrée. Le site la masque, l'arbre ne disait rien."""
+        from content.models import MenuItem
+        MenuItem.objects.create(site=self.site, menu='main', title='Revendications',
+                                link_type='url', url='#', is_active=True)
+        titre = MenuItem.objects.create(site=self.site, menu='main', title='Nous connaître',
+                                        link_type='url', url='#', is_active=True)
+        MenuItem.objects.create(site=self.site, menu='main', title='Contact', parent=titre,
+                                link_type='contact', is_active=True)
+        html = self._chef_client('chef-impasse').get('/cms/menus/').content.decode()
+        # Un seul badge : le titre de sous-menu à « # » n'est pas une impasse.
+        self.assertEqual(html.count('class="menu-impasse"'), 1)
+        badge = html.index('class="menu-impasse"')
+        self.assertLess(html.rindex('Revendications', 0, badge), badge)
+        self.assertGreater(html.rindex('Revendications', 0, badge),
+                           html.rfind('Nous connaître', 0, badge))
+
     def test_menu_move_get_refuse_pour_tous(self):
         # Un GET mutateur contournerait la protection CSRF : POST uniquement
         r = self.redac_client.get('/cms/menus/move/', {'item': 1, 'action': 'up'})
