@@ -1300,8 +1300,9 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
         help_text="Place l'article EN TÊTE de la manchette de VOTRE accueil — "
                   "les cartes situées sous le diaporama. Même principe : les "
                   "récents illustrés la remplissent tout seuls, cocher sert à y "
-                  "maintenir un article. 6 au maximum. Un article déjà au "
-                  "diaporama n'y est pas repris deux fois.",
+                  "maintenir un article. 6 au maximum, le plus ancien coché "
+                  "laissant sa place. Coché, il y figure même s'il est aussi "
+                  "au diaporama.",
     )
     featured_on_conf = models.BooleanField(
         default=False,

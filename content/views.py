@@ -157,10 +157,11 @@ class HomeView(ListView):
         # qu'un article mis à la une n'en chasse pas cinq (demande d'Arnaud,
         # 12/09/2026 : « il faut choisir les articles de la manchette »).
         restants = base_qs.exclude(pk__in=excl).exclude(featured_image=None)
-        # Le dernier coché d'abord, comme sur les accueils de syndicat.
-        manchette = _completer_vitrine(
-            list(restants.filter(in_manchette=True).order_by('-last_published_at')),
-            restants, maximum=MANCHETTE_MAX)
+        # Le dernier coché d'abord, comme sur les accueils de syndicat, et
+        # même s'il est aussi au diaporama : c'est un choix explicite.
+        coches = list(base_qs.exclude(featured_image=None).filter(in_manchette=True)
+                      .order_by('-last_published_at')[:MANCHETTE_MAX])
+        manchette = _completer_vitrine(coches, restants, maximum=MANCHETTE_MAX)
         context['manchette_articles'] = manchette
         excl += [a.pk for a in manchette]
 
@@ -389,10 +390,14 @@ class SiteHomeView(ListView):
         # n'étaient pris que parmi les 20 plus récents, par date d'écriture :
         # cocher un article ancien pour le remettre en avant ne faisait rien,
         # contrairement à ce qu'annonce l'aide de la case (24/09/2026).
+        #
+        # Un article COCHÉ figure à la une même s'il est aussi au diaporama :
+        # c'est le choix explicite du rédacteur, et une seule diapositive est
+        # visible à la fois (24/09/2026). Seul le remplissage automatique, plus
+        # bas, évite de reprendre le diaporama.
         coches = [
             a for a in ArticlePage.objects.live()
             .filter(section_slug__in=site.slugs_contenu, in_manchette=True)
-            .exclude(pk__in=deja)
             .select_related('featured_image')
             .prefetch_related('cms_categories')
             .order_by('-last_published_at')[:MANCHETTE_MAX]
@@ -417,19 +422,18 @@ class SiteHomeView(ListView):
         # La mise en valeur visuelle reste assurée là où c'est son rôle : le
         # diaporama et la manchette, qui ne retiennent que les articles
         # illustrés, par conception.
-        complet = (ArticlePage.objects.live()
-                   .filter(section_slug__in=self.current_site.slugs_contenu)
-                   .select_related('featured_image')
-                   .prefetch_related('cms_categories')
-                   .order_by('-publication_date', '-first_published_at'))
-        carousel, manchette = self._vitrine()
-        deja = [a.pk for a in carousel] + [a.pk for a in manchette]
-        if not deja:
-            return complet
-        reste = complet.exclude(pk__in=deja)
-        # Un syndicat qui vient d'ouvrir peut n'avoir que ses articles de
-        # vitrine : mieux vaut alors répéter que servir « Aucun article ».
-        return reste if reste.exists() else complet
+        #
+        # TOUS les articles, y compris ceux du diaporama et de la une (décision
+        # d'Arnaud, 24/09/2026). Les en retirer, pour éviter les doublons,
+        # vidait la liste de ses derniers articles : sur Éducation, « Dernières
+        # actualités » commençait en juin, et un article tout juste publié et
+        # mis au diaporama n'apparaissait qu'en cinquième diapositive. Mieux
+        # vaut qu'un article paraisse deux fois qu'aucune fois.
+        return (ArticlePage.objects.live()
+                .filter(section_slug__in=self.current_site.slugs_contenu)
+                .select_related('featured_image')
+                .prefetch_related('cms_categories')
+                .order_by('-publication_date', '-first_published_at'))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

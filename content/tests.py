@@ -8838,6 +8838,17 @@ class MiseEnAvantDepuisLarticleTest(TestCase):
         self.assertIn('nouvelle', coches)
         self.assertNotIn('une-0', coches)
 
+    def test_coche_pour_la_une_il_y_est_meme_au_diaporama(self):
+        """Le « 29 septembre » d'Éducation était coché pour les deux, et
+        absent de la une parce qu'il était au diaporama (24/09/2026)."""
+        image = self._image()
+        art = make_article_page(section_slug='stucs', title='Le 29 septembre',
+                                slug='le-29-septembre', featured_image=image,
+                                in_carousel=True, in_manchette=True)
+        r = self.client.get('/stucs/')
+        self.assertIn(art.pk, {a.pk for a in r.context['carousel_articles']})
+        self.assertIn(art.pk, {a.pk for a in r.context['manchette_articles']})
+
     # ── La une confédérale, depuis n'importe quel syndicat ───────────────────
 
     def test_un_article_de_syndicat_hisse_a_la_une_apparait_sur_laccueil(self):
@@ -8946,14 +8957,20 @@ class UneDesSyndicatsTest(TestCase):
         manch = {a.pk for a in r.context['manchette_articles']}
         self.assertEqual(diapo & manch, set())
 
-    def test_la_liste_ne_reprend_pas_la_vitrine(self):
+    def test_les_dernieres_actualites_commencent_par_la_plus_recente(self):
+        """Décision d'Arnaud (24/09/2026) : TOUS les articles, vitrine
+        comprise. La liste en retirait onze et commençait en juin sur
+        Éducation ; un article publié le jour même n'y figurait pas."""
         self._peupler(15)
         r = self._accueil()
+        liste = [a.pk for a in r.context['articles']]
         vitrine = ({a.pk for a in r.context['carousel_articles']}
                    | {a.pk for a in r.context['manchette_articles']})
-        liste = {a.pk for a in r.context['articles']}
-        self.assertEqual(vitrine & liste, set(),
-                         "le même article s'affichait jusqu'à trois fois")
+        self.assertTrue(vitrine & set(liste), "la liste ne reprend plus la vitrine")
+        recents = list(ArticlePage.objects.live().filter(section_slug='marseille')
+                       .order_by('-publication_date', '-first_published_at')
+                       .values_list('pk', flat=True)[:len(liste)])
+        self.assertEqual(liste, recents)
 
     def test_un_syndicat_neuf_garde_sa_liste(self):
         """Repli : avec 3 articles, tout part en vitrine. Mieux vaut répéter
@@ -9074,10 +9091,21 @@ class RetirerDeLaUneNePerdRienTest(TestCase):
         return make_article_page(section_slug='m', title=f'A{i}', slug=f'a-{i}',
                                  featured_image=image)
 
+    @staticmethod
+    def _zones(r):
+        """Les trois zones de l'accueil ; la liste est prise ENTIÈRE, toutes
+        pages confondues (depuis le 24/09/2026 elle reprend la vitrine, donc
+        un article ancien peut être en page 2 — visible, pas perdu)."""
+        return {
+            'carousel_articles': r.context['carousel_articles'],
+            'manchette_articles': r.context['manchette_articles'],
+            'articles': r.context['page_obj'].paginator.object_list,
+        }
+
     def _ou_est(self, article):
-        r = self.client.get('/m/')
+        zones = self._zones(self.client.get('/m/'))
         for zone in ('carousel_articles', 'manchette_articles', 'articles'):
-            if article.pk in {a.pk for a in r.context[zone]}:
+            if article.pk in {a.pk for a in zones[zone]}:
                 return zone
         return None
 
@@ -9097,13 +9125,9 @@ class RetirerDeLaUneNePerdRienTest(TestCase):
         sur la première page."""
         self.arts[0].in_carousel = True
         self.arts[0].save()
-        r = self.client.get('/m/')
         vus = set()
-        for zone in ('carousel_articles', 'manchette_articles', 'articles'):
-            vus |= {a.pk for a in r.context[zone]}
-        # 14 articles = 5 au diaporama + 6 en manchette + 3 dans la liste.
-        # (Il n'y a pas de page 2 : la vitrine en absorbe onze, et la demander
-        # rend un 404 — ce qui a fait tomber la première version de ce test.)
+        for articles in self._zones(self.client.get('/m/')).values():
+            vus |= {a.pk for a in articles}
         self.assertEqual(vus, {a.pk for a in self.arts},
                          "des articles ne sont servis nulle part")
 

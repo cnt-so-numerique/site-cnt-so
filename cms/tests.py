@@ -3961,9 +3961,11 @@ class ManchetteChoisieParLeSyndicatTest(TestCase):
         _, manchette = self._zones()
         self.assertEqual(len(manchette), 6, 'cocher un article a vidé la manchette')
 
-    def test_un_article_du_diaporama_n_est_pas_repris_a_la_une(self):
-        """Les deux zones sont sur le même écran : l'y voir deux fois est le
-        défaut constaté sur /13/ le 31/08/2026.
+    def test_coche_aux_deux_il_est_aux_deux(self):
+        """Règle inversée le 24/09/2026 (décision d'Arnaud). Jusque-là, un
+        article du diaporama était retiré de la une pour éviter les doublons
+        (défaut constaté sur /13/ le 31/08) — mais un article COCHÉ pour la une
+        disparaissait alors de la une : le « 29 septembre » d'Éducation.
 
         On coche les DEUX cases sur l'article — le geste réel d'un rédacteur —
         plutôt que de créer le `CarouselArticle` à la main : `ArticlePage.save()`
@@ -3977,7 +3979,7 @@ class ManchetteChoisieParLeSyndicatTest(TestCase):
         art.save()
         carrousel, manchette = self._zones()
         self.assertIn(art.pk, carrousel)
-        self.assertNotIn(art.pk, manchette)
+        self.assertIn(art.pk, manchette)
 
     def test_aucun_doublon_dans_la_manchette(self):
         self.tous[1].in_manchette = True
