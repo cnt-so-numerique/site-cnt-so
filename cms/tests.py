@@ -7675,6 +7675,22 @@ class StatistiquesTest(TestCase):
         # Un clic d'une page du site à une autre n'est pas une provenance.
         self.assertEqual(sum(familles.values()), 18)
 
+    def test_sans_panneau_referrers_l_acces_direct_est_deduit(self):
+        """GoAccess 1.7 (celui du serveur) ne publie pas `referrers`."""
+        from cms.statistiques import _provenances
+        familles = {p['libelle']: p['visiteurs'] for p in _provenances({
+            'general': {'unique_visitors': 50},
+            'referring_sites': {'data': [{'data': 'www.google.com', 'visitors': {'count': 20}}]},
+        })}
+        self.assertEqual(familles['Accès direct ou inconnu'], 30)
+
+    def test_un_mot_cle_est_nomme(self):
+        from taggit.models import Tag
+        from cms.statistiques import _libelles_des_pages
+        Tag.objects.create(name='Féminisme', slug='feminisme-2')
+        self.assertEqual(_libelles_des_pages(['/tag/feminisme-2/'])['/tag/feminisme-2/'],
+                         'Mot-clé « Féminisme »')
+
     def test_les_jours_sont_dans_l_ordre(self):
         self._ecrire(visitors=[('20260924', 5), ('20260922', 9)])
         from cms.statistiques import _lire_donnees, resume

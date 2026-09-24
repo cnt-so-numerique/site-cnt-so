@@ -70,11 +70,14 @@ def _libelles_des_pages(chemins):
     slugs_articles = {m[1] for m in morceaux.values() if len(m) == 2 and m[0] == 'article'}
     slugs_rubriques = {m[1] for m in morceaux.values() if len(m) == 2 and m[0] == 'categorie'}
     slugs_uniques = {m[0] for m in morceaux.values() if len(m) == 1}
+    slugs_mots_cles = {m[1] for m in morceaux.values() if len(m) == 2 and m[0] == 'tag'}
 
     titres = dict(ArticlePage.objects.filter(slug__in=slugs_articles | slugs_uniques)
                   .values_list('slug', 'title'))
     rubriques = dict(CmsCategory.objects.filter(slug__in=slugs_rubriques)
                      .values_list('slug', 'name'))
+    from taggit.models import Tag
+    mots_cles = dict(Tag.objects.filter(slug__in=slugs_mots_cles).values_list('slug', 'name'))
     syndicats = {}
     for slug, ancien, titre in SectionPage.objects.values_list('slug', 'legacy_site_slug', 'title'):
         syndicats[slug] = titre
@@ -91,6 +94,8 @@ def _libelles_des_pages(chemins):
             libelles[chemin] = titres.get(m[1], chemin)
         elif len(m) == 2 and m[0] == 'categorie':
             libelles[chemin] = f"Rubrique « {rubriques.get(m[1], m[1])} »"
+        elif len(m) == 2 and m[0] == 'tag':
+            libelles[chemin] = f"Mot-clé « {mots_cles.get(m[1], m[1])} »"
         elif len(m) == 1 and m[0] in syndicats:
             libelles[chemin] = f"Accueil — {syndicats[m[0]]}"
         elif len(m) == 1 and m[0] in titres:
@@ -145,12 +150,20 @@ def _provenances(donnees):
             familles['Courriels et newsletter'] += _nombre(entree)
         else:
             familles['Autres sites'] += _nombre(entree)
-    for entree in (donnees.get('referrers') or {}).get('data', []):
-        if entree.get('data') == '-':
-            familles['Accès direct (favori, adresse tapée, appli)'] += _nombre(entree)
+    # Les visites sans provenance. GoAccess 1.8 les donne (« - » du panneau
+    # `referrers`) ; la 1.7 du serveur ne publie pas ce panneau : on les
+    # déduit alors du total, d'où le libellé prudent.
+    directs = [e for e in (donnees.get('referrers') or {}).get('data', [])
+               if e.get('data') == '-']
+    if directs:
+        familles['Accès direct (favori, adresse tapée, appli)'] += sum(map(_nombre, directs))
+    else:
+        reste = (donnees.get('general') or {}).get('unique_visitors', 0) - sum(familles.values())
+        if reste > 0:
+            familles['Accès direct ou inconnu'] += reste
     total = sum(familles.values()) or 1
     return [{'libelle': l, 'visiteurs': n, 'part': round(100 * n / total)}
-            for l, n in sorted(familles.items(), key=lambda x: -x[1])]
+            for l, n in sorted(familles.items(), key=lambda x: -x[1]) if n]
 
 
 def _par_site(donnees):
