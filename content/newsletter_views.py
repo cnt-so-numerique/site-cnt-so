@@ -359,6 +359,39 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
         return redirect('/cms/snippets/content/newsletter/'), True
 
 
+class NewsletterDebloquerView(NewsletterSendView):
+    """Sortir une lettre restée « en cours d'envoi ».
+
+    L'envoi est réservé avant le premier courriel (statut `sending`) et rendu
+    au brouillon si rien n'est parti. Mais si gunicorn abat le worker en plein
+    envoi (30 s), ce `finally` ne s'exécute jamais : la lettre restait bloquée,
+    ni modifiable ni envoyable, sans recours dans /cms/ (relevé le 24/09/2026).
+
+    On ne peut pas trancher à la place du chef : le worker a pu tomber avant
+    ou après le départ des courriels. Il vérifie (boîte de test, archives de
+    la liste OVH) puis choisit. Même garde et même cloisonnement que l'envoi.
+    """
+
+    def get(self, request, pk):
+        newsletter = self._get_newsletter(request, pk)
+        if newsletter.status != 'sending':
+            return redirect('/cms/snippets/content/newsletter/')
+        return render(request, 'content/newsletter_debloquer.html',
+                      {'newsletter': newsletter})
+
+    def post(self, request, pk):
+        newsletter = self._get_newsletter(request, pk)
+        partie = request.POST.get('issue') == 'partie'
+        champs = ({'status': 'sent', 'sent_at': timezone.now(), 'sent_by': request.user}
+                  if partie else {'status': 'draft'})
+        # Conditionnel, comme la réservation : si un autre chef a déjà tranché,
+        # on ne réécrit pas par-dessus.
+        if Newsletter.objects.filter(pk=newsletter.pk, status='sending').update(**champs):
+            messages.success(request, 'Newsletter marquée comme envoyée.' if partie
+                             else 'Newsletter rendue au brouillon : elle peut être renvoyée.')
+        return redirect('/cms/snippets/content/newsletter/')
+
+
 class SubscriberExportView(WagtailSyndicatRequiredMixin, View):
     """Export CSV des abonnés actifs du site courant."""
 

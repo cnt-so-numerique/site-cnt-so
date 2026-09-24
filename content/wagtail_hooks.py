@@ -494,13 +494,16 @@ def hide_unused_wagtail_menus(request, menu_items):
 
 @hooks.register('register_admin_urls')
 def register_content_admin_urls():
-    from content.newsletter_views import NewsletterSendView, SubscriberExportView
+    from content.newsletter_views import (
+        NewsletterDebloquerView, NewsletterSendView, SubscriberExportView,
+    )
     from content.contact_cms_views import (
         ContactSubmissionListView, ContactSubmissionDetailView,
         FormulaireContactConfigView, ChampContactCreateView, ChampContactDeleteView,
     )
     return [
         path('newsletter/<int:pk>/envoyer/', NewsletterSendView.as_view(), name='newsletter_send'),
+        path('newsletter/<int:pk>/debloquer/', NewsletterDebloquerView.as_view(), name='newsletter_debloquer'),
         path('abonnes/export/', SubscriberExportView.as_view(), name='subscriber_export'),
         path('contact/', ContactSubmissionListView.as_view(), name='contact_list'),
         path('contact/<int:pk>/', ContactSubmissionDetailView.as_view(), name='contact_detail'),
@@ -544,6 +547,34 @@ def add_newsletter_send_button(model, **kwargs):
             return instance and instance.pk and instance.status == 'draft'
 
     return SendNewsletterMenuItem(order=100)
+
+
+@hooks.register('register_snippet_action_menu_item')
+def add_newsletter_debloquer_button(model, **kwargs):
+    """Seule porte de sortie d'une lettre coincée « en cours d'envoi »."""
+    from content.models import Newsletter as NewsletterModel
+    if model is not NewsletterModel:
+        return
+
+    from wagtail.snippets.action_menu import ActionMenuItem
+
+    class DebloquerNewsletterMenuItem(ActionMenuItem):
+        label = "Débloquer l'envoi"
+        name = 'debloquer-newsletter'
+        icon_name = 'warning'
+
+        def get_url(self, context):
+            instance = context.get('instance')
+            return f'/cms/newsletter/{instance.pk}/debloquer/'
+
+        def is_shown(self, context):
+            from content.admin_utils import is_chef
+            request = context.get('request')
+            instance = context.get('instance')
+            return bool(request is not None and is_chef(request.user)
+                        and instance and instance.pk and instance.status == 'sending')
+
+    return DebloquerNewsletterMenuItem(order=101)
 
 
 @hooks.register('insert_global_admin_css')

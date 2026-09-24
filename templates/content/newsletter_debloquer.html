@@ -1,0 +1,37 @@
+{% extends "wagtailadmin/base.html" %}
+
+{% block titletag %}Débloquer l'envoi — {{ newsletter.title }}{% endblock %}
+
+{% block content %}
+<div class="w-slim-header">
+  <div class="w-breadcrumbs">
+    <a href="/cms/snippets/content/newsletter/" class="w-breadcrumbs__link">Newsletters</a>
+    <span class="w-breadcrumbs__divider">/</span>
+    <span>Débloquer l'envoi</span>
+  </div>
+</div>
+
+<div class="nice-padding" style="max-width:48rem;">
+  <h1 class="w-h1">« {{ newsletter.title }} » est restée en cours d'envoi</h1>
+  <p>
+    L'envoi a été interrompu avant de se terminer. La lettre est peut-être
+    <strong>déjà partie</strong> vers tout ou partie des listes, ou pas du tout :
+    le site ne peut pas le savoir.
+  </p>
+  <p>
+    <strong>Vérifiez d'abord</strong> si elle est arrivée : dans une boîte abonnée
+    à la liste, ou dans les archives de la liste chez OVH. Puis choisissez.
+  </p>
+
+  <form method="post" style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:1.5rem;">
+    {% csrf_token %}
+    <button type="submit" name="issue" value="partie" class="button">
+      Elle est partie : la marquer envoyée
+    </button>
+    <button type="submit" name="issue" value="brouillon" class="button button-secondary"
+            onclick="return confirm('Rendue au brouillon, la lettre pourra être renvoyée. Si elle était déjà partie, les abonnés la recevront deux fois. Continuer ?');">
+      Rien n'est parti : la rendre au brouillon
+    </button>
+  </form>
+</div>
+{% endblock %}

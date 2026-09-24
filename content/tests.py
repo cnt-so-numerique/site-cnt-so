@@ -10201,3 +10201,48 @@ class SlugsAsciiTest(TestCase):
         page = _get_article_parent().add_child(instance=ArticlePage(
             title='Élection de la rentrée', slug='', section_slug='principal'))
         self.assertEqual(page.slug, 'election-de-la-rentree')
+
+
+class NewsletterDebloquerTest(TestCase):
+    """Un worker abattu en plein envoi laissait la lettre « en cours d'envoi »,
+    ni modifiable ni envoyable, sans recours dans /cms/."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='nl-bloque', name='NL BLOQUE', site_type='sectoral')
+        self.newsletter = _make_newsletter(self.site)
+        Newsletter.objects.filter(pk=self.newsletter.pk).update(status='sending')
+        self.url = f'/cms/newsletter/{self.newsletter.pk}/debloquer/'
+
+    def _statut(self):
+        self.newsletter.refresh_from_db()
+        return self.newsletter.status
+
+    def test_un_chef_rend_la_lettre_au_brouillon(self):
+        _chef_client(self.site).post(self.url, {'issue': 'brouillon'})
+        self.assertEqual(self._statut(), 'draft')
+
+    def test_un_chef_la_marque_envoyee(self):
+        _chef_client(self.site).post(self.url, {'issue': 'partie'})
+        self.assertEqual(self._statut(), 'sent')
+        self.assertIsNotNone(self.newsletter.sent_at)
+
+    def test_une_lettre_deja_envoyee_nest_pas_rouverte(self):
+        """La porte ne sert qu'aux lettres coincées."""
+        Newsletter.objects.filter(pk=self.newsletter.pk).update(status='sent')
+        _chef_client(self.site).post(self.url, {'issue': 'brouillon'})
+        self.assertEqual(self._statut(), 'sent')
+
+    def test_un_redacteur_ne_peut_pas_debloquer(self):
+        from cms.tests import _client_with_site, _make_redacteur
+        _client_with_site(_make_redacteur(self.site), self.site).post(
+            self.url, {'issue': 'brouillon'})
+        self.assertEqual(self._statut(), 'sending')
+
+    def test_la_page_de_confirmation_previent_du_risque(self):
+        r = _chef_client(self.site).get(self.url)
+        self.assertContains(r, 'Vérifiez d')
+
+    def test_le_bouton_apparait_sur_la_lettre_bloquee(self):
+        r = _chef_client(self.site).get(
+            f'/cms/snippets/content/newsletter/edit/{self.newsletter.pk}/')
+        self.assertContains(r, f'/cms/newsletter/{self.newsletter.pk}/debloquer/')
