@@ -7738,3 +7738,42 @@ class StatistiquesTest(TestCase):
     def test_un_anonyme_ne_voit_pas_le_rapport(self):
         self.rapport.write_text('<html><body>GOACCESS-OK</body></html>', encoding='utf-8')
         self.assertEqual(Client().get('/cms/statistiques/rapport/').status_code, 302)
+
+
+class AdresseDeCategorieTest(TestCase):
+    """« Plateforme de la CNT-SO » d'Éducation (24/09/2026) : une adresse web
+    collée dans le slug devenait `httpseduccnt-soorgcategorie…`."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='education', name='CNT-SO Éducation',
+                                         site_type='sectoral')
+
+    def test_laisse_vide_le_slug_vient_du_nom(self):
+        cat = CmsCategory(name='Plateforme de la CNT-SO', section_slug='education')
+        cat.full_clean()
+        self.assertEqual(cat.slug, 'plateforme-de-la-cnt-so')
+
+    def test_une_adresse_web_collee_est_refusee(self):
+        from django.core.exceptions import ValidationError
+        cat = CmsCategory(name='Plateforme', section_slug='education',
+                          slug='httpseduccnt-soorgcategorieplateforme-cntso')
+        with self.assertRaises(ValidationError) as erreur:
+            cat.full_clean()
+        self.assertIn('slug', erreur.exception.message_dict)
+
+    def test_le_doublon_reste_refuse_meme_slug_fabrique(self):
+        from django.core.exceptions import ValidationError
+        CmsCategory.objects.create(name='Revendications', section_slug='education')
+        with self.assertRaises(ValidationError):
+            CmsCategory(name='Revendications', section_slug='education').full_clean()
+
+    def test_le_formulaire_de_cms_accepte_le_champ_vide(self):
+        c = _client_with_site(_make_chef('chef-categorie'), self.site)
+        r = c.post('/cms/snippets/cms/cmscategory/add/', {
+            'name': 'Plateforme de la CNT-SO', 'slug': '',
+            'section_slug': 'education', 'description': '', 'parent': '',
+        })
+        self.assertIn(r.status_code, (200, 302))
+        self.assertTrue(CmsCategory.objects.filter(
+            section_slug='education', slug='plateforme-de-la-cnt-so').exists(),
+            r.content.decode()[:0])

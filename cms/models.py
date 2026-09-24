@@ -89,7 +89,14 @@ def _cle_de_nom(valeur):
 class CmsCategory(models.Model):
     """Catégorie d'article — snippet Wagtail, pas une Page."""
     name = models.CharField(max_length=200)
-    slug = models.SlugField(max_length=200)
+    slug = models.SlugField(
+        max_length=200, blank=True,
+        verbose_name="Adresse",
+        help_text="La fin de l'adresse de la page de la catégorie. Laissez vide : "
+                  "elle est fabriquée à partir du nom. Pas d'adresse web ici — pour "
+                  "mettre la catégorie dans un menu, choisissez « Catégorie du "
+                  "site » dans le menu.",
+    )
     section_slug = models.SlugField(
         max_length=100, blank=True, default='principal',
         help_text="Slug de la SectionPage à laquelle cette catégorie appartient"
@@ -194,8 +201,28 @@ class CmsCategory(models.Model):
                     "sans catégorie."
                 )})
 
+    def _refuser_une_adresse_web(self):
+        """Une adresse web collée dans le champ.
+
+        Le formulaire de Wagtail nettoie la saisie avant l'envoi : collée,
+        « https://educ.cnt-so.org/categorie/plateforme-cntso » devenait le
+        slug `httpseduccnt-soorgcategorieplateforme-cntso`, que Django accepte
+        (Éducation, 24/09/2026 — deux catégories créées ainsi).
+        """
+        if (self.slug or '').startswith('http'):
+            from django.core.exceptions import ValidationError
+            raise ValidationError({'slug': (
+                "On dirait une adresse web collée. Écrivez quelques mots "
+                "(« plateforme-cntso »), ou laissez le champ vide : il sera "
+                "fabriqué à partir du nom.")})
+
     def clean(self):
+        # Rempli AVANT les contrôles, pour que l'unicité par syndicat porte
+        # sur l'adresse réellement enregistrée.
+        if not self.slug:
+            self.slug = slugify(self.name)
         super().clean()
+        self._refuser_une_adresse_web()
         self._refuser_le_fourre_tout()
 
     def save(self, *args, **kwargs):
