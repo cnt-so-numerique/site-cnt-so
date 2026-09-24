@@ -17,7 +17,7 @@
  *       survol:  laZoneSurvolee,           // facultatif, défaut : section
  *       avance:  function () { ... },      // passer au visuel suivant
  *       bouton:  leBoutonPause,            // facultatif mais attendu
- *       delai:   6000                      // facultatif
+ *       delai:   3000                      // facultatif
  *   });
  *   auto.relance();   // après un clic sur une flèche : repartir du plein délai
  */
@@ -34,7 +34,10 @@
         var survol = options.survol || section;
         var avance = options.avance;
         var bouton = options.bouton || null;
-        var delai = options.delai || 6000;
+        // 3 s par visuel, à l'essai (Arnaud, 24/09/2026 ; 6 s auparavant).
+        // Le bouton pause, l'arrêt au survol et au clavier restent ce qui rend
+        // un défilement automatique acceptable (WCAG 2.2.2).
+        var delai = options.delai || 3000;
 
         var minuterie = null;
         var arreteParLUtilisateur = false;
