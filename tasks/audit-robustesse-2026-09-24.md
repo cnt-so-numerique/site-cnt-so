@@ -319,3 +319,41 @@ Plus rien à vérifier en prod pour cet audit.
   le JS statique part en `Content-Encoding: gzip`.
 - `verifier-sites.sh` sonde désormais `https://cnt-so.org/` (copie
   `.bak-20260924`). Reste la sonde **extérieure**.
+
+## 19 — Test de charge (24/09, en prod, depuis le poste d'Arnaud)
+
+`ab`, requêtes GET seules, paliers de 20 s, User-Agent `cnt-test-de-charge`.
+**Zéro erreur à tous les paliers.**
+
+| Page | Simultanés | req/s | médiane | p95 |
+|---|---|---|---|---|
+| Accueil | 1 | 1,4 | 753 ms | 797 ms |
+| Accueil | 5 | 8,3 | 565 ms | 751 ms |
+| Accueil | 10 | 8,7 | 1,1 s | 1,2 s |
+| Accueil | 25 | 8,5 | 2,8 s | 3,0 s |
+| Accueil | 50 | 8,8 | 5,3 s | 5,6 s |
+| Article | 25 | 14,1 | 1,7 s | 1,8 s |
+| CSS statique (nginx) | 50 | 167 | 148 ms | 1,2 s |
+
+**Lecture.** Le goulot est Django : **3 workers gunicorn synchrones**, soit
+environ 8,5 accueils/s au maximum. Au-delà de 5 visiteurs simultanés, les
+requêtes font la queue : le temps de réponse croît en ligne droite, mais rien ne
+casse (pas de 502 ni de 504 à 50 simultanés). Le statique est servi par nginx
+(`alias`) ; son plafond à 167/s tient surtout au poste de test (une poignée de
+main TLS par requête, sans keep-alive).
+
+**Ordre de grandeur réel** : ~615 requêtes/jour. Un envoi de newsletter à 5 900
+personnes ou un partage viral donne quelques requêtes/s au pic : dans la marge,
+mais avec 2 à 5 s d'attente si 25 à 50 personnes arrivent en même temps.
+
+**Pistes, par coût croissant :**
+1. `--workers 9` (8 cœurs, 32 Go, ~150 Mo par worker) : débit ×3 attendu, une
+   ligne dans la config supervisor. À mesurer après coup avec le même protocole.
+2. `expires 1y` sur `/static/` : les noms portent une empreinte, donc aucun
+   risque de servir un fichier périmé, et les visites suivantes ne redemandent
+   plus rien.
+3. Accueil à 0,55 s de calcul, dont 223 ms de SQL : `EXPLAIN ANALYZE` des
+   requêtes sur ArticlePage.
+
+⚠️ Les ~3 500 requêtes du test apparaissent dans les statistiques GoAccess
+pendant 14 jours (User-Agent `cnt-test-de-charge`, un seul « visiteur »).
