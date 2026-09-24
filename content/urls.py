@@ -98,7 +98,9 @@ urlpatterns = [
     path('categorie/<slug:slug>/feed/', CategoryFeed(), name='category_rss_feed'),
 
     # Tags (globaux)
-    path('tag/<slug:slug>/', views.TagDetailView.as_view(), name='tag_detail'),
+    # `[-\w]+` et pas `<slug:>` : taggit garde les accents dans ses slugs
+    # (« rentrée »), que le convertisseur `slug` (ASCII seul) refuse.
+    re_path(r'^tag/(?P<slug>[-\w]+)/$', views.TagDetailView.as_view(), name='tag_detail'),
 
     # Catégories du site principal
     path('categorie/<slug:slug>/', views.CategoryDetailView.as_view(), name='category_detail'),
