@@ -429,6 +429,9 @@
             display: block;
         }
 
+        /* Entrée de menu encore sans destination : visible, non cliquable. */
+        .menu-a-venir { cursor: default; opacity: .6; }
+
         .dropdown a {
             display: block;
             padding: 0.75rem 1.2rem;
@@ -2039,15 +2042,17 @@
             <div class="main-nav-content" id="menu-principal">
                 {% for item in main_nav %}
                 {% comment %}
-                Une entrée sans destination ET sans sous-menu ne mène nulle
-                part : les cibles sont en SET_NULL, un lien se vide tout seul
-                quand sa cible est supprimée.
+                Une entrée sans destination ET sans sous-menu (« impasse ») est
+                AFFICHÉE, en texte non cliquable : `<a>` sans `href`, donc ni
+                lien mort ni arrêt au clavier. Elle était masquée ; Arnaud a
+                demandé le 24/09/2026 de la montrer, les syndicats créant leurs
+                titres de menu avant de les remplir.
                 {% endcomment %}
-                {% if not item.est_impasse %}
                 <div class="nav-item">
+                    {% if item.est_impasse %}<a class="menu-a-venir" aria-disabled="true">{{ item.title }}</a>{% else %}
                     <a href="{{ item.get_url }}"{% if item.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>
                         {{ item.title }}
-                    </a>
+                    </a>{% endif %}
                     {% with children=item.children.all %}
                     {% if children %}
                     <div class="dropdown">
@@ -2058,12 +2063,15 @@
                         <div class="dropdown-item">
                             <a href="{{ child.get_url }}"{% if child.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ child.title }}{% if child.should_open_new_tab %}<svg class="lien-externe" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg><span class="sr-only"> (ouvre un autre site dans un nouvel onglet)</span>{% endif %}</a>
                             <div class="sub-dropdown">
-                                {% for gc in grandchildren %}{% if gc.is_active and not gc.est_impasse %}
-                                <a href="{{ gc.get_url }}"{% if gc.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ gc.title }}{% if gc.should_open_new_tab %}<svg class="lien-externe" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg><span class="sr-only"> (ouvre un autre site dans un nouvel onglet)</span>{% endif %}</a>
+                                {% for gc in grandchildren %}{% if gc.is_active %}
+                                {% if gc.est_impasse %}<a class="menu-a-venir" aria-disabled="true">{{ gc.title }}</a>{% else %}
+                                <a href="{{ gc.get_url }}"{% if gc.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ gc.title }}{% if gc.should_open_new_tab %}<svg class="lien-externe" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg><span class="sr-only"> (ouvre un autre site dans un nouvel onglet)</span>{% endif %}</a>{% endif %}
                                 {% endif %}{% endfor %}
                             </div>
                         </div>
-                        {% elif not child.est_impasse %}
+                        {% elif child.est_impasse %}
+                        <a class="menu-a-venir" aria-disabled="true">{{ child.title }}</a>
+                        {% else %}
                         <a href="{{ child.get_url }}"{% if child.should_open_new_tab %} target="_blank" rel="noopener"{% endif %}>{{ child.title }}{% if child.should_open_new_tab %}<svg class="lien-externe" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg><span class="sr-only"> (ouvre un autre site dans un nouvel onglet)</span>{% endif %}</a>
                         {% endif %}
                         {% endwith %}
@@ -2073,7 +2081,6 @@
                     {% endif %}
                     {% endwith %}
                 </div>
-                {% endif %}
                 {% empty %}
                 <div class="nav-item" style="padding:.5rem 1rem; font-size: var(--texte-courant); color:#999; font-style:italic;">
                     Aucun menu configuré

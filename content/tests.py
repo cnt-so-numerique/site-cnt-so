@@ -5873,15 +5873,21 @@ class LienDeMenuSansCibleTest(TestCase):
                                 link_type='url', url='/guide/', parent=parent)
         self.assertFalse(parent.est_impasse)
 
-    def test_le_menu_n_affiche_pas_une_impasse(self):
+    def test_une_impasse_s_affiche_sans_etre_cliquable(self):
+        """Règle changée le 24/09/2026 (Arnaud) : les syndicats créent leurs
+        titres de menu avant de les remplir. Masquée jusque-là, l'entrée
+        s'affiche désormais — mais sans `href`, donc sans lien mort."""
+        import re
         MenuItem.objects.create(site=self.site, menu='main',
-                                title='Lien mort à ne pas afficher',
+                                title='Revendications à remplir',
                                 link_type='site', target_site=None)
         MenuItem.objects.create(site=self.site, menu='main',
                                 title='Lien valide', link_type='url',
                                 url='/valide/')
         html = self.client.get('/13/').content.decode()
-        self.assertNotIn('Lien mort à ne pas afficher', html)
+        balise = re.search(r'<a([^>]*)>\s*Revendications à remplir', html)
+        self.assertIsNotNone(balise, "l'entrée à remplir doit apparaître")
+        self.assertNotIn('href', balise.group(1))
         self.assertIn('Lien valide', html)
 
 

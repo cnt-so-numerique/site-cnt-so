@@ -30,13 +30,12 @@
   <span style="font-size:.875rem;color:#4b5563;background:var(--w-color-surface-field);padding:.1rem .4rem;border-radius:3px;flex-shrink:0;">masqué</span>
   {% endif %}
   {% if item.is_active and item.est_impasse %}
-  {# Le site masque les liens qui ne mènent nulle part (adresse vide ou « # »,  #}
-  {# cible supprimée) et qui n'ouvrent aucun sous-menu. Sans ce badge, le      #}
-  {# rédacteur voyait son entrée ici et nulle part sur le site, sans savoir     #}
-  {# pourquoi (« Revendications » d'Éducation, 24/09/2026).                    #}
+  {# Une entrée sans destination ni sous-menu s'affiche sur le site en texte    #}
+  {# non cliquable (depuis le 24/09/2026) : le badge dit qu'il reste à la      #}
+  {# remplir, et comment (« Revendications » d'Éducation).                      #}
   <span class="menu-impasse" style="font-size:.875rem;color:#8a1c12;background:#fdecea;padding:.1rem .4rem;border-radius:3px;flex-shrink:0;"
-        title="Cette entrée n'a pas de destination : choisissez le type « Catégorie du site », « Page du site »… et sa cible, ou ajoutez-lui des sous-entrées.">
-    invisible : ne mène nulle part
+        title="Affichée sur le site mais pas cliquable : choisissez le type « Catégorie du site », « Page du site »… et sa cible, ou ajoutez-lui des sous-entrées.">
+    à remplir : non cliquable
   </span>
   {% endif %}
 
