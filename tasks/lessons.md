@@ -623,3 +623,35 @@ est la page « lien invalide ».
 - avec des comptes **partagés**, la même chose arrive sans script : si un
   co-titulaire se connecte entre la demande et le clic, le lien meurt. Consigne
   aux syndicats : demander le lien et l'utiliser tout de suite.
+
+---
+
+## 24/09/2026 — Auditer le dépôt n'est pas auditer le service
+
+En passant la liste des 20 points de mise en production, j'ai écrit « rien côté
+nginx » pour la limite de requêtes par visiteur. C'est faux : nginx pose
+`limit_req` **5/min par IP** sur `^/(cms|admin)/login/`, en `429`, sur
+`$binary_remote_addr`. C'est la **deuxième fois** que je rate ce même garde-fou
+— déjà le 18/09, où la mémoire du projet notait déjà « je l'avais ratée en
+n'auditant que le dépôt ».
+
+Le défaut de méthode est structurel, pas accidentel : `grep` ne voit que le
+code versionné, alors qu'une part des protections d'un service vit ailleurs —
+limites de débit et plafonds de taille dans **nginx**, planification et alertes
+dans **systemd**, surveillance de disponibilité chez un **tiers** qui ne laisse
+aucune trace locale. Conclure « absent » depuis le dépôt, c'est conclure depuis
+un endroit d'où la chose est invisible par construction.
+
+Même piège, même passe, sur le délai d'attente du client OVH : j'ai annoncé
+« aucun timeout » parce que `cms/ovh_client.py` n'en passe pas. La bibliothèque
+python-ovh en applique un de 180 s par défaut. Ne pas voir un réglage dans
+*notre* code ne veut pas dire qu'il n'existe pas : les bibliothèques ont des
+valeurs par défaut, il faut aller les lire.
+
+**Règles :**
+- avant d'écrire qu'un garde-fou **manque**, vérifier les trois étages :
+  le dépôt, puis `nginx -T`, puis `systemctl list-timers` ;
+- ce qui n'a pas été vérifié en prod se marque **« à confirmer en prod »**,
+  jamais « absent » ;
+- pour un réglage de bibliothèque (délai, nombre d'essais, taille), lire la
+  valeur par défaut dans le paquet du `venv` avant de conclure à son absence.
