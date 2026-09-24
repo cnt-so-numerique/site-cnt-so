@@ -10191,3 +10191,13 @@ class PurgeDonneesPersonnellesTest(TestCase):
         sortie = self._purger('--dry-run')
         self.assertIn('1 message(s)', sortie)
         self.assertTrue(ContactMessage.objects.filter(pk=vieux.pk).exists())
+
+
+class SlugsAsciiTest(TestCase):
+    """Un titre accentué ne doit pas produire une adresse que nos routes
+    `<slug:>` refusent (500 sur les articles à mot-clé accentué, 24/09/2026)."""
+
+    def test_un_titre_accentue_donne_une_adresse_ascii(self):
+        page = _get_article_parent().add_child(instance=ArticlePage(
+            title='Élection de la rentrée', slug='', section_slug='principal'))
+        self.assertEqual(page.slug, 'election-de-la-rentree')

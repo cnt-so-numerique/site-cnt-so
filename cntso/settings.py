@@ -269,6 +269,11 @@ ADHESION_USE_NEW_APP = _os.environ.get('ADHESION_USE_NEW_APP', 'false').lower() 
 
 WAGTAIL_SITE_NAME = 'CNT-SO'
 WAGTAILADMIN_BASE_URL = 'https://cnt-so.org'
+# Adresses de pages en ASCII : « Élection » donne `election`. Wagtail garde les
+# accents par défaut, mais nos routes `<slug:>` (ASCII seul) les refusent, et
+# construire le lien fait planter la page entière — c'est ce qui est arrivé aux
+# mots-clés « rentrée » et « réformes » (500 sur les articles, 24/09/2026).
+WAGTAIL_ALLOW_UNICODE_SLUGS = False
 # Origine publique du site principal — utilisée par les domaines de fédérations
 # pour renvoyer vers le site confédéral. Tant que la bascule DNS n'est pas faite,
 # la prod doit la surcharger avec https://newsite.cnt-so.org (env ou local_settings).
