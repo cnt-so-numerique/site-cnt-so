@@ -1073,6 +1073,13 @@ class ContactFormMixin:
         return msg
 
 
+#: Messages de contact par IP et par heure. hCaptcha seul arrête les robots,
+#: pas une personne qui colle cent fois le même message : chacun part par
+#: courriel chez un syndicat. Cinq laisse de la marge à une permanence qui
+#: écrit à plusieurs syndicats depuis le même local.
+CONTACT_MAX_PAR_IP = 5
+
+
 class _BaseContactView(ContactFormMixin, View):
     """Vue de contact partagée (principal et sous-sites)."""
     template_name = 'content/contact.html'
@@ -1088,6 +1095,11 @@ class _BaseContactView(ContactFormMixin, View):
         formulaire = self._get_formulaire(site)
         form = self._build_form(formulaire, request.POST)
         if form.is_valid():
+            if _quota_epuise(request, 'contact', CONTACT_MAX_PAR_IP):
+                return render(request, self.template_name, {
+                    'form': form, 'site': site, 'formulaire': formulaire,
+                    'trop_de_messages': True,
+                }, status=429)
             msg = self._save_submission(form, site, formulaire)
             _send_contact_email(site, msg)
             messages.success(request, 'Votre message a été envoyé avec succès !')
@@ -1234,30 +1246,33 @@ def _ip_du_visiteur(request):
     return request.META.get('REMOTE_ADDR', '')
 
 
-def _trop_de_demandes(request):
-    """Vrai si cette IP a déjà épuisé son quota d'inscriptions de l'heure."""
+def _quota_epuise(request, action, maximum, fenetre=NEWSLETTER_FENETRE):
+    """Vrai si cette IP a déjà fait `maximum` fois `action` dans la fenêtre.
+
+    Sinon, compte ce nouvel essai. Seuls les essais **aboutis** doivent passer
+    par ici : l'appeler avant le captcha ferait payer au visiteur ses fautes de
+    frappe.
+    """
     from django.core.cache import caches
     # Cache PARTAGÉ entre les workers gunicorn : dans le cache local du
     # processus, la limite aurait valu trois fois plus (cf. settings.CACHES).
     cache = caches['limites']
-    cle = f'newsletter-inscription:{_ip_du_visiteur(request)}'
+    cle = f'{action}:{_ip_du_visiteur(request)}'
     essais = cache.get(cle, 0)
-    if essais >= NEWSLETTER_MAX_PAR_IP:
+    if essais >= maximum:
         return True
-    cache.set(cle, essais + 1, NEWSLETTER_FENETRE)
+    cache.set(cle, essais + 1, fenetre)
     return False
+
+
+def _trop_de_demandes(request):
+    """Vrai si cette IP a déjà épuisé son quota d'inscriptions de l'heure."""
+    return _quota_epuise(request, 'newsletter-inscription', NEWSLETTER_MAX_PAR_IP)
 
 
 def _trop_de_desabonnements(request):
     """Vrai si cette IP a épuisé son quota de désabonnements de l'heure."""
-    from django.core.cache import caches
-    cache = caches['limites']
-    cle = f'newsletter-desabonnement:{_ip_du_visiteur(request)}'
-    essais = cache.get(cle, 0)
-    if essais >= NEWSLETTER_MAX_DESABO_PAR_IP:
-        return True
-    cache.set(cle, essais + 1, NEWSLETTER_FENETRE)
-    return False
+    return _quota_epuise(request, 'newsletter-desabonnement', NEWSLETTER_MAX_DESABO_PAR_IP)
 
 
 class NewsletterSubscribeView(View):

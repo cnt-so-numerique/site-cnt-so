@@ -2433,5 +2433,41 @@
   });
 })();
 </script>
+<script>
+/* Un formulaire ne part qu'une fois : un double clic sur « Envoyer »
+   expédiait deux messages de contact, ou deux demandes d'inscription.
+
+   On bloque le SECOND envoi au lieu de désactiver le bouton pendant le
+   premier : un bouton désactivé dans l'événement `submit` sort des données
+   envoyées, et son `name`/`value` avec. L'aspect grisé vient après coup.
+   Écouté sur le document : un `onsubmit="return confirm(…)"` refusé a déjà
+   annulé l'événement, et ne doit pas verrouiller le formulaire. */
+(function () {
+  document.addEventListener('submit', function (e) {
+    var formulaire = e.target;
+    if (e.defaultPrevented || (formulaire.method || '').toLowerCase() !== 'post') return;
+    if (formulaire.dataset.envoye) { e.preventDefault(); return; }
+    formulaire.dataset.envoye = '1';
+    setTimeout(function () {
+      formulaire.querySelectorAll('button[type=submit], input[type=submit]').forEach(function (b) {
+        b.disabled = true;
+        b.setAttribute('aria-busy', 'true');
+      });
+    }, 0);
+  });
+  // Retour arrière : le navigateur ressert la page figée en l'état. Sans
+  // ce déverrouillage, le formulaire resterait mort.
+  window.addEventListener('pageshow', function (e) {
+    if (!e.persisted) return;
+    document.querySelectorAll('form[data-envoye]').forEach(function (f) {
+      delete f.dataset.envoye;
+      f.querySelectorAll('[aria-busy]').forEach(function (b) {
+        b.disabled = false;
+        b.removeAttribute('aria-busy');
+      });
+    });
+  });
+})();
+</script>
 </body>
 </html>

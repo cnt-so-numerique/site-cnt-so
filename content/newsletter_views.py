@@ -109,11 +109,20 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
             return redirect('/cms/snippets/content/newsletter/')
         return None
 
-    def get(self, request, pk):
-        newsletter = self._get_newsletter(request, pk)
+    def _refus_si_deja_partie(self, request, newsletter):
         if newsletter.status == 'sent':
             messages.error(request, 'Newsletter déjà envoyée.')
             return redirect('/cms/snippets/content/newsletter/')
+        if newsletter.status == 'sending':
+            messages.error(request, 'Cette newsletter est déjà en cours d’envoi.')
+            return redirect('/cms/snippets/content/newsletter/')
+        return None
+
+    def get(self, request, pk):
+        newsletter = self._get_newsletter(request, pk)
+        refus = self._refus_si_deja_partie(request, newsletter)
+        if refus:
+            return refus
         refus = self._refus_si_newsletter_coupee(request, newsletter)
         if refus:
             return refus
@@ -141,9 +150,9 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
 
     def post(self, request, pk):
         newsletter = self._get_newsletter(request, pk)
-        if newsletter.status == 'sent':
-            messages.error(request, 'Newsletter déjà envoyée.')
-            return redirect('/cms/snippets/content/newsletter/')
+        refus = self._refus_si_deja_partie(request, newsletter)
+        if refus:
+            return refus
         refus = self._refus_si_newsletter_coupee(request, newsletter)
         if refus:
             return refus
@@ -193,6 +202,31 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
                 messages.error(request, f'Erreur lors de l\'envoi : {e}')
             return redirect(f'/cms/newsletter/{pk}/envoyer/')
 
+        # Réserver l'envoi AVANT le premier courriel, en une seule requête
+        # conditionnelle. Le statut ne passait à « envoyée » qu'après coup :
+        # deux clics rapprochés, servis par deux workers gunicorn, voyaient
+        # chacun un brouillon, et la lettre partait deux fois à des milliers
+        # de personnes. Désactiver le bouton côté navigateur ne suffit pas.
+        reservee = Newsletter.objects.filter(
+            pk=newsletter.pk, status='draft',
+        ).update(status='sending')
+        if not reservee:
+            messages.error(request, 'Cette newsletter est déjà en cours d’envoi.')
+            return redirect('/cms/snippets/content/newsletter/')
+        partie = False
+        try:
+            reponse, partie = self._envoyer(request, newsletter, articles, site_url)
+        finally:
+            if not partie:
+                # Rien n'est parti : rendre le brouillon, sinon il resterait
+                # bloqué « en cours d'envoi » sans recours dans l'admin.
+                Newsletter.objects.filter(
+                    pk=newsletter.pk, status='sending',
+                ).update(status='draft')
+        return reponse
+
+    def _envoyer(self, request, newsletter, articles, site_url):
+        """Envoie pour de bon. Renvoie (réponse, au moins un courriel parti)."""
         from django.conf import settings as django_settings
 
         site = newsletter.site
@@ -245,7 +279,7 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
 
             if not sent_lists:
                 messages.error(request, f'Erreur lors de l\'envoi : {" ; ".join(failed)}')
-                return redirect(request.path)
+                return redirect(request.path), False
 
             sent_count = 0
             for list_name in sent_lists:
@@ -269,13 +303,13 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
             messages.success(request, f'Newsletter envoyée à {sent_emails} ({sent_count} abonné(s) OVH).')
             if failed:
                 messages.warning(request, f'Échec pour : {" ; ".join(failed)}')
-            return redirect('/cms/snippets/content/newsletter/')
+            return redirect('/cms/snippets/content/newsletter/'), True
 
         # ── Envoi direct abonné par abonné (fallback sans liste OVH) ─────────
         subscribers = list(Subscriber.objects.filter(site=site, is_active=True))
         if not subscribers:
             messages.warning(request, 'Aucun abonné actif pour ce site.')
-            return redirect('/cms/snippets/content/newsletter/')
+            return redirect('/cms/snippets/content/newsletter/'), False
 
         sent = 0
         errors = 0
@@ -321,7 +355,7 @@ class NewsletterSendView(WagtailChefRequiredMixin, View):
             messages.warning(request, f'Envoyée à {sent} abonné(s). {errors} erreur(s).')
         else:
             messages.success(request, f'Newsletter envoyée à {sent} abonné(s).')
-        return redirect('/cms/snippets/content/newsletter/')
+        return redirect('/cms/snippets/content/newsletter/'), True
 
 
 class SubscriberExportView(WagtailSyndicatRequiredMixin, View):

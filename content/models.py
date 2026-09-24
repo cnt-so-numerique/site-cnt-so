@@ -650,6 +650,9 @@ class Newsletter(ClusterableModel, models.Model):
     """Newsletter envoyée aux abonnés d'un site."""
     STATUS_CHOICES = [
         ('draft', 'Brouillon'),
+        # Réservée juste avant le premier courriel, pour qu'un double clic ne
+        # fasse pas partir la lettre deux fois (cf. NewsletterSendView).
+        ('sending', 'Envoi en cours'),
         ('sent', 'Envoyée'),
     ]
     site = models.ForeignKey(

@@ -204,6 +204,10 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 EMAIL_HOST = 'ssl0.ovh.net'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
+# Sans délai, Django attend le SMTP sans fin (défaut None) : un ssl0.ovh.net
+# muet bloquait la requête jusqu'à ce que gunicorn abatte le worker à 30 s,
+# sans passer par les `try/except` qui journalisent l'échec d'envoi.
+EMAIL_TIMEOUT = 10
 EMAIL_HOST_USER = ''
 EMAIL_HOST_PASSWORD = ''
 DEFAULT_FROM_EMAIL = 'CNT-SO <newsletter@cnt-so.org>'

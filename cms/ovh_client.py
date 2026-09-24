@@ -4,6 +4,11 @@ from django.conf import settings
 from django.core.cache import cache
 
 _CACHE_TTL = 300  # 5 minutes
+#: (connexion, lecture) en secondes. python-ovh attend 180 s par défaut, alors
+#: que gunicorn abat son worker à 30 s : une API muette ne levait donc jamais
+#: d'exception rattrapable, elle tuait la requête. À 15 s au pire, l'échec
+#: remonte aux `try/except` des appelants, qui savent le dire.
+_TIMEOUT = (5, 10)
 _client = None
 
 
@@ -15,6 +20,7 @@ def get_client():
             application_key=settings.OVH_APPLICATION_KEY,
             application_secret=settings.OVH_APPLICATION_SECRET,
             consumer_key=settings.OVH_CONSUMER_KEY,
+            timeout=_TIMEOUT,
         )
     return _client
 

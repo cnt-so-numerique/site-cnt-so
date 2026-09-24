@@ -108,6 +108,13 @@
 </p>
 {% endif %}
 
+{% if trop_de_messages %}
+<p class="error-list" role="alert" style="padding:1rem;border:1px solid var(--primary-color);border-radius:4px;margin-bottom:1.5rem;">
+    Plusieurs messages sont déjà partis depuis votre connexion dans l'heure.
+    Le vôtre n'a pas été envoyé : réessayez un peu plus tard.
+</p>
+{% endif %}
+
 <p class="required-note">Les champs marqués d'un <span>*</span> sont obligatoires.</p>
 
 <form method="post" class="contact-form">

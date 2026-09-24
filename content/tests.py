@@ -9987,3 +9987,121 @@ class MetadonneesDePartageTest(TestCase):
                             "la description est vide et écrase le repli")
         self.assertIn('CNT-SO Essai', trouve.group(1),
                       "le repli ne nomme pas le syndicat")
+
+
+# ── Robustesse (audit des 20 points, 24/09/2026) ──────────────────────────────
+
+class ContactLimiteParIpTest(TestCase):
+    """hCaptcha arrête les robots, pas une personne qui colle cent fois le
+    même message : chacun part par courriel chez un syndicat."""
+
+    def setUp(self):
+        make_site()
+        patcher = patch('hcaptcha.fields.hCaptchaField.validate', return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _poster(self, i, ip='203.0.113.7'):
+        return self.client.post(reverse('content:contact'), {
+            'name': 'Alice', 'email': f'alice{i}@example.com',
+            'phone': '0600000000', 'city': 'Paris', 'sector': 'Nettoyage',
+            'subject': 'Bonjour', 'message': 'Test',
+            'h-captcha-response': 'ok',
+        }, REMOTE_ADDR=ip)
+
+    def test_une_meme_ip_est_bornee(self):
+        from django.core import mail
+        from content.views import CONTACT_MAX_PAR_IP
+        for i in range(CONTACT_MAX_PAR_IP):
+            self.assertEqual(self._poster(i).status_code, 302)
+        envoyes = len(mail.outbox)
+        r = self._poster('de-trop')
+        self.assertEqual(r.status_code, 429)
+        self.assertContains(r, "n'a pas été envoyé", status_code=429)
+        self.assertEqual(ContactMessage.objects.count(), CONTACT_MAX_PAR_IP)
+        self.assertEqual(len(mail.outbox), envoyes)
+
+    def test_une_autre_ip_nest_pas_penalisee(self):
+        from content.views import CONTACT_MAX_PAR_IP
+        for i in range(CONTACT_MAX_PAR_IP):
+            self._poster(i)
+        self.assertEqual(self._poster('voisin', ip='198.51.100.9').status_code, 302)
+
+    def test_un_formulaire_refuse_ne_consomme_pas_le_quota(self):
+        """Une faute de frappe ne doit pas coûter un envoi."""
+        from content.views import CONTACT_MAX_PAR_IP
+        for _ in range(CONTACT_MAX_PAR_IP + 2):
+            self.client.post(reverse('content:contact'), {'email': 'mauvais'},
+                             REMOTE_ADDR='203.0.113.7')
+        self.assertEqual(self._poster('valide').status_code, 302)
+
+
+class Page500Test(TestCase):
+    """Rendue sans contexte, peut-être base tombée : elle doit tenir seule."""
+
+    def test_la_page_500_se_rend_sans_contexte_ni_base(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+        from django.views.defaults import server_error
+        with CaptureQueriesContext(connection) as requetes:
+            r = server_error(RequestFactory().get('/'))
+        self.assertEqual(r.status_code, 500)
+        self.assertIn('Le site a rencontré une erreur', r.content.decode())
+        self.assertEqual(len(requetes), 0)
+
+
+class OvhDelaiTest(TestCase):
+    """python-ovh attend 180 s ; gunicorn tue le worker à 30 s."""
+
+    def test_le_client_ovh_abandonne_avant_gunicorn(self):
+        import cms.ovh_client as ovh_client
+        ovh_client._client = None
+        self.addCleanup(setattr, ovh_client, '_client', None)
+        with override_settings(OVH_APPLICATION_KEY='k', OVH_APPLICATION_SECRET='s',
+                               OVH_CONSUMER_KEY='c'):
+            connexion, lecture = ovh_client.get_client()._timeout
+        self.assertLess(connexion + lecture, 30)
+
+
+class NewsletterDoubleEnvoiTest(TestCase):
+    """Deux clics rapprochés, servis par deux workers, envoyaient deux fois."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='nl-double', name='NL DOUBLE', site_type='sectoral')
+        self.site.ovh_mailing_list = 'actu-test-cntso'
+        self.site.newsletter_active = True
+        self.site.save(update_fields=['ovh_mailing_list', 'newsletter_active'])
+        self.newsletter = _make_newsletter(self.site)
+        self.url = f'/cms/newsletter/{self.newsletter.pk}/envoyer/'
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
+    def test_une_lettre_en_cours_denvoi_ne_repart_pas(self, _):
+        """Le second clic arrive pendant que le premier envoie encore."""
+        from django.core import mail
+        Newsletter.objects.filter(pk=self.newsletter.pk).update(status='sending')
+        _chef_client(self.site).post(self.url, {'mode': 'send'})
+        self.assertEqual(len(mail.outbox), 0)
+
+    @patch('cms.ovh_client.get_subscribers', return_value=['a@b.com'])
+    def test_la_reservation_precede_le_premier_courriel(self, _):
+        """Au moment où le courriel part, la lettre n'est déjà plus un
+        brouillon : un clic concurrent ne peut plus la réserver."""
+        statuts = []
+        vrai_send = EmailMultiAlternatives.send
+
+        def send(message, *a, **k):
+            statuts.append(Newsletter.objects.get(pk=self.newsletter.pk).status)
+            return vrai_send(message, *a, **k)
+
+        with patch.object(EmailMultiAlternatives, 'send', send):
+            _chef_client(self.site).post(self.url, {'mode': 'send'})
+        self.assertEqual(statuts, ['sending'])
+        self.newsletter.refresh_from_db()
+        self.assertEqual(self.newsletter.status, 'sent')
+
+    @patch('django.core.mail.EmailMultiAlternatives.send', side_effect=OSError('smtp'))
+    def test_rien_nest_parti_la_lettre_redevient_brouillon(self, _):
+        """Sinon elle resterait bloquée « en cours d'envoi », sans recours."""
+        _chef_client(self.site).post(self.url, {'mode': 'send'})
+        self.newsletter.refresh_from_db()
+        self.assertEqual(self.newsletter.status, 'draft')
