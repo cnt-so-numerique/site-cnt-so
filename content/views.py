@@ -1315,6 +1315,18 @@ class NewsletterSubscribeView(View):
             return get_section_or_404(site_slug, live=True)
         return get_object_or_404(SectionPage, slug='principal')
 
+    def get(self, request, site_slug=None):
+        """Ouverte comme une page (un lien de menu), l'adresse répondait 405.
+
+        Le pied de page d'Éducation y menait (audit des menus, 24/09/2026). On
+        renvoie au formulaire : celui de la confédération, seule à diffuser une
+        newsletter — en adresse complète, sans quoi on retomberait sur l'accueil
+        du domaine du syndicat, qui n'a pas de formulaire.
+        """
+        from django.conf import settings
+        base = getattr(settings, 'WAGTAILADMIN_BASE_URL', '').rstrip('/')
+        return redirect(f'{base}/#newsletter')
+
     def post(self, request, site_slug=None):
         site = self._get_site(site_slug)
         form = NewsletterSubscribeForm(request.POST)

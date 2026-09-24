@@ -10426,3 +10426,22 @@ class SignatureArticleTest(TestCase):
         html = self.client.get(art.get_absolute_url(), follow=True).content.decode()
         self.assertIn('Par CNT-SO Éducation', html)
         self.assertNotIn('nicolas13', html)
+
+
+class LienDeMenuVersLaNewsletterTest(TestCase):
+    """Le pied de page d'Éducation menait à /newsletter/inscription/ : 405."""
+
+    def setUp(self):
+        make_site()
+
+    @override_settings(WAGTAILADMIN_BASE_URL='https://cnt-so.org')
+    def test_ouverte_comme_une_page_elle_mene_au_formulaire(self):
+        for url in ('/newsletter/inscription/', '/13/newsletter/inscription/'):
+            r = self.client.get(url)
+            self.assertEqual(r.status_code, 302, url)
+            self.assertEqual(r['Location'], 'https://cnt-so.org/#newsletter', url)
+
+    def test_l_ancre_existe_sur_l_accueil(self):
+        from cms.models import SectionPage
+        SectionPage.objects.filter(slug='principal').update(newsletter_active=True)
+        self.assertContains(self.client.get('/'), 'id="newsletter"')
