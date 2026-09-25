@@ -183,11 +183,10 @@ def _scoped_menuitem_form(form):
                 candidats = candidats.exclude(pk=form.instance.pk)
         form.fields['parent'].queryset = candidats
         form.fields['parent'].empty_label = '— Premier niveau du menu —'
-        menus = dict(MenuItem.MENU_CHOICES)
 
         def chemin(entree):
-            etapes = [entree.title] if not entree.parent else [entree.parent.title, entree.title]
-            return ' › '.join([menus.get(entree.menu, entree.menu)] + etapes)
+            # Sans le nom du menu : la liste ne montre que le menu choisi.
+            return entree.title if not entree.parent else f'{entree.parent.title} › {entree.title}'
         form.fields['parent'].label_from_instance = chemin
 
     if not current:
@@ -258,6 +257,24 @@ def menuitem_search_js():
 
         lt.addEventListener('change', refreshLinkType);
         refreshLinkType();
+
+        /* ── « Ranger sous » ne propose que les entrées du menu choisi ── */
+        var menu = document.getElementById('id_menu');
+        var rangement = document.getElementById('id_parent');
+        function filtrerRangement() {
+            if (!menu || !rangement) return;
+            Array.from(rangement.options).forEach(function(o) {
+                if (!o.value) return;                       // « Premier niveau »
+                var dansCeMenu = o.dataset.menu === menu.value;
+                o.hidden = !dansCeMenu;
+                o.disabled = !dansCeMenu;
+                if (!dansCeMenu && o.selected) rangement.value = '';
+            });
+        }
+        if (menu && rangement) {
+            menu.addEventListener('change', filtrerRangement);
+            filtrerRangement();
+        }
     });
     </script>
     """);
@@ -292,6 +309,18 @@ def _enforce_menuitem_site(request, form):
         form.instance.site = current
 
 
+class _ChoixRangement(django_forms.Select):
+    """« Ranger sous » : chaque choix porte le menu de son entrée
+    (`data-menu`), pour que la liste suive le menu choisi au-dessus."""
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        entree = getattr(value, 'instance', None)
+        if entree is not None:
+            option['attrs']['data-menu'] = entree.menu
+        return option
+
+
 class _MenuItemCreateView(SnippetCreateView):
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
@@ -323,7 +352,7 @@ class MenuItemViewSet(ViewSetCloisonne, SnippetViewSet):
             FieldPanel('menu'),
         ]),
         FieldPanel('title'),
-        FieldPanel('parent', widget=django_forms.Select),
+        FieldPanel('parent', widget=_ChoixRangement),
         FieldPanel('link_type'),
         # Champs conditionnels — affichés/cachés par JS selon link_type
         FieldPanel('url',         classname='js-lt-group js-lt-url'),

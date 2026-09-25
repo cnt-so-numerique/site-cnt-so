@@ -7864,9 +7864,19 @@ class SousMenuDepuisLeFormulaireTest(TestCase):
         MenuItem.objects.create(site=self.autre, menu='main', title='Chez Poitiers',
                                 link_type='titre')
         html = self.chef.get('/cms/snippets/content/menuitem/add/').content.decode()
-        self.assertIn('Menu principal › Qui sommes-nous › Revendications', html)
+        self.assertIn('Qui sommes-nous › Revendications', html)
         self.assertNotIn('Chez Poitiers', html)
         self.assertNotIn('› Plateforme<', html)   # niveau 3 : ne peut plus recevoir
+
+    def test_chaque_choix_porte_son_menu(self):
+        """Le script de la page s'en sert pour ne montrer que le menu choisi."""
+        import re
+        from content.models import MenuItem
+        MenuItem.objects.create(site=self.site, menu='footer', title='Nous contacter',
+                                link_type='titre')
+        html = self.chef.get('/cms/snippets/content/menuitem/add/').content.decode()
+        self.assertRegex(html, rf'<option value="{self.qsn.pk}" data-menu="main"')
+        self.assertRegex(html, r'<option value="\d+" data-menu="footer"[^>]*>Nous contacter<')
 
     def test_quatre_niveaux_sont_refuses(self):
         from django.core.exceptions import ValidationError
