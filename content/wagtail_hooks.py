@@ -139,16 +139,26 @@ def _scoped_menuitem_form(form):
     request = getattr(form, 'request', None)
     current = get_current_site(request) if request else None
 
+    creation = form.instance.pk is None
     if 'site' in form.fields:
         form.fields['site'].required = True
         form.fields['site'].empty_label = '— Choisir un syndicat (obligatoire) —'
-        if request and not is_chef(request.user) and current:
-            # Rédacteur : pas de choix — son syndicat, verrouillé (l'enforcement
-            # serveur est dans _MenuItemCreateView/_MenuItemEditView.form_valid).
+        # Verrouillé sur le syndicat courant pour un rédacteur, et pour TOUT
+        # le monde à la création : les listes de catégories, pages et articles
+        # ci-dessous sont filtrées sur ce syndicat-là. Un chef arrivait sur un
+        # champ vide et pouvait choisir un autre syndicat que celui de la barre
+        # — avec les catégories du premier (Arnaud, 25/09/2026). Pour créer
+        # ailleurs, on change de syndicat dans la barre, comme partout.
+        if request and current and (creation or not is_chef(request.user)):
             from cms.models import SectionPage
             form.fields['site'].queryset = SectionPage.objects.filter(pk=current.pk)
             form.fields['site'].initial = current.pk
             form.fields['site'].widget = django_forms.HiddenInput()
+
+    # Le bouton « + Menu principal / Pied de page / Secondaire » dit lequel.
+    menu_demande = request.GET.get('menu') if request else None
+    if creation and 'menu' in form.fields and menu_demande in dict(form.fields['menu'].choices):
+        form.fields['menu'].initial = menu_demande
 
     if not current:
         return form
@@ -243,13 +253,13 @@ def _enforce_menuitem_site(request, form):
     ouverture impossible, mais la règle reste fausse et doit l'être moins.
     """
     from cms.site_context import get_current_site
-    from content.admin_utils import is_chef
     if form.instance.pk:
         return
-    if not is_chef(request.user):
-        current = get_current_site(request)
-        if current:
-            form.instance.site = current
+    # À la création, pour tout le monde (chefs compris) : le syndicat de la
+    # barre, celui dont le formulaire a proposé les catégories et les pages.
+    current = get_current_site(request)
+    if current:
+        form.instance.site = current
 
 
 class _MenuItemCreateView(SnippetCreateView):

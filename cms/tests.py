@@ -7777,3 +7777,37 @@ class AdresseDeCategorieTest(TestCase):
         self.assertTrue(CmsCategory.objects.filter(
             section_slug='education', slug='plateforme-de-la-cnt-so').exists(),
             r.content.decode()[:0])
+
+
+class CreationDEntreeDeMenuTest(TestCase):
+    """À la création, l'entrée va au syndicat de la barre du haut — y compris
+    pour un chef, qui arrivait sur un champ « Syndicat » vide (25/09/2026)."""
+
+    def setUp(self):
+        self.site = _ensure_section_page(slug='education', name='CNT-SO Éducation',
+                                         site_type='sectoral')
+        self.autre = _ensure_section_page(slug='poitiers', name='CNT-SO Poitiers',
+                                          site_type='regional')
+        self.chef = _client_with_site(_make_chef('chef-menu-creation'), self.site)
+
+    def test_le_formulaire_propose_le_syndicat_et_le_menu_demandes(self):
+        r = self.chef.get('/cms/snippets/content/menuitem/add/?menu=footer')
+        html = r.content.decode()
+        self.assertRegex(html, rf'<input type="hidden" name="site" value="{self.site.pk}"')
+        self.assertRegex(html, r'<option value="footer" selected>')
+
+    def _creer(self, site_pk):
+        return self.chef.post('/cms/snippets/content/menuitem/add/', {
+            'site': site_pk, 'menu': 'main', 'title': 'Revendications',
+            'link_type': 'url', 'url': '/revendications/', 'is_active': 'on',
+        })
+
+    def test_la_creation_va_au_syndicat_de_la_barre(self):
+        from content.models import MenuItem
+        self._creer(self.site.pk)
+        self.assertEqual(MenuItem.objects.get(title='Revendications').site, self.site)
+
+    def test_un_autre_syndicat_envoye_est_refuse(self):
+        from content.models import MenuItem
+        self._creer(self.autre.pk)
+        self.assertFalse(MenuItem.objects.filter(site=self.autre).exists())
