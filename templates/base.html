@@ -2223,16 +2223,42 @@
                 }
             });
         });
+        // Niveau 3 : placé par rapport à l'ÉCRAN (position fixe), pas au
+        // déroulant. Celui-ci défile (`overflow-y: auto`, pour les menus plus
+        // hauts que l'écran) et une boîte qui défile coupe tout ce qui dépasse
+        // sur les côtés : le sous-menu, ouvert à sa droite, était invisible et
+        // incliquable (« Revendications » d'Éducation, 25/09/2026). En
+        // position fixe, il échappe à la découpe. Mobile exclu : le déroulant
+        // n'y défile pas, le sous-menu s'y affiche déjà (vérifié à 390 px).
+        var ordinateur = window.matchMedia('(min-width: 901px)');
+        function placerSousMenu(item) {
+            var sub = item.querySelector('.sub-dropdown');
+            if (!sub || !ordinateur.matches) return;
+            var r = item.getBoundingClientRect();
+            sub.style.position = 'fixed';
+            sub.style.top = r.top + 'px';
+            sub.style.left = r.right + 'px';
+            sub.style.right = 'auto';
+            sub.style.maxHeight = Math.max(160, window.innerHeight - r.top - 16) + 'px';
+            sub.style.overflowY = 'auto';
+            if (r.right + sub.offsetWidth > window.innerWidth) {
+                sub.style.left = Math.max(0, r.left - sub.offsetWidth) + 'px';
+            }
+        }
         document.querySelectorAll('.dropdown-item').forEach(function(item) {
-            item.addEventListener('mouseenter', function() {
-                var sub = this.querySelector('.sub-dropdown');
-                if (!sub) return;
-                sub.classList.remove('open-left');
-                var rect = sub.getBoundingClientRect();
-                if (rect.right > window.innerWidth) {
-                    sub.classList.add('open-left');
-                }
+            item.addEventListener('mouseenter', function() { placerSousMenu(this); });
+            item.addEventListener('focusin', function() { placerSousMenu(this); });
+            item.querySelector(':scope > a').addEventListener('click', function() {
+                placerSousMenu(item);
             });
+        });
+        // Le déroulant défile : un sous-menu ouvert suit son entrée.
+        document.querySelectorAll('.dropdown').forEach(function(dd) {
+            dd.addEventListener('scroll', function() {
+                dd.querySelectorAll('.dropdown-item').forEach(function(item) {
+                    if (item.matches(':hover') || item.classList.contains('open')) placerSousMenu(item);
+                });
+            }, { passive: true });
         });
     </script>
     {% block extra_js %}{% endblock %}
