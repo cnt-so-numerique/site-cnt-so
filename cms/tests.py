@@ -7811,3 +7811,88 @@ class CreationDEntreeDeMenuTest(TestCase):
         from content.models import MenuItem
         self._creer(self.autre.pk)
         self.assertFalse(MenuItem.objects.filter(site=self.autre).exists())
+
+
+class SousMenuDepuisLeFormulaireTest(TestCase):
+    """Créer un sous-menu sans glisser-déposer (25/09/2026) : type « Titre de
+    sous-menu » et champ « Ranger sous »."""
+
+    def setUp(self):
+        from content.models import MenuItem
+        self.site = _ensure_section_page(slug='education', name='CNT-SO Éducation',
+                                         site_type='sectoral')
+        self.autre = _ensure_section_page(slug='poitiers', name='CNT-SO Poitiers',
+                                          site_type='regional')
+        self.chef = _client_with_site(_make_chef('chef-sous-menu'), self.site)
+        self.qsn = MenuItem.objects.create(site=self.site, menu='main', title='Qui sommes-nous',
+                                           link_type='titre')
+
+    def _poster(self, **champs):
+        donnees = {'site': self.site.pk, 'menu': 'main', 'title': 'Entrée',
+                   'link_type': 'url', 'url': '/x/', 'is_active': 'on', 'parent': ''}
+        donnees.update(champs)
+        return self.chef.post('/cms/snippets/content/menuitem/add/', donnees)
+
+    def test_un_titre_sans_sous_entree_est_a_remplir(self):
+        self.assertEqual(self.qsn.get_url(), '#')
+        self.assertTrue(self.qsn.est_impasse)
+
+    def test_un_titre_avec_sous_entree_ouvre_le_sous_menu(self):
+        from content.models import MenuItem
+        MenuItem.objects.create(site=self.site, menu='main', title='Présentation',
+                                link_type='url', url='/presentation/', parent=self.qsn)
+        self.assertFalse(MenuItem.objects.get(pk=self.qsn.pk).est_impasse)
+        html = self.client.get('/education/').content.decode()
+        self.assertRegex(html, r'<a href="#"[^>]*>\s*Qui sommes-nous')
+
+    def test_ranger_sous_cree_la_sous_entree_en_derniere_position(self):
+        """À 0 par défaut, une nouvelle entrée passait devant les autres."""
+        from content.models import MenuItem
+        MenuItem.objects.create(site=self.site, menu='main', title='Présentation',
+                                link_type='url', url='/p/', parent=self.qsn, order=5)
+        self._poster(title='Revendications', link_type='titre', url='', parent=self.qsn.pk)
+        enfants = list(MenuItem.objects.get(pk=self.qsn.pk).children.order_by('order')
+                       .values_list('title', flat=True))
+        self.assertEqual(enfants, ['Présentation', 'Revendications'])
+
+    def test_le_choix_ne_propose_que_le_syndicat_et_deux_niveaux(self):
+        from content.models import MenuItem
+        rev = MenuItem.objects.create(site=self.site, menu='main', title='Revendications',
+                                      link_type='titre', parent=self.qsn)
+        MenuItem.objects.create(site=self.site, menu='main', title='Plateforme',
+                                link_type='url', url='/p/', parent=rev)
+        MenuItem.objects.create(site=self.autre, menu='main', title='Chez Poitiers',
+                                link_type='titre')
+        html = self.chef.get('/cms/snippets/content/menuitem/add/').content.decode()
+        self.assertIn('Menu principal › Qui sommes-nous › Revendications', html)
+        self.assertNotIn('Chez Poitiers', html)
+        self.assertNotIn('› Plateforme<', html)   # niveau 3 : ne peut plus recevoir
+
+    def test_quatre_niveaux_sont_refuses(self):
+        from django.core.exceptions import ValidationError
+        from content.models import MenuItem
+        rev = MenuItem.objects.create(site=self.site, menu='main', title='Revendications',
+                                      link_type='titre', parent=self.qsn)
+        plateforme = MenuItem.objects.create(site=self.site, menu='main', title='Plateforme',
+                                             link_type='titre', parent=rev)
+        trop = MenuItem(site=self.site, menu='main', title='Trop bas', link_type='url',
+                        url='/t/', parent=plateforme)
+        with self.assertRaises(ValidationError):
+            trop.full_clean()
+
+    def test_pas_sous_une_entree_d_un_autre_menu(self):
+        from django.core.exceptions import ValidationError
+        from content.models import MenuItem
+        pied = MenuItem(site=self.site, menu='footer', title='Pied', link_type='url',
+                        url='/p/', parent=self.qsn)
+        with self.assertRaises(ValidationError):
+            pied.full_clean()
+
+    def test_pas_sous_sa_propre_sous_entree(self):
+        from django.core.exceptions import ValidationError
+        from content.models import MenuItem
+        enfant = MenuItem.objects.create(site=self.site, menu='main', title='Enfant',
+                                         link_type='titre', parent=self.qsn)
+        self.qsn.parent = enfant
+        with self.assertRaises(ValidationError):
+            self.qsn.full_clean()

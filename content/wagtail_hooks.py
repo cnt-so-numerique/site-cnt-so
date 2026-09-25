@@ -160,6 +160,36 @@ def _scoped_menuitem_form(form):
     if creation and 'menu' in form.fields and menu_demande in dict(form.fields['menu'].choices):
         form.fields['menu'].initial = menu_demande
 
+    if 'parent' in form.fields:
+        # « Ranger sous » : les entrées du syndicat qui peuvent encore recevoir
+        # une sous-entrée (niveaux 1 et 2), nommées par leur chemin complet.
+        from content.models import MenuItem
+        site_du_menu = form.instance.site if form.instance.pk else current
+        candidats = MenuItem.objects.none()
+        if site_du_menu:
+            from django.db.models import Case, F, IntegerField, Value, When
+            from django.db.models.functions import Coalesce
+            # Dans l'ordre où on lit le menu : le principal d'abord, puis
+            # chaque entrée suivie de ses sous-entrées.
+            candidats = (MenuItem.objects.filter(site=site_du_menu, parent__parent__isnull=True)
+                         .select_related('parent')
+                         .order_by(Case(When(menu='main', then=Value(0)), default=Value(1),
+                                        output_field=IntegerField()),
+                                   Coalesce('parent__order', 'order'),
+                                   Coalesce('parent_id', 'id'),
+                                   F('parent_id').asc(nulls_first=True),
+                                   'order'))
+            if form.instance.pk:
+                candidats = candidats.exclude(pk=form.instance.pk)
+        form.fields['parent'].queryset = candidats
+        form.fields['parent'].empty_label = '— Premier niveau du menu —'
+        menus = dict(MenuItem.MENU_CHOICES)
+
+        def chemin(entree):
+            etapes = [entree.title] if not entree.parent else [entree.parent.title, entree.title]
+            return ' › '.join([menus.get(entree.menu, entree.menu)] + etapes)
+        form.fields['parent'].label_from_instance = chemin
+
     if not current:
         return form
     section = current.slug
@@ -293,6 +323,7 @@ class MenuItemViewSet(ViewSetCloisonne, SnippetViewSet):
             FieldPanel('menu'),
         ]),
         FieldPanel('title'),
+        FieldPanel('parent', widget=django_forms.Select),
         FieldPanel('link_type'),
         # Champs conditionnels — affichés/cachés par JS selon link_type
         FieldPanel('url',         classname='js-lt-group js-lt-url'),

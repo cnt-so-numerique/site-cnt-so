@@ -405,6 +405,9 @@ class MenuItem(models.Model):
         ('footer', 'Menu pied de page'),
     ]
     LINK_TYPE_CHOICES = [
+        # Une entrée qui ne sert qu'à ouvrir son sous-menu. On l'obtenait par
+        # « URL externe » + « # », ce que personne ne devine (25/09/2026).
+        ('titre',    'Titre de sous-menu (sans lien)'),
         ('url',      'URL externe / personnalisée'),
         ('category', 'Catégorie du site'),
         ('site',     'Lien vers un site CNT'),
@@ -443,7 +446,11 @@ class MenuItem(models.Model):
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name='children'
+        related_name='children',
+        verbose_name="Ranger sous",
+        help_text="L'entrée dont celle-ci est une sous-entrée. Laissez vide pour "
+                  "le premier niveau du menu. Trois niveaux au plus ; l'ordre se "
+                  "règle ensuite en glissant dans « Menus ».",
     )
     order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
@@ -481,6 +488,8 @@ class MenuItem(models.Model):
     def get_url(self):
         """Retourne l'URL du lien selon link_type."""
 
+        if self.link_type == 'titre':
+            return '#'
         if self.link_type == 'url' or not self.link_type:
             return self._canonique(self.url) or '#'
         if self.link_type == 'category' and self.category:
@@ -556,6 +565,7 @@ class MenuItem(models.Model):
         au premier niveau du menu de quatre sous-sites (audit du 05/08/2026).
         """
         super().clean()
+        self._verifier_le_rangement()
         champ = self._CIBLE_REQUISE.get(self.link_type)
         if champ and getattr(self, f'{champ}_id', None) is None:
             from django.core.exceptions import ValidationError
@@ -563,6 +573,44 @@ class MenuItem(models.Model):
             raise ValidationError({champ: (
                 f"Choisissez une cible : le type de lien « {libelle} » ne mène "
                 "nulle part sans elle.")})
+
+    def _verifier_le_rangement(self):
+        """« Ranger sous » : même syndicat, même menu, trois niveaux au plus,
+        et jamais sous soi-même ni sous l'une de ses propres sous-entrées."""
+        if not self.parent_id:
+            return
+        from django.core.exceptions import ValidationError
+        parent = self.parent
+        if parent.site_id != self.site_id or parent.menu != self.menu:
+            raise ValidationError({'parent': (
+                "Choisissez une entrée du même syndicat et du même menu.")})
+        ancetre, niveau = parent, 2
+        while ancetre is not None:
+            if self.pk and ancetre.pk == self.pk:
+                raise ValidationError({'parent': (
+                    "Une entrée ne peut pas se ranger sous elle-même ni sous "
+                    "l'une de ses sous-entrées.")})
+            ancetre = ancetre.parent
+            niveau += 1 if ancetre is not None else 0
+        profondeur_enfants = 0
+        if self.pk:
+            vague = list(self.children.all())
+            while vague:
+                profondeur_enfants += 1
+                vague = [e for p in vague for e in p.children.all()]
+        if niveau + profondeur_enfants > 3:
+            raise ValidationError({'parent': (
+                "Le menu a trois niveaux au plus : rangez l'entrée plus haut.")})
+
+    def save(self, *args, **kwargs):
+        # Une entrée nouvelle arrive EN DERNIER parmi ses voisines. À 0 par
+        # défaut, elle passait devant toutes les autres.
+        if self.pk is None and not self.order:
+            dernier = (MenuItem.objects.filter(site=self.site, menu=self.menu,
+                                               parent=self.parent)
+                       .aggregate(m=models.Max('order'))['m'])
+            self.order = (dernier or 0) + 1 if dernier is not None else 0
+        super().save(*args, **kwargs)
 
     @property
     def est_impasse(self):

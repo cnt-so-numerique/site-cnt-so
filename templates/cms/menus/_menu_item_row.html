@@ -15,7 +15,8 @@
   <div style="flex:1;min-width:0;">
     <span class="item-title" style="color:var(--w-color-text-context);font-size:.9rem;font-weight:600;">{{ item.title }}</span>
     <span style="font-size:.875rem;color:#4b5563;margin-left:.4rem;">
-      {% if item.link_type == 'url' %}🔗 {{ item.url|truncatechars:35 }}
+      {% if item.link_type == 'titre' %}📂 titre de sous-menu
+      {% elif item.link_type == 'url' %}🔗 {{ item.url|truncatechars:35 }}
       {% elif item.link_type == 'category' %}🏷️ {% if item.category %}{{ item.category.name }}{% endif %}
       {% elif item.link_type == 'page' %}📃 {% if item.page %}{{ item.page.title }}{% endif %}
       {% elif item.link_type == 'article' %}📄 {% if item.article %}{{ item.article.title|truncatechars:25 }}{% endif %}
