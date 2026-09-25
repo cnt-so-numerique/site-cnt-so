@@ -584,6 +584,20 @@
                 width: 100%;
                 overflow: hidden;
             }
+            /* Niveau 3 sur mobile : déplié SOUS son entrée, en retrait, dans
+               le panneau. Ouvert à droite comme sur ordinateur, il sortait de
+               l'écran (« Revendications » d'Éducation, capture d'Arnaud du
+               25/09/2026). */
+            .sub-dropdown,
+            .sub-dropdown.open-left {
+                position: static;
+                box-shadow: none;
+                border-top: none;
+                min-width: 0;
+                padding-left: 1rem;
+            }
+            .dropdown-item:hover .sub-dropdown { display: none; }
+            .dropdown-item.open .sub-dropdown { display: block; }
             .dropdown {
                 position: static;
                 box-shadow: none;
@@ -2228,8 +2242,8 @@
         // hauts que l'écran) et une boîte qui défile coupe tout ce qui dépasse
         // sur les côtés : le sous-menu, ouvert à sa droite, était invisible et
         // incliquable (« Revendications » d'Éducation, 25/09/2026). En
-        // position fixe, il échappe à la découpe. Mobile exclu : le déroulant
-        // n'y défile pas, le sous-menu s'y affiche déjà (vérifié à 390 px).
+        // position fixe, il échappe à la découpe. Mobile exclu : le sous-menu
+        // s'y déplie sous son entrée (voir la feuille de style).
         var ordinateur = window.matchMedia('(min-width: 901px)');
         function placerSousMenu(item) {
             var sub = item.querySelector('.sub-dropdown');

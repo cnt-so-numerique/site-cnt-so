@@ -684,3 +684,21 @@ celui-là. La vérification n'était pas systématique.
   déduire l'auteur de qui « a l'air » de travailler sur ce fichier ;
 - `ListAgents` au début d'un commit : savoir combien de sessions écrivent dans
   le dépôt.
+
+---
+
+## 25/09/2026 — Un test navigateur qui n'a jamais échoué ne prouve rien
+
+J'ai déclaré le troisième niveau du menu « déjà fonctionnel sur mobile » après
+un test à 390 px, et retiré la correction mobile. Arnaud a renvoyé une capture :
+le sous-menu sortait de l'écran. Mon test avait deux défauts : il ne vérifiait
+que le DÉBUT du lien, et `scrollIntoView` sur le lien caché faisait défiler le
+panneau horizontalement — le navigateur allait chercher ce qu'un visiteur ne
+voit jamais.
+
+**Règles :**
+- un test navigateur se valide comme un test unitaire : le faire échouer
+  d'abord sur la version cassée (en ligne), sinon il ne mesure rien ;
+- mesurer la boîte ENTIÈRE (gauche et droite) et cliquer aux deux bouts ;
+- ne jamais `scrollIntoView` l'élément qu'on teste : faire défiler jusqu'à ce
+  que le visiteur voit (l'entrée parente), puis remettre `scrollLeft` à 0.
