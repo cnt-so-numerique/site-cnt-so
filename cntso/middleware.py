@@ -149,11 +149,14 @@ class SectionDomainMiddleware:
         host = request.get_host().split(':')[0].lower()
         section = self._resolve_section(host)
         if section is None:
+            seg = request.path_info.lstrip('/').split('/', 1)[0]
+            en_maintenance = self._maintenance_map().get(seg) if seg else None
+            if en_maintenance:
+                return self._page_maintenance(request, en_maintenance)
             # Hôte principal : le chemin d'une section à domaine autonome
             # redirige vers ce domaine (URL canonique unique)
             if request.method in ('GET', 'HEAD'):
                 path = request.path_info
-                seg = path.lstrip('/').split('/', 1)[0]
                 domain = self._domain_map().get(seg) if seg else None
                 if domain:
                     from django.http import HttpResponsePermanentRedirect
@@ -162,6 +165,9 @@ class SectionDomainMiddleware:
                     return HttpResponsePermanentRedirect(
                         f'https://{domain}{rest}' + (f'?{qs}' if qs else ''))
             return self.get_response(request)
+
+        if not section.live:
+            return self._domaine_ferme(request, section)
 
         request.section_page = section
         slug = section.legacy_site_slug or section.slug
@@ -206,6 +212,68 @@ class SectionDomainMiddleware:
 
         return self.get_response(request)
 
+    def _domaine_ferme(self, request, section):
+        """Domaine d'une section dépubliée : tout renvoie à l'accueil confédéral.
+
+        Sans cela l'hôte n'était plus reconnu et retombait sur « hôte
+        principal » : `stucs.cnt-so.org/` servait l'accueil de la conf, et
+        `/contact/` son formulaire, sous l'adresse du syndicat fermé (mesuré le
+        28/09/2026 en dépubliant le STUCS). Redirection temporaire (302) et non
+        permanente : republier la section doit rouvrir le domaine, ce qu'un 301
+        gardé en cache par les navigateurs empêcherait.
+        """
+        from django.http import Http404, HttpResponseRedirect
+        path = request.path_info
+        if path.startswith(self.EXEMPT_PREFIXES):
+            return self.get_response(request)
+        if path.startswith(self.ADMIN_PREFIXES):
+            return HttpResponseRedirect(f'{self._main_base()}{path}')
+        titre = self._maintenance_map().get(
+            section.legacy_site_slug or section.slug)
+        if titre:
+            return self._page_maintenance(request, titre)
+        if request.method not in ('GET', 'HEAD'):
+            raise Http404('Syndicat dépublié')
+        return HttpResponseRedirect(f'{self._main_base()}/')
+
+    def _page_maintenance(self, request, titre):
+        """« Site en maintenance, on revient bientôt » (503 + Retry-After).
+
+        503 plutôt que 200 : les moteurs de recherche gardent les pages du
+        syndicat en attendant sa réouverture au lieu d'indexer ce message.
+        """
+        from django.template.loader import render_to_string
+        from django.http import HttpResponse
+        r = HttpResponse(render_to_string('maintenance.html', {
+            'titre': titre, 'accueil': f'{self._main_base()}/',
+        }, request=request), status=503)
+        r['Retry-After'] = '86400'
+        return r
+
+    @staticmethod
+    def _maintenance_map():
+        """{ slug (et legacy_site_slug) → titre } des sections dépubliées
+        dont la case « Page de maintenance » est cochée.
+
+        La case est lue dans la DERNIÈRE RÉVISION : sur une page dépubliée,
+        « Enregistrer le brouillon » n'écrit que la révision, pas la ligne en
+        base (`Page.save_revision`) — lire le champ seul obligerait à
+        republier le site pour cocher la case.
+        """
+        from django.core.cache import cache
+        mapping = cache.get('section-maintenance-map')
+        if mapping is None:
+            from cms.models import SectionPage
+            mapping = {}
+            for s in SectionPage.objects.filter(live=False):
+                brouillon = s.get_latest_revision_as_object()
+                if getattr(brouillon, 'page_maintenance', s.page_maintenance):
+                    mapping[s.slug] = s.title
+                    if s.legacy_site_slug:
+                        mapping[s.legacy_site_slug] = s.title
+            cache.set('section-maintenance-map', mapping, 60)
+        return mapping
+
     @staticmethod
     def _is_section_wagtail_page(section, path):
         """True si `path` correspond à une page Wagtail vivante sous la
@@ -245,7 +313,9 @@ class SectionDomainMiddleware:
         found = cache.get(key)
         if found is None:
             from cms.models import SectionPage
-            section = SectionPage.objects.filter(custom_domain=host, live=True).first()
+            # Sans filtre `live` : un domaine dépublié doit être reconnu pour
+            # être fermé (`_domaine_ferme`), pas pris pour l'hôte principal.
+            section = SectionPage.objects.filter(custom_domain=host).first()
             found = section.pk if section else 0
             cache.set(key, found, 60)
         if not found:

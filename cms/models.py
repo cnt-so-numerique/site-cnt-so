@@ -861,6 +861,14 @@ class SectionPage(SeoMixin, Page):
                   "héritées. Elle doit aussi figurer ci-dessus pour recevoir "
                   "la newsletter. Vide : première liste non pleine.",
     )
+    page_maintenance = models.BooleanField(
+        default=False,
+        verbose_name="Page de maintenance quand le site est dépublié",
+        help_text="Cochée, un site dépublié affiche « site en maintenance, on "
+                  "revient bientôt » au lieu de renvoyer à la confédération. "
+                  "Sans effet tant que le site est publié : cochez, publiez, "
+                  "puis dépubliez le site.",
+    )
     custom_domain = models.CharField(
         max_length=253, blank=True, default='',
         verbose_name="Domaine autonome",
@@ -944,6 +952,9 @@ class SectionPage(SeoMixin, Page):
         MultiFieldPanel([
             FieldPanel('custom_domain', permission='superuser'),
         ], heading="Domaine autonome", permission='superuser'),
+        MultiFieldPanel([
+            FieldPanel('page_maintenance', permission='superuser'),
+        ], heading="Fermeture", permission='superuser'),
     ]
     promote_panels = Page.promote_panels + [
         FieldPanel('legacy_site_slug'),
@@ -1091,6 +1102,7 @@ class SectionPage(SeoMixin, Page):
             f'section-base-url:{self.slug}',
             f'section-base-url:{self.legacy_site_slug or self.slug}',
             'section-domain-map',
+            'section-maintenance-map',
             'menu-internal-hosts',
         ] + ([f'section-domain:{self.custom_domain}'] if self.custom_domain else []))
 

@@ -1588,6 +1588,85 @@ class SectionDomainMiddlewareTest(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertTemplateUsed(r, 'content/home.html')
 
+    def _depublier(self):
+        from django.core.cache import cache
+        self.stucs.refresh_from_db()
+        self.stucs.unpublish()
+        cache.clear()
+
+    def test_domaine_depublie_ne_sert_plus_la_conf(self):
+        # Dépublier le STUCS faisait retomber son domaine sur « hôte
+        # principal » : l'accueil et le contact de la conf y étaient servis en
+        # 200 (mesuré le 28/09/2026).
+        self._depublier()
+        for chemin in ('/', '/contact/', '/article/article-middleware/'):
+            r = self.client.get(chemin, HTTP_HOST=self.HOST)
+            self.assertEqual(r.status_code, 302, chemin)
+            self.assertEqual(r['Location'], 'https://cnt-so.org/', chemin)
+
+    def test_domaine_depublie_refuse_les_formulaires(self):
+        self._depublier()
+        r = self.client.post('/contact/', {'email': 'x@y.fr'}, HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 404)
+
+    def _cocher_maintenance_en_brouillon(self):
+        # Comme dans /cms/ : sur une page dépubliée, « Enregistrer le
+        # brouillon » n'écrit que la révision, pas la ligne en base.
+        from django.core.cache import cache
+        self.stucs.refresh_from_db()
+        brouillon = self.stucs.get_latest_revision_as_object()
+        brouillon.page_maintenance = True
+        brouillon.save_revision()
+        cache.clear()
+
+    def test_maintenance_sur_le_domaine(self):
+        self._depublier()
+        self._cocher_maintenance_en_brouillon()
+        self.stucs.refresh_from_db()
+        self.assertFalse(self.stucs.page_maintenance)  # seul le brouillon la porte
+        for chemin in ('/', '/contact/', '/article/article-middleware/'):
+            r = self.client.get(chemin, HTTP_HOST=self.HOST)
+            self.assertEqual(r.status_code, 503, chemin)
+            self.assertContains(r, 'Site en maintenance', status_code=503)
+            self.assertContains(r, 'https://cnt-so.org/', status_code=503)
+        r = self.client.post('/contact/', {'email': 'x@y.fr'}, HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 503)
+
+    def test_maintenance_sur_le_chemin_du_site_principal(self):
+        self.stucs.custom_domain = ''
+        self.stucs.save(update_fields=['custom_domain'])
+        self._depublier()
+        self._cocher_maintenance_en_brouillon()
+        for chemin in ('/stucs/', '/stucs/article/article-middleware/'):
+            r = self.client.get(chemin)
+            self.assertEqual(r.status_code, 503, chemin)
+            self.assertContains(r, 'STUCS', status_code=503)
+        # Le reste du site confédéral n'est pas touché
+        self.assertEqual(self.client.get('/mw-autre/').status_code, 200)
+
+    def test_sans_la_case_un_site_depublie_reste_en_404(self):
+        self.stucs.custom_domain = ''
+        self.stucs.save(update_fields=['custom_domain'])
+        self._depublier()
+        self.assertEqual(self.client.get('/stucs/').status_code, 404)
+
+    def test_case_sans_effet_sur_un_site_publie(self):
+        self.stucs.page_maintenance = True
+        self.stucs.save_revision().publish()
+        from django.core.cache import cache
+        cache.clear()
+        self.assertEqual(self.client.get('/', HTTP_HOST=self.HOST).status_code, 200)
+
+    def test_domaine_republie_se_rouvre(self):
+        self._depublier()
+        self.stucs.refresh_from_db()
+        self.stucs.save_revision().publish()
+        from django.core.cache import cache
+        cache.clear()
+        r = self.client.get('/', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'STUCS')
+
 
 @override_settings(ALLOWED_HOSTS=['testserver', 'stucs.cnt-so.org'],
                    MAIN_SITE_BASE_URL='https://cnt-so.org')
