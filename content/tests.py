@@ -6454,12 +6454,16 @@ class SyncFluxReseauTest(TestCase):
         self.assertEqual(ExternalArticle.objects.count(), 0)
 
     def test_purge_au_dela_du_plafond(self):
+        from datetime import datetime, timezone as tz
         from content.management.commands.sync_flux_reseau import MAX_PAR_SITE
+        # Dates fixes, antérieures au flux (mai-juin 2026). Relatives à
+        # « maintenant », elles ont dépassé le flux fin septembre 2026 et
+        # c'étaient ses entrées que la purge emportait.
         for i in range(MAX_PAR_SITE + 5):
             ExternalArticle.objects.create(
                 section=self.site, guid=f'vieux-{i}', title=f'Vieux {i}',
                 url=f'https://staa-cnt-so.org/vieux-{i}/',
-                published_at=timezone.now() - timedelta(days=100 + i))
+                published_at=datetime(2026, 1, 1, tzinfo=tz.utc) - timedelta(days=i))
         self._sync()
         self.assertEqual(ExternalArticle.objects.filter(section=self.site).count(),
                          MAX_PAR_SITE)
