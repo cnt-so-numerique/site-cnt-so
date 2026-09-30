@@ -248,6 +248,11 @@ class SectionDomainMiddleware:
             'titre': titre, 'accueil': f'{self._main_base()}/',
         }, request=request), status=503)
         r['Retry-After'] = '86400'
+        # Un 503 voulu n'est pas une panne. Sans ce drapeau (celui que
+        # `django.utils.log.log_response` consulte), Django le journalise en
+        # ERROR et chaque adresse visitée part en alerte : 1 788 courriels
+        # du 28 au 30/09/2026, les robots parcourant le site fermé.
+        r._has_been_logged = True
         return r
 
     @staticmethod

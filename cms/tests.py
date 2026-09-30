@@ -1632,6 +1632,17 @@ class SectionDomainMiddlewareTest(TestCase):
         r = self.client.post('/contact/', {'email': 'x@y.fr'}, HTTP_HOST=self.HOST)
         self.assertEqual(r.status_code, 503)
 
+    def test_maintenance_ne_declenche_aucune_alerte(self):
+        # Le 503 de maintenance est voulu. Journalisé en ERROR par Django, il
+        # partait en alerte, une par adresse visitée : 1 788 courriels entre
+        # le 28 et le 30/09/2026, les robots parcourant le site fermé.
+        self._depublier()
+        self._cocher_maintenance_en_brouillon()
+        with self.assertNoLogs('django.request', level='ERROR'):
+            for chemin in ('/', '/contact/', '/article/article-middleware/'):
+                r = self.client.get(chemin, HTTP_HOST=self.HOST)
+                self.assertEqual(r.status_code, 503, chemin)
+
     def test_maintenance_sur_le_chemin_du_site_principal(self):
         self.stucs.custom_domain = ''
         self.stucs.save(update_fields=['custom_domain'])
