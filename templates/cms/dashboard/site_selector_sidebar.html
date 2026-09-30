@@ -28,7 +28,7 @@ maintenant sur la confédération, l'état n'existe plus.
 ">
   <span style="color:var(--w-color-text-meta);white-space:nowrap;">Syndicat :</span>
 
-  {% if is_chef %}
+  {% if available_sites|length > 1 %}
   <form method="get" action="/cms/select-site/"
         style="display:flex;align-items:center;gap:.4rem;margin:0;">
     <label for="cnt-site-select" class="w-sr-only">Changer de syndicat</label>

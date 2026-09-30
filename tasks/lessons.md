@@ -702,3 +702,11 @@ voit jamais.
 - mesurer la boîte ENTIÈRE (gauche et droite) et cliquer aux deux bouts ;
 - ne jamais `scrollIntoView` l'élément qu'on teste : faire défiler jusqu'à ce
   que le visiteur voit (l'entrée parente), puis remettre `scrollLeft` à 0.
+
+## Test par mutation : restaurer par git, jamais par une copie dans /tmp (30/09/2026)
+Une copie de sauvegarde `/tmp/.../sc.bak` d'une séance précédente a servi à
+« restaurer » un fichier après mutation : elle datait d'avant la modification,
+qui a disparu sans bruit. La suite complète a alors tourné sur l'ancien code.
+Règle : muter un fichier propre avec `git stash` / `git diff > patch` ou une
+copie au nom unique dans le scratchpad, et vérifier `git diff --stat` après
+restauration.

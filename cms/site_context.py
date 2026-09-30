@@ -24,11 +24,16 @@ def _is_global_chef(user):
     return user.is_superuser or user.groups.filter(name='redacteur_en_chef').exists()
 
 
-def get_group_scoped_site(user):
-    """Résout le SectionPage d'un utilisateur via ses groupes par section
-    (redacteur_<slug> / chef_<slug>). None si aucun groupe ne matche."""
+def get_group_scoped_sites(user):
+    """Les SectionPage d'un utilisateur via ses groupes par section
+    (redacteur_<slug> / chef_<slug>), dans l'ordre des groupes, sans doublon.
+
+    Un compte peut appartenir à plusieurs syndicats : Roberto, rattaché à
+    l'educ en plus du sien, ne voyait que le premier — la résolution
+    s'arrêtait au premier groupe reconnu (Arnaud, 30/09/2026)."""
     from cms.models import SectionPage
-    for name in user.groups.values_list('name', flat=True):
+    sites = []
+    for name in user.groups.order_by('name').values_list('name', flat=True):
         if name == 'redacteur_en_chef':
             continue
         m = _SECTION_GROUP_RE.match(name)
@@ -40,9 +45,28 @@ def get_group_scoped_site(user):
         section = SectionPage.objects.filter(
             Q(slug=slug) | Q(legacy_site_slug=slug)
         ).first()
-        if section:
-            return section
-    return None
+        if section and section not in sites:
+            sites.append(section)
+    return sites
+
+
+def get_group_scoped_site(user):
+    """Le premier syndicat de `get_group_scoped_sites`, None s'il n'y en a pas."""
+    sites = get_group_scoped_sites(user)
+    return sites[0] if sites else None
+
+
+def _sites_du_compte(user):
+    """Syndicats d'un rédacteur ou chef de section : ses groupes par section
+    d'abord (prioritaires), sinon le site de sa fiche Author."""
+    sites = get_group_scoped_sites(user)
+    if sites:
+        return sites
+    try:
+        site = user.author_profile.site
+    except Exception:
+        site = None
+    return [site] if site is not None else []
 
 
 def get_current_site(request):
@@ -75,15 +99,14 @@ def get_current_site(request):
         # c'est-à-dire l'ancien comportement, sans lever d'exception.
         return SectionPage.objects.filter(slug='principal').first()
 
-    # Rédacteur/chef de section : groupe par section d'abord (prioritaire),
-    # sinon site fixé via Author.site (FK SectionPage depuis Phase 2).
-    section = get_group_scoped_site(user)
-    if section:
-        return section
-    try:
-        return user.author_profile.site
-    except Exception:
-        return None
+    # Rédacteur/chef de section : le syndicat choisi en session, pourvu qu'il
+    # soit l'un des siens — la session ne doit jamais ouvrir un site voisin.
+    sites = _sites_du_compte(user)
+    site_id = request.session.get(SESSION_KEY) or request.session.get(_LEGACY_KEY)
+    for site in sites:
+        if site.pk == site_id:
+            return site
+    return sites[0] if sites else None
 
 
 def set_current_site(request, site_id):
@@ -143,7 +166,6 @@ def get_available_sites(request):
     user = request.user
     if _is_global_chef(user):
         return sites_de_redaction()
-    current = get_current_site(request)
-    if current:
-        return SectionPage.objects.filter(pk=current.pk)
-    return SectionPage.objects.none()
+    return (SectionPage.objects
+            .filter(pk__in=[s.pk for s in _sites_du_compte(user)])
+            .order_by('title'))

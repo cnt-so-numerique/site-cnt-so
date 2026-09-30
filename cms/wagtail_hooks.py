@@ -1051,12 +1051,15 @@ def insert_event_geocoder_js():
 
 class SelectSiteView(View):
     def _handle(self, request, site_id_raw, next_url=None):
-        # Seuls superuser et redacteur_en_chef peuvent changer de site
-        if site_id_raw and _is_chef(request.user):
-            try:
-                set_current_site(request, int(site_id_raw))
-            except (ValueError, TypeError):
-                pass
+        # Changer de site n'est permis qu'entre ceux du compte : tous pour un
+        # superuser ou un redacteur_en_chef, les siens pour un rédacteur
+        # rattaché à plusieurs syndicats.
+        try:
+            site_id = int(site_id_raw)
+        except (ValueError, TypeError):
+            site_id = None
+        if site_id and get_available_sites(request).filter(pk=site_id).exists():
+            set_current_site(request, site_id)
         return HttpResponseRedirect(_safe_redirect(next_url, fallback='/cms/'))
 
     def get(self, request):

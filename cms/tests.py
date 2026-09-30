@@ -1266,7 +1266,7 @@ class UserSyndicatFormTest(TestCase):
 
     def test_champ_syndicat_affiche_dans_les_formulaires(self):
         r = self.client.get(reverse('wagtailusers_users:add'))
-        self.assertContains(r, 'name="syndicat"')
+        self.assertContains(r, 'name="syndicats"')
 
     def test_le_gabarit_redacteur_n_est_pas_proposable(self):
         """« redacteur » sans suffixe est le gabarit dont chaque syndicat copie
@@ -1281,7 +1281,7 @@ class UserSyndicatFormTest(TestCase):
     def test_creation_utilisateur_cree_la_fiche_auteur(self):
         from content.models import Author
         self.client.post(reverse('wagtailusers_users:add'),
-                         self._user_data(syndicat=self.site.pk))
+                         self._user_data(syndicats=[self.site.pk]))
         from django.contrib.auth.models import User
         user = User.objects.get(username='fusion-user')
         author = Author.objects.get(user=user)
@@ -1291,11 +1291,11 @@ class UserSyndicatFormTest(TestCase):
         from content.models import Author
         from django.contrib.auth.models import User
         self.client.post(reverse('wagtailusers_users:add'),
-                         self._user_data(syndicat=self.site.pk))
+                         self._user_data(syndicats=[self.site.pk]))
         user = User.objects.get(username='fusion-user')
         autre = _ensure_section_page(slug='fusion-autre', name='Fusion Autre', site_type='sectoral')
         self.client.post(reverse('wagtailusers_users:edit', args=[user.pk]),
-                         self._user_data(is_active='on', syndicat=autre.pk))
+                         self._user_data(is_active='on', syndicats=[autre.pk]))
         self.assertEqual(Author.objects.get(user=user).site, autre)
 
     def test_creation_sans_syndicat_ne_cree_pas_de_fiche(self):
@@ -1311,7 +1311,7 @@ class UserSyndicatFormTest(TestCase):
         from django.contrib.auth.models import User
         legacy = Author.objects.create(username='fusion-user', display_name='Legacy WP')
         self.client.post(reverse('wagtailusers_users:add'),
-                         self._user_data(syndicat=self.site.pk))
+                         self._user_data(syndicats=[self.site.pk]))
         user = User.objects.get(username='fusion-user')
         legacy.refresh_from_db()
         self.assertEqual(legacy.user, user)
@@ -1365,7 +1365,7 @@ class UserAccountManagementTest(TestCase):
             self.client.get(reverse('wagtailusers_users:index')).status_code, 200)
         r = self.client.get(reverse('wagtailusers_users:add'))
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'name="syndicat"')
+        self.assertContains(r, 'name="syndicats"')
 
     def test_admin_checkbox_hidden_from_non_superuser(self):
         r = self.client.get(reverse('wagtailusers_users:add'))
@@ -1387,7 +1387,7 @@ class UserAccountManagementTest(TestCase):
         from django.contrib.auth.models import User
         from content.models import Author
         self.client.post(reverse('wagtailusers_users:add'),
-                         self._user_data(syndicat=self.site_a.pk))
+                         self._user_data(syndicats=[self.site_a.pk]))
         user = User.objects.get(username='nouveau-redac')
         self.assertIn(self.group_a, user.groups.all())
         self.assertEqual(Author.objects.get(user=user).site, self.site_a)
@@ -1395,10 +1395,10 @@ class UserAccountManagementTest(TestCase):
     def test_syndicat_change_moves_section_group(self):
         from django.contrib.auth.models import User
         self.client.post(reverse('wagtailusers_users:add'),
-                         self._user_data(syndicat=self.site_a.pk))
+                         self._user_data(syndicats=[self.site_a.pk]))
         user = User.objects.get(username='nouveau-redac')
         self.client.post(reverse('wagtailusers_users:edit', args=[user.pk]),
-                         self._user_data(is_active='on', syndicat=self.site_b.pk))
+                         self._user_data(is_active='on', syndicats=[self.site_b.pk]))
         groups = set(user.groups.values_list('name', flat=True))
         self.assertIn('redacteur_synd-b', groups)
         self.assertNotIn('redacteur_synd-a', groups)
@@ -1413,7 +1413,7 @@ class UserAccountManagementTest(TestCase):
         u.groups.add(self.group_a)
         form = SyndicatUserEditForm(instance=User.objects.get(pk=u.pk),
                                     request_user=self.superuser)
-        self.assertEqual(form.fields['syndicat'].initial, self.site_a.pk)
+        self.assertEqual(form.fields['syndicats'].initial, [self.site_a.pk])
 
     def test_chef_cannot_edit_superuser(self):
         r = self.client.get(
@@ -1432,6 +1432,93 @@ class UserAccountManagementTest(TestCase):
         r = self.client.get(
             reverse('wagtailusers_users:edit', args=[self.superuser.pk]))
         self.assertEqual(r.status_code, 200)
+
+
+class RedacteurPlusieursSyndicatsTest(TestCase):
+    """Un rédacteur peut être rattaché à plusieurs syndicats. Roberto, ajouté
+    à l'educ en plus du sien, ne la voyait pas : la résolution s'arrêtait au
+    premier groupe et le formulaire retirait les autres (Arnaud, 30/09/2026)."""
+
+    def setUp(self):
+        from django.contrib.auth.models import Group, User
+        from content.tests import _setup_editorial_groups
+        _setup_editorial_groups()
+        self.site_a = _ensure_section_page(slug='multi-a', name='Multi A', site_type='sectoral')
+        self.site_b = _ensure_section_page(slug='multi-b', name='Multi B', site_type='sectoral')
+        self.voisin = _ensure_section_page(slug='multi-c', name='Multi C', site_type='sectoral')
+        self.group_a, _ = Group.objects.get_or_create(name='redacteur_multi-a')
+        self.group_b, _ = Group.objects.get_or_create(name='redacteur_multi-b')
+        Group.objects.get_or_create(name='redacteur_multi-c')
+        self.redac = User.objects.create_user('multi-redac', password='pass')
+        self.redac.groups.add(self.group_a, self.group_b)
+        self.client = Client()
+        self.client.force_login(self.redac)
+
+    def _request(self, site_id=None):
+        from django.test import RequestFactory
+        request = RequestFactory().get('/')
+        request.user = self.redac
+        request.session = {'cms_current_site_id': site_id} if site_id else {}
+        return request
+
+    def test_les_deux_syndicats_sont_disponibles(self):
+        from cms.site_context import get_available_sites
+        self.assertEqual(set(get_available_sites(self._request())),
+                         {self.site_a, self.site_b})
+
+    def test_la_session_choisit_parmi_ses_syndicats(self):
+        from cms.site_context import get_current_site
+        self.assertEqual(get_current_site(self._request(self.site_b.pk)), self.site_b)
+
+    def test_la_session_n_ouvre_pas_un_site_voisin(self):
+        from cms.site_context import get_current_site
+        self.assertIn(get_current_site(self._request(self.voisin.pk)),
+                      {self.site_a, self.site_b})
+
+    def test_bascule_vers_son_second_syndicat(self):
+        self.client.get(f'/cms/select-site/?site_id={self.site_b.pk}')
+        self.assertEqual(self.client.session.get('cms_current_site_id'), self.site_b.pk)
+
+    def test_bascule_refusee_vers_un_voisin(self):
+        self.client.get(f'/cms/select-site/?site_id={self.voisin.pk}')
+        self.assertNotEqual(self.client.session.get('cms_current_site_id'), self.voisin.pk)
+
+    def test_le_selecteur_est_affiche(self):
+        r = self.client.get('/cms/current-site-fragment/')
+        self.assertContains(r, 'id="cnt-site-select"')
+        self.assertContains(r, 'Multi B')
+        self.assertNotContains(r, 'Multi C')
+
+    def test_un_seul_syndicat_pas_de_selecteur(self):
+        self.redac.groups.remove(self.group_b)
+        r = self.client.get('/cms/current-site-fragment/')
+        self.assertNotContains(r, 'id="cnt-site-select"')
+        self.assertContains(r, 'Multi A')
+
+    def test_le_formulaire_rattache_a_deux_syndicats(self):
+        from django.contrib.auth.models import User
+        from content.models import Author
+        self.client.force_login(make_superuser(username='su-multi'))
+        self.client.post(reverse('wagtailusers_users:add'), {
+            'username': 'deux-synd', 'email': 'd@example.org',
+            'first_name': 'De', 'last_name': 'Ux',
+            'password1': 'mdp-Tres-solide-42', 'password2': 'mdp-Tres-solide-42',
+            'syndicats': [self.site_a.pk, self.site_b.pk],
+        })
+        user = User.objects.get(username='deux-synd')
+        groups = set(user.groups.values_list('name', flat=True))
+        self.assertTrue({'redacteur_multi-a', 'redacteur_multi-b'} <= groups)
+        self.assertIn(Author.objects.get(user=user).site, {self.site_a, self.site_b})
+
+    def test_l_edition_conserve_les_deux_syndicats(self):
+        """Pré-cochés à l'édition : un simple enregistrement ne décroche pas
+        le second syndicat, comme il le faisait avant."""
+        from django.contrib.auth.models import User
+        from content.admin_forms import SyndicatUserEditForm
+        form = SyndicatUserEditForm(instance=User.objects.get(pk=self.redac.pk),
+                                    request_user=make_superuser(username='su-multi2'))
+        self.assertEqual(set(form.fields['syndicats'].initial),
+                         {self.site_a.pk, self.site_b.pk})
 
 
 class SyndicatSansBrouillonTest(TestCase):

@@ -56,7 +56,7 @@ class MixinObjetCloisonne:
 
         La règle d'accès n'est pas nouvelle : c'est `get_available_sites`, la
         liste que propose déjà le sélecteur — tous les syndicats pour un
-        superutilisateur ou un rédacteur en chef, le sien seul pour un
+        superutilisateur ou un rédacteur en chef, les siens seuls pour un
         rédacteur. Le cloisonnement des rédacteurs est donc intact : pour eux,
         l'objet du voisin reste une 404.
         """
