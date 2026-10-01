@@ -118,7 +118,7 @@ class CategoryFeed(Feed):
         return f"Articles de la catégorie {obj.name}"
 
     def items(self, obj):
-        return (ArticlePage.objects.live()
+        return (ArticlePage.objects.publics()
                 .filter(cms_categories=obj)
                 .order_by('-publication_date', '-first_published_at')[:20])
 
@@ -169,7 +169,7 @@ class SiteCategoryFeed(Feed):
         return f"Articles de la catégorie {obj.name}"
 
     def items(self, obj):
-        return (ArticlePage.objects.live()
+        return (ArticlePage.objects.publics()
                 .filter(cms_categories=obj)
                 .order_by('-publication_date', '-first_published_at')[:20])
 

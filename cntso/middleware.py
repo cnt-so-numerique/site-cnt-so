@@ -311,25 +311,18 @@ class SectionDomainMiddleware:
     @staticmethod
     def _maintenance_map():
         """{ slug (et legacy_site_slug) → (titre, slug Wagtail) } des sections
-        dépubliées dont la case « Page de maintenance » est cochée. Le slug
-        Wagtail sert aux adresses : seul reconnu par les URL du site.
-
-        La case est lue dans la DERNIÈRE RÉVISION : sur une page dépubliée,
-        « Enregistrer le brouillon » n'écrit que la révision, pas la ligne en
-        base (`Page.save_revision`) — lire le champ seul obligerait à
-        republier le site pour cocher la case.
+        en test (`SectionPage.en_test`). Le slug Wagtail sert aux adresses :
+        seul reconnu par les URL du site.
         """
         from django.core.cache import cache
         mapping = cache.get('section-maintenance-map')
         if mapping is None:
             from cms.models import SectionPage
             mapping = {}
-            for s in SectionPage.objects.filter(live=False):
-                brouillon = s.get_latest_revision_as_object()
-                if getattr(brouillon, 'page_maintenance', s.page_maintenance):
-                    mapping[s.slug] = (s.title, s.slug)
-                    if s.legacy_site_slug:
-                        mapping[s.legacy_site_slug] = (s.title, s.slug)
+            for s in SectionPage.en_test():
+                mapping[s.slug] = (s.title, s.slug)
+                if s.legacy_site_slug:
+                    mapping[s.legacy_site_slug] = (s.title, s.slug)
             cache.set('section-maintenance-map', mapping, 60)
         return mapping
 

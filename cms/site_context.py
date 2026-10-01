@@ -168,9 +168,13 @@ def sites_de_redaction():
 
     Le critère est la donnée elle-même — un site qui renvoie ailleurs n'est pas
     un site qu'on alimente — et non une liste de slugs à tenir à jour.
+
+    Un syndicat dépublié en est exclu, sauf s'il est « en test » : on y écrit
+    justement pour le rouvrir (le STUCS, 01/10/2026).
     """
     from cms.models import SectionPage
-    return (SectionPage.objects.filter(live=True)
+    en_test = [s.pk for s in SectionPage.en_test()]
+    return (SectionPage.objects.filter(models.Q(live=True) | models.Q(pk__in=en_test))
             .filter(models.Q(external_url='') | models.Q(external_url__isnull=True))
             .order_by('title'))
 

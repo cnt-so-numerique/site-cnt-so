@@ -39,7 +39,7 @@ maintenant sur la confédération, l'état n'existe plus.
         height:1.75rem;line-height:1.3;min-height:0;
         max-width:22rem;cursor:pointer;">
       {% for site in available_sites %}
-      <option value="{{ site.pk }}"{% if current_site and site.pk == current_site.pk %} selected{% endif %}>{{ site.name }}</option>
+      <option value="{{ site.pk }}"{% if current_site and site.pk == current_site.pk %} selected{% endif %}>{{ site.name }}{% if not site.live %} (fermé au public){% endif %}</option>
       {% endfor %}
     </select>
     <input type="hidden" name="next" value="">

@@ -8153,3 +8153,126 @@ class SousMenuDepuisLeFormulaireTest(TestCase):
         self.qsn.parent = enfant
         with self.assertRaises(ValidationError):
             self.qsn.full_clean()
+
+
+class CmsDuSyndicatEnTestTest(TestCase):
+    """Un syndicat en test (dépublié, maintenance) garde son /cms/.
+
+    Le STUCS reprend son site fermé au public (01/10/2026) : son compte
+    rédacteur doit pouvoir y écrire. Seul le sélecteur des rôles multi-sites
+    (`sites_de_redaction`) écarte les syndicats dépubliés.
+    """
+
+    def setUp(self):
+        from django.contrib.auth.models import Group, User
+        from django.core.management import call_command
+        self.stucs = make_stucs_section()
+        self.article = make_article_page(title='Article du STUCS fermé',
+                                         section_slug='stucs')
+        call_command('setup_cms_permissions', verbosity=0)
+        self.stucs.refresh_from_db()
+        self.stucs.unpublish()
+        u = User.objects.create_user('redac-stucs-en-test', password='pass')
+        u.groups.add(Group.objects.get(name='redacteur_stucs'))
+        self.client.force_login(u)
+
+    def test_tableau_de_bord(self):
+        self.assertEqual(self.client.get('/cms/').status_code, 200)
+
+    def test_ses_articles_listes_et_modifiables(self):
+        r = self.client.get(reverse('wagtailsnippets_cms_articlepage:list'))
+        self.assertContains(r, 'Article du STUCS fermé')
+        r = self.client.get(reverse('wagtailsnippets_cms_articlepage:edit',
+                                    args=[self.article.pk]))
+        self.assertEqual(r.status_code, 200)
+
+    def test_sa_fiche_de_syndicat(self):
+        r = self.client.get(f'/cms/snippets/cms/sectionpage/edit/{self.stucs.pk}/')
+        self.assertEqual(r.status_code, 200)
+
+    # ── Sélecteur des superutilisateurs ─────────────────────────────────
+
+    def _cocher_maintenance(self):
+        brouillon = self.stucs.get_latest_revision_as_object()
+        brouillon.page_maintenance = True
+        brouillon.save_revision()
+
+    def _selecteur_du_superuser(self):
+        self.client.force_login(make_superuser(username='su-selecteur'))
+        return self.client.get('/cms/current-site-fragment/')
+
+    def test_le_superuser_retrouve_le_syndicat_en_test(self):
+        _ensure_section_page(slug='mw-autre', name='MW Autre', site_type='sectoral')
+        self._cocher_maintenance()
+        r = self._selecteur_du_superuser()
+        self.assertContains(r, f'value="{self.stucs.pk}"')
+        self.assertContains(r, '(fermé au public)')
+        r = self.client.get(f'/cms/select-site/?site_id={self.stucs.pk}')
+        self.assertEqual(self.client.session['cms_current_site_id'], self.stucs.pk)
+
+    def test_un_syndicat_simplement_ferme_reste_hors_du_selecteur(self):
+        _ensure_section_page(slug='mw-autre', name='MW Autre', site_type='sectoral')
+        r = self._selecteur_du_superuser()
+        self.assertNotContains(r, f'value="{self.stucs.pk}"')
+
+
+class ArticlesDuSyndicatFermeTest(TestCase):
+    """Un syndicat fermé ne publie plus par les listes de la conf.
+
+    Ses articles restent publiés (ils reviennent à la réouverture), mais
+    catégories, recherche et flux les montraient encore — pour un syndicat en
+    test, c'était publier ses essais (01/10/2026).
+    """
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        _ensure_section_page(slug='principal', name='Confédération', site_type='main')
+        self.stucs = make_stucs_section()
+        self.cat = make_cms_category(name='Luttes en test', slug='luttes-en-test')
+        self.cat_stucs = make_cms_category(name='Scène en test', slug='scene-en-test',
+                                           section_slug='stucs')
+        make_article_page(title='Article de la conf', categories=[self.cat])
+        make_article_page(title='Essai du STUCS', section_slug='stucs',
+                          categories=[self.cat, self.cat_stucs])
+
+    def _fermer(self, en_test=False):
+        from django.core.cache import cache
+        self.stucs.refresh_from_db()
+        self.stucs.unpublish()
+        if en_test:
+            brouillon = self.stucs.get_latest_revision_as_object()
+            brouillon.page_maintenance = True
+            brouillon.save_revision()
+        cache.clear()
+
+    def _pages_publiques(self):
+        return ('/categorie/luttes-en-test/', '/categorie/luttes-en-test/feed/',
+                '/recherche/?q=Essai')
+
+    def test_ouvert_ses_articles_sont_listes(self):
+        # Témoin : sans fermeture, l'article sort bien partout
+        for chemin in self._pages_publiques():
+            self.assertContains(self.client.get(chemin), 'Essai du STUCS',
+                                msg_prefix=chemin)
+
+    def test_ferme_ses_articles_ne_sont_plus_listes(self):
+        self._fermer()
+        for chemin in self._pages_publiques():
+            r = self.client.get(chemin)
+            self.assertNotContains(r, 'Essai du STUCS', msg_prefix=chemin)
+        self.assertContains(self.client.get('/categorie/luttes-en-test/'),
+                            'Article de la conf')
+
+    def test_ses_membres_les_voient_sur_le_site_en_test(self):
+        from django.contrib.auth.models import Group, User
+        self._fermer(en_test=True)
+        u = User.objects.create_user('membre-stucs', password='x')
+        u.groups.add(Group.objects.get_or_create(name='redacteur_stucs')[0])
+        self.client.force_login(u)
+        # La liste elle-même : la barre latérale porte aussi le titre
+        r = self.client.get('/stucs/categorie/scene-en-test/')
+        self.assertEqual([a.title for a in r.context['articles']], ['Essai du STUCS'])
+        # …mais pas dans les listes de la conf, même connectés
+        self.assertNotContains(self.client.get('/categorie/luttes-en-test/'),
+                               'Essai du STUCS')

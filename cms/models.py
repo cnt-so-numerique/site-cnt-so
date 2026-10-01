@@ -19,7 +19,8 @@ from wagtail.documents.blocks import DocumentChooserBlock
 from wagtail.embeds.blocks import EmbedBlock
 from wagtail.fields import StreamField
 from wagtail.images.blocks import ImageChooserBlock
-from wagtail.models import Orderable, Page
+from wagtail.models import Orderable, Page, PageManager
+from wagtail.query import PageQuerySet
 from wagtail.search import index
 from wagtail.snippets.models import register_snippet
 from wagtail.admin.forms import WagtailAdminPageForm
@@ -1073,6 +1074,21 @@ class SectionPage(SeoMixin, Page):
         """
         return {self.slug, self.legacy_site_slug or self.slug}  # source-unique
 
+    @classmethod
+    def en_test(cls):
+        """Syndicats « en test » : dépubliés, case « Page de maintenance »
+        cochée. Le public voit la maintenance, leurs rédacteurs le site
+        (`SectionDomainMiddleware._site_ferme`).
+
+        La case est lue dans la DERNIÈRE RÉVISION : sur une page dépubliée,
+        « Enregistrer le brouillon » n'écrit que la révision, pas la ligne en
+        base (`Page.save_revision`) — lire le champ seul obligerait à
+        republier le site pour cocher la case.
+        """
+        return [s for s in cls.objects.filter(live=False)
+                if getattr(s.get_latest_revision_as_object(),
+                           'page_maintenance', s.page_maintenance)]
+
     def get_absolute_url(self):
         from django.urls import reverse, NoReverseMatch
         if self.external_url:
@@ -1112,6 +1128,7 @@ class SectionPage(SeoMixin, Page):
             f'section-base-url:{self.legacy_site_slug or self.slug}',
             'section-domain-map',
             'section-maintenance-map',
+            'slugs-syndicats-fermes',
             'menu-internal-hosts',
         ] + ([f'section-domain:{self.custom_domain}'] if self.custom_domain else []))
 
@@ -1281,8 +1298,42 @@ class ArticlePageForm(WagtailAdminPageForm):
         return donnees
 
 
+def slugs_des_syndicats_fermes():
+    """Slugs de contenu (`slugs_contenu`) des syndicats dépubliés. Mis en
+    cache 60 s, vidé par `SectionPage.save` — dépublier passe par lui."""
+    from django.core.cache import cache
+    slugs = cache.get('slugs-syndicats-fermes')
+    if slugs is None:
+        slugs = set()
+        for s in SectionPage.objects.filter(live=False).exclude(slug='principal'):
+            slugs |= s.slugs_contenu
+        cache.set('slugs-syndicats-fermes', slugs, 60)
+    return slugs
+
+
+class ArticlePageQuerySet(PageQuerySet):
+    def publics(self, sauf=None):
+        """Les articles publiés que le public peut voir listés.
+
+        `live()` ne suffit pas : l'article d'un syndicat fermé reste publié
+        — on ne le dépublie pas, il reviendra à la réouverture. Ses pages
+        sont fermées, mais les listes de la conf (accueil, réseau,
+        catégories, tags, recherche, flux) le montraient encore. Pour un
+        syndicat en test, c'était publier ses essais (01/10/2026).
+
+        `sauf` : le syndicat dont on sert soi-même le site — son site en test,
+        que `get_section_or_404` n'ouvre qu'à ses rédacteurs.
+        """
+        fermes = slugs_des_syndicats_fermes()
+        if sauf is not None:
+            fermes = fermes - sauf.slugs_contenu
+        return self.live().exclude(section_slug__in=fermes)
+
+
 class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
     """Article de blog — remplace content.Article."""
+
+    objects = PageManager.from_queryset(ArticlePageQuerySet)()
 
     # Le cartouche « réseau » de l'accueil mélange nos articles et ceux
     # moissonnés chez les syndicats hébergés ailleurs (content.ExternalArticle) :

@@ -145,7 +145,7 @@ class HomeView(ListView):
         # Les épinglés de la fiche passent devant : c'est un ordre choisi
         # explicitement, il ne doit pas se faire doubler.
         deja = {a.pk for a in carousel}
-        for article in (ArticlePage.objects.live()
+        for article in (ArticlePage.objects.publics()
                         .filter(featured_on_conf=True)
                         .order_by('-publication_date', '-first_published_at')
                         .select_related('featured_image')
@@ -252,7 +252,7 @@ def _candidats_reseau(exclus, nb=60):
     de la page.
     """
     locaux = (
-        ArticlePage.objects.live()
+        ArticlePage.objects.publics()
         .exclude(section_slug='principal')
         .order_by('-publication_date', '-first_published_at')
         .select_related('featured_image')
@@ -707,7 +707,7 @@ class CategoryDetailView(ListView):
         # Le tri « illustrés d'abord » y produisait le même effet que sur les
         # accueils de syndicat — un article récent sans visuel repoussé derrière
         # tous les autres (voir le commentaire de `SiteHomeView.get_queryset`).
-        return (ArticlePage.objects.live()
+        return (ArticlePage.objects.publics()
                 .filter(cms_categories=self.category)
                 .select_related('featured_image')
                 .prefetch_related('cms_categories')
@@ -741,7 +741,7 @@ class SiteCategoryDetailView(ListView):
         # Le tri « illustrés d'abord » y produisait le même effet que sur les
         # accueils de syndicat — un article récent sans visuel repoussé derrière
         # tous les autres (voir le commentaire de `SiteHomeView.get_queryset`).
-        return (ArticlePage.objects.live()
+        return (ArticlePage.objects.publics(sauf=self.current_site)
                 .filter(cms_categories=self.category)
                 .select_related('featured_image')
                 .prefetch_related('cms_categories')
@@ -783,7 +783,7 @@ class EspacePresse(ListView):
         ).first()
         if not self.category:
             return ArticlePage.objects.none()
-        return (ArticlePage.objects.live()
+        return (ArticlePage.objects.publics()
                 .filter(cms_categories=self.category)
                 .select_related('featured_image')
                 .prefetch_related('cms_categories')
@@ -813,7 +813,7 @@ class SiteEspacePresse(ListView):
         ).first()
         if not self.category:
             return ArticlePage.objects.none()
-        return (ArticlePage.objects.live()
+        return (ArticlePage.objects.publics(sauf=self.current_site)
                 .filter(cms_categories=self.category)
                 .select_related('featured_image')
                 .prefetch_related('cms_categories')
@@ -837,7 +837,7 @@ class TagDetailView(ListView):
 
     def get_queryset(self):
         self.tag = get_object_or_404(TaggitTag, slug=self.kwargs['slug'])
-        return (ArticlePage.objects.live()
+        return (ArticlePage.objects.publics()
                 .filter(cms_tags__slug=self.kwargs['slug'])
                 .select_related('featured_image')
                 .prefetch_related('cms_categories'))
@@ -882,7 +882,7 @@ class SearchView(ListView):
         backend = get_search_backend()
         return backend.search(
             ' '.join(self._termes(query)),
-            ArticlePage.objects.live().select_related('featured_image').prefetch_related('cms_categories'),
+            ArticlePage.objects.publics().select_related('featured_image').prefetch_related('cms_categories'),
             order_by_relevance=True,
         )
 
@@ -919,7 +919,7 @@ class WordPressRedirectView(View):
                     return redirect(page.get_absolute_url(), permanent=True)
 
         # Site principal ou fallback
-        article = ArticlePage.objects.live().filter(slug=slug).first()
+        article = ArticlePage.objects.publics().filter(slug=slug).first()
         if article:
             return redirect(article.get_absolute_url(), permanent=True)
 
@@ -960,7 +960,7 @@ class AncienneAdresseArticleView(View):
     """
 
     def get(self, request, slug):
-        articles = ArticlePage.objects.live().filter(slug=slug)
+        articles = ArticlePage.objects.publics().filter(slug=slug)
         article = articles.filter(section_slug='principal').first() or articles.first()
         if article is None:
             raise Http404("Contenu non trouvé")

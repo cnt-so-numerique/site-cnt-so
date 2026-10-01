@@ -27,7 +27,7 @@
       <select name="site_id" style="background:var(--w-color-surface-field);border:1px solid var(--w-color-border-furniture);border-radius:5px;color:var(--w-color-text-context);font-size:.875rem;padding:.35rem .6rem;cursor:pointer;">
         {% for site in available_sites %}
         <option value="{{ site.pk }}" {% if site.pk == current_site.pk %}selected{% endif %}>
-          {{ site.name }}{% if site.site_type == 'regional' %} [UR]{% elif site.site_type == 'sectoral' %} [SI]{% endif %}
+          {{ site.name }}{% if site.site_type == 'regional' %} [UR]{% elif site.site_type == 'sectoral' %} [SI]{% endif %}{% if not site.live %} (fermé au public){% endif %}
         </option>
         {% endfor %}
       </select>
@@ -143,7 +143,7 @@
         display:inline-block;padding:.6rem 1.2rem;background:var(--w-color-surface-field);
         border:1px solid var(--w-color-border-furniture);border-radius:6px;
         color:var(--w-color-text-context);text-decoration:none;font-size:.9rem;">
-      {{ site.name }}
+      {{ site.name }}{% if not site.live %} (fermé au public){% endif %}
       {% if site.site_type == 'regional' %}<span style="font-size:.875rem;color:var(--w-color-text-meta);display:block;">Union régionale</span>{% elif site.site_type == 'sectoral' %}<span style="font-size:.875rem;color:var(--w-color-text-meta);display:block;">Syndicat d'industrie</span>{% endif %}
     </a>
     {% endfor %}
