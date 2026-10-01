@@ -1765,6 +1765,76 @@ class SectionDomainMiddlewareTest(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'STUCS')
 
+    # ── Site en test : le STUCS reprend son site avant de le rouvrir ──────
+
+    def _compte(self, groupe):
+        from django.contrib.auth.models import Group, User
+        u = User.objects.create_user(f'u-{groupe}', password='x')
+        u.groups.add(Group.objects.get_or_create(name=groupe)[0])
+        return u
+
+    def _en_test(self):
+        self._depublier()
+        self._cocher_maintenance_en_brouillon()
+
+    def test_site_en_test_ouvert_a_ses_redacteurs(self):
+        # Comme le compte `spectacle` en prod (groupe redacteur_stucs)
+        self._en_test()
+        self.client.force_login(self._compte('redacteur_stucs'))
+        for chemin in ('/stucs/', '/stucs/article/article-middleware/',
+                       '/stucs/contact/'):
+            r = self.client.get(chemin)
+            self.assertEqual(r.status_code, 200, chemin)
+            self.assertContains(r, 'Site en test')
+            self.assertEqual(r['X-Robots-Tag'], 'noindex, nofollow')
+            self.assertIn('no-store', r['Cache-Control'])
+        self.assertContains(self.client.get('/stucs/'), 'Article middleware')
+
+    def test_site_en_test_ne_renvoie_pas_vers_son_domaine(self):
+        # Le domaine affiche la maintenance : un lien vers lui ramènerait le
+        # rédacteur sur la maintenance à chaque clic.
+        self._en_test()
+        self.client.force_login(self._compte('redacteur_stucs'))
+        r = self.client.get('/stucs/')
+        self.assertNotContains(r, self.HOST, status_code=200)
+        self.assertContains(r, '/stucs/article/article-middleware/')
+
+    def test_site_en_test_ferme_aux_autres(self):
+        self._en_test()
+        for compte in (None, self._compte('redacteur_mw-autre')):
+            self.client.logout()
+            if compte:
+                self.client.force_login(compte)
+            for chemin in ('/stucs/', '/stucs/article/article-middleware/'):
+                r = self.client.get(chemin)
+                self.assertEqual(r.status_code, 503, (compte, chemin))
+                self.assertNotContains(r, 'Article middleware', status_code=503)
+
+    def test_site_en_test_refuse_les_formulaires_aux_autres(self):
+        # La vue ne s'exécute pas : `process_view` tranche avant elle, et
+        # `get_section_or_404` refuserait de toute façon le syndicat dépublié
+        # (double verrou, vérifié par mutation le 01/10/2026).
+        self._en_test()
+        from content.views import SiteContactView
+        with patch.object(SiteContactView, 'post') as vue:
+            r = self.client.post('/stucs/contact/', {'email': 'x@y.fr'})
+        self.assertEqual(r.status_code, 503)
+        vue.assert_not_called()
+
+    def test_maintenance_propose_l_acces_membres(self):
+        self._en_test()
+        lien = 'https://cnt-so.org/cms/login/?next=/stucs/'
+        self.assertContains(self.client.get('/stucs/'), lien, status_code=503)
+        self.assertContains(self.client.get('/', HTTP_HOST=self.HOST), lien,
+                            status_code=503)
+
+    def test_le_public_ne_voit_jamais_le_bandeau(self):
+        # Site publié, rédacteur connecté : pas de « site en test »
+        self.client.force_login(self._compte('redacteur_stucs'))
+        r = self.client.get('/', HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+        self.assertNotContains(r, 'Site en test')
+
 
 @override_settings(ALLOWED_HOSTS=['testserver', 'stucs.cnt-so.org'],
                    MAIN_SITE_BASE_URL='https://cnt-so.org')

@@ -69,6 +69,21 @@ def _sites_du_compte(user):
     return [site] if site is not None else []
 
 
+def peut_voir_site_en_test(user, section):
+    """Ce compte voit-il le syndicat `section` quand il est fermé au public ?
+
+    Un site dépublié avec la page de maintenance est « en test » : ses
+    rédacteurs le reprennent en main avant de le rouvrir (le STUCS, 01/10/2026,
+    avec le compte `spectacle`). Mêmes droits que pour l'écrire dans /cms/ :
+    les syndicats du compte, et les rôles multi-sites.
+    """
+    if not user.is_authenticated:
+        return False
+    if _is_global_chef(user):
+        return True
+    return any(s.pk == section.pk for s in _sites_du_compte(user))
+
+
 def get_current_site(request):
     """Retourne le SectionPage courant pour cet utilisateur/session."""
     from cms.models import SectionPage

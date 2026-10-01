@@ -1959,6 +1959,12 @@
 </head>
 <body>
     <a class="skip-link" href="#contenu">Aller au contenu principal</a>
+    {% if request.site_en_test %}
+    <div class="bandeau-site-en-test" role="status" style="background:#fff3cd;color:#664d03;border-bottom:2px solid #ffc107;padding:.6rem 1rem;text-align:center;font-weight:600;">
+        Site en test : invisible du public, qui voit « site en maintenance ».
+        Pour le rouvrir, la fiche du syndicat doit être republiée.
+    </div>
+    {% endif %}
     <!-- Top Bar -->
     <div class="top-bar">
         <div class="top-bar-content">

@@ -80,6 +80,7 @@
         <h1>Site en maintenance</h1>
         <p>Nous revenons bientôt.<br>En attendant, retrouvez l'actualité de la CNT-SO sur le site de la confédération.</p>
         <a href="{{ accueil }}" class="btn">Site de la CNT-SO</a>
+        {% if acces_membres %}<a href="{{ acces_membres }}" class="btn btn-secondary">Accès membres du syndicat</a>{% endif %}
     </div>
 </body>
 </html>

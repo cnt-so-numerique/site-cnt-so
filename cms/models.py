@@ -57,8 +57,10 @@ def section_base_url(section_slug):
     key = f'section-base-url:{section_slug}'
     val = cache.get(key)
     if val is None:
+        # Un syndicat dépublié n'a plus de domaine en service : voir `base_url`.
         section = SectionPage.objects.filter(
-            models.Q(legacy_site_slug=section_slug) | models.Q(slug=section_slug)
+            models.Q(legacy_site_slug=section_slug) | models.Q(slug=section_slug),
+            live=True,
         ).only('custom_domain').first()
         val = f'https://{section.custom_domain}' if section and section.custom_domain else ''
         cache.set(key, val, 60)
@@ -1016,8 +1018,15 @@ class SectionPage(SeoMixin, Page):
     @property
     def base_url(self):
         """Préfixe absolu du sous-site : https://<domaine> si domaine autonome,
-        chaîne vide sinon (les URLs restent relatives = comportement actuel)."""
-        if self.custom_domain:
+        chaîne vide sinon (les URLs restent relatives = comportement actuel).
+
+        Dépublié, un syndicat n'a plus de domaine en service : celui-ci affiche
+        la page de maintenance (`SectionDomainMiddleware._domaine_ferme`). Ses
+        liens restent donc sur `cnt-so.org/<slug>/`, seule adresse où ses
+        membres connectés voient le site en test — renvoyer vers le domaine
+        les ramenait sur la maintenance à chaque clic.
+        """
+        if self.custom_domain and self.live:
             return f'https://{self.custom_domain}'
         return ''
 
@@ -1068,7 +1077,7 @@ class SectionPage(SeoMixin, Page):
         from django.urls import reverse, NoReverseMatch
         if self.external_url:
             return self.external_url
-        if self.custom_domain:
+        if self.base_url:
             return f'{self.base_url}/'
         # Le slug Wagtail, et lui seul : `SectionSlugConverter` (content/urls.py)
         # ne reconnaît que `slug=`, jamais `legacy_site_slug`. Émettre le slug
@@ -1083,7 +1092,7 @@ class SectionPage(SeoMixin, Page):
 
     def get_rejoindre_url(self):
         from django.urls import reverse
-        if self.custom_domain:
+        if self.base_url:
             return f'{self.base_url}/rejoindre/'
         # Slug Wagtail, comme get_absolute_url : cette route accepte les deux,
         # mais rien ne gagne à servir deux adresses pour la même page.

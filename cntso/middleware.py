@@ -136,6 +136,7 @@ class SectionDomainMiddleware:
 
     def __call__(self, request):
         request.section_page = None
+        request.site_en_test = None
         # Prévisualisation : Wagtail bâtit une requête factice à l'URL de la
         # page et la fait traverser toute la chaîne de middlewares
         # (`make_preview_request`). Sur une section à domaine autonome, nos
@@ -152,7 +153,7 @@ class SectionDomainMiddleware:
             seg = request.path_info.lstrip('/').split('/', 1)[0]
             en_maintenance = self._maintenance_map().get(seg) if seg else None
             if en_maintenance:
-                return self._page_maintenance(request, en_maintenance)
+                return self._site_ferme(request, *en_maintenance)
             # Hôte principal : le chemin d'une section à domaine autonome
             # redirige vers ce domaine (URL canonique unique)
             if request.method in ('GET', 'HEAD'):
@@ -228,24 +229,76 @@ class SectionDomainMiddleware:
             return self.get_response(request)
         if path.startswith(self.ADMIN_PREFIXES):
             return HttpResponseRedirect(f'{self._main_base()}{path}')
-        titre = self._maintenance_map().get(
+        en_maintenance = self._maintenance_map().get(
             section.legacy_site_slug or section.slug)
-        if titre:
-            return self._page_maintenance(request, titre)
+        if en_maintenance:
+            return self._page_maintenance(request, *en_maintenance)
         if request.method not in ('GET', 'HEAD'):
             raise Http404('Syndicat dépublié')
         return HttpResponseRedirect(f'{self._main_base()}/')
 
-    def _page_maintenance(self, request, titre):
+    def _site_ferme(self, request, titre, slug):
+        """`cnt-so.org/<slug>/` d'un syndicat en maintenance.
+
+        Le public voit la page de maintenance ; les comptes qui écrivent ce
+        syndicat voient le site lui-même, « en test », pour le reprendre en
+        main avant de le rouvrir (demande du STUCS, 01/10/2026). Uniquement
+        sur l'hôte principal : la session de /cms/ n'existe pas sur le
+        domaine du syndicat.
+
+        Qui regarde n'est connu qu'après `AuthenticationMiddleware`, placé
+        APRÈS nous dans MIDDLEWARE : la décision se prend dans `process_view`,
+        avant que la vue ne s'exécute (un POST de contact ne doit pas partir).
+        Si aucune vue n'est atteinte — chemin non résolu, réponse d'un autre
+        middleware — on tranche sur la réponse.
+        """
+        from django.utils.cache import patch_cache_control
+        request._site_ferme = (titre, slug)
+        response = self.get_response(request)
+        if request._site_ferme is not None:
+            refus = self._trancher(request)
+            if refus is not None:
+                return refus
+        if request.site_en_test is not None:
+            response['X-Robots-Tag'] = 'noindex, nofollow'
+            patch_cache_control(response, private=True, no_store=True)
+        return response
+
+    def process_view(self, request, view_func, view_args, view_kwargs):
+        if getattr(request, '_site_ferme', None) is not None:
+            return self._trancher(request)
+        return None
+
+    def _trancher(self, request):
+        """Page de maintenance, ou None si ce compte voit le site en test
+        (posé alors dans `request.site_en_test`, que lit `get_section_or_404`)."""
+        titre, slug = request._site_ferme
+        request._site_ferme = None
+        user = getattr(request, 'user', None)
+        if user is not None and user.is_authenticated:
+            from cms.models import SectionPage
+            from cms.site_context import peut_voir_site_en_test
+            section = SectionPage.objects.filter(slug=slug, live=False).first()
+            if section is not None and peut_voir_site_en_test(user, section):
+                request.site_en_test = section
+                return None
+        return self._page_maintenance(request, titre, slug)
+
+    def _page_maintenance(self, request, titre, slug):
         """« Site en maintenance, on revient bientôt » (503 + Retry-After).
 
         503 plutôt que 200 : les moteurs de recherche gardent les pages du
         syndicat en attendant sa réouverture au lieu d'indexer ce message.
+
+        Le lien « Accès membres » passe par la connexion de /cms/ sur le site
+        principal, qui renvoie au site en test (`next`) — directement si
+        l'on est déjà connecté.
         """
         from django.template.loader import render_to_string
         from django.http import HttpResponse
         r = HttpResponse(render_to_string('maintenance.html', {
             'titre': titre, 'accueil': f'{self._main_base()}/',
+            'acces_membres': f'{self._main_base()}/cms/login/?next=/{slug}/',
         }, request=request), status=503)
         r['Retry-After'] = '86400'
         # Un 503 voulu n'est pas une panne. Sans ce drapeau (celui que
@@ -257,8 +310,9 @@ class SectionDomainMiddleware:
 
     @staticmethod
     def _maintenance_map():
-        """{ slug (et legacy_site_slug) → titre } des sections dépubliées
-        dont la case « Page de maintenance » est cochée.
+        """{ slug (et legacy_site_slug) → (titre, slug Wagtail) } des sections
+        dépubliées dont la case « Page de maintenance » est cochée. Le slug
+        Wagtail sert aux adresses : seul reconnu par les URL du site.
 
         La case est lue dans la DERNIÈRE RÉVISION : sur une page dépubliée,
         « Enregistrer le brouillon » n'écrit que la révision, pas la ligne en
@@ -273,9 +327,9 @@ class SectionDomainMiddleware:
             for s in SectionPage.objects.filter(live=False):
                 brouillon = s.get_latest_revision_as_object()
                 if getattr(brouillon, 'page_maintenance', s.page_maintenance):
-                    mapping[s.slug] = s.title
+                    mapping[s.slug] = (s.title, s.slug)
                     if s.legacy_site_slug:
-                        mapping[s.legacy_site_slug] = s.title
+                        mapping[s.legacy_site_slug] = (s.title, s.slug)
             cache.set('section-maintenance-map', mapping, 60)
         return mapping
 

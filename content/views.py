@@ -26,7 +26,7 @@ from taggit.models import Tag as TaggitTag
 logger = logging.getLogger(__name__)
 
 
-def get_section_or_404(slug, inclure_depublies=False, **extra):
+def get_section_or_404(slug, inclure_depublies=False, request=None, **extra):
     """Résout une SectionPage PUBLIÉE par son slug Wagtail *ou* son slug hérité.
 
     Sur un domaine autonome, `SectionDomainMiddleware` préfixe le chemin avec
@@ -42,7 +42,16 @@ def get_section_or_404(slug, inclure_depublies=False, **extra):
 
     `inclure_depublies` n'est là que pour les rares appels qui doivent voir un
     syndicat dépublié — jamais depuis une vue publique.
+
+    `request` ouvre le site « en test » : un syndicat dépublié en maintenance
+    que `SectionDomainMiddleware` a laissé voir à l'un de ses rédacteurs
+    (`request.site_en_test`). Un `live=True` explicite le refuse quand même
+    (newsletter : on ne s'abonne pas à un site fermé).
     """
+    en_test = getattr(request, 'site_en_test', None)
+    if (en_test is not None and 'live' not in extra
+            and slug in (en_test.slug, en_test.legacy_site_slug)):
+        return en_test
     if not inclure_depublies:
         extra.setdefault('live', True)
     section = SectionPage.objects.filter(
@@ -192,7 +201,7 @@ class SiteAgendaView(TemplateView):
         return ['content/site_agenda_events.html']
 
     def get(self, request, *args, **kwargs):
-        self.site_obj = get_section_or_404(kwargs['site_slug'])
+        self.site_obj = get_section_or_404(kwargs['site_slug'], request=request)
         return TemplateView.get(self, request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -337,7 +346,7 @@ class SiteHomeView(ListView):
         return ['content/site_home.html']
 
     def get(self, request, *args, **kwargs):
-        self.current_site = get_section_or_404(self.kwargs['site_slug'])
+        self.current_site = get_section_or_404(self.kwargs['site_slug'], request=request)
         if self.current_site.external_url:
             return redirect(self.current_site.external_url)
         self.home_page = Page.objects.filter(
@@ -365,7 +374,7 @@ class SiteHomeView(ListView):
         if hasattr(self, '_vitrine_cache'):
             return self._vitrine_cache
         if not hasattr(self, 'current_site'):
-            self.current_site = get_section_or_404(self.kwargs['site_slug'])
+            self.current_site = get_section_or_404(self.kwargs['site_slug'], request=self.request)
         site = self.current_site
         if site.section_type not in ('sectoral', 'regional'):
             self._vitrine_cache = ([], [])
@@ -410,7 +419,7 @@ class SiteHomeView(ListView):
 
     def get_queryset(self):
         if not hasattr(self, 'current_site'):
-            self.current_site = get_section_or_404(self.kwargs['site_slug'])
+            self.current_site = get_section_or_404(self.kwargs['site_slug'], request=self.request)
         # Par DATE, comme l'accueil confédéral et toutes les autres listes du
         # site. Le tri « illustrés d'abord » posé le 16/08 (commit 90b1c77,
         # « articles avec image en premier dans le listing sectoriel ») était un
@@ -527,13 +536,13 @@ class SiteArticleDetailView(ArticleDetailView):
     """Détail d'un article d'un sous-site"""
 
     def get_queryset(self):
-        self.current_site = get_section_or_404(self.kwargs['site_slug'])
+        self.current_site = get_section_or_404(self.kwargs['site_slug'], request=self.request)
         return (ArticlePage.objects.live()
                 .filter(section_slug__in=self.current_site.slugs_contenu)
                 .select_related('featured_image'))
 
     def get_object(self, queryset=None):
-        self.current_site = get_section_or_404(self.kwargs['site_slug'])
+        self.current_site = get_section_or_404(self.kwargs['site_slug'], request=self.request)
         return get_object_or_404(
             ArticlePage.objects.live().select_related('featured_image'),
             slug=self.kwargs['slug'],
@@ -569,7 +578,7 @@ class ArticleTractView(View):
                      'mentionslegales', 'bibliographie')
 
     def get(self, request, slug, site_slug=None):
-        site = get_section_or_404(site_slug) if site_slug else \
+        site = get_section_or_404(site_slug, request=request) if site_slug else \
             SectionPage.objects.filter(slug='principal').first()
         perimetre = site.slugs_contenu if site else {'principal'}
         article = get_object_or_404(
@@ -645,7 +654,7 @@ class SitePageDetailView(View):
     def get(self, request, site_slug, slug, **kwargs):
         from cms.models import ContentPage
         from django.http import HttpResponsePermanentRedirect
-        current_site = get_section_or_404(site_slug)
+        current_site = get_section_or_404(site_slug, request=request)
         cp = ContentPage.objects.live().filter(
             slug=slug, section_slug__in=current_site.slugs_contenu).first()
         if cp:
@@ -721,7 +730,7 @@ class SiteCategoryDetailView(ListView):
     paginate_by = 10
 
     def get(self, request, *args, **kwargs):
-        self.current_site = get_section_or_404(kwargs['site_slug'])
+        self.current_site = get_section_or_404(kwargs['site_slug'], request=request)
         self.category = get_object_or_404(
             CmsCategory, slug=kwargs['slug'],
             section_slug__in=self.current_site.slugs_contenu)
@@ -797,7 +806,7 @@ class SiteEspacePresse(ListView):
     paginate_by = 10
 
     def get_queryset(self):
-        self.current_site = get_section_or_404(self.kwargs['site_slug'])
+        self.current_site = get_section_or_404(self.kwargs['site_slug'], request=self.request)
         self.category = CmsCategory.objects.filter(
             slug='communique-de-presse',
             section_slug__in=self.current_site.slugs_contenu
@@ -935,7 +944,7 @@ def sans_syndicat_externe(vue):
     """
     @wraps(vue)
     def _vue(request, *args, **kwargs):
-        section = get_section_or_404(kwargs.get('site_slug', ''))
+        section = get_section_or_404(kwargs.get('site_slug', ''), request=request)
         if section is not None and section.external_url:
             return redirect(section.external_url)
         return vue(request, *args, **kwargs)
@@ -1155,7 +1164,7 @@ class SiteContactView(_BaseContactView):
         # Passe par get_section_or_404 : cette vue faisait sa propre résolution,
         # sans filtrer sur `live` — le formulaire de contact restait donc
         # ouvert sur un syndicat dépublié.
-        self.site_obj = get_section_or_404(slug)
+        self.site_obj = get_section_or_404(slug, request=request)
         if self.site_obj is None:
             raise Http404
 
@@ -1169,7 +1178,7 @@ class SiteContactView(_BaseContactView):
 
 
 def site_contact_success(request, site_slug):
-    site_obj = get_section_or_404(site_slug)
+    site_obj = get_section_or_404(site_slug, request=request)
     if site_obj is None:
         raise Http404
     return render(request, 'content/contact_success.html', {'site': site_obj})
@@ -1182,7 +1191,7 @@ class PlanDuSiteView(TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         site_slug = self.kwargs.get('site_slug', 'principal')
-        current = get_section_or_404(site_slug)
+        current = get_section_or_404(site_slug, request=self.request)
         ctx['plan_site'] = current
         ctx['site'] = current
 
@@ -1682,7 +1691,7 @@ class SiteRejoindreView(View):
     """
 
     def get(self, request, site_slug):
-        site = get_section_or_404(site_slug)
+        site = get_section_or_404(site_slug, request=request)
         ctx = {
             'site': site,
             'categories': CmsCategory.objects.filter(section_slug__in=site.slugs_contenu),
@@ -1696,7 +1705,7 @@ class SiteRessourcesView(View):
     """Page 'Ressources' générique pour tout sous-site."""
 
     def get(self, request, site_slug):
-        site = get_section_or_404(site_slug)
+        site = get_section_or_404(site_slug, request=request)
         # Uniquement les catégories contenant au moins un article publié
         # (l'import WordPress a laissé beaucoup de catégories vides ou en doublon)
         categories = CmsCategory.objects.filter(
