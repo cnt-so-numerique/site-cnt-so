@@ -281,6 +281,10 @@ CHOIX_LARGEUR = [
     ('100', 'Toute la largeur'),
 ]
 
+#: Les mêmes, en boutons : une rangée de six tient sur une ligne.
+LARGEUR_COURTE = {'25': '¼', '33': '⅓', '50': '½', '66': '⅔', '75': '¾',
+                  '100': 'Tout'}
+
 
 def extrait_depuis_corps(body, longueur=220):
     """Premier texte lisible d'un corps StreamField, coupé au mot.
@@ -365,33 +369,66 @@ class CouleurBlock(blocks.FieldBlock):
 
 
 class ImageBlock(blocks.StructBlock):
+    """Une image dans l'article : où elle se place, et quelle place elle prend.
+
+    Ergonomie revue le 03/10/2026 (Arnaud : « t'as moyen de revoir
+    l'ergonomie de cette partie ? »). Deux listes déroulantes empilées
+    cachaient leurs choix derrière un clic, et se contredisaient : la position
+    « Pleine largeur » et la largeur « Toute la largeur » faisaient la même
+    chose, d'où une aide « Sans effet en pleine largeur ». La position se
+    choisit maintenant sur trois vignettes dessinées, la largeur sur une
+    rangée de boutons (`insert_ecran_redaction_css`), et la position
+    « Pleine largeur » n'existe plus : c'est « Tout ».
+    """
+
     image = ImageChooserBlock(label="Image")
-    caption = blocks.CharBlock(required=False, label="Légende")
     alignment = blocks.ChoiceBlock(
         choices=[
-            ('left', 'Gauche'),
-            ('center', 'Centre'),
-            ('right', 'Droite'),
-            ('full', 'Pleine largeur'),
+            ('left', 'Texte à droite'),
+            ('center', 'Centrée'),
+            ('right', 'Texte à gauche'),
         ],
         default='center',
-        label="Alignement",
+        label="Position",
+        widget=forms.RadioSelect,
+        form_classname='cnt-image-position',
     )
     # Ajouté le 15/08/2026 : l'alignement gauche/droite ne servait à rien sans
     # pouvoir régler la taille — une photo de 2000 px poussée à droite occupait
     # la moitié de l'écran quoi qu'il arrive. Les articles déjà écrits n'ont
     # pas la clé : StructBlock retombe alors sur ce défaut.
     largeur = blocks.ChoiceBlock(
-        choices=CHOIX_LARGEUR,
+        choices=[(cle, LARGEUR_COURTE[cle]) for cle, _ in CHOIX_LARGEUR],
         default='50',
         label="Largeur",
-        help_text="Sans effet en pleine largeur.",
+        widget=forms.RadioSelect,
+        form_classname='cnt-image-largeur',
     )
+    caption = blocks.CharBlock(required=False, label="Légende (facultatif)")
 
     class Meta:
         icon = 'image'
         label = "Image"
         template = 'cms/blocks/image_block.html'
+        form_classname = 'cnt-bloc-image'
+
+    @staticmethod
+    def _moderniser(valeur):
+        """L'ancienne position « Pleine largeur » devient « Centrée, Tout ».
+
+        À la lecture plutôt que par une migration de données : les brouillons
+        et les révisions gardent l'ancienne valeur, et le bouton radio, qui
+        n'a plus ce choix, refuserait alors d'enregistrer.
+        """
+        if isinstance(valeur, dict) and valeur.get('alignment') == 'full':
+            valeur = {**valeur, 'alignment': 'center', 'largeur': '100'}
+        return valeur
+
+    def to_python(self, value):
+        return super().to_python(self._moderniser(value))
+
+    def bulk_to_python(self, values):
+        return super().bulk_to_python([self._moderniser(v) for v in values])
 
 
 class DuoBlock(blocks.StructBlock):

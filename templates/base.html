@@ -1121,7 +1121,6 @@
             float: right; margin: .3rem 0 1rem 1.5rem; max-width: 45%;
         }
         .article-content .article-image.align-center { text-align: center; }
-        .article-content .article-image.align-full img { width: 100%; }
         /* Largeur réglable : sans elle, une photo de 2000 px poussée à droite
            occupait la moitié de l'écran quoi qu'il arrive. Sans effet en
            pleine largeur ni au centre, où la largeur est déjà décidée. */
@@ -1142,6 +1141,9 @@
         .article-content .article-image.align-center.l-50 img { width: 50%; }
         .article-content .article-image.align-center.l-66 img { width: 66%; }
         .article-content .article-image.align-center.l-75 img { width: 75%; }
+        /* « Toute la largeur » remplace la position « Pleine largeur »
+           depuis le 03/10/2026 (`ImageBlock`) : même rendu. */
+        .article-content .article-image.align-center.l-100 img { width: 100%; }
 
         /* ── Blocs de mise en page (15/08/2026) ───────────────────────────
            Les couleurs viennent du rédacteur, via des variables posées dans

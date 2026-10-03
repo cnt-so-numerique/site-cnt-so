@@ -3524,6 +3524,47 @@ class AlignementDesImagesTest(TestCase):
         self.assertIn('article-image align-{{ value.alignment }}', gabarit)
 
 
+class ErgonomieDuBlocImageTest(TestCase):
+    """Deux listes déroulantes qui se contredisaient → vignettes et boutons
+    (Arnaud, 03/10/2026). La position « Pleine largeur » faisait double emploi
+    avec la largeur « Toute la largeur » : elle disparaît, et les articles qui
+    la portent doivent continuer de s'afficher et de s'enregistrer."""
+
+    def _bloc(self):
+        from cms.models import ImageBlock
+        return ImageBlock()
+
+    def test_lancienne_pleine_largeur_est_relue_centree_sur_toute_la_largeur(self):
+        brut = {'image': None, 'caption': '', 'alignment': 'full', 'largeur': '50'}
+        for valeur in (self._bloc().to_python(brut),
+                       self._bloc().bulk_to_python([brut])[0]):
+            self.assertEqual((valeur['alignment'], valeur['largeur']),
+                             ('center', '100'))
+
+    def test_les_autres_positions_ne_bougent_pas(self):
+        brut = {'image': None, 'caption': '', 'alignment': 'left', 'largeur': '33'}
+        valeur = self._bloc().bulk_to_python([brut])[0]
+        self.assertEqual((valeur['alignment'], valeur['largeur']), ('left', '33'))
+
+    def test_plus_de_doublon_entre_position_et_largeur(self):
+        choix = [c[0] for c in self._bloc().child_blocks['alignment'].field.choices]
+        self.assertNotIn('full', choix)
+
+    def test_toute_la_largeur_au_centre_a_sa_regle_css(self):
+        """Sans elle, « Centrée, Tout » laissait une petite image à sa taille,
+        là où l'ancienne « Pleine largeur » l'étirait."""
+        with open('templates/base.html', encoding='utf-8') as f:
+            css = f.read()
+        self.assertIn('.article-image.align-center.l-100 img { width: 100%; }', css)
+
+    def test_les_reglages_sont_des_boutons_et_non_des_listes(self):
+        from django import forms
+        bloc = self._bloc()
+        for nom in ('alignment', 'largeur'):
+            self.assertIsInstance(bloc.child_blocks[nom].field.widget,
+                                  forms.RadioSelect, nom)
+
+
 class BlocsDeMiseEnPageTest(TestCase):
     """Cinq blocs ajoutés le 15/08/2026 à la demande d'Arnaud : côte à côte,
     encadré, boutons, chiffres clés, séparateur.

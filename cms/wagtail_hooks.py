@@ -964,6 +964,46 @@ def insert_ecran_redaction_css():
    sélecteur à deux classes. Mesuré, pas supposé. */
 [data-panel-anchor] { display: none !important; }
 .w-form-width { max-width: 1080px; }
+
+/* ── Bloc Image (03/10/2026) ─────────────────────────────────────────────
+   Deux listes déroulantes empilées → trois vignettes dessinées et une rangée
+   de boutons, côte à côte. Les astérisques tombent : les deux réglages ont
+   toujours une valeur, rien ne manque jamais. Les pictos passent par
+   `mask` et `currentColor` pour suivre le thème sombre de l'admin. */
+.cnt-bloc-image .w-required-mark { display: none; }
+.cnt-bloc-image .cnt-image-position,
+.cnt-bloc-image .cnt-image-largeur { display: inline-block; vertical-align: top;
+    margin-right: 2rem; }
+.cnt-image-position [role="radiogroup"], .cnt-image-position div[id],
+.cnt-image-largeur div[id] { display: flex; flex-wrap: wrap; gap: .5rem; }
+.cnt-image-position label, .cnt-image-largeur label {
+    position: relative; display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--w-color-border-field-default, #ccc); border-radius: 6px;
+    cursor: pointer; font-size: .85rem; line-height: 1.2; text-align: center;
+    background: var(--w-color-surface-field, #fff); margin: 0;
+}
+.cnt-image-position input, .cnt-image-largeur input {
+    position: absolute; opacity: 0; width: 1px; height: 1px; }
+.cnt-image-position label:has(input:checked),
+.cnt-image-largeur label:has(input:checked) {
+    border-color: var(--w-color-primary, #2e1f5e);
+    box-shadow: 0 0 0 1px var(--w-color-primary, #2e1f5e); font-weight: 700; }
+.cnt-image-position label:has(input:focus-visible),
+.cnt-image-largeur label:has(input:focus-visible) {
+    outline: 3px solid var(--w-color-focus, #2e1f5e); outline-offset: 2px; }
+.cnt-image-largeur label { min-width: 2.75rem; height: 2.75rem; padding: 0 .6rem;
+    font-size: 1.05rem; }
+.cnt-image-position label { flex-direction: column; min-width: 6.5rem; padding: .5rem .6rem .4rem;
+    white-space: nowrap; }
+.cnt-image-position label::before {
+    content: ""; display: block; width: 56px; height: 40px; margin-bottom: .35rem;
+    background: currentColor; opacity: .75;
+    -webkit-mask: var(--picto) center / contain no-repeat;
+    mask: var(--picto) center / contain no-repeat;
+}
+.cnt-image-position label:has(input[value="left"]) { --picto: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 40'%3E%3Crect x='2' y='4' width='22' height='18' rx='2'/%3E%3Cg fill='none' stroke='black' stroke-width='3'%3E%3Cpath d='M29 6h25M29 13h25M29 20h25M2 29h52M2 36h40'/%3E%3C/g%3E%3C/svg%3E"); }
+.cnt-image-position label:has(input[value="center"]) { --picto: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 40'%3E%3Crect x='15' y='2' width='26' height='20' rx='2'/%3E%3Cg fill='none' stroke='black' stroke-width='3'%3E%3Cpath d='M2 29h52M2 36h40'/%3E%3C/g%3E%3C/svg%3E"); }
+.cnt-image-position label:has(input[value="right"]) { --picto: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 40'%3E%3Crect x='32' y='4' width='22' height='18' rx='2'/%3E%3Cg fill='none' stroke='black' stroke-width='3'%3E%3Cpath d='M2 6h25M2 13h25M2 20h25M2 29h52M2 36h40'/%3E%3C/g%3E%3C/svg%3E"); }
 </style>"""
 
 
