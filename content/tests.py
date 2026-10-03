@@ -8894,6 +8894,17 @@ class MiseEnAvantDepuisLarticleTest(TestCase):
         pks = [a.pk for a in r.context['carousel_articles']]
         self.assertLess(pks.index(epingle.pk), pks.index(promu.pk))
 
+    def test_un_article_recent_decoche_nest_pas_au_carrousel_de_la_conf(self):
+        """« À partir du 29 septembre », décoché partout, restait au
+        diaporama de cnt-so.org : le complément y remontait l'article
+        illustré le plus récent (03/10/2026). Plus de complément."""
+        art = make_article_page(section_slug='principal', title='Le 29 septembre',
+                                slug='le-29-septembre-conf',
+                                featured_image=self._image())
+        r = self.client.get(reverse('content:home'))
+        self.assertNotIn(art.pk, [a.pk for a in r.context['carousel_articles']])
+        self.assertEqual(list(r.context['carousel_articles']), [])
+
     # ── La manchette confédérale, depuis n'importe quel syndicat ─────────────
     # Arnaud, 03/10/2026 : « il faut pouvoir rajouter les articles des autres
     # syndicats à la une mais aussi au carrousel de la conf ». La manchette de
@@ -9237,12 +9248,12 @@ class RetirerDeLaUneNePerdRienTest(TestCase):
         self.assertEqual(vus, {a.pk for a in self.arts},
                          "des articles ne sont servis nulle part")
 
-    def test_l_aide_previent_que_les_recents_y_entrent_seuls(self):
-        """Décocher un article récent ne change rien de visible : la complétion
-        automatique le remet aussitôt. La case doit le dire, sans quoi elle
-        passe pour cassée."""
+    def test_l_aide_dit_que_seuls_les_coches_y_figurent(self):
+        """Depuis le 03/10/2026 le diaporama n'est plus complété : l'aide
+        annonçait encore que « les récents y passent tout seuls »."""
         aide = str(ArticlePage._meta.get_field('in_carousel').help_text)
-        self.assertIn('tout seuls', aide)
+        self.assertNotIn('tout seuls', aide)
+        self.assertIn('Seuls les articles cochés', aide)
         self.assertIn("n'est pas perdu", aide)
 
 

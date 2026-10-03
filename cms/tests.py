@@ -4200,10 +4200,14 @@ class CaseMiseEnAvantHonneteTest(TestCase):
 
 
 class CarrouselCompleteTest(TestCase):
-    """Le carrousel fonctionnait en tout ou rien : tant qu'aucun article
-    n'était coché, l'accueil affichait les 5 récents illustrés ; dès qu'un seul
-    était coché, l'automatique s'arrêtait et il n'affichait plus que celui-là.
-    Mettre un article en avant en retirait quatre."""
+    """Le diaporama n'affiche que les articles choisis : 5 au plus, aucun
+    minimum (Arnaud, 03/10/2026 : « on supprime l'obligation de 5 articles,
+    pas de min »).
+
+    Il se complétait depuis le 16/08/2026 avec les récents illustrés, pour
+    qu'épingler un article n'en retire pas quatre. Mais un article récent,
+    décoché partout, restait alors au diaporama : « À partir du 29
+    septembre » sur cnt-so.org, le 03/10/2026."""
 
     def _articles(self, n, prefixe):
         from wagtail.images.tests.utils import get_test_image_file
@@ -4229,16 +4233,14 @@ class CarrouselCompleteTest(TestCase):
         reponse = self.client.get('/13/')
         return [a.pk for a in reponse.context['carousel_articles']]
 
-    def test_sans_choix_le_carrousel_se_remplit_tout_seul(self):
-        self.assertEqual(len(self._carrousel()), 5)
+    def test_sans_choix_pas_de_carrousel(self):
+        self.assertEqual(self._carrousel(), [])
 
-    def test_un_article_epingle_n_en_retire_pas_quatre(self):
+    def test_un_article_epingle_est_seul(self):
         from cms.models import CarouselArticle
         CarouselArticle.objects.create(page=self.site, article=self.tous[0],
                                        sort_order=0)
-        carrousel = self._carrousel()
-        self.assertEqual(len(carrousel), 5, "épingler un article a vidé le carrousel")
-        self.assertEqual(carrousel[0], self.tous[0].pk, "l'épinglé n'est plus en tête")
+        self.assertEqual(self._carrousel(), [self.tous[0].pk])
 
     def test_l_ordre_choisi_par_le_syndicat_est_conserve(self):
         from cms.models import CarouselArticle
@@ -4255,8 +4257,7 @@ class CarrouselCompleteTest(TestCase):
         carrousel = self._carrousel()
         self.assertEqual(len(carrousel), len(set(carrousel)))
 
-    def test_cinq_epingles_ne_sont_pas_completes(self):
-        """Le complément remplit les places libres, il n'en crée pas."""
+    def test_cinq_epingles_tiennent_tous(self):
         from cms.models import CarouselArticle
         for rang, art in enumerate(self.tous[:5]):
             CarouselArticle.objects.create(page=self.site, article=art,

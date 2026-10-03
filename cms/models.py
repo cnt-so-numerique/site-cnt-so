@@ -1443,17 +1443,18 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
         default=False,
         verbose_name="Diaporama de mon syndicat",
         help_text="Place l'article EN TÊTE du diaporama de VOTRE accueil — le "
-                  "grand bandeau qui défile — et l'y maintient. Vos articles "
-                  "récents illustrés y passent déjà tout seuls : cochez surtout "
-                  "pour y ramener un article plus ancien. 5 au maximum. "
-                  "Décoché, l'article n'est pas perdu — il redescend dans la page.",
+                  "grand bandeau qui défile. Seuls les articles cochés y "
+                  "figurent : sans aucun coché, pas de diaporama. 5 au maximum, "
+                  "le plus ancien laissant sa place. Décoché, l'article n'est "
+                  "pas perdu — il redescend dans la page.",
     )
     in_manchette = models.BooleanField(
         default=False,
         verbose_name="À la une de mon syndicat",
         help_text="Place l'article EN TÊTE de la manchette de VOTRE accueil — "
-                  "les cartes situées sous le diaporama. Même principe : les "
-                  "récents illustrés la remplissent tout seuls, cocher sert à y "
+                  "les cartes situées sous le diaporama. Contrairement au "
+                  "diaporama, les récents illustrés la remplissent tout seuls "
+                  "autour des cochés : cocher sert à y "
                   "maintenir un article. 6 au maximum, le plus ancien coché "
                   "laissant sa place. Coché, il y figure même s'il est aussi "
                   "au diaporama.",

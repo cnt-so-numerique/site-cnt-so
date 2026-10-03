@@ -19,7 +19,7 @@ from .courriel import destinataire_de_reponse
 from .ovh_sync import site_de_diffusion
 from .forms import (ContactForm, DynamicContactForm, NewsletterCaptchaForm,
                     NewsletterSubscribeForm, NewsletterUnsubscribeForm)
-from cms.models import (MANCHETTE_MAX, ArticlePage, CmsCategory, SectionPage, _cle_de_nom,
+from cms.models import (CAROUSEL_MAX, MANCHETTE_MAX, ArticlePage, CmsCategory, SectionPage, _cle_de_nom,
                         section_base_url)
 from taggit.models import Tag as TaggitTag
 
@@ -154,10 +154,12 @@ class HomeView(ListView):
                 carousel.append(article)
                 deja.add(article.pk)
 
-        # Compléter jusqu'à 5, plutôt que de tout couper au premier choisi.
-        # Avant le 16/08/2026, un seul article épinglé faisait disparaître les
-        # quatre autres : mettre un article en avant en retirait quatre.
-        carousel = _completer_vitrine(carousel, base_qs.exclude(featured_image=None))
+        # Les choisis SEULS, 5 au plus et sans minimum (Arnaud, 03/10/2026 :
+        # « on supprime l'obligation de 5 articles, pas de min »). Le
+        # complément automatique remontait l'article le plus récent même
+        # décoché partout : on le décochait, il restait au diaporama. Aucun
+        # choisi : pas de diaporama du tout (`{% if carousel_articles %}`).
+        carousel = carousel[:CAROUSEL_MAX]
         context['carousel_articles'] = carousel
         excl = [a.pk for a in carousel]
 
@@ -316,11 +318,12 @@ def _reseau_tour_de_table(candidats, noms_de_sites, nb=9):
 def _completer_vitrine(choisis, candidats, maximum=5):
     """Les articles épinglés d'abord, puis les récents illustrés jusqu'au maximum.
 
-    Sert les DEUX zones de la vitrine depuis le 12/09/2026 : le diaporama
-    (5 places) et la manchette (6). La règle est la même pour les deux, et
-    c'est tout l'intérêt de les faire passer par ici.
+    Ne sert plus que la manchette (6 places). Le diaporama en est sorti le
+    03/10/2026 : il n'affiche que les articles choisis, sans minimum (Arnaud :
+    « on supprime l'obligation de 5 articles, pas de min ») — décocher un
+    article récent ne le retirait pas, le complément le remontait aussitôt.
 
-    Le carrousel fonctionnait en tout ou rien : tant qu'aucun article n'était
+    Historique — le carrousel fonctionnait en tout ou rien : tant qu'aucun article n'était
     coché, l'accueil affichait les 5 récents illustrés ; dès qu'un seul était
     coché, l'automatique s'arrêtait et le carrousel n'affichait plus que celui-
     là. Mettre un article en avant en retirait donc quatre — l'inverse de ce
@@ -390,8 +393,11 @@ class SiteHomeView(ListView):
         if site.section_type not in ('sectoral', 'regional'):
             self._vitrine_cache = ([], [])
             return self._vitrine_cache
+        # Les choisis seuls, sans complément : même règle que cnt-so.org
+        # (03/10/2026). Un article dépublié depuis n'y figure plus.
         carousel = [ci.article for ci in
-                    site.carousel_items.select_related('article').all()]
+                    site.carousel_items.select_related('article').all()
+                    if ci.article and ci.article.live][:CAROUSEL_MAX]
         candidats = [
             a for a in ArticlePage.objects.live()
             .filter(section_slug__in=site.slugs_contenu)
@@ -400,7 +406,6 @@ class SiteHomeView(ListView):
             .order_by('-publication_date', '-first_published_at')[:20]
             if a.any_image_url
         ]
-        carousel = _completer_vitrine(carousel, candidats)
         deja = {a.pk for a in carousel}
         # Même règle que le diaporama : les articles cochés « À la une de mon
         # syndicat » tiennent la tête, le reste comble les places libres.
