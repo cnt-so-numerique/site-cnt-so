@@ -1536,6 +1536,62 @@ class SyndicatSansBrouillonTest(TestCase):
         content = r.content.decode()
         self.assertIn('name="action-publish"', content)
         self.assertNotIn('Enregistrer le brouillon', content)
+        self.assertNotIn('Rouvrir le site au public', content)
+        # Le gabarit de Wagtail écrivait « Publier » en dur : ce libellé-ci ne
+        # s'était jamais affiché.
+        self.assertIn('>Enregistrer</em>', content)
+
+    def test_le_libelle_dun_site_ferme_ne_deborde_pas_sur_le_suivant(self):
+        """Les boutons de Wagtail sont des instances partagées entre requêtes."""
+        ferme = _ensure_section_page(slug='synd-ferme', name='Synd Fermé',
+                                     site_type='sectoral')
+        ferme.unpublish()
+        self.client.get(f'/cms/snippets/cms/sectionpage/edit/{ferme.pk}/')
+        r = self.client.get(f'/cms/snippets/cms/sectionpage/edit/{self.site.pk}/')
+        self.assertNotContains(r, 'Rouvrir le site au public')
+        self.assertNotContains(r, 'le site reste fermé')
+
+    def test_un_chef_ouvre_la_fiche_dun_syndicat_ferme(self):
+        """Avec la conf en base (comme en prod), le CMS d'un chef est sur
+        `principal` et doit basculer vers le syndicat de la fiche. La bascule
+        n'acceptait que les sites du sélecteur — publiés ou en test : un
+        syndicat fermé sans page de maintenance répondait 404, et ne pouvait
+        donc plus être rouvert depuis l'admin (03/10/2026)."""
+        _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        ferme = _ensure_section_page(slug='synd-ferme', name='Synd Fermé',
+                                     site_type='sectoral')
+        ferme.unpublish()
+        r = self.client.get(f'/cms/snippets/cms/sectionpage/edit/{ferme.pk}/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Rouvrir le site au public')
+
+    def test_un_redacteur_reste_cloisonne_hors_de_ses_syndicats_fermes(self):
+        """L'ouverture ne vaut que pour les chefs confédéraux."""
+        from content.tests import make_redacteur, _setup_editorial_groups
+        _setup_editorial_groups()
+        _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        ferme = _ensure_section_page(slug='synd-ferme', name='Synd Fermé',
+                                     site_type='sectoral')
+        ferme.unpublish()
+        c = Client()
+        c.force_login(make_redacteur(username='redac-voisin', site=self.site))
+        r = c.get(f'/cms/snippets/cms/sectionpage/edit/{ferme.pk}/')
+        self.assertEqual(r.status_code, 404)
+
+    def test_un_syndicat_ferme_ne_se_rouvre_pas_en_enregistrant(self):
+        """Sur un syndicat dépublié, publier c'est le rouvrir : le gros bouton
+        « Enregistrer » le rendait public à la moindre correction de sa fiche
+        (03/10/2026). Il enregistre désormais en brouillon, et la réouverture
+        passe par la flèche, sous son vrai nom."""
+        self.site.unpublish()
+        r = self.client.get(f'/cms/snippets/cms/sectionpage/edit/{self.site.pk}/')
+        self.assertEqual(r.status_code, 200)
+        content = r.content.decode()
+        enregistrer = content.find('Enregistrer (le site reste fermé)')
+        rouvrir = content.find('Rouvrir le site au public')
+        self.assertNotEqual(enregistrer, -1)
+        self.assertNotEqual(rouvrir, -1)
+        self.assertLess(enregistrer, rouvrir, "la réouverture est le bouton principal")
 
     def test_les_articles_gardent_leur_brouillon(self):
         """Le hook ne touche que SectionPage : les articles gardent le circuit brouillon."""

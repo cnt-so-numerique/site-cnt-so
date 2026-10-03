@@ -1,0 +1,18 @@
+{% load i18n wagtailadmin_tags %}
+{% comment %}
+Le bouton « Publier » de Wagtail, mais avec SON libellé : le gabarit d'origine
+écrit « Publier » en dur et ignore `label` (cf. `syndicat_enregistrer_publie_directement`).
+{% endcomment %}
+<button
+    type="submit"
+    name="{{ name }}"
+    value="{{ name }}"
+    class="button action-save button-longrunning"
+    data-controller="w-progress"
+    data-action="w-progress#activate"
+    data-w-progress-active-value="{% trans 'Publishing…' %}"
+>
+    {% icon name=icon_name classname="button-longrunning__icon" %}
+    {% icon name="spinner" %}
+    <em data-w-progress-target="label">{{ label }}</em>
+</button>

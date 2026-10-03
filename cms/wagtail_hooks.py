@@ -473,6 +473,22 @@ class SectionPageViewSet(ViewSetCloisonne, SnippetViewSet):
 
 
 
+def _bouton(item, libelle, gabarit):
+    """Copie d'un bouton du menu d'actions, avec un libellé qui s'affiche.
+
+    Deux pièges de Wagtail 7.4 : ses gabarits écrivent « Publier » et
+    « Enregistrer le brouillon » en dur, sans lire `label` — le « Enregistrer »
+    posé ici depuis l'origine ne s'est donc jamais affiché ; et les boutons
+    sont des instances PARTAGÉES (`get_base_snippet_action_menu_items` est en
+    `lru_cache`), qu'on ne modifie pas sans que l'écran suivant en hérite.
+    """
+    import copy
+    item = copy.copy(item)
+    item.label = libelle
+    item.template_name = gabarit
+    return item
+
+
 @hooks.register('construct_snippet_action_menu')
 def syndicat_enregistrer_publie_directement(menu_items, request, context):
     """« Mon syndicat » est une fiche de réglages : le bouton principal publie
@@ -482,10 +498,29 @@ def syndicat_enregistrer_publie_directement(menu_items, request, context):
     publish = next((i for i in menu_items if i.name == 'action-publish'), None)
     if publish is None:
         return
-    publish.label = 'Enregistrer'
-    menu_items[:] = [publish] + [
-        i for i in menu_items if i.name not in ('action-publish', 'action-save')
-    ]
+    reste = [i for i in menu_items if i.name not in ('action-publish', 'action-save')]
+    instance = context.get('instance')
+    # L'écran passe la DERNIÈRE RÉVISION, dont `live` est celui du jour où
+    # elle a été écrite — vrai, pour un site fermé après coup. Seule la base
+    # dit si le site est fermé maintenant.
+    ferme = bool(instance is not None and instance.pk
+                 and SectionPage.objects.filter(pk=instance.pk, live=False).exists())
+    if not ferme:
+        menu_items[:] = [_bouton(publish, 'Enregistrer', 'cms/action_menu/publier.html')] + reste
+        return
+    # Syndicat FERMÉ : publier, c'est le rouvrir. Le gros bouton publiait
+    # quand même — corriger l'adresse de contact du STUCS pendant son test
+    # l'aurait rendu public sans que personne l'ait voulu (03/10/2026). On
+    # enregistre donc en brouillon, et la réouverture devient un geste
+    # explicite, dans la flèche. Le brouillon suffit au site en test :
+    # `SectionPage.en_test` lit la dernière révision.
+    rouvrir = _bouton(publish, 'Rouvrir le site au public', 'cms/action_menu/publier.html')
+    save = next((i for i in menu_items if i.name == 'action-save'), None)
+    if save is None:
+        menu_items[:] = [rouvrir] + reste
+        return
+    menu_items[:] = [_bouton(save, 'Enregistrer (le site reste fermé)',
+                             'cms/action_menu/enregistrer.html'), rouvrir] + reste
 
 
 @hooks.register('construct_snippet_action_menu')

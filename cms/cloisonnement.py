@@ -17,7 +17,7 @@ from django.http import Http404
 
 from wagtail.snippets.views.chooser import SnippetChooserViewSet
 
-from .site_context import get_current_site, scope_qs, scope_qs_slug
+from .site_context import _is_global_chef, get_current_site, scope_qs, scope_qs_slug
 
 
 class MixinObjetCloisonne:
@@ -66,7 +66,12 @@ class MixinObjetCloisonne:
         syndicat = self._viewset_cloisonne.syndicat_de(objet)
         if syndicat is None:
             return False
-        if not get_available_sites(self.request).filter(pk=syndicat.pk).exists():
+        # Un chef confédéral va partout, syndicats FERMÉS compris. Le
+        # sélecteur ne les propose pas (on n'y rédige pas), mais les refuser
+        # ici rendait la fiche d'un syndicat fermé introuvable — et donc
+        # impossible à rouvrir depuis l'admin (03/10/2026).
+        if not (_is_global_chef(self.request.user)
+                or get_available_sites(self.request).filter(pk=syndicat.pk).exists()):
             return False
         set_current_site(self.request, syndicat.pk)
         if not self._viewset_cloisonne.get_queryset(self.request).filter(pk=objet.pk).exists():

@@ -1,0 +1,18 @@
+{% load i18n wagtailadmin_tags %}
+{% comment %}
+Le bouton « Enregistrer le brouillon » de Wagtail, avec SON libellé (même
+raison que `publier.html`).
+{% endcomment %}
+<button
+    type="submit"
+    class="button action-save button-longrunning"
+    data-controller="w-progress w-kbd"
+    data-action="w-progress#activate"
+    data-w-kbd-key-value="mod+s"
+    data-w-kbd-scope-value="global"
+    data-w-progress-active-value="{% trans 'Saving…' %}"
+>
+    {% icon name="draft" classname="button-longrunning__icon" %}
+    {% icon name="spinner" %}
+    <em data-w-progress-target="label">{{ label }}</em>
+</button>
