@@ -8894,6 +8894,102 @@ class MiseEnAvantDepuisLarticleTest(TestCase):
         pks = [a.pk for a in r.context['carousel_articles']]
         self.assertLess(pks.index(epingle.pk), pks.index(promu.pk))
 
+    # ── La manchette confédérale, depuis n'importe quel syndicat ─────────────
+    # Arnaud, 03/10/2026 : « il faut pouvoir rajouter les articles des autres
+    # syndicats à la une mais aussi au carrousel de la conf ». La manchette de
+    # cnt-so.org ne lisait que les articles de la conf.
+
+    def test_un_article_de_syndicat_coche_monte_a_la_une_de_la_conf(self):
+        art = make_article_page(section_slug='stucs', title='Grève au nettoyage',
+                                slug='greve-une', in_manchette_conf=True,
+                                featured_image=self._image())
+        r = self.client.get(reverse('content:home'))
+        self.assertIn(art.pk, {a.pk for a in r.context['manchette_articles']})
+
+    def test_sans_la_case_il_reste_hors_de_la_une_de_la_conf(self):
+        """Contrôle négatif, et `in_manchette` (la une de SON syndicat) ne
+        suffit pas : elle ne regarde pas la conf."""
+        art = make_article_page(section_slug='stucs', title='Ordinaire',
+                                slug='ordinaire-une', in_manchette=True,
+                                featured_image=self._image())
+        r = self.client.get(reverse('content:home'))
+        self.assertNotIn(art.pk, {a.pk for a in r.context['manchette_articles']})
+
+    def test_les_coches_de_la_conf_restent_a_la_une(self):
+        """Les deux voies coexistent : un article de la conf coché « À la
+        une de mon syndicat » y reste quand un syndicat arrive."""
+        conf = make_article_page(section_slug='principal', title='Conf',
+                                 slug='conf-une', in_manchette=True,
+                                 featured_image=self._image())
+        syndicat = make_article_page(section_slug='stucs', title='Syndicat',
+                                     slug='syndicat-une', in_manchette_conf=True,
+                                     featured_image=self._image())
+        r = self.client.get(reverse('content:home'))
+        pks = {a.pk for a in r.context['manchette_articles']}
+        self.assertTrue({conf.pk, syndicat.pk} <= pks)
+
+    def test_la_septieme_coche_fait_sortir_la_plus_ancienne(self):
+        """Six places partagées entre les deux voies. Le sortant de syndicat
+        ne perd que sa case confédérale : la une de SON syndicat reste."""
+        from datetime import timedelta
+        from django.utils import timezone
+        from django.db.models import Q
+        from cms.models import MANCHETTE_MAX
+        maintenant = timezone.now()
+        ancien = make_article_page(section_slug='stucs', title='Ancien',
+                                   slug='ancien-une', in_manchette=True,
+                                   in_manchette_conf=True)
+        ArticlePage.objects.filter(pk=ancien.pk).update(
+            last_published_at=maintenant - timedelta(days=30))
+        for i in range(MANCHETTE_MAX - 1):
+            art = make_article_page(section_slug='principal', title=f'Conf {i}',
+                                    slug=f'conf-une-{i}', in_manchette=True)
+            ArticlePage.objects.filter(pk=art.pk).update(
+                last_published_at=maintenant - timedelta(days=10 - i))
+        make_article_page(section_slug='stucs', title='Nouveau',
+                          slug='nouveau-une', in_manchette_conf=True)
+        ancien.refresh_from_db()
+        self.assertFalse(ancien.in_manchette_conf)
+        self.assertTrue(ancien.in_manchette, "sa une de syndicat a sauté")
+        a_la_une = ArticlePage.objects.filter(
+            Q(section_slug='principal', in_manchette=True) | Q(in_manchette_conf=True))
+        self.assertEqual(a_la_une.count(), MANCHETTE_MAX)
+
+    def test_chaque_case_confederale_nomme_sa_zone(self):
+        """« À la une de la confédération » remplissait le diaporama."""
+        diaporama = ArticlePage._meta.get_field('featured_on_conf')
+        une = ArticlePage._meta.get_field('in_manchette_conf')
+        self.assertIn('iaporama', str(diaporama.verbose_name))
+        self.assertIn('une', str(une.verbose_name))
+
+    def test_un_redacteur_ne_peut_pas_cocher_les_cases_confederales(self):
+        """Le panneau était seulement caché, et le `HiddenInput` acceptait la
+        valeur postée. Validé par mutation : sans le verrou, le formulaire
+        enregistre la case cochée."""
+        _setup_editorial_groups()
+        redac = make_redacteur(username='redac-conf', site=self.syndicat)
+        art = make_article_page(section_slug='stucs', title='Par un rédacteur',
+                                slug='par-redac-conf')
+        form_class = ArticlePage.get_edit_handler().get_form_class()
+        form = form_class(instance=art, for_user=redac,
+                          parent_page=art.get_parent())
+        for nom in ('featured_on_conf', 'in_manchette_conf'):
+            self.assertTrue(form.fields[nom].disabled, nom)
+            self.assertFalse(form.fields[nom].clean(
+                form.fields[nom].bound_data('on', form.get_initial_for_field(
+                    form.fields[nom], nom))))
+
+    def test_un_chef_peut_les_cocher(self):
+        from django.contrib.auth.models import User
+        chef = User.objects.create_superuser('chef-conf', 'c@x.fr', 'x')
+        art = make_article_page(section_slug='stucs', title='Par un chef',
+                                slug='par-chef-conf')
+        form_class = ArticlePage.get_edit_handler().get_form_class()
+        form = form_class(instance=art, for_user=chef,
+                          parent_page=art.get_parent())
+        for nom in ('featured_on_conf', 'in_manchette_conf'):
+            self.assertFalse(form.fields[nom].disabled, nom)
+
 
 class UneDesSyndicatsTest(TestCase):
     """Les sites de syndicat ont désormais la manchette de la confédération.

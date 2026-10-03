@@ -168,7 +168,18 @@ class HomeView(ListView):
         restants = base_qs.exclude(pk__in=excl).exclude(featured_image=None)
         # Le dernier coché d'abord, comme sur les accueils de syndicat, et
         # même s'il est aussi au diaporama : c'est un choix explicite.
-        coches = list(base_qs.exclude(featured_image=None).filter(in_manchette=True)
+        #
+        # S'y ajoutent les articles des syndicats cochés « À la une de la
+        # confédération » par un chef (03/10/2026). Ils ne passent pas par le
+        # filtre d'image : un chef les a choisis, et l'image d'un vieil
+        # article de syndicat est souvent héritée de WordPress, hors
+        # `featured_image` — la carte l'affiche quand même (`any_image_url`).
+        coches = list(ArticlePage.objects.publics()
+                      .filter(Q(pk__in=base_qs.exclude(featured_image=None)
+                                .filter(in_manchette=True).values('pk'))
+                              | Q(in_manchette_conf=True))
+                      .select_related('featured_image')
+                      .prefetch_related('cms_categories')
                       .order_by('-last_published_at')[:MANCHETTE_MAX])
         manchette = _completer_vitrine(coches, restants, maximum=MANCHETTE_MAX)
         context['manchette_articles'] = manchette

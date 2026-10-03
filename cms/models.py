@@ -1185,6 +1185,7 @@ def panneaux_article():
             # Réservés aux chefs : imposés par `form_valid` pour les autres,
             # et leur panneau disparaît au lieu de laisser une étiquette vide.
             PanneauChefSeulement('featured_on_conf'),
+            PanneauChefSeulement('in_manchette_conf'),
             # `fiche_pratique` n'est plus proposé (Arnaud, 17/09/2026) : la
             # case promettait un tract A4 pour n'importe quel article, alors
             # qu'un seul avait été mis en page pour ça. Le champ, la route
@@ -1216,6 +1217,11 @@ class PanneauChefSeulement(FieldPanel):
             # Import différé : content.admin_utils remonte jusqu'à cms.models.
             from content.admin_utils import is_chef
             return super().is_shown() and is_chef(self.request.user)
+
+
+#: Les cases qui engagent l'accueil de cnt-so.org : affichées aux seuls chefs
+#: (`PanneauChefSeulement`), refusées aux autres (`ArticlePageForm`).
+CHAMPS_CHEF_SEULEMENT = ('featured_on_conf', 'in_manchette_conf')
 
 
 class ArticlePageForm(WagtailAdminPageForm):
@@ -1250,6 +1256,18 @@ class ArticlePageForm(WagtailAdminPageForm):
         validation) ignore `initial`, et un article existant a déjà un corps.
         """
         super().__init__(*args, **kwargs)
+        # Le verrou des cases confédérales. `PanneauChefSeulement` ne fait que
+        # cacher le panneau et le `HiddenInput` de la vue snippet acceptait
+        # toujours la valeur postée : un rédacteur pouvait s'inviter sur
+        # l'accueil de cnt-so.org en forgeant sa requête. Un champ `disabled`
+        # ignore ce qui arrive et garde la valeur en base.
+        utilisateur = getattr(self, 'for_user', None)
+        if utilisateur is not None:
+            from content.admin_utils import is_chef
+            if not is_chef(utilisateur):
+                for nom in CHAMPS_CHEF_SEULEMENT:
+                    if nom in self.fields:
+                        self.fields[nom].disabled = True
         champ = self.fields.get('body')
         if champ is None or self.instance.pk or self.initial.get('body'):
             return
@@ -1403,11 +1421,26 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
                   "laissant sa place. Coché, il y figure même s'il est aussi "
                   "au diaporama.",
     )
+    # Les deux zones de cnt-so.org, même découpage que pour un syndicat.
+    # `featured_on_conf` s'appelait « À la une de la confédération » alors
+    # qu'il remplit le DIAPORAMA, et la manchette de la conf ne prenait que
+    # des articles de la conf : impossible d'y mettre celui d'un syndicat.
+    # Arnaud, 03/10/2026 : « il faut pouvoir rajouter les articles des autres
+    # syndicats à la une mais aussi au carrousel de la conf ».
     featured_on_conf = models.BooleanField(
         default=False,
+        verbose_name="Diaporama de la confédération",
+        help_text="Place l'article dans le diaporama d'accueil de cnt-so.org — "
+                  "le grand bandeau qui défile —, quel que soit le syndicat "
+                  "qui l'a écrit. Réservé aux chefs.",
+    )
+    in_manchette_conf = models.BooleanField(
+        default=False,
         verbose_name="À la une de la confédération",
-        help_text="Place l'article dans le diaporama d'accueil de cnt-so.org, "
-                  "quel que soit le syndicat qui l'a écrit. Réservé aux chefs.",
+        help_text="Place l'article en tête de la manchette de cnt-so.org — les "
+                  "cartes situées sous le diaporama —, quel que soit le "
+                  "syndicat qui l'a écrit. 6 au maximum, le plus ancien coché "
+                  "laissant sa place. Réservé aux chefs.",
     )
     fiche_pratique = models.BooleanField(
         default=False,
@@ -1538,8 +1571,13 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
                     self.section_slug = 'principal'
         vient_d_etre_mis_a_la_une = self.in_manchette and not (
             self.pk and ArticlePage.objects.filter(pk=self.pk, in_manchette=True).exists())
+        vient_d_etre_mis_a_la_une_conf = self.in_manchette_conf and not (
+            self.pk and ArticlePage.objects.filter(pk=self.pk, in_manchette_conf=True).exists())
         super().save(*args, **kwargs)
-        if vient_d_etre_mis_a_la_une:
+        if vient_d_etre_mis_a_la_une_conf or (
+                vient_d_etre_mis_a_la_une and self.section_slug == 'principal'):
+            self._laisser_place_a_la_une_conf()
+        elif vient_d_etre_mis_a_la_une:
             self._laisser_place_a_la_une()
         # Sync in_carousel ↔ CarouselArticle, sur TOUS les sites.
         #
@@ -1596,6 +1634,25 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
         sortants = autres[MANCHETTE_MAX - 1:]
         if sortants:
             ArticlePage.objects.filter(pk__in=sortants).update(in_manchette=False)
+
+    def _laisser_place_a_la_une_conf(self):
+        """Même règle pour la une de cnt-so.org, dont les six places sont
+        partagées entre les articles de la conf (« À la une de mon syndicat »)
+        et ceux des syndicats (« À la une de la confédération »).
+
+        Un article de syndicat qui sort ne perd que sa case confédérale : sa
+        place à la une de SON syndicat ne regarde pas la conf.
+        """
+        autres = list(ArticlePage.objects.filter(
+            models.Q(section_slug='principal', in_manchette=True)
+            | models.Q(in_manchette_conf=True),
+        ).exclude(pk=self.pk).order_by('-last_published_at', '-pk')
+            .values_list('pk', flat=True))
+        sortants = autres[MANCHETTE_MAX - 1:]
+        if sortants:
+            ArticlePage.objects.filter(pk__in=sortants).update(in_manchette_conf=False)
+            ArticlePage.objects.filter(pk__in=sortants, section_slug='principal').update(
+                in_manchette=False)
 
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)
