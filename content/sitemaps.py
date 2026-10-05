@@ -194,7 +194,10 @@ class SectionStaticSitemap(Sitemap):
         self.section = section
 
     def items(self):
-        return ['/', '/contact/', '/rejoindre/', '/ressources/', '/agenda/']
+        pages = ['/', '/contact/', '/rejoindre/', '/ressources/', '/agenda/']
+        if not self.section.peut_adherer:
+            pages.remove('/rejoindre/')  # redirige vers /contact/
+        return pages
 
     def location(self, obj):
         return obj

@@ -1272,13 +1272,15 @@ class PagesDuSyndicatView(View):
                 'edition': fiche_url,
                 'vue': absolue(site.get_absolute_url()),
             },
-            {
+            # Pas pour une union régionale : on n'y adhère pas, sa page
+            # « Nous rejoindre » renvoie au contact (`peut_adherer`).
+            *([{
                 'titre': "Nous rejoindre",
                 'quoi': "Le bandeau d'adhésion et le corps de la page.",
                 'ou': "Fiche du syndicat, panneau « Page Nous rejoindre »",
                 'edition': fiche_url,
                 'vue': absolue(site.get_rejoindre_url()),
-            },
+            }] if site.peut_adherer else []),
             {
                 'titre': "Contact",
                 'quoi': "Le destinataire, le texte d'introduction et les champs du formulaire.",

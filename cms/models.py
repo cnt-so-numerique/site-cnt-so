@@ -851,6 +851,14 @@ class SectionPage(SeoMixin, Page):
     @property
     def rejoindre_bouton_libelle(self):
         return self.rejoindre_bouton.strip() or REJOINDRE_BOUTON_DEFAUT
+
+    @property
+    def peut_adherer(self):
+        """Une union régionale ne prend pas d'adhésions : on adhère à un
+        syndicat, pas à une structure régionale (Arnaud, 05/10/2026). Tout ce
+        qui mène à l'adhésion — page « Nous rejoindre », `/adherer/<slug>/`,
+        cartouche de la colonne — la remplace par le formulaire de contact."""
+        return self.section_type != 'regional'
     agenda_text = StreamField(
         [('contenu', blocks.RichTextBlock(features=RICHTEXT_FEATURES, label="Contenu"))],
         blank=True, verbose_name="Agenda",
@@ -1145,12 +1153,13 @@ class SectionPage(SeoMixin, Page):
 
     def get_rejoindre_url(self):
         from django.urls import reverse
+        # Rejoindre une union régionale, c'est lui écrire (voir `peut_adherer`).
+        page = 'rejoindre' if self.peut_adherer else 'contact'
         if self.base_url:
-            return f'{self.base_url}/rejoindre/'
+            return f'{self.base_url}/{page}/'
         # Slug Wagtail, comme get_absolute_url : cette route accepte les deux,
         # mais rien ne gagne à servir deux adresses pour la même page.
-        slug = self.slug
-        return reverse('content:site_rejoindre', kwargs={'site_slug': slug})
+        return reverse(f'content:site_{page}', kwargs={'site_slug': self.slug})
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)

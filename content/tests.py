@@ -4425,6 +4425,44 @@ class SiteRejoindreViewTest(TestCase):
         self.assertFalse(ContactMessage.objects.filter(email='alice@test.fr').exists())
 
 
+class UnionRegionaleSansAdhesionTest(TestCase):
+    """On n'adhère pas à une union régionale, seulement à un syndicat
+    (05/10/2026) : tout chemin vers l'adhésion y mène au formulaire de contact."""
+
+    def setUp(self):
+        self.region = _ensure_section_page(slug='region-test', name='UR Test', site_type='regional')
+        self.syndicat = _ensure_section_page(slug='synd-test', name='Synd Test', site_type='sectoral')
+
+    def test_rejoindre_redirige_vers_le_contact(self):
+        r = self.client.get('/region-test/rejoindre/')
+        self.assertRedirects(r, '/region-test/contact/', fetch_redirect_response=False)
+
+    def test_adherer_redirige_vers_le_contact_meme_avec_un_formulaire(self):
+        self.region.framaform_url = 'https://framaforms.org/x'
+        self.region.adhesion_en_ligne = True
+        self.region.save()
+        with self.settings(ADHESION_USE_NEW_APP=True):
+            r = self.client.get('/adherer/region-test/')
+        self.assertRedirects(r, '/region-test/contact/', fetch_redirect_response=False)
+
+    def test_la_colonne_ne_propose_pas_d_adherer(self):
+        r = self.client.get('/region-test/')
+        self.assertEqual(r.status_code, 200)
+        self.assertNotContains(r, 'Adhérer')
+        self.assertContains(r, 'href="/region-test/contact/"')
+
+    def test_un_syndicat_garde_son_adhesion(self):
+        self.assertEqual(self.client.get('/synd-test/rejoindre/').status_code, 200)
+        r = self.client.get('/synd-test/')
+        self.assertContains(r, 'Nous contacter / Adhérer')
+        self.assertContains(r, 'href="/synd-test/rejoindre/"')
+
+    def test_le_sitemap_ne_liste_pas_rejoindre(self):
+        from content.sitemaps import SectionStaticSitemap
+        self.assertNotIn('/rejoindre/', SectionStaticSitemap(self.region).items())
+        self.assertIn('/rejoindre/', SectionStaticSitemap(self.syndicat).items())
+
+
 class SiteRessourcesViewTest(TestCase):
 
     def setUp(self):
@@ -9438,7 +9476,7 @@ class AdhesionEnLigneParSyndicatTest(TestCase):
         self.stucs = _ensure_section_page(slug='stucs', name='CNT-SO STUCS', site_type='sectoral')
         self.stucs.framaform_url = 'https://framaforms.org/adherer-au-stucs'
         self.stucs.save(update_fields=['framaform_url'])
-        self.numerique = _ensure_section_page(slug='numerique', name='CNT-SO Numérique')
+        self.numerique = _ensure_section_page(slug='numerique', name='CNT-SO Numérique', site_type='sectoral')
         # Le Numérique s'appelle `stnum` dans l'application d'adhésion.
         self.numerique.legacy_site_slug = 'stnum'
         self.numerique.save(update_fields=['legacy_site_slug'])
@@ -9495,7 +9533,7 @@ class AdhesionUrlContradictoireTest(TestCase):
 
     def setUp(self):
         make_site(slug='principal')
-        self.educ = _ensure_section_page(slug='education', name='CNT-SO Éducation')
+        self.educ = _ensure_section_page(slug='education', name='CNT-SO Éducation', site_type='sectoral')
         self.educ.framaform_url = 'https://adhesion.cnt-so.org/adherer/education/'
         self.educ.save(update_fields=['framaform_url'])
 

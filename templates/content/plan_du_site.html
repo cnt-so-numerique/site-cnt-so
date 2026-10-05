@@ -68,7 +68,7 @@
       <li><a href="{% url 'content:newsletter_subscribe' %}">Newsletter</a></li>
       {% else %}
       <li><a href="{{ plan_site.get_absolute_url }}">Accueil — {{ plan_site.name }}</a></li>
-      <li><a href="{% section_url 'content:site_contact' plan_site %}">Contact / Adhérer</a></li>
+      <li><a href="{% section_url 'content:site_contact' plan_site %}">Contact{% if plan_site.peut_adherer %} / Adhérer{% endif %}</a></li>
       <li><a href="{% url 'content:souscription' %}">Nous soutenir</a></li>
       <li><a href="{% section_url 'content:site_newsletter_subscribe' plan_site %}">Newsletter</a></li>
       <li><a href="{% url 'content:home' %}">Retour site principal</a></li>

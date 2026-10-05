@@ -1708,6 +1708,8 @@ class SiteRejoindreView(View):
 
     def get(self, request, site_slug):
         site = get_section_or_404(site_slug, request=request)
+        if not site.peut_adherer:
+            return redirect(site.get_rejoindre_url())
         ctx = {
             'site': site,
             'categories': CmsCategory.objects.filter(section_slug__in=site.slugs_contenu),
@@ -1797,6 +1799,11 @@ def adherer(request, site_slug):
     section = SectionPage.objects.filter(
         Q(slug=site_slug) | Q(legacy_site_slug=site_slug), live=True
     ).first()
+
+    # Une union régionale n'adhère personne : on lui écrit, elle oriente vers
+    # le bon syndicat. Avant le réglage global, qui ne doit pas l'emporter.
+    if section and not section.peut_adherer:
+        return redirect(url_contact_du_syndicat(section))
 
     # Ouverte syndicat par syndicat (`adhesion_en_ligne`, 15/09/2026) : le
     # réglage global aurait envoyé huit boutons vers une application qui n'en
