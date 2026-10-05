@@ -9868,9 +9868,14 @@ class AlerteErreurParCourrielTest(TestCase):
     @override_settings(ADMINS=[('Technique', 'technique@cnt-so.org')])
     def test_le_compteur_ne_grossit_pas_sans_fin(self):
         """Un gestionnaire d'alertes qui fuit serait une panne de plus."""
+        # L'envoi coupé : chaque courriel rendait la page d'erreur complète,
+        # 10 s pour 560 alertes que ce test ne lit pas (l'envoi est vérifié
+        # plus haut). Le tri et le ménage, eux, tournent comme en vrai.
+        from django.utils.log import AdminEmailHandler
         h = self._handler()
-        for i in range(h.MAX_SIGNATURES + 60):
-            h.emit(self._enregistrement(f'/article/{i}/'))
+        with patch.object(AdminEmailHandler, 'emit'):
+            for i in range(h.MAX_SIGNATURES + 60):
+                h.emit(self._enregistrement(f'/article/{i}/'))
         self.assertLessEqual(len(h._vues), h.MAX_SIGNATURES)
 
     @override_settings(ADMINS=[])
