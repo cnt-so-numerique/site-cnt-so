@@ -204,6 +204,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # 18/08/2026). `--parallel 1` reste possible pour déboguer.
 TEST_RUNNER = 'cntso.test_runner.RunnerParallele'
 
+# Hacheur rapide pendant les tests, et seulement là. PBKDF2 coûte 0,38 s par
+# mot de passe — c'est voulu en production — et chaque `create_user` ou `login`
+# des tests le payait : 13 s sur les 16 de Phase6ScopingTest (mesuré le
+# 05/10/2026). Ici plutôt que dans le lanceur : les processus fils de
+# `--parallel` relisent ce fichier, pas forcément les réglages du parent.
+import sys as _sys
+if _sys.argv[1:2] == ['test']:
+    PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
+
 # ── Envoi d'e-mails ────────────────────────────────────────────────────────────
 # Par défaut en développement : affiche les e-mails dans la console
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
