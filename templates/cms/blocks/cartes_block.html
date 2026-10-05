@@ -1,7 +1,12 @@
+{% load wagtailimages_tags %}
 <div class="bloc-cartes">
   {% for carte in value.cartes %}
     <div class="bloc-carte">
+      {% if carte.image %}
+      <div class="bloc-carte-picto bloc-carte-image" aria-hidden="true">{% image carte.image max-88x88 alt="" %}</div>
+      {% else %}
       <div class="bloc-carte-picto" aria-hidden="true">{% include "cms/blocks/pictogrammes/"|add:carte.pictogramme|add:".svg" %}</div>
+      {% endif %}
       <div class="bloc-carte-corps">
         <h3 class="bloc-carte-titre">{{ carte.titre }}</h3>
         <p class="bloc-carte-texte">{{ carte.texte|linebreaksbr }}</p>

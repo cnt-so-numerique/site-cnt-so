@@ -1281,6 +1281,11 @@
             display: flex; align-items: center; justify-content: center;
         }
         .article-content .bloc-carte-picto svg { display: block; }
+        /* Image personnelle : sans le fond noir, qui la mangerait. */
+        .article-content .bloc-carte-image { background: none; }
+        .article-content .bloc-carte-image img {
+            width: 44px; height: 44px; object-fit: contain; display: block;
+        }
         .article-content .bloc-carte-corps { flex: 1; min-width: 0; }
         .article-content .bloc-carte-titre {
             font-family: var(--font-heading);

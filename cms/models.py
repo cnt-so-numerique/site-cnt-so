@@ -609,7 +609,13 @@ PICTOGRAMMES_CARTE = [
 
 class CarteItem(blocks.StructBlock):
     pictogramme = blocks.ChoiceBlock(
-        choices=PICTOGRAMMES_CARTE, default='etoile', label="Pictogramme")
+        choices=PICTOGRAMMES_CARTE, default='etoile', label="Pictogramme",
+        help_text="Ignoré si une image personnelle est choisie.")
+    # Pour sortir des six pictogrammes sans repasser par le code (05/10/2026).
+    image = ImageChooserBlock(
+        required=False, label="Image personnelle",
+        help_text="Remplace le pictogramme. Préférez une image carrée et "
+                  "simple, sur fond transparent : elle s'affiche en petit.")
     titre = blocks.CharBlock(label="Titre", max_length=80)
     texte = blocks.TextBlock(label="Texte")
 

@@ -1382,6 +1382,20 @@ class QuiSommesNousViewTest(TestCase):
         self.assertContains(r, 'Texte de carte')
         self.assertContains(r, 'M9 12l2 2 4-4')  # le tracé du bouclier
 
+    def test_une_image_personnelle_remplace_le_pictogramme(self):
+        from wagtail.images.models import Image
+        from wagtail.images.tests.utils import get_test_image_file
+        image = Image.objects.create(title='Mégaphone', file=get_test_image_file())
+        self._page(body=[{'type': 'cartes', 'value': {'cartes': [
+            {'pictogramme': 'bouclier', 'image': image.pk,
+             'titre': 'Avec image', 'texte': 'Texte'},
+            {'pictogramme': 'etoile', 'titre': 'Sans image', 'texte': 'Texte'}]}}])
+        r = self.client.get(reverse('content:qui_sommes_nous'))
+        self.assertContains(r, 'bloc-carte-image')
+        self.assertContains(r, image.get_rendition('max-88x88').url)
+        self.assertNotContains(r, 'M9 12l2 2 4-4')  # le bouclier est remplacé
+        self.assertContains(r, 'M12 2l2.4 7.4')      # l'étoile de l'autre carte reste
+
 
 class RemplitQuiSommesNousTest(TestCase):
     """La commande qui recopie dans le CMS le texte d'avant le 05/10/2026."""
