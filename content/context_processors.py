@@ -52,7 +52,7 @@ def menu_context(request):
             'items': [
                 ('reflexions', 'Réflexions'),
                 ('orientations-presentation', 'Orientations – Présentation'),
-                ('actions', 'Actions'),
+                ('actions', 'Actions et actualités'),
             ]
         },
         'syndicats': {
