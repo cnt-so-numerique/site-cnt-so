@@ -5676,7 +5676,8 @@ class ImportRubriquesRangeesTest(TestCase):
         _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
         # Une migration de données la crée déjà dans la base de test.
         self.actions, _ = CmsCategory.objects.get_or_create(
-            slug='actions', section_slug='principal', defaults={'name': 'Actions'})
+            slug='actions-et-actualites', section_slug='principal',
+            defaults={'name': 'Actions et actualités'})
 
     def _importer(self):
         from django.core.management import call_command

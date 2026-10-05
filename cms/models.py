@@ -89,6 +89,15 @@ def _cle_de_nom(valeur):
                    if unicodedata.category(c) != 'Mn' and c.isalnum())
 
 
+#: Catégories de la conf dont l'adresse a changé : ancien slug → nouveau. Lu
+#: par la page de catégorie et son flux, qui redirigent en 301. Dans le code
+#: plutôt qu'en redirection Wagtail : celle-ci n'agit que sur un 404, et la
+#: vue renvoie un slug inconnu vers le syndicat homonyme avant d'en arriver là.
+CATEGORIES_CONF_RENOMMEES = {
+    'actions': 'actions-et-actualites',  # 05/10/2026
+}
+
+
 class CmsCategory(models.Model):
     """Catégorie d'article — snippet Wagtail, pas une Page."""
     name = models.CharField(max_length=200)

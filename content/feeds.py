@@ -93,6 +93,10 @@ class CategoryFeed(Feed):
         `/liens/feed/` et `/restauration/feed/` renvoyaient tous 500.
         """
         slug = kwargs.get('slug')
+        from cms.models import CATEGORIES_CONF_RENOMMEES
+        if slug in CATEGORIES_CONF_RENOMMEES:
+            return redirect('content:category_rss_feed',
+                            slug=CATEGORIES_CONF_RENOMMEES[slug], permanent=True)
         if slug and not CmsCategory.objects.filter(
                 slug=slug, section_slug='principal').exists():
             ailleurs = CmsCategory.dun_syndicat_publie(slug)

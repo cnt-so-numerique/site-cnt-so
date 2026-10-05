@@ -4517,6 +4517,40 @@ class SiteRejoindreViewTest(TestCase):
         self.assertFalse(ContactMessage.objects.filter(email='alice@test.fr').exists())
 
 
+class CategorieRenommeeTest(TestCase):
+    """/categorie/actions/ est devenue /categorie/actions-et-actualites/
+    (05/10/2026) : l'ancienne adresse, partagée, doit y mener."""
+
+    def setUp(self):
+        make_site()
+        self.cat = CmsCategory.objects.get_or_create(
+            slug='actions-et-actualites', section_slug='principal',
+            defaults={'name': 'Actions et actualités'})[0]
+
+    def test_l_ancienne_adresse_redirige_en_301(self):
+        r = self.client.get('/categorie/actions/')
+        self.assertRedirects(r, '/categorie/actions-et-actualites/', status_code=301)
+
+    def test_meme_si_un_syndicat_a_une_categorie_homonyme(self):
+        """Sans la table, la vue renverrait vers la catégorie du syndicat."""
+        make_site('autre', wp_blog_id=9, site_type='sectoral', name='Autre')
+        make_cms_category(name='Actions', slug='actions', section_slug='autre')
+        r = self.client.get('/categorie/actions/')
+        self.assertRedirects(r, '/categorie/actions-et-actualites/', status_code=301)
+
+    def test_le_flux_redirige_aussi(self):
+        r = self.client.get('/categorie/actions/feed/')
+        self.assertRedirects(r, '/categorie/actions-et-actualites/feed/',
+                             status_code=301, fetch_redirect_response=False)
+
+    def test_l_accueil_affiche_la_rubrique(self):
+        art = make_article_page(title='Grève au dépôt', slug='greve-au-depot')
+        art.cms_categories.add(self.cat)
+        art.save()  # relation modelcluster : écrite au save()
+        r = self.client.get('/')
+        self.assertIn(art.pk, [a.pk for a in r.context['actions_articles']])
+
+
 class UnionRegionaleSansAdhesionTest(TestCase):
     """On n'adhère pas à une union régionale, seulement à un syndicat
     (05/10/2026) : tout chemin vers l'adhésion y mène au formulaire de contact."""

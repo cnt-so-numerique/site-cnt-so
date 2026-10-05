@@ -128,7 +128,7 @@ class Command(BaseCommand):
     # en même temps que le nom, l'import ne peut plus les reconnaître seul.
     # Voir tasks/chantier-categories-lancement.md, § 1.
     ALIAS_CATEGORIES = {
-        'principal': {'actualites-luttes': 'actions'},
+        'principal': {'actualites-luttes': 'actions-et-actualites'},
     }
 
     def _import_categories(self):

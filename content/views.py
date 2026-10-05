@@ -198,7 +198,7 @@ class HomeView(ListView):
         # Droits
         context['droits_articles'] = base_qs.filter(cms_categories__slug='droit')[:5]
         # Actions (remplace sans-papiers)
-        context['actions_articles'] = base_qs.filter(cms_categories__slug='actions')[:5]
+        context['actions_articles'] = base_qs.filter(cms_categories__slug='actions-et-actualites')[:5]
 
         context.update(_sidebar_context('principal'))
 
@@ -707,6 +707,10 @@ class CategoryDetailView(ListView):
         dans les navigateurs et empêcherait le retour.
         """
         slug = kwargs['slug']
+        from cms.models import CATEGORIES_CONF_RENOMMEES
+        if slug in CATEGORIES_CONF_RENOMMEES:
+            return redirect('content:category_detail',
+                            slug=CATEGORIES_CONF_RENOMMEES[slug], permanent=True)
         self.category = CmsCategory.objects.filter(
             slug=slug, section_slug='principal').first()
         if self.category is None:
