@@ -1,3 +1,18 @@
+# À faire — demandé le 05/10/2026 : « Qui sommes-nous » modifiable
+
+Constat : texte écrit en dur dans `qui_sommes_nous.html` ; la page Wagtail
+`qui-sommes-nous` existe mais l'URL est prise par la vue ; les deux images de
+la page sont en 404 en prod (anciennes adresses WordPress).
+
+- [x] Bloc « Cartes » (pictogramme + titre + texte), dans tous les corps de page
+- [x] La vue lit la page Wagtail : corps dans la colonne, extrait dans le bandeau
+- [x] Commande `remplit_qui_sommes_nous` : recopie le texte actuel (révision
+      publiée), crée la page si absente, refuse d'écraser un corps rempli
+- [x] Tests + mutation ; suite complète ; contrôle visuel
+- [ ] Déploiement : migrate + commande en prod
+
+Aussi : le bloc « Citation » n'avait aucun style sur tout le site (corrigé dans base.html).
+
 # À faire — demandé le 17/09/2026
 
 ## 1. Retirer la case « Fiche pratique — téléchargeable en tract »

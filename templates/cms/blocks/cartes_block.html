@@ -1,0 +1,11 @@
+<div class="bloc-cartes">
+  {% for carte in value.cartes %}
+    <div class="bloc-carte">
+      <div class="bloc-carte-picto" aria-hidden="true">{% include "cms/blocks/pictogrammes/"|add:carte.pictogramme|add:".svg" %}</div>
+      <div class="bloc-carte-corps">
+        <h3 class="bloc-carte-titre">{{ carte.titre }}</h3>
+        <p class="bloc-carte-texte">{{ carte.texte|linebreaksbr }}</p>
+      </div>
+    </div>
+  {% endfor %}
+</div>

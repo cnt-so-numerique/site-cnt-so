@@ -710,3 +710,12 @@ qui a disparu sans bruit. La suite complète a alors tourné sur l'ancien code.
 Règle : muter un fichier propre avec `git stash` / `git diff > patch` ou une
 copie au nom unique dans le scratchpad, et vérifier `git diff --stat` après
 restauration.
+
+## 05/10/2026 — Wagtail : la « dernière révision » n'est pas toujours ce que charge l'éditeur
+
+`get_latest_revision_as_object()` renvoie la page publiée elle-même tant qu'il
+n'y a pas de brouillon en attente (`has_unpublished_changes` faux). Écrire un
+champ sans révision sur une page sans brouillon ne se fait donc PAS effacer au
+premier « Publier ». J'avais affirmé le contraire (migration 0043, commande
+`remplit_qui_sommes_nous`) ; la mutation l'a démenti. Règle : un risque se
+prouve par une mutation qui échoue, pas par un commentaire.

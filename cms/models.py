@@ -595,6 +595,44 @@ class FileBlock(blocks.StructBlock):
         template = 'cms/blocks/file_block.html'
 
 
+#: Les pictogrammes des cartes. Dessinés pour « Qui sommes-nous » ; une liste
+#: fermée plutôt qu'un champ d'image : ils restent nets, assortis, et légers.
+PICTOGRAMMES_CARTE = [
+    ('groupe', 'Groupe'),
+    ('horloge', 'Horloge'),
+    ('croix', 'Croix'),
+    ('bouclier', 'Bouclier'),
+    ('cadenas', 'Cadenas'),
+    ('etoile', 'Étoile'),
+]
+
+
+class CarteItem(blocks.StructBlock):
+    pictogramme = blocks.ChoiceBlock(
+        choices=PICTOGRAMMES_CARTE, default='etoile', label="Pictogramme")
+    titre = blocks.CharBlock(label="Titre", max_length=80)
+    texte = blocks.TextBlock(label="Texte")
+
+    class Meta:
+        icon = 'form'
+        label = "Carte"
+
+
+class CartesBlock(blocks.StructBlock):
+    """Une grille de cartes : principes, services, revendications.
+
+    Créé le 05/10/2026 pour rendre « Qui sommes-nous » modifiable : ses six
+    principes étaient écrits en dur dans le gabarit.
+    """
+
+    cartes = blocks.ListBlock(CarteItem(), label="Cartes", min_num=1, max_num=12)
+
+    class Meta:
+        icon = 'grip'
+        label = "Cartes"
+        template = 'cms/blocks/cartes_block.html'
+
+
 class QuoteBlock(blocks.StructBlock):
     text = blocks.RichTextBlock(
         features=['bold', 'italic'],
@@ -647,6 +685,7 @@ ARTICLE_BODY_BLOCKS = [
     ('encadre', EncadreBlock()),
     ('boutons', BoutonsBlock()),
     ('chiffres', ChiffresBlock()),
+    ('cartes', CartesBlock()),
     ('separateur', SeparateurBlock()),
     ('gallery', GalleryBlock()),
     ('file', FileBlock()),

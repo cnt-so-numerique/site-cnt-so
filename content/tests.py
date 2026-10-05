@@ -1347,19 +1347,97 @@ class QuiSommesNousViewTest(TestCase):
         response = self.client.get(reverse('content:qui_sommes_nous'))
         self.assertEqual(response.context['site'], self.site)
 
-    def test_page_in_context_when_exists(self):
-        page = Page.objects.create(
-            site=self.site, title='QSN', slug='qui-sommes-nous', status='publish'
-        )
-        response = self.client.get(reverse('content:qui_sommes_nous'))
-        self.assertEqual(response.context['page'], page)
+    # Le texte vient du CMS depuis le 05/10/2026 : page de contenu
+    # « qui-sommes-nous » de la confédération (corps + extrait).
 
-    def test_page_none_when_not_published(self):
-        Page.objects.create(
-            site=self.site, title='QSN', slug='qui-sommes-nous', status='draft'
-        )
-        response = self.client.get(reverse('content:qui_sommes_nous'))
-        self.assertIsNone(response.context['page'])
+    def _page(self, **kwargs):
+        return make_content_page(title='Qui sommes-nous ?', slug='qui-sommes-nous', **kwargs)
+
+    def test_le_corps_du_cms_remplit_la_colonne(self):
+        self._page(body=[{'type': 'rich_text', 'value': '<p>Texte saisi dans le CMS</p>'}])
+        r = self.client.get(reverse('content:qui_sommes_nous'))
+        self.assertContains(r, 'Texte saisi dans le CMS')
+
+    def test_l_extrait_remplit_le_bandeau(self):
+        self._page(excerpt='Accroche saisie dans le CMS')
+        r = self.client.get(reverse('content:qui_sommes_nous'))
+        self.assertContains(r, 'Accroche saisie dans le CMS')
+
+    def test_une_page_depubliee_n_est_pas_lue(self):
+        self._page(live=False, body=[{'type': 'rich_text', 'value': '<p>Brouillon caché</p>'}])
+        r = self.client.get(reverse('content:qui_sommes_nous'))
+        self.assertIsNone(r.context['page'])
+        self.assertNotContains(r, 'Brouillon caché')
+
+    def test_la_page_d_un_syndicat_n_est_pas_lue(self):
+        self._page(section_slug='stucs', body=[{'type': 'rich_text', 'value': '<p>Page du STUCS</p>'}])
+        r = self.client.get(reverse('content:qui_sommes_nous'))
+        self.assertNotContains(r, 'Page du STUCS')
+
+    def test_le_bloc_cartes_s_affiche(self):
+        self._page(body=[{'type': 'cartes', 'value': {'cartes': [
+            {'pictogramme': 'bouclier', 'titre': 'Titre de carte', 'texte': 'Texte de carte'}]}}])
+        r = self.client.get(reverse('content:qui_sommes_nous'))
+        self.assertContains(r, '<h3 class="bloc-carte-titre">Titre de carte</h3>', html=True)
+        self.assertContains(r, 'Texte de carte')
+        self.assertContains(r, 'M9 12l2 2 4-4')  # le tracé du bouclier
+
+
+class RemplitQuiSommesNousTest(TestCase):
+    """La commande qui recopie dans le CMS le texte d'avant le 05/10/2026."""
+
+    def setUp(self):
+        make_site()
+        _get_article_parent()
+
+    def _lance(self, *args):
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        call_command('remplit_qui_sommes_nous', *args, stdout=out)
+        return out.getvalue()
+
+    def _page(self):
+        return ContentPage.objects.get(slug='qui-sommes-nous', section_slug='principal')
+
+    def test_cree_la_page_absente_et_l_affiche(self):
+        from cms.management.commands.remplit_qui_sommes_nous import ACCROCHE
+        self._lance()
+        page = self._page()
+        self.assertTrue(page.live)
+        r = self.client.get(reverse('content:qui_sommes_nous'))
+        self.assertContains(r, 'Refus du corporatisme')
+        self.assertEqual(r.context['page'].excerpt, ACCROCHE)
+        self.assertContains(r, 'Refus du clientélisme')
+
+    def test_la_recopie_figure_dans_l_historique(self):
+        """Une révision publiée : la recopie s'annule depuis le CMS."""
+        page = make_content_page(title='Qui sommes-nous ?', slug='qui-sommes-nous')
+        page.save_revision().publish()  # la page vide, déjà passée par le CMS
+        self._lance()
+        page = self._page()
+        self.assertEqual(page.revisions.count(), 2)
+        recopie = page.get_latest_revision().as_object()
+        self.assertTrue(any(b.block_type == 'cartes' for b in recopie.body))
+        self.assertTrue(recopie.excerpt)
+
+    def test_n_ecrase_pas_une_page_reprise(self):
+        page = make_content_page(title='Qui sommes-nous ?', slug='qui-sommes-nous',
+                                 body=[{'type': 'rich_text', 'value': '<p>Texte retouché</p>'}])
+        sortie = self._lance()
+        self.assertIn("rien n'est écrit", sortie)
+        page.refresh_from_db()
+        self.assertEqual(len(page.body), 1)
+
+    def test_force_ecrase(self):
+        make_content_page(title='Qui sommes-nous ?', slug='qui-sommes-nous',
+                          body=[{'type': 'rich_text', 'value': '<p>Texte retouché</p>'}])
+        self._lance('--force')
+        self.assertGreater(len(self._page().body), 1)
+
+    def test_dry_run_n_ecrit_rien(self):
+        self._lance('--dry-run')
+        self.assertFalse(ContentPage.objects.filter(slug='qui-sommes-nous').exists())
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

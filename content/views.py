@@ -1672,24 +1672,22 @@ class SouscriptionView(TemplateView):
 
 
 class QuiSommesNousView(TemplateView):
-    """Page Qui sommes-nous ?"""
+    """Page Qui sommes-nous ?
+
+    Le texte se modifie dans /cms/, page de contenu « qui-sommes-nous » de la
+    confédération : son corps remplit la colonne, son extrait l'accroche du
+    bandeau. Il était écrit en dur dans le gabarit jusqu'au 05/10/2026 — et la
+    page Wagtail, qu'on pouvait modifier, ne s'affichait nulle part : cette
+    vue lui prend son adresse. Texte d'origine : `remplit_qui_sommes_nous`.
+    """
     template_name = 'content/qui_sommes_nous.html'
 
     def get_context_data(self, **kwargs):
+        from cms.models import ContentPage
         ctx = super().get_context_data(**kwargs)
         ctx['site'] = SectionPage.objects.filter(slug='principal').first()
-
-        # Contenu de la page depuis la DB (si elle existe)
-        ctx['page'] = Page.objects.filter(
-            slug='qui-sommes-nous', site__slug='principal', status='publish'
-        ).first()
-
-        base_qs = (
-            ArticlePage.objects.live()
-            .filter(section_slug='principal')
-            .select_related('featured_image')
-            .prefetch_related('cms_categories')
-        )
+        ctx['page'] = ContentPage.objects.live().filter(
+            slug='qui-sommes-nous', section_slug='principal').first()
         ctx.update(_sidebar_context('principal'))
         return ctx
 

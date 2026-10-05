@@ -1239,6 +1239,59 @@
             letter-spacing: .07em; color: var(--text-muted); font-weight: 600;
         }
 
+        /* Bloc « Citation » : il n'avait aucun style, et s'affichait comme un
+           paragraphe ordinaire. Repris du bandeau de « Qui sommes-nous ». */
+        .article-content .article-quote {
+            background: var(--primary-color);
+            color: #fff;
+            padding: 1.4rem 1.5rem;
+            margin: 0 0 1.75rem;
+            text-align: center;
+            clear: both;
+        }
+        .article-content .article-quote p {
+            font-family: var(--font-heading);
+            font-size: 1.2rem; line-height: 1.45;
+            font-style: italic; color: #fff; margin: 0;
+        }
+        .article-content .article-quote cite {
+            display: block; margin-top: .6rem;
+            font-size: .875rem; font-style: normal; color: rgba(255,255,255,.85);
+        }
+
+        /* Bloc « Cartes » : la grille des principes de « Qui sommes-nous ». */
+        .article-content .bloc-cartes {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1px;
+            background: var(--bg-lighter);
+            border: 1px solid var(--bg-lighter);
+            margin: 1.75rem 0 2rem;
+            clear: both;
+        }
+        @media (max-width: 580px) { .article-content .bloc-cartes { grid-template-columns: 1fr; } }
+        .article-content .bloc-carte {
+            background: var(--white);
+            padding: 1.4rem 1.5rem;
+            display: flex; gap: 1rem; align-items: flex-start;
+        }
+        .article-content .bloc-carte-picto {
+            width: 44px; height: 44px; flex-shrink: 0;
+            background: var(--dark-bg); border-radius: 3px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .article-content .bloc-carte-picto svg { display: block; }
+        .article-content .bloc-carte-corps { flex: 1; min-width: 0; }
+        .article-content .bloc-carte-titre {
+            font-family: var(--font-heading);
+            font-size: 16px; font-weight: 700; line-height: 1.25;
+            color: var(--text-color); margin: 0 0 .4rem;
+        }
+        .article-content .bloc-carte-texte {
+            font-size: var(--texte-courant); line-height: 1.65;
+            color: var(--text-secondary); margin: 0;
+        }
+
         .article-content hr.bloc-separateur.filet {
             border: 0; border-top: 1px solid var(--sep-couleur);
             margin: 1.75rem 0; clear: both;

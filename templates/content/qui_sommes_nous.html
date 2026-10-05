@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static wagtailcore_tags %}
 
 {% block title %}Qui sommes-nous ? — CNT-SO{% endblock %}
 
@@ -37,7 +37,6 @@
     .qsn-hero h1 { font-size: 1.75rem; }
     .qsn-hero-intro { font-size: 16px; }
     .qsn-hero { padding: 2rem 1rem 2rem; }
-    .qsn-quote p { font-size: 1.05rem; }
     .qsn-main { padding-top: 1.5rem; }
 }
 @media (max-width: 640px) {
@@ -46,8 +45,6 @@
     .qsn-hero-actions { justify-content: center; }
     .qsn-hero-logo { width: 70px; height: 70px; }
     .qsn-hero-logo img { width: 58px; height: 58px; }
-    .qsn-card { padding: 1rem 1rem; }
-    .qsn-join { padding: 1.2rem; }
 }
 .qsn-hero-logo {
     width: 90px;
@@ -112,149 +109,8 @@
 }
 .btn-ghost-white:hover { border-color: #fff; color: #fff; text-decoration: none; }
 
-/* ── Strip citation ── */
-.qsn-quote {
-    background: var(--primary-color);
-    padding: 1.5rem 1rem;
-    text-align: center;
-    margin-bottom: 0;
-}
-.qsn-quote p {
-    max-width: 780px;
-    margin: 0 auto;
-    color: #fff;
-    font-family: var(--font-heading);
-    font-size: 1.3rem;
-    line-height: 1.45;
-    font-style: italic;
-}
-
 /* ── Contenu principal + sidebar ── */
 .qsn-main { padding-top: 2rem; }
-
-/* ── Section texte introductif ── */
-.qsn-intro-block {
-    padding-bottom: 1.75rem;
-    border-bottom: 1px solid var(--bg-lighter);
-    margin-bottom: 1.75rem;
-}
-.qsn-intro-block p {
-    font-size: 16px;
-    line-height: 1.8;
-    color: var(--text-secondary);
-    margin-bottom: .9rem;
-}
-.qsn-intro-block p:last-child { margin-bottom: 0; }
-
-/* ── Titre de section ── */
-.qsn-section-title {
-    font-family: var(--font-heading);
-    font-size: 1.5rem;
-    color: var(--text-color);
-    margin: 0 0 1.4rem;
-    padding-bottom: .5rem;
-    border-bottom: 3px solid var(--primary-color);
-    display: inline-block;
-}
-
-/* ── Grille 6 principes ── */
-.qsn-principles {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1px;
-    background: var(--bg-lighter);
-    border: 1px solid var(--bg-lighter);
-    margin-bottom: 2rem;
-}
-@media (max-width: 580px) { .qsn-principles { grid-template-columns: 1fr; } }
-
-.qsn-card {
-    background: var(--white);
-    padding: 1.4rem 1.5rem;
-    display: flex;
-    gap: 1rem;
-    align-items: flex-start;
-}
-.qsn-card-icon {
-    width: 44px;
-    height: 44px;
-    flex-shrink: 0;
-    background: var(--dark-bg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 3px;
-}
-.qsn-card-icon svg { display: block; }
-.qsn-card-body { flex: 1; min-width: 0; }
-.qsn-card-title {
-    font-family: var(--font-heading);
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--text-color);
-    margin-bottom: .4rem;
-    line-height: 1.25;
-}
-.qsn-card-text {
-    font-size: var(--texte-courant);
-    line-height: 1.65;
-    color: var(--text-secondary);
-}
-
-/* ── Section rejoindre ── */
-.qsn-join {
-    background: var(--bg-light);
-    border-left: 4px solid var(--primary-color);
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-}
-.qsn-join h2 {
-    font-family: var(--font-heading);
-    font-size: 1.2rem;
-    margin-bottom: .6rem;
-}
-.qsn-join p {
-    font-size: var(--texte-courant);
-    line-height: 1.7;
-    color: var(--text-secondary);
-    margin-bottom: 1rem;
-}
-.btn-red {
-    display: inline-block;
-    padding: .55rem 1.3rem;
-    background: var(--primary-color);
-    color: #fff;
-    font-size: var(--texte-courant);
-    font-weight: 700;
-    text-decoration: none;
-    margin-right: .5rem;
-}
-.btn-red:hover { background: var(--primary-dark); color: #fff; text-decoration: none; }
-
-/* ── Contenu DB ── */
-.qsn-db-content {
-    font-size: 16px;
-    line-height: 1.8;
-    color: var(--text-secondary);
-}
-.qsn-db-content h2 {
-    font-family: var(--font-heading);
-    font-size: 1.4rem;
-    color: var(--text-color);
-    margin: 2rem 0 .8rem;
-    padding-bottom: .4rem;
-    border-bottom: 2px solid var(--bg-lighter);
-}
-.qsn-db-content h3 {
-    font-family: var(--font-heading);
-    font-size: 1.1rem;
-    color: var(--text-color);
-    margin: 1.4rem 0 .5rem;
-}
-.qsn-db-content p { margin-bottom: 1rem; }
-.qsn-db-content a { color: var(--primary-color); }
-.qsn-db-content ul, .qsn-db-content ol { margin: .5rem 0 1rem 1.5rem; }
-.qsn-db-content li { margin-bottom: .3rem; }
 
 /* ── Sidebar ── */
 .qsn-sidebar {
@@ -317,153 +173,14 @@
 </div>
 
 <!-- ═══════════════════════════════════════════
-     CITATION / ACCROCHE
-     ═══════════════════════════════════════════ -->
-<div class="qsn-quote">
-    <p>« Le syndicalisme reste l'arme la plus efficace dans le combat collectif pour les travailleur-euses. Choisir la CNT Solidarité Ouvrière c'est développer une alternative syndicale. »</p>
-</div>
-
-<!-- ═══════════════════════════════════════════
      LAYOUT 2 COLONNES
      ═══════════════════════════════════════════ -->
 <div class="qsn-wrap">
 
     <div class="qsn-main">
 
-        {% if page and page.content %}
-
-        <div class="qsn-db-content">{{ page.content|safe }}</div>
-
-        {% else %}
-
-        <!-- ── Intro ── -->
-        <div class="qsn-intro-block">
-            <p>
-                Le syndicalisme a été le moteur de la plupart de nos conquêtes sociales, pourtant il semble aujourd'hui très éloigné du quotidien d'un grand nombre de travailleur-euses. Nous partageons les critiques à l'encontre des syndicats institutionnels — bureaucratisation et éloignement du terrain, impuissance face à la dégradation de nos droits et conditions de travail, compromissions — mais pour nous le syndicalisme reste l'arme la plus efficace dans le combat collectif.
-            </p>
-            <p>
-                Il est temps de développer, à la base, un modèle alternatif et combatif qui revient aux fondamentaux du syndicalisme. C'est le sens de l'engagement quotidien des militant-e-s de la CNT Solidarité Ouvrière.
-            </p>
-        </div>
-
-        <!-- ── Image illustrative ── -->
-        <div style="margin-bottom:1.75rem;border-top:3px solid var(--primary-color);overflow:hidden;">
-            <img src="https://cnt-so.org/wp-content/uploads/2020/09/802-359-max.png"
-                 alt="CNT Solidarité Ouvrière — syndicalisme de lutte"
-                 style="width:100%;height:auto;display:block;">
-        </div>
-
-        <!-- ── 6 principes ── -->
-        <h2 class="qsn-section-title">Nos principes</h2>
-
-        <div class="qsn-principles">
-
-            <!-- 1 -->
-            <div class="qsn-card">
-                <div class="qsn-card-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="8" cy="8" r="3" stroke="#E81C24" stroke-width="1.8"/>
-                        <circle cx="16" cy="8" r="3" stroke="#fff" stroke-width="1.8"/>
-                        <path d="M2 20c0-3.314 2.686-6 6-6h8c3.314 0 6 2.686 6 6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
-                    </svg>
-                </div>
-                <div class="qsn-card-body">
-                    <div class="qsn-card-title">Refus du corporatisme</div>
-                    <p class="qsn-card-text">Syndicalisme d'industrie : les travailleurs d'une même branche, quels que soient leurs métiers, statuts ou employeurs, adhèrent au même syndicat à un échelon géographique donné.</p>
-                </div>
-            </div>
-
-            <!-- 2 -->
-            <div class="qsn-card">
-                <div class="qsn-card-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="1.8"/>
-                        <path d="M12 7v5l3 3" stroke="#E81C24" stroke-width="1.8" stroke-linecap="round"/>
-                        <circle cx="12" cy="12" r="1.5" fill="#fff"/>
-                    </svg>
-                </div>
-                <div class="qsn-card-body">
-                    <div class="qsn-card-title">Indépendance et autogestion</div>
-                    <p class="qsn-card-text">Fonctionnement exclusivement par cotisations — zéro subvention de l'État ou du patronat. Indépendance de tout groupement politique ou religieux. Les décisions se prennent en Assemblée Générale.</p>
-                </div>
-            </div>
-
-            <!-- 3 -->
-            <div class="qsn-card">
-                <div class="qsn-card-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M6 18L18 6M6 6l12 12" stroke="#E81C24" stroke-width="2" stroke-linecap="round"/>
-                        <path d="M8 9.5C8 8.12 9.12 7 10.5 7h3C14.88 7 16 8.12 16 9.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                </div>
-                <div class="qsn-card-body">
-                    <div class="qsn-card-title">Refus du clientélisme</div>
-                    <p class="qsn-card-text">C'est toujours l'intérêt collectif des travailleurs-euses qui prime. Nous refusons les petits arrangements « entre amis » et toute complicité avec les employeurs.</p>
-                </div>
-            </div>
-
-            <!-- 4 -->
-            <div class="qsn-card">
-                <div class="qsn-card-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 3L4 7v5c0 4.418 3.582 8 8 8s8-3.582 8-8V7L12 3z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/>
-                        <path d="M9 12l2 2 4-4" stroke="#E81C24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <div class="qsn-card-body">
-                    <div class="qsn-card-title">Un outil au service des travailleurs</div>
-                    <p class="qsn-card-text">Conseils juridiques, aide sur les conditions de travail, espace de formation pour s'émanciper. Le syndicat est un outil concret pour défendre vos droits au quotidien.</p>
-                </div>
-            </div>
-
-            <!-- 5 -->
-            <div class="qsn-card">
-                <div class="qsn-card-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M8 10.5V7a2 2 0 0 1 4 0v1.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
-                        <path d="M10 10.5h4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h2z" stroke="#fff" stroke-width="1.8"/>
-                        <path d="M12 14v2" stroke="#E81C24" stroke-width="1.8" stroke-linecap="round"/>
-                    </svg>
-                </div>
-                <div class="qsn-card-body">
-                    <div class="qsn-card-title">Un outil de coordination des luttes</div>
-                    <p class="qsn-card-text">Syndicalisme de lutte des classes : tout est question de rapport de force. C'est par les luttes syndicales, sous toutes leurs formes, que nous faisons avancer nos intérêts contre ceux des patrons.</p>
-                </div>
-            </div>
-
-            <!-- 6 -->
-            <div class="qsn-card">
-                <div class="qsn-card-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>
-                        <path d="M12 2l2.4 7.4H22l-6.2 4.5" stroke="#E81C24" stroke-width="1.6" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <div class="qsn-card-body">
-                    <div class="qsn-card-title">Un syndicalisme révolutionnaire</div>
-                    <p class="qsn-card-text">Nous revendiquons un autre projet de société : transformation sociale révolutionnaire basée sur la gestion directe par les travailleur-euses, sans intermédiaires parasites, de l'économie et de la société.</p>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- ── Affiche "On ne se rend pas" ── -->
-        <div style="margin-bottom:2rem;overflow:hidden;">
-            <img src="https://cnt-so.org/wp-content/uploads/2023/01/cnt_so_on_ne_se_rend_pas-2-1024x538.png"
-                 alt="CNT-SO — On ne se rend pas"
-                 style="width:100%;height:auto;display:block;">
-        </div>
-
-        <!-- ── Rejoindre ── -->
-        <div class="qsn-join">
-            <h2>Nous rejoindre / nous contacter</h2>
-            <p>
-                Rejoindre la CNT-SO, c'est intégrer un réseau de militant·e·s qui agissent au quotidien pour défendre les travailleuses et travailleurs. Que tu sois salarié·e, précaire, indépendant·e ou sans emploi, tu as ta place ici.
-            </p>
-            <a href="{% url 'content:contact' %}" class="btn-red">Nous contacter / Adhérer</a>
-            <a href="{% url 'content:souscription' %}" class="btn-red" style="background:var(--dark-bg);">Nous soutenir</a>
-        </div>
-
+        {% if page %}
+        <div class="article-content">{% include_block page.body %}</div>
         {% endif %}
 
     </div><!-- /qsn-main -->
