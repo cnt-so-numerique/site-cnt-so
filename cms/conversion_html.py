@@ -164,8 +164,12 @@ class ResolveurImages:
     VARIANTE = re.compile(r'-\d+x\d+(?=\.\w+$)')
     WORDPRESS = re.compile(r'^https?://(?:[a-z0-9-]+\.)?cnt-so\.org(/.*?wp-content/uploads/.+)$')
 
-    def __init__(self, creer=False):
+    def __init__(self, creer=False, telecharger=False):
         self.creer = creer
+        # Une image liée depuis un autre site (Twitter, Facebook…) : la
+        # télécharger pour la verser. Décidé le 12/10/2026 — ces liens
+        # meurent sans prévenir, et l'image reste hors de portée du rédacteur.
+        self.telecharger = telecharger
         self.cache = {}
         self.stats = Counter()
 
@@ -196,14 +200,16 @@ class ResolveurImages:
         else:
             m = self.WORDPRESS.match(adresse)
             if not m:
-                return None
+                return self._telecharge(src, collection)
             # nginx fusionne les barres doubles (« //13/… ») : on fait de même.
             chemin = re.sub(r'/+', '/', unquote(m.group(1))).lstrip('/')
             fichier = os.path.join(racine_legacy(), chemin)
 
         if not os.path.isfile(fichier):
-            self.stats['introuvables'] += 1
-            return None
+            image = self._telecharge(src, collection)
+            if image is None:
+                self.stats['introuvables'] += 1
+            return image
 
         from cms.management.commands.migrate_images import _empreinte, _image_deja_importee
 
@@ -232,6 +238,60 @@ class ResolveurImages:
             image.file_hash = _empreinte(fichier)
             image.save()
         self.stats['versees'] += 1
+        return image
+
+    TAILLE_MAX = 15 * 1024 * 1024
+    EXTENSIONS = {'JPEG': '.jpg', 'PNG': '.png', 'GIF': '.gif', 'WEBP': '.webp'}
+
+    def _telecharge(self, src, collection):
+        """L'image d'une adresse web, versée en médiathèque ; None si elle
+        n'y est plus, ou si ce n'est pas une image (une redirection Google, un
+        PDF codé dans l'adresse : mesurés en production le 12/10/2026)."""
+        if not self.telecharger:
+            return None
+        url = src.strip()
+        if url.startswith('//'):
+            url = 'https:' + url
+        elif url.startswith('/'):
+            url = 'https://cnt-so.org' + url
+        if not url.startswith(('http://', 'https://')):
+            return None
+        import io
+        import requests
+        from PIL import Image as PILImage
+        try:
+            reponse = requests.get(url, timeout=20, headers={'User-Agent': 'CNT-SO/1.0'})
+            contenu = reponse.content
+            if reponse.status_code != 200 or not contenu or len(contenu) > self.TAILLE_MAX:
+                return None
+            with PILImage.open(io.BytesIO(contenu)) as pil:
+                format_ = pil.format
+                pil.verify()
+        except Exception:
+            return None
+        if format_ not in self.EXTENSIONS:
+            return None
+
+        if not self.creer:
+            self.stats['a_telecharger'] += 1
+            return _ImageAVerser()
+
+        from django.core.files.images import ImageFile
+        from wagtail.images import get_image_model
+        from wagtail.utils.file import hash_filelike
+        Image = get_image_model()
+        empreinte = hash_filelike(io.BytesIO(contenu))
+        image = Image.objects.filter(file_hash=empreinte).first()
+        if image is not None:
+            self.stats['retrouvees'] += 1
+            return image
+        base = os.path.splitext(os.path.basename(unquote(url.split('?', 1)[0])))[0]
+        nom = (re.sub(r'[^\w-]+', '-', base).strip('-')[:60] or 'image') + self.EXTENSIONS[format_]
+        image = Image(title=nom[:255], collection=collection or collection_du_syndicat(None),
+                      file_hash=empreinte)
+        image.file = ImageFile(io.BytesIO(contenu), name=nom)
+        image.save()
+        self.stats['telechargees'] += 1
         return image
 
 
@@ -426,17 +486,23 @@ def _emojis_en_caracteres(soup):
             img.replace_with(img.get('alt', ''))
 
 
-def html_vers_blocs(html, resoud_image=None):
+def html_vers_blocs(html, resoud_image=None, retire_introuvables=False):
     """Convertit du HTML WordPress en une liste de blocs de `body`.
 
     Retourne `(blocs, stats)`. `stats` compte ce qui a été produit et, surtout,
     ce qui **n'a pas pu** l'être : `html_conserve` (morceaux laissés en HTML
     brut) et `images_perdues` (fichiers introuvables en médiathèque). Un appelant
     honnête affiche ces deux nombres.
+
+    `retire_introuvables` retire l'image introuvable au lieu de garder sa
+    balise : seulement quand on sait qu'elle ne s'affiche plus nulle part
+    (décision du 12/10/2026, après un téléchargement tenté et raté).
+    Compté dans `images_retirees`.
     """
     resoud_image = resoud_image or ResolveurImages().resoudre
     stats = {'rich_text': 0, 'image': 0, 'html_conserve': 0,
-             'images_perdues': 0, 'widgets_retires': 0, 'tableau': 0}
+             'images_perdues': 0, 'widgets_retires': 0, 'tableau': 0,
+             'images_retirees': 0}
     if not html or not html.strip():
         return [], stats
 
@@ -476,6 +542,8 @@ def html_vers_blocs(html, resoud_image=None):
         if bloc is not None:
             blocs.append(bloc)
             stats['image'] += 1
+        elif retire_introuvables:
+            stats['images_retirees'] += 1
         else:
             # Fichier introuvable : la balise d'origine est préservée telle
             # quelle, un lien qui marche encore ne doit pas devenir un trou.

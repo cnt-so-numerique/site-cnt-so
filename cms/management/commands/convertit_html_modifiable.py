@@ -48,6 +48,14 @@ class Command(BaseCommand):
                             help="Ne traiter que les articles publiés après "
                                  "cette date — de quoi ne reprendre que le "
                                  "dernier lot importé sans toucher au fonds.")
+        parser.add_argument('--telecharge-images-externes', action='store_true',
+                            help="Verser en médiathèque les images liées depuis "
+                                 "un autre site (Twitter, Facebook…), si elles "
+                                 "répondent encore.")
+        parser.add_argument('--retire-images-introuvables', action='store_true',
+                            help="Retirer les images qu'on n'a pu ni retrouver ni "
+                                 "télécharger : elles ne s'affichent déjà plus. "
+                                 "Sans cette option, leur balise est gardée.")
 
     def handle(self, *args, **options):
         self.sec = options['dry_run']
@@ -55,10 +63,13 @@ class Command(BaseCommand):
         self.pages = 0
         self.ignorees = 0
         self.totaux = {'rich_text': 0, 'image': 0, 'html_conserve': 0,
-                       'images_perdues': 0, 'widgets_retires': 0, 'tableau': 0}
+                       'images_perdues': 0, 'widgets_retires': 0, 'tableau': 0,
+                 'images_retirees': 0}
         # Un seul résolveur pour toute la course : une image citée par dix
         # articles n'est cherchée — ou versée — qu'une fois.
-        self.resolveur = ResolveurImages(creer=not self.sec)
+        self.resolveur = ResolveurImages(
+            creer=not self.sec, telecharger=options['telecharge_images_externes'])
+        self.retire = options['retire_images_introuvables']
 
         if self.sec:
             self.stdout.write(self.style.WARNING(
@@ -94,6 +105,16 @@ class Command(BaseCommand):
         if st['versees']:
             self.stdout.write(f"  {st['versees']} image(s) versée(s) en médiathèque, "
                               f"dans la collection de leur syndicat")
+        if st['telechargees']:
+            self.stdout.write(f"  {st['telechargees']} image(s) extérieure(s) "
+                              f"téléchargée(s) et versée(s) en médiathèque")
+        if st['a_telecharger']:
+            self.stdout.write(f"  {st['a_telecharger']} image(s) extérieure(s) à "
+                              f"télécharger (simulation : aucun fichier écrit)")
+        if self.totaux['images_retirees']:
+            self.stdout.write(self.style.WARNING(
+                f"  {self.totaux['images_retirees']} image(s) introuvable(s) "
+                f"retirée(s) (elles ne s'affichaient plus)"))
         if st['a_verser']:
             self.stdout.write(f"  {st['a_verser']} image(s) à verser en médiathèque "
                               f"(simulation : aucun fichier écrit)")
@@ -144,6 +165,8 @@ class Command(BaseCommand):
                 f"  {'[simulé] ' if self.sec else ''}{page.title[:50]:52} "
                 f"→ {stats['rich_text']} texte, {stats['image']} image"
                 + (f", {stats['tableau']} tableau" if stats['tableau'] else '')
+                + (f", {stats['images_retirees']} image morte retirée"
+                   if stats['images_retirees'] else '')
                 + (f", {stats['html_conserve']} HTML gardé"
                    if stats['html_conserve'] else ''))
 
@@ -161,7 +184,8 @@ class Command(BaseCommand):
         """Nouveau `body`, ou (None, None) si la conversion n'apporte rien."""
         nouveaux = []
         stats = {'rich_text': 0, 'image': 0, 'html_conserve': 0,
-                 'images_perdues': 0, 'widgets_retires': 0, 'tableau': 0}
+                 'images_perdues': 0, 'widgets_retires': 0, 'tableau': 0,
+                 'images_retirees': 0}
         change = False
 
         for bloc in page.body.raw_data:
@@ -171,7 +195,13 @@ class Command(BaseCommand):
             collection = collection_du_syndicat(page.section_slug)
             produits, part = html_vers_blocs(
                 bloc['value'],
-                lambda src, c=collection: self.resolveur.resoudre(src, c))
+                lambda src, c=collection: self.resolveur.resoudre(src, c),
+                retire_introuvables=self.retire)
+            if not produits and part['images_retirees']:
+                # Le bloc ne portait que des images mortes : il disparaît.
+                stats['images_retirees'] += part['images_retirees']
+                change = True
+                continue
             if not produits:
                 # Rien de convertible : on garde le bloc d'origine intact.
                 nouveaux.append(bloc)

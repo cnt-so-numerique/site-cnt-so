@@ -6147,6 +6147,109 @@ class ResolveurImagesTest(TestCase):
         self.assertNotEqual(versee.collection_id, Collection.get_first_root_node().pk)
 
 
+class ImagesExterieuresTest(TestCase):
+    """12/10/2026 : 19 images de 12 articles restaient en HTML brut, liées
+    depuis Twitter, Facebook ou de vieilles adresses du site. Celles qui
+    répondent sont versées ; celles qui sont mortes, retirées."""
+
+    URL = 'https://pbs.twimg.com/media/EGdARj8WkAEKaQP?format=jpg&name=small'
+
+    def setUp(self):
+        import shutil
+        import tempfile
+        from wagtail.images import get_image_model
+        self.media = tempfile.mkdtemp()
+        reglages = override_settings(MEDIA_ROOT=self.media)
+        reglages.enable()
+        self.addCleanup(reglages.disable)
+        self.addCleanup(shutil.rmtree, self.media, True)
+        self.Image = get_image_model()
+
+    def _reponse(self, contenu, statut=200):
+        reponse = MagicMock(status_code=statut)
+        reponse.content = contenu
+        return reponse
+
+    def _png(self, couleur='red'):
+        from wagtail.images.tests.utils import get_test_image_file
+        return get_test_image_file(colour=couleur).file.getvalue()
+
+    def test_une_image_exterieure_qui_repond_est_versee(self):
+        from cms.conversion_html import ResolveurImages
+        with patch('requests.get', return_value=self._reponse(self._png())):
+            image = ResolveurImages(creer=True, telecharger=True).resoudre(self.URL)
+        self.assertIsNotNone(image.pk)
+        self.assertEqual(image.title, 'EGdARj8WkAEKaQP.png')
+        self.assertGreater(image.width, 0)
+        self.assertTrue(image.file_hash)
+
+    def test_sans_option_rien_n_est_telecharge(self):
+        from cms.conversion_html import ResolveurImages
+        with patch('requests.get') as get:
+            self.assertIsNone(ResolveurImages(creer=True).resoudre(self.URL))
+        get.assert_not_called()
+
+    def test_la_simulation_n_ecrit_rien(self):
+        from cms.conversion_html import ResolveurImages
+        avant = self.Image.objects.count()
+        with patch('requests.get', return_value=self._reponse(self._png())):
+            r = ResolveurImages(creer=False, telecharger=True)
+            self.assertIsNotNone(r.resoudre(self.URL))
+        self.assertEqual(self.Image.objects.count(), avant)
+        self.assertEqual(r.stats['a_telecharger'], 1)
+
+    def test_la_meme_image_n_est_versee_qu_une_fois(self):
+        from cms.conversion_html import ResolveurImages
+        png = self._png()
+        with patch('requests.get', return_value=self._reponse(png)):
+            a = ResolveurImages(creer=True, telecharger=True).resoudre(self.URL)
+            b = ResolveurImages(creer=True, telecharger=True).resoudre(
+                'https://ailleurs.example/autre-nom.png')
+        self.assertEqual(a.pk, b.pk)
+
+    def test_une_page_web_n_est_pas_une_image(self):
+        """La « image » d'un article de Poitiers était une redirection Google."""
+        from cms.conversion_html import ResolveurImages
+        with patch('requests.get', return_value=self._reponse(b'<html>Google</html>')):
+            self.assertIsNone(ResolveurImages(creer=True, telecharger=True)
+                              .resoudre('https://www.google.com/url?sa=i&url=x'))
+        self.assertEqual(self.Image.objects.count(), 0)
+
+    def test_une_image_morte_est_retiree_seulement_sur_demande(self):
+        from cms.conversion_html import html_vers_blocs
+        html = '<p>Le tract :</p><img src="https://cnt-so.org/IMG/png/tract.png"/>'
+        morte = lambda src: None  # noqa: E731
+        blocs, stats = html_vers_blocs(html, morte)
+        self.assertEqual([b['type'] for b in blocs], ['rich_text', 'html'])
+        blocs, stats = html_vers_blocs(html, morte, retire_introuvables=True)
+        self.assertEqual([b['type'] for b in blocs], ['rich_text'])
+        self.assertEqual(stats['images_retirees'], 1)
+        self.assertEqual(stats['html_conserve'], 0)
+
+    def test_la_commande_verse_et_retire(self):
+        import json
+        from io import StringIO
+        from django.core.management import call_command
+        _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        art = make_article_page(title='Revendications', slug='revendications')
+        art.body = json.dumps([
+            {'type': 'rich_text', 'value': '<p>Texte.</p>', 'id': 'a'},
+            {'type': 'html', 'value': f'<img src="{self.URL}"/>', 'id': 'b'},
+            {'type': 'html', 'value': '<img src="/IMG/png/morte.png"/>', 'id': 'c'},
+        ])
+        art.save()
+
+        def faux_get(url, **kwargs):
+            return (self._reponse(self._png()) if 'twimg' in url
+                    else self._reponse(b'introuvable', 404))
+
+        with patch('requests.get', side_effect=faux_get):
+            call_command('convertit_html_modifiable', '--telecharge-images-externes',
+                         '--retire-images-introuvables', stdout=StringIO())
+        art.refresh_from_db()
+        self.assertEqual([b['type'] for b in art.body.raw_data], ['rich_text', 'image'])
+
+
 class BasculeVersLeSyndicatDeLObjetTest(TestCase):
     """Arnaud, 11/09/2026 : une 404 muette en ouvrant un article de la conf,
     parce que son site courant était resté sur le STUCS.

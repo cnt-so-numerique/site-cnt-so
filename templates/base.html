@@ -1026,6 +1026,14 @@
             margin: 1.5rem 0 1rem;
         }
 
+        /* Sans taille, le navigateur rend h5 et h6 plus petits que le texte
+           courant : l'intertitre de « Saisonniers » passait pour une note
+           de bas de page (12/10/2026). L'échelle descend, sans repasser
+           sous le corps du texte. */
+        .article-content h4 { font-size: 22px; margin: 1.4rem 0 .8rem; }
+        .article-content h5 { font-size: 20px; margin: 1.3rem 0 .7rem; }
+        .article-content h6 { font-size: 18px; margin: 1.2rem 0 .6rem; }
+
         /* ── Blocs WordPress (contenu importé) ─────────────────────── */
 
         /* Galeries */
@@ -1519,7 +1527,11 @@
         }
 
         .footer-nav-list { list-style: none; }
-        .footer-nav-list li { padding: .3rem 0; }
+        .footer-nav-list li { padding: .3rem 0; break-inside: avoid; }
+        /* Une colonne seule (« A propos » de la conf, 5 liens) occupait toute
+           la zone centrale sur une seule file : le pied de page en tirait sa
+           hauteur (12/10/2026). Sa liste se répartit sur deux colonnes. */
+        .footer-nav-col:only-child .footer-nav-list { columns: 2; column-gap: 2rem; }
         .footer-nav-list a { color: #888; font-size: var(--texte-courant); }
         .footer-nav-list a:hover { color: #fff; text-decoration: none; }
         .footer-nav-list span { color: #999; font-size: var(--texte-courant); }
@@ -1951,6 +1963,9 @@
             .section-title { font-size: 20px; }
             .article-content h2 { font-size: 20px; }
             .article-content h3 { font-size: 18px; }
+            .article-content h4 { font-size: 17px; }
+            .article-content h5,
+            .article-content h6 { font-size: 16px; }
 
             /* Hero */
             .hero { padding: 1.5rem 0; }
