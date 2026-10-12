@@ -5436,6 +5436,22 @@ class ConversionHtmlModifiableTest(TestCase):
         self.assertIn('<td>1 800 €</td>', blocs[0]['value'])
         self.assertEqual(stats['html_conserve'], 1)
 
+    def test_un_tableau_ne_fige_pas_les_paragraphes_voisins(self):
+        """« Canicule et travail » (12/10/2026) : un seul tableau parmi 63
+        paragraphes laissait tout l'article en HTML brut, non modifiable."""
+        from cms.conversion_html import html_vers_blocs
+        blocs, stats = html_vers_blocs(
+            '<p>Avant le tableau.</p>'
+            '<table><tr><td>Vigilance</td><td>rouge</td></tr></table>'
+            '<p>Après le tableau.</p>')
+        self.assertEqual([b['type'] for b in blocs],
+                         ['rich_text', 'html', 'rich_text'])
+        self.assertIn('Avant le tableau', blocs[0]['value'])
+        self.assertNotIn('Avant', blocs[1]['value'])
+        self.assertIn('<td>rouge</td>', blocs[1]['value'])
+        self.assertIn('Après le tableau', blocs[2]['value'])
+        self.assertEqual(stats['html_conserve'], 1)
+
     def test_attributs_wordpress_nettoyes(self):
         from cms.conversion_html import html_vers_blocs
         blocs, _ = html_vers_blocs(
@@ -5662,6 +5678,99 @@ class ImportAiguillageVersLeSyndicatTest(TestCase):
         self.assertFalse(ArticlePage.objects.filter(
             slug='greve-des-intermittents').exists())
 
+
+class ImportRafraichitArticleReecritTest(TestCase):
+    """L'article HCR a été réécrit sur place sur WordPress le 25/06/2026 :
+    même adresse, nouveau titre, nouvelle grille, nouveau PDF. L'import saute
+    les articles existants : le site montrait toujours la grille 2025
+    (constaté le 12/10/2026). `--rafraichir` reprend la version actuelle."""
+
+    def setUp(self):
+        _ensure_section_page(slug='principal', name='CNT-SO', site_type='main')
+        self.droit = make_cms_category(name='Droit', slug='droit',
+                                       section_slug='principal')
+        self.art = make_article_page(
+            title='Convention HCR : grilles 2024-2025', slug='convention-hcr',
+            legacy_wp_id=9416, categories=[self.droit],
+            publication_date=timezone.make_aware(timezone.datetime(2025, 6, 25)))
+
+    def _rafraichir(self, *extra):
+        from django.core.management import call_command
+        from io import StringIO
+
+        reponse = MagicMock(status_code=200)
+        reponse.json.return_value = {
+            'id': 9416, 'slug': 'convention-hcr', 'date': '2026-06-25T18:23:21',
+            'title': {'rendered': 'Convention HCR : grilles 2024-2026'},
+            'content': {'rendered': '<p>Rattrapée par le SMIC du 1er juin 2026.</p>'},
+            'excerpt': {'rendered': '<p>Rattrapée par le SMIC.</p>'},
+            'featured_media': 0,
+        }
+        sortie, erreurs = StringIO(), StringIO()
+        with patch('requests.Session.get', return_value=reponse):
+            call_command('import_from_wp_api', '--url', 'https://exemple.test',
+                         '--section', 'principal', '--rafraichir', '9416', *extra,
+                         stdout=sortie, stderr=erreurs)
+        self.art.refresh_from_db()
+        return sortie.getvalue() + erreurs.getvalue()
+
+    def test_reprend_la_version_actuelle(self):
+        self._rafraichir()
+        self.assertEqual(self.art.title, 'Convention HCR : grilles 2024-2026')
+        self.assertEqual(self.art.publication_date.date(), date(2026, 6, 25))
+        self.assertIn('SMIC du 1er juin 2026', str(self.art.body))
+        self.assertEqual(self.art.body[0].block_type, 'rich_text')
+        self.assertEqual(self.art.excerpt, 'Rattrapée par le SMIC.')
+
+    def test_garde_adresse_et_rubriques_et_publie_une_revision(self):
+        self._rafraichir()
+        self.assertEqual(self.art.slug, 'convention-hcr')
+        self.assertEqual(list(self.art.cms_categories.all()), [self.droit])
+        self.assertTrue(self.art.live)
+        self.assertFalse(self.art.has_unpublished_changes)
+        self.assertEqual(self.art.revisions.count(), 1)
+
+    def test_a_blanc_rien_ne_change(self):
+        sortie = self._rafraichir('--dry-run')
+        self.assertIn('grilles 2024-2026', sortie)
+        self.assertEqual(self.art.title, 'Convention HCR : grilles 2024-2025')
+
+    def test_un_article_retouche_dans_le_cms_nest_pas_ecrase(self):
+        from django.contrib.auth import get_user_model
+        redac = get_user_model().objects.create_user('redac', password='x')
+        self.art.title = 'Retouché par un rédacteur'
+        self.art.save_revision(user=redac).publish()
+        sortie = self._rafraichir()
+        self.art.refresh_from_db()
+        self.assertEqual(self.art.title, 'Retouché par un rédacteur')
+        self.assertIn('retouché dans le CMS', sortie)
+
+    def test_un_brouillon_en_attente_nest_pas_publie(self):
+        self.art.title = 'Brouillon'
+        self.art.save_revision()
+        sortie = self._rafraichir()
+        self.assertEqual(self.art.title, 'Convention HCR : grilles 2024-2025')
+        self.assertIn('brouillon en attente', sortie)
+
+
+class VersAncienServeurTest(TestCase):
+    """Depuis la bascule, cnt-so.org mène au nouveau site : l'ancien WordPress
+    ne se joint plus que par son adresse IP."""
+
+    def test_seul_l_hote_vise_est_detourne_et_tout_est_restaure(self):
+        import urllib3.util.connection as connexion
+        from cms.management.commands.import_from_wp_api import vers_ancien_serveur
+        origine = connexion.create_connection
+        appels = []
+        with patch.object(connexion, 'create_connection',
+                          side_effect=lambda adresse, *a, **k: appels.append(adresse)):
+            espion = connexion.create_connection
+            with vers_ancien_serveur('192.0.2.7', 'cnt-so.org'):
+                connexion.create_connection(('cnt-so.org', 443))
+                connexion.create_connection(('legifrance.gouv.fr', 443))
+            self.assertIs(connexion.create_connection, espion)
+        self.assertEqual(appels, [('192.0.2.7', 443), ('legifrance.gouv.fr', 443)])
+        self.assertIs(connexion.create_connection, origine)
 
 
 class ImportRubriquesRangeesTest(TestCase):

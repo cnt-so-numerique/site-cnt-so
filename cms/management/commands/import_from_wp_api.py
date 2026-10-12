@@ -5,11 +5,19 @@ Usage :
     python manage.py import_from_wp_api --url https://educ.cnt-so.org --section education
     python manage.py import_from_wp_api --url https://educ.cnt-so.org --section education --media-only
     python manage.py import_from_wp_api --url https://educ.cnt-so.org --section education --dry-run
+
+Depuis la bascule du 12/09/2026, cnt-so.org mène au nouveau site. L'ancien
+WordPress répond encore sur son adresse IP : `--ancien-serveur 5.196.74.69`
+y envoie les requêtes, certificat vérifié sous le nom d'origine.
+
+    python manage.py import_from_wp_api --url https://cnt-so.org --section principal \\
+        --ancien-serveur 5.196.74.69 --rafraichir 9416 --dry-run
 """
 import json
 import re
 import time
 import uuid
+from contextlib import contextmanager
 from html import unescape
 from io import BytesIO
 from pathlib import Path
@@ -35,6 +43,32 @@ def nom_qui_tient(rel, prefixe_stockage, limite=100, marge=8):
         racine, ext = nom, ''
     garde = budget - len(dossier) - 1 - len(point + ext)
     return f"{dossier}/{racine[:max(garde, 1)]}{point}{ext}"
+
+
+@contextmanager
+def vers_ancien_serveur(ip, hote):
+    """Envoie à `ip` les connexions destinées à `hote`, le temps du bloc.
+
+    Le DNS de cnt-so.org désigne le nouveau site. On ne touche qu'à l'adresse
+    de connexion : TLS négocie et vérifie toujours le certificat sous le nom
+    d'origine, que l'ancien serveur porte encore (jusqu'au 19/10/2026).
+    """
+    import urllib3.util.connection as connexion
+    origine = connexion.create_connection
+
+    def create_connection(adresse, *args, **kwargs):
+        nom, port = adresse
+        if nom == hote:
+            adresse = (ip, port)
+        return origine(adresse, *args, **kwargs)
+
+    connexion.create_connection = create_connection
+    try:
+        yield
+    finally:
+        connexion.create_connection = origine
+
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils.text import slugify
@@ -66,8 +100,25 @@ class Command(BaseCommand):
         parser.add_argument('--tous-syndicats', action='store_true',
                             help="Considérer qu'un article déjà présent SOUS UN AUTRE SYNDICAT "
                                  "est un doublon, et ne pas le réimporter")
+        parser.add_argument('--ancien-serveur', metavar='IP',
+                            help="Joindre le WordPress à cette adresse IP plutôt que "
+                                 "par le DNS (qui mène au nouveau site depuis la bascule)")
+        parser.add_argument(
+            '--rafraichir', action='append', type=int, default=[], metavar='ID_WP',
+            help="Remettre un article déjà importé à la version actuelle de "
+                 "WordPress (titre, date, corps, résumé, image). L'import "
+                 "saute les articles existants : un article réécrit sur place "
+                 "après coup (grille HCR 2026, 25/06/2026) n'était jamais "
+                 "repris. Adresse et rubriques inchangées. Répétable.")
 
     def handle(self, *args, **options):
+        if options['ancien_serveur']:
+            hote = urlparse(options['url']).hostname
+            with vers_ancien_serveur(options['ancien_serveur'], hote):
+                return self._handle(**options)
+        return self._handle(**options)
+
+    def _handle(self, **options):
         self.base_url = options['url'].rstrip('/')
         self.api = f'{self.base_url}/wp-json/wp/v2'
         self.section = options['section']
@@ -109,7 +160,9 @@ class Command(BaseCommand):
             self.stdout.write(
                 f'  aiguillage : catégorie WP {id_cat} → {cible.title}')
 
-        if self.media_only:
+        if options['rafraichir']:
+            self._rafraichir(options['rafraichir'])
+        elif self.media_only:
             self._import_media_for_existing()
         elif options['categories_only']:
             self.cat_map = self._import_categories()
@@ -332,6 +385,67 @@ class Command(BaseCommand):
         self.stdout.write(
             f'  {updated} mis à jour, {unchanged} déjà corrects, {missing} sans ArticlePage'
         )
+
+    # ── Rafraîchissement d'articles réécrits sur WordPress ─────────────────────
+
+    def _rafraichir(self, ids_wp):
+        """Remet des articles existants à leur version WordPress actuelle.
+
+        Passe par une révision publiée, comme un « Publier » dans le CMS : la
+        version précédente reste dans l'historique. Ne touche ni une page qui
+        a un brouillon en attente, ni une page déjà retouchée dans le CMS — ce
+        serait écraser le travail d'un rédacteur.
+        """
+        from cms.models import ArticlePage
+        from datetime import datetime
+        from django.utils import timezone
+
+        self.stdout.write('Rafraîchissement...')
+        faits = 0
+        for id_wp in ids_wp:
+            page = ArticlePage.objects.filter(
+                legacy_wp_id=id_wp, section_slug=self.section).first()
+            if not page:
+                self.stderr.write(f'  {id_wp} : aucun article de « {self.section} » ne porte cet identifiant')
+                continue
+            if page.has_unpublished_changes:
+                self.stderr.write(f'  {id_wp} : brouillon en attente, non touché — {page.title}')
+                continue
+            retouche = page.revisions.filter(user__isnull=False).order_by('-created_at').first()
+            if retouche:
+                self.stderr.write(
+                    f'  {id_wp} : retouché dans le CMS par {retouche.user} le '
+                    f'{retouche.created_at:%d/%m/%Y}, non touché — {page.title}')
+                continue
+            try:
+                resp = self.session.get(f'{self.api}/posts/{id_wp}',
+                                        params={'_embed': '1'}, timeout=30)
+                resp.raise_for_status()
+                post = resp.json()
+            except Exception as e:
+                self.stderr.write(f'  {id_wp} : lecture WordPress impossible ({e})')
+                continue
+
+            titre = self._clean_html(post['title']['rendered'])
+            date = timezone.make_aware(datetime.fromisoformat(post['date']))
+            self.stdout.write(
+                f'  {id_wp} : « {page.title} » du {page.publication_date:%d/%m/%Y}\n'
+                f'       → « {titre} » du {date:%d/%m/%Y}')
+            if self.dry_run:
+                continue
+
+            body_json, _ = self._process_content(post['content']['rendered'])
+            page.title = titre
+            page.body = body_json
+            page.excerpt = self._clean_html(post['excerpt']['rendered'])[:500]
+            page.publication_date = date
+            image = self._get_featured_image(post)
+            if image:
+                page.featured_image = image
+            page.save_revision(log_action=True).publish()
+            faits += 1
+
+        self.stdout.write(f'  {faits} article(s) rafraîchi(s)')
 
     # ── Import médias pour articles existants ──────────────────────────────────
 

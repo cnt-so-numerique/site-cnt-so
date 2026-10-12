@@ -397,16 +397,19 @@ def html_vers_blocs(html, resoud_image=None):
             vide_tampon()
             sort_image(noeud)
             continue
-        images = noeud.find_all('img')
         # `find` ne regarde que les descendants : le nœud lui-même peut être
         # le tableau.
-        if images and (noeud.name in INCOMPATIBLES
-                       or noeud.find(list(INCOMPATIBLES))):
-            # Ce morceau finira en HTML brut (tableau, vidéo) : ses images
-            # doivent y rester. Les en sortir les ferait paraître deux fois,
-            # une dans le HTML conservé et une en bloc image.
+        if noeud.name in INCOMPATIBLES or noeud.find(list(INCOMPATIBLES)):
+            # Un tableau, une vidéo : son propre bloc HTML brut, seul. Versé
+            # dans le tampon, il y emportait tous les paragraphes voisins —
+            # « Canicule et travail » : 63 paragraphes figés par un unique
+            # tableau (12/10/2026). Ses images y restent : les en sortir les
+            # ferait paraître deux fois.
+            vide_tampon()
             tampon.append(noeud)
+            vide_tampon()
             continue
+        images = noeud.find_all('img')
         if images:
             # Une image dans un paragraphe : on la sort du flux de texte, le
             # bloc image de Wagtail ne peut pas vivre à l'intérieur d'un texte.
