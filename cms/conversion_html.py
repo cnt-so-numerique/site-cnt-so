@@ -331,6 +331,101 @@ def _bloc_image(balise, resoud_image):
     })
 
 
+BLOCS_DE_TEXTE = ['p', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'blockquote']
+
+
+def _texte_riche(fragment):
+    """Le fragment en texte riche que l'éditeur sait rouvrir.
+
+    Chaîne vide si le fragment n'a pas de texte, None si l'éditeur le
+    refuserait. Un contenu sans paragraphe (« <b>Oui</b> » dans une case) est
+    emballé : l'éditeur ne sait pas placer un texte hors bloc.
+    """
+    propre = _nettoie(fragment)
+    soup = BeautifulSoup(propre, 'html.parser')
+    if not soup.get_text(strip=True):
+        return ''
+    if not soup.find(BLOCS_DE_TEXTE):
+        propre = f'<p>{propre}</p>'
+    return propre if texte_riche_ouvrable(propre) else None
+
+
+def _bloc_tableau(table):
+    """Un tableau WordPress en bloc modifiable, ou None s'il ne s'y prête pas.
+
+    Deux usages mesurés le 12/10/2026 : la case unique, que WordPress
+    employait comme encadré coloré (Canicule, Saisonniers), devient un
+    encadré ; la grille régulière (HCR, forfait jours Syntec) devient un bloc
+    tableau, cases en texte riche pour garder le gras et les liens. Les
+    couleurs de fond se perdent : c'est le prix d'un contenu modifiable. Une
+    case fusionnée ou une image dans le tableau : on n'y touche pas.
+    """
+    if table.name != 'table':
+        return None
+    if table.find(list(INCOMPATIBLES)) or table.find('img'):
+        return None
+    lignes = [[c for c in tr.find_all(['td', 'th'])] for tr in table.find_all('tr')]
+    if not lignes or not lignes[0]:
+        return None
+    for ligne in lignes:
+        for case in ligne:
+            if case.get('colspan', '1').strip() not in ('', '1') \
+                    or case.get('rowspan', '1').strip() not in ('', '1'):
+                return None
+
+    if len(lignes) == 1 and len(lignes[0]) == 1:
+        case = lignes[0][0]
+        titre = ''
+        premier = case.find(True)
+        if premier is not None and premier.name in ('h2', 'h3', 'h4', 'h5', 'h6') \
+                and not premier.find_previous_sibling(string=lambda s: s.strip()):
+            titre = premier.get_text(' ', strip=True)[:255]
+            premier.decompose()
+        texte = _texte_riche(case.decode_contents())
+        if not texte:
+            return None
+        from cms.models import COULEUR_CHARTE
+        return _bloc('encadre', {'titre': titre, 'texte': texte,
+                                 'couleur': COULEUR_CHARTE, 'fond': 'gris'})
+
+    largeur = len(lignes[0])
+    if any(len(ligne) != largeur for ligne in lignes):
+        return None
+    entete = table.find('thead') is not None \
+        or all(case.name == 'th' for case in lignes[0])
+    intitules = ([case.get_text(' ', strip=True) for case in lignes[0]]
+                 if entete else [''] * largeur)
+    rangees = []
+    for ligne in (lignes[1:] if entete else lignes):
+        valeurs = []
+        for case in ligne:
+            contenu = case.decode_contents()
+            # Une case d'en-tête en tête de ligne (« Échelon 1 ») : le bloc
+            # n'a pas d'en-tête de ligne, le gras en garde la lecture.
+            if case.name == 'th' and case.get_text(strip=True):
+                contenu = f'<b>{contenu}</b>'
+            texte = _texte_riche(contenu)
+            if texte is None:
+                return None
+            valeurs.append(texte)
+        rangees.append({'values': valeurs})
+    legende = table.find('caption')
+    return _bloc('tableau', {
+        'columns': [{'type': 'texte', 'heading': h} for h in intitules],
+        'rows': rangees,
+        'caption': legende.get_text(' ', strip=True) if legende else '',
+    })
+
+
+def _emojis_en_caracteres(soup):
+    """WordPress remplaçait les émojis par une image de s.w.org : on rend le
+    caractère, que tout navigateur affiche, et le texte redevient modifiable."""
+    for img in soup.find_all('img'):
+        if 'emoji' in (img.get('class') or []) \
+                or 's.w.org/images/core/emoji' in img.get('src', ''):
+            img.replace_with(img.get('alt', ''))
+
+
 def html_vers_blocs(html, resoud_image=None):
     """Convertit du HTML WordPress en une liste de blocs de `body`.
 
@@ -341,12 +436,13 @@ def html_vers_blocs(html, resoud_image=None):
     """
     resoud_image = resoud_image or ResolveurImages().resoudre
     stats = {'rich_text': 0, 'image': 0, 'html_conserve': 0,
-             'images_perdues': 0, 'widgets_retires': 0}
+             'images_perdues': 0, 'widgets_retires': 0, 'tableau': 0}
     if not html or not html.strip():
         return [], stats
 
     soup = BeautifulSoup(html, 'html.parser')
     stats['widgets_retires'] = _retire_widgets_inertes(soup)
+    _emojis_en_caracteres(soup)
     _deplie_conteneurs(soup)
 
     blocs = []
@@ -406,8 +502,13 @@ def html_vers_blocs(html, resoud_image=None):
             # tableau (12/10/2026). Ses images y restent : les en sortir les
             # ferait paraître deux fois.
             vide_tampon()
-            tampon.append(noeud)
-            vide_tampon()
+            bloc = _bloc_tableau(noeud)
+            if bloc is not None:
+                blocs.append(bloc)
+                stats['tableau'] += 1
+            else:
+                tampon.append(noeud)
+                vide_tampon()
             continue
         images = noeud.find_all('img')
         if images:

@@ -55,7 +55,7 @@ class Command(BaseCommand):
         self.pages = 0
         self.ignorees = 0
         self.totaux = {'rich_text': 0, 'image': 0, 'html_conserve': 0,
-                       'images_perdues': 0, 'widgets_retires': 0}
+                       'images_perdues': 0, 'widgets_retires': 0, 'tableau': 0}
         # Un seul résolveur pour toute la course : une image citée par dix
         # articles n'est cherchée — ou versée — qu'une fois.
         self.resolveur = ResolveurImages(creer=not self.sec)
@@ -75,6 +75,10 @@ class Command(BaseCommand):
         self.stdout.write(
             f"  {self.totaux['rich_text']} bloc(s) de texte modifiable, "
             f"{self.totaux['image']} bloc(s) image")
+        if self.totaux['tableau']:
+            self.stdout.write(
+                f"  {self.totaux['tableau']} tableau(x) rendu(s) modifiable(s) "
+                f"(tableau ou encadré)")
         if self.totaux['html_conserve']:
             self.stdout.write(self.style.WARNING(
                 f"  {self.totaux['html_conserve']} morceau(x) gardé(s) en HTML "
@@ -139,6 +143,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"  {'[simulé] ' if self.sec else ''}{page.title[:50]:52} "
                 f"→ {stats['rich_text']} texte, {stats['image']} image"
+                + (f", {stats['tableau']} tableau" if stats['tableau'] else '')
                 + (f", {stats['html_conserve']} HTML gardé"
                    if stats['html_conserve'] else ''))
 
@@ -156,7 +161,7 @@ class Command(BaseCommand):
         """Nouveau `body`, ou (None, None) si la conversion n'apporte rien."""
         nouveaux = []
         stats = {'rich_text': 0, 'image': 0, 'html_conserve': 0,
-                 'images_perdues': 0, 'widgets_retires': 0}
+                 'images_perdues': 0, 'widgets_retires': 0, 'tableau': 0}
         change = False
 
         for bloc in page.body.raw_data:

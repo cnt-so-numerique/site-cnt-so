@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'wagtail.contrib.forms',
     'wagtail.contrib.redirects',
     'wagtail.contrib.settings',
+    'wagtail.contrib.typed_table_block',
     'wagtail.embeds',
     'wagtail.sites',
     'content.apps.CustomUsersAppConfig',  # wagtail.users + champ Syndicat sur les formulaires

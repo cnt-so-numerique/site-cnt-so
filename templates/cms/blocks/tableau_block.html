@@ -1,0 +1,16 @@
+{% load wagtailcore_tags %}
+<div class="bloc-tableau">
+  <table>
+    {% if value.caption %}<caption>{{ value.caption }}</caption>{% endif %}
+    {% if a_entete %}
+    <thead>
+      <tr>{% for col in value.columns %}<th scope="col">{{ col.heading }}</th>{% endfor %}</tr>
+    </thead>
+    {% endif %}
+    <tbody>
+      {% for row in value.rows %}
+      <tr>{% for block in row %}<td>{% include_block block %}</td>{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

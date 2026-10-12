@@ -5424,15 +5424,17 @@ class ConversionHtmlModifiableTest(TestCase):
         self.assertIn('https://ailleurs.example/photo.jpg', blocs[1]['value'])
         self.assertEqual(stats['images_perdues'], 1)
 
-    def test_tableau_garde_en_html_brut(self):
-        """Un tableau déplié en paragraphes ne se répare pas : on le garde."""
+    def test_tableau_a_cases_fusionnees_garde_en_html_brut(self):
+        """Le bloc tableau ne sait pas fusionner des cases : déplié, ce
+        tableau ne se lirait plus. On le garde tel quel."""
         from cms.conversion_html import html_vers_blocs
-        tableau = '<table><tr><td>Salaire</td><td>1 800 €</td></tr></table>'
+        tableau = ('<table><tr><td colspan="2">Salaire</td></tr>'
+                   '<tr><td>Brut</td><td>1 800 €</td></tr></table>')
         blocs, stats = html_vers_blocs(tableau)
         self.assertEqual([b['type'] for b in blocs], ['html'])
         # Le balisage est conservé au caractère près — c'est ce qui tombe si
         # l'on retire la garde INCOMPATIBLES.
-        self.assertIn('<table>', blocs[0]['value'])
+        self.assertIn('<td colspan="2">Salaire</td>', blocs[0]['value'])
         self.assertIn('<td>1 800 €</td>', blocs[0]['value'])
         self.assertEqual(stats['html_conserve'], 1)
 
@@ -5442,15 +5444,77 @@ class ConversionHtmlModifiableTest(TestCase):
         from cms.conversion_html import html_vers_blocs
         blocs, stats = html_vers_blocs(
             '<p>Avant le tableau.</p>'
-            '<table><tr><td>Vigilance</td><td>rouge</td></tr></table>'
+            '<table><tr><td colspan="2">Vigilance rouge</td></tr></table>'
             '<p>Après le tableau.</p>')
         self.assertEqual([b['type'] for b in blocs],
                          ['rich_text', 'html', 'rich_text'])
         self.assertIn('Avant le tableau', blocs[0]['value'])
         self.assertNotIn('Avant', blocs[1]['value'])
-        self.assertIn('<td>rouge</td>', blocs[1]['value'])
+        self.assertIn('Vigilance rouge', blocs[1]['value'])
         self.assertIn('Après le tableau', blocs[2]['value'])
         self.assertEqual(stats['html_conserve'], 1)
+
+    def test_grille_devient_un_tableau_modifiable(self):
+        """Grille HCR (12/10/2026) : en-têtes de colonnes, cases d'en-tête de
+        ligne, gras dans les cases. Tout doit survivre, et rouvrir."""
+        from cms.conversion_html import html_vers_blocs
+        from cms.models import ArticlePage
+        blocs, stats = html_vers_blocs(
+            '<figure class="wp-block-table"><table style="background:#1e8ce6">'
+            '<tr><th></th><th>Niveau I</th><th>Niveau II</th></tr>'
+            '<tr><th>Échelon 1</th><td>12,31 €*</td><td><strong>Oui</strong></td></tr>'
+            '<tr><th>Échelon 2</th><td>12,55 €</td><td><a href="/x/">voir</a></td></tr>'
+            '</table></figure>')
+        self.assertEqual([b['type'] for b in blocs], ['tableau'])
+        self.assertEqual(stats['tableau'], 1)
+        self.assertEqual(stats['html_conserve'], 0)
+        valeur = blocs[0]['value']
+        self.assertEqual([c['heading'] for c in valeur['columns']],
+                         ['', 'Niveau I', 'Niveau II'])
+        self.assertEqual(len(valeur['rows']), 2)
+        ligne = valeur['rows'][0]['values']
+        self.assertEqual(ligne[0], '<p><strong>Échelon 1</strong></p>')
+        self.assertEqual(ligne[1], '<p>12,31 €*</p>')
+        self.assertEqual(ligne[2], '<p><strong>Oui</strong></p>')
+        self.assertIn('<a href="/x/">voir</a>', valeur['rows'][1]['values'][2])
+        # Le bloc doit se recharger tel quel : c'est ce que fait l'éditeur.
+        bloc = ArticlePage.body.field.stream_block.child_blocks['tableau']
+        table = bloc.to_python(valeur)
+        self.assertEqual(bloc.get_prep_value(table), valeur)
+
+    def test_grille_sans_entete(self):
+        from cms.conversion_html import html_vers_blocs
+        blocs, _ = html_vers_blocs(
+            '<table><tr><td>Salaire</td><td>1 800 €</td></tr></table>')
+        self.assertEqual([b['type'] for b in blocs], ['tableau'])
+        self.assertEqual([c['heading'] for c in blocs[0]['value']['columns']],
+                         ['', ''])
+        self.assertEqual(blocs[0]['value']['rows'][0]['values'],
+                         ['<p>Salaire</p>', '<p>1 800 €</p>'])
+
+    def test_case_unique_devient_un_encadre(self):
+        """WordPress se servait d'un tableau à une case comme d'un encadré
+        coloré (Saisonniers, Canicule) : l'intertitre en devient le titre."""
+        from cms.conversion_html import html_vers_blocs
+        blocs, stats = html_vers_blocs(
+            '<table style="background-color:#f0aaec"><tbody><tr><td>'
+            '<h4>Les heures sup</h4><p>Elles sont <strong>majorées</strong>.</p>'
+            '</td></tr></tbody></table>')
+        self.assertEqual([b['type'] for b in blocs], ['encadre'])
+        valeur = blocs[0]['value']
+        self.assertEqual(valeur['titre'], 'Les heures sup')
+        self.assertEqual(valeur['texte'],
+                         '<p>Elles sont <strong>majorées</strong>.</p>')
+        self.assertEqual(stats['tableau'], 1)
+
+    def test_emoji_wordpress_redevient_un_caractere(self):
+        from cms.conversion_html import html_vers_blocs
+        blocs, stats = html_vers_blocs(
+            '<p>Le guide <img class="emoji" alt="👇" '
+            'src="https://s.w.org/images/core/emoji/13.1.0/svg/1f447.svg"/></p>')
+        self.assertEqual([b['type'] for b in blocs], ['rich_text'])
+        self.assertIn('👇', blocs[0]['value'])
+        self.assertEqual(stats['images_perdues'], 0)
 
     def test_attributs_wordpress_nettoyes(self):
         from cms.conversion_html import html_vers_blocs

@@ -131,7 +131,7 @@ class Command(BaseCommand):
         self.doc_cache = {}   # url → Document or None
         # Ce que la conversion en blocs modifiables n'a pas su reprendre.
         self.conv_stats = {'rich_text': 0, 'image': 0, 'html_conserve': 0,
-                           'images_perdues': 0, 'widgets_retires': 0}
+                           'images_perdues': 0, 'widgets_retires': 0, 'tableau': 0}
 
         if self.dry_run:
             self.stdout.write(self.style.WARNING('=== DRY-RUN ==='))
@@ -508,6 +508,9 @@ class Command(BaseCommand):
         self.stdout.write(
             f"Corps : {st['rich_text']} bloc(s) de texte modifiable, "
             f"{st['image']} bloc(s) image")
+        if st.get('tableau'):
+            self.stdout.write(
+                f"  {st['tableau']} tableau(x) rendu(s) modifiable(s) (tableau ou encadré)")
         if st['html_conserve']:
             self.stdout.write(self.style.WARNING(
                 f"  {st['html_conserve']} morceau(x) gardé(s) en HTML brut "

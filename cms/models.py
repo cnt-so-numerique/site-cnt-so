@@ -11,6 +11,7 @@ from modelcluster.fields import ParentalKey, ParentalManyToManyField
 from taggit.models import TaggedItemBase
 
 from wagtail import blocks
+from wagtail.contrib.typed_table_block.blocks import TypedTableBlock
 from wagtail.admin.panels import (
     FieldPanel, FieldRowPanel, InlinePanel, MultiFieldPanel, ObjectList,
     PageChooserPanel, TabbedInterface,
@@ -506,6 +507,32 @@ class EncadreBlock(blocks.StructBlock):
         template = 'cms/blocks/encadre_block.html'
 
 
+class TableauBlock(TypedTableBlock):
+    """Un tableau dont chaque case se modifie comme un texte.
+
+    Les grilles de salaires importées de WordPress restaient en HTML brut,
+    hors de portée des rédacteurs (12/10/2026). Cases en texte riche, et non
+    en texte nu : le gras et les liens portent du sens (« Oui » en gras dans
+    la grille Syntec).
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__([
+            ('texte', blocks.RichTextBlock(
+                features=RICHTEXT_FEATURES, required=False, label="Texte")),
+        ], **kwargs)
+
+    def get_context(self, value, parent_context=None):
+        context = super().get_context(value, parent_context)
+        context['a_entete'] = any(col['heading'] for col in value.columns)
+        return context
+
+    class Meta:
+        icon = 'table'
+        label = "Tableau"
+        template = 'cms/blocks/tableau_block.html'
+
+
 class BoutonItem(blocks.StructBlock):
     libelle = blocks.CharBlock(label="Libellé", max_length=60)
     url = blocks.URLBlock(label="Adresse")
@@ -701,6 +728,7 @@ ARTICLE_BODY_BLOCKS = [
     ('boutons', BoutonsBlock()),
     ('chiffres', ChiffresBlock()),
     ('cartes', CartesBlock()),
+    ('tableau', TableauBlock()),
     ('separateur', SeparateurBlock()),
     ('gallery', GalleryBlock()),
     ('file', FileBlock()),
