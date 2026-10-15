@@ -908,7 +908,7 @@ class SearchView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        query = self.request.GET.get('q', '')
+        query = self.request.GET.get('q', '').strip()
         context['query'] = query
         context['site'] = SectionPage.objects.filter(slug='principal').first()
         # Le moteur exige que TOUS les mots figurent dans l'article. Sans le

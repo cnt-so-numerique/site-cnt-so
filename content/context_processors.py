@@ -10,7 +10,7 @@ def _organization_structured_data(main_site, base_url):
         '@context': 'https://schema.org',
         '@type': 'Organization',
         'name': 'CNT-SO',
-        'alternateName': 'Confédération Nationale du Travail — Solidarité Ouvrière',
+        'alternateName': 'Confédération nationale des travailleur-euses — Solidarité Ouvrière',
         'url': f'{base_url}/',
         'logo': f"{base_url}{static('image/CNT SO.jpg')}",
     }

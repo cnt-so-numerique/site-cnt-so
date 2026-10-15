@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CNT-SO{% endblock %}</title>
-    <meta name="description" content="{% block meta_description %}Confédération Nationale du Travail — Solidarité Ouvrière. Syndicat anarcho-syndicaliste.{% endblock %}">
+    <meta name="description" content="{% block meta_description %}Syndicat anarcho-syndicaliste. Défendre ses droits au travail, s'organiser, lutter : actualités, contacts des syndicats CNT-SO et adhésion.{% endblock %}">
     {% comment %}
     Les pages de service — désabonnement, confirmations — se remplissent ici.
     Le tract portait déjà son « noindex » en propre ; les pages liées depuis
@@ -13,7 +13,7 @@
     {% endcomment %}
     {% block meta_robots %}{% endblock %}
     <meta property="og:title" content="{% block og_title %}CNT-SO{% endblock %}">
-    <meta property="og:description" content="{% block og_description %}Confédération Nationale du Travail — Solidarité Ouvrière.{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Confédération nationale des travailleur-euses — Solidarité Ouvrière.{% endblock %}">
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:site_name" content="CNT-SO">
     {% if canonical_url %}
@@ -25,7 +25,7 @@
     {% block og_image %}<meta property="og:image" content="{{ site_base_url }}{% static 'image/apercu-partage.jpg' %}">{% endblock %}
     <meta name="twitter:card" content="{% block twitter_card_type %}summary{% endblock %}">
     <meta name="twitter:title" content="{% block twitter_title %}CNT-SO{% endblock %}">
-    <meta name="twitter:description" content="{% block twitter_description %}Confédération Nationale du Travail — Solidarité Ouvrière.{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}Confédération nationale des travailleur-euses — Solidarité Ouvrière.{% endblock %}">
     {% block twitter_image %}{% endblock %}
     <script type="application/ld+json">{{ org_structured_data|json_ld }}</script>
     {% block structured_data %}{% endblock %}
@@ -2135,7 +2135,7 @@
                 <img src="{% static 'image/cnt-so-entete.jpg' %}" alt="Logo CNT-SO">
                 <div class="logo-info">
                     <div class="logo-text">CNT<span>-SO</span></div>
-                    <div class="logo-subtitle">Confédération Nationale du Travail<br>Solidarité Ouvrière</div>
+                    <div class="logo-subtitle">Confédération nationale des travailleur-euses<br>Solidarité Ouvrière</div>
                 </div>
             </a>
         </div>
@@ -2243,7 +2243,7 @@
                 </div>
             {% else %}
                 <div class="footer-brand-name">CNT-SO</div>
-                <p class="footer-brand-desc">Confédération Nationale du Travail — Solidarité Ouvrière.<br>Syndicat interprofessionnel, anarcho-syndicaliste, autogestionnaire.</p>
+                <p class="footer-brand-desc">Confédération nationale des travailleur-euses — Solidarité Ouvrière.<br>Syndicat interprofessionnel, anarcho-syndicaliste, autogestionnaire.</p>
                 <div class="footer-brand-links">
                     <a href="{% url 'content:contact' %}">Formulaire de contact</a>
                 </div>
@@ -2306,7 +2306,7 @@
 
         </div>
         <div class="footer-bottom">
-            <p>© 2026 Confédération Nationale du Travail — Solidarité Ouvrière</p>
+            <p>© 2026 Confédération nationale des travailleur-euses — Solidarité Ouvrière</p>
             <p>Site réalisé par <a href="https://bamiu.com" target="_blank" rel="noopener">Studio Bamiu</a></p>
         </div>
     </footer>

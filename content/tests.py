@@ -568,6 +568,14 @@ class HomeViewTest(TestCase):
         response = self.client.get(reverse('content:home'))
         self.assertEqual(response.context['site'], self.site)
 
+    def test_titre_et_description_pour_google(self):
+        """Le nom de l'organisation est « Confédération nationale des
+        travailleur-euses », pas « du Travail » (correction du 15/10/2026)."""
+        r = self.client.get(reverse('content:home'))
+        self.assertContains(r, '<title>CNT-SO — Confédération nationale des travailleur-euses - Solidarité Ouvrière</title>', html=False)
+        self.assertContains(r, '<meta name="description" content="Syndicat anarcho-syndicaliste. Défendre', html=False)
+        self.assertNotContains(r, 'Nationale du Travail')
+
     def test_context_has_carousel_articles_key(self):
         response = self.client.get(reverse('content:home'))
         self.assertIn('carousel_articles', response.context)
@@ -966,6 +974,32 @@ class SearchViewTest(TestCase):
                           excerpt='Contenu spécifique sur la solidarité ouvrière')
         response = self.client.get(reverse('content:search') + '?q=solidarité')
         self.assertGreaterEqual(len(response.context['articles']), 1)
+
+    def test_onglet_porte_la_recherche(self):
+        r = self.client.get(reverse('content:search'), {'q': 'grève'})
+        self.assertContains(r, '<title>«&nbsp;grève&nbsp;» — Recherche — CNT-SO</title>', html=False)
+
+    def test_onglet_et_titre_sans_recherche(self):
+        r = self.client.get(reverse('content:search'), {'q': '   '})
+        self.assertContains(r, '<title>Recherche — CNT-SO</title>', html=False)
+        self.assertContains(r, '<h1 class="section-title">Recherche</h1>', html=False)
+
+    def test_compteur_donne_le_total_et_pas_la_page(self):
+        """« articles » ne contient que la page affichée : le compteur
+        disait « 10 résultat(s) » pour 11 articles."""
+        for i in range(10):
+            make_article_page(section_slug='principal', title=f'Grève {i}', slug=f'greve-{i}')
+        r = self.client.get(reverse('content:search'), {'q': 'grève'})
+        self.assertEqual(len(r.context['articles']), 10)
+        self.assertContains(r, '11 résultats</p>', html=False)
+
+    def test_resultats_hors_de_google(self):
+        r = self.client.get(reverse('content:search'), {'q': 'grève'})
+        self.assertContains(r, '<meta name="robots" content="noindex,follow">', html=False)
+
+    def test_compteur_au_singulier(self):
+        r = self.client.get(reverse('content:search'), {'q': 'grève'})
+        self.assertContains(r, '>1 résultat</p>', html=False)
 
 
 class WordPressRedirectViewTest(TestCase):

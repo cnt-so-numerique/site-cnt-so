@@ -1,6 +1,13 @@
 {% extends 'base.html' %}
 
-{% block title %}Recherche : {{ query }} - CNT-SO{% endblock %}
+{% block title %}{% if query %}«&nbsp;{{ query }}&nbsp;» — {% endif %}Recherche — CNT-SO{% endblock %}
+
+{% comment %}
+Une page de résultats n'a rien à faire dans Google : contenu changeant, et
+n'importe qui peut en fabriquer à volonté. « follow » : les liens vers les
+articles restent suivis.
+{% endcomment %}
+{% block meta_robots %}<meta name="robots" content="noindex,follow">{% endblock %}
 
 {% block content %}
 <style>
@@ -9,10 +16,16 @@
   .recherche-vide p { margin-bottom: .75rem; color: var(--text-secondary); }
   .recherche-vide a { color: var(--primary-color); font-weight: 700; }
 </style>
-<h1 class="section-title">Recherche : "{{ query }}"</h1>
+<h1 class="section-title">Recherche{% if query %}&nbsp;: «&nbsp;{{ query }}&nbsp;»{% endif %}</h1>
 
 {% if query %}
-<p style="color: var(--text-muted); margin-bottom: 2rem;">{{ articles|length }} résultat(s) trouvé(s)</p>
+{% comment %}
+« articles » ne contient que la page affichée (10 au plus) : le total est
+celui du paginateur.
+{% endcomment %}
+{% with total=page_obj.paginator.count %}{% if total %}
+<p style="color: var(--text-muted); margin-bottom: 2rem;">{{ total }} résultat{{ total|pluralize }}</p>
+{% endif %}{% endwith %}
 
 <div class="article-list">
     {% for article in articles %}
