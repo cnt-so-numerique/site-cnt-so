@@ -576,6 +576,10 @@ class HomeViewTest(TestCase):
         self.assertContains(r, '<meta name="description" content="Syndicat anarcho-syndicaliste. Défendre', html=False)
         self.assertNotContains(r, 'Nationale du Travail')
 
+    def test_vignette_qui_sommes_nous(self):
+        r = self.client.get(reverse('content:home'))
+        self.assertContains(r, "Un syndicalisme d'industrie, de lutte des classes et de transformation sociale.")
+
     def test_context_has_carousel_articles_key(self):
         response = self.client.get(reverse('content:home'))
         self.assertIn('carousel_articles', response.context)
