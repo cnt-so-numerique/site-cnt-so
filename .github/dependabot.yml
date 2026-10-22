@@ -1,0 +1,35 @@
+# Dependabot ouvre une demande de fusion par mise à jour disponible, et la CI
+# y lance la suite. On lit un résultat au lieu de décider à l'aveugle.
+#
+# Regroupé plutôt qu'une demande par paquet : quinze demandes ouvertes par
+# mois ne se relisent pas, elles s'ignorent. Une par mois, avec la suite au
+# vert dessous, se traite en cinq minutes.
+#
+# Les failles, elles, n'attendent pas le mois : la tâche « failles » de la CI
+# les signale dès l'exécution du lundi.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      securite:
+        patterns: ["django-otp", "requests", "urllib3", "pillow"]
+      reste:
+        patterns: ["*"]
+        exclude-patterns: ["Django", "wagtail", "django-otp", "requests", "urllib3", "pillow"]
+    ignore:
+      # Django et Wagtail : les correctifs (x.y.Z) arrivent seuls ; changer de
+      # série se décide en lisant les notes de version, pas en fusionnant une
+      # demande — Wagtail suit Django de près, les deux montent ensemble.
+      - dependency-name: "Django"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "wagtail"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

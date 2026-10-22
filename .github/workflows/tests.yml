@@ -83,7 +83,6 @@ jobs:
           # Le pilote PostgreSQL vient de requirements.txt, comme en production
           # (psycopg2). Installer psycopg 3 ici en plus faisait tourner la suite
           # sur un autre pilote que celui du serveur (relevé le 21/09/2026).
-          pip install pip-audit
 
       - name: Cohérence des dépendances
         run: pip check
@@ -99,8 +98,20 @@ jobs:
       - name: La suite complète, sur PostgreSQL
         run: python manage.py test
 
-      - name: Failles connues
-        # Informatif : une CVE publiée ne doit pas faire échouer une poussée
-        # sans rapport, mais elle doit être visible dans le journal.
-        continue-on-error: true
-        run: python -m pip_audit
+  # Les failles connues, dans une tâche à part : elle échoue — croix rouge et
+  # courriel — sans brouiller le résultat de la suite.
+  #
+  # Motif : l'audit tournait ici en « continue-on-error », donc toujours vert.
+  # Le 23/10/2026, Pillow (35 failles), urllib3, oauthlib et DRF avaient des
+  # correctifs publiés depuis une à cinq semaines, et rien ne l'avait signalé.
+  # Avec l'exécution du lundi, une faille publiée sur une version figée se
+  # voit dans la semaine, même sans poussée.
+  failles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - run: python -m pip install pip-audit
+      - run: pip-audit -r requirements.txt
