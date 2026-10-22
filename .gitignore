@@ -20,6 +20,7 @@ htmlcov/
 
 # Environnement virtuel
 venv/
+venv.py3*-old/
 env/
 .env
 .env.*
