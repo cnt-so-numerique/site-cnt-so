@@ -28,6 +28,13 @@ updates:
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "wagtail"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # Bornés par Wagtail lui-même (7.4 : treebeard < 6, draftjs_exporter
+      # < 6) : une majeure proposée seule ne s'installe pas. Ils montent avec
+      # Wagtail, jamais avant (demande groupée en échec, 23/10/2026).
+      - dependency-name: "django-treebeard"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "draftjs_exporter"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
