@@ -1,3 +1,4 @@
+annotated-types==0.8.0
 anyascii==0.3.3
 asgiref==3.13.0
 beautifulsoup4==4.15.0
@@ -5,6 +6,7 @@ certifi==2026.10.23
 charset-normalizer==3.5.2
 coverage==7.17.0
 defusedxml==0.7.1
+django-ninja==1.7.1
 Django==6.1.2
 django-filter==26.2
 django-hCaptcha==0.2.0
@@ -16,7 +18,7 @@ django-taggit==6.1.0
 django-tasks==0.12.0
 django-treebeard==5.3.1
 djangorestframework==3.18.3
-draftjs_exporter==5.2.0
+draftjs_exporter==7.3.1
 et_xmlfile==2.0.0
 feedparser==6.0.14
 feedparser-sgmllib==2.1.0
@@ -38,16 +40,20 @@ playwright==1.64.1
 # aurait installé un second pilote, que Django préfère — le déploiement aurait
 # changé de pilote en silence. Passer à psycopg 3 sera un changement à part.
 psycopg2-binary==2.9.13
+pydantic_core==2.50.1
+pydantic==2.14.1
 pyee==14.0.0
 qrcode==8.2
 requests==2.34.2
 requests-oauthlib==2.0.0
 soupsieve==3.0.4
 sqlparse==0.6.0
+swapper==1.5.0
 telepath==0.3.1
 typing_extensions==4.16.0
+typing-inspection==0.4.4
 urllib3==2.8.0
-wagtail==7.4.4
+wagtail==8.0.1
 wagtailmedia==0.19.1
 whitenoise==6.12.0
 Willow==1.12.0

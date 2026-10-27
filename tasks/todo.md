@@ -89,6 +89,30 @@ superutilisateurs seront invités à s'enrôler à leur prochain clic.
       /cms/login/, /admin/login/ et / en 200
 - [ ] Arnaud enregistre son téléphone TOUT DE SUITE (premier passage dans /cms/)
 
+## 3. Wagtail 8 — branche `wagtail-8` (27/10/2026), PAS encore fusionnée
+- [x] Dépendances : wagtail 8.0.1, draftjs_exporter 5.2 → 7.3.1, + django-ninja,
+      pydantic (+ core, annotated-types, typing-inspection), swapper ;
+      wagtailmedia 0.19.1 passe. Une seule migration : wagtailcore.0098_apitoken
+- [x] **Régression trouvée et corrigée** : en Wagtail 8, la politique de
+      permissions vient d'un registre global, et pour une PAGE c'est l'arbre des
+      pages → les rédacteurs (permissions de modèle seulement) n'accédaient plus
+      à leurs articles (13 tests rouges). Correctif dans `cms/cloisonnement.py` :
+      `ModelPermissionPolicy` injectée dans NOS écrans seulement (via
+      `construct_view`), PAS enregistrée globalement — sinon l'explorateur de
+      pages, non cloisonné, en aurait hérité. Marche aussi en 7.4.
+- [x] Suites : 1 662 OK en 8 ET en 7.4
+- [x] Contrôle navigateur en rédacteur (copie de la base migrée en 8) : menu
+      identique à la 7.4, liste et édition de ses articles, bouton Publier ;
+      articles d'un autre syndicat en 404 ; explorateur de pages : tout refus
+- [ ] Déploiement : sauvegarde de la base, fusion, deploiement.sh (pip +
+      migrate), contrôle ; retour arrière = revenir au commit précédent,
+      `pip install -r requirements.txt`, `migrate wagtailcore 0097`
+- Constat hors chantier, IDENTIQUE en 7.4 : un rédacteur voit en lecture la
+  liste de l'explorateur sous le site confédéral (titres des brouillons des
+  autres syndicats compris). À trancher à part.
+- Plus tard (Wagtail 9) : tests qui importent `wagtail.images.permissions.
+  permission_policy` / `wagtail.documents…` (avertissements RemovedInWagtail90)
+
 ## 3. Finir
 - [ ] requirements.txt, suite complète, contrôle visuel de l'admin
 - [ ] Déploiement : séquence annoncée (migrate zero AVANT le pull qui retire les apps)

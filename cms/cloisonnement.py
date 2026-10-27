@@ -14,7 +14,10 @@ version.
 from django import forms
 from django.core.exceptions import ImproperlyConfigured
 from django.http import Http404
+from django.utils.functional import cached_property
 
+from wagtail.models import Page
+from wagtail.permission_policies import ModelPermissionPolicy
 from wagtail.snippets.views.chooser import SnippetChooserViewSet
 
 from .site_context import _is_global_chef, get_current_site, scope_qs, scope_qs_slug
@@ -172,6 +175,20 @@ class ViewSetCloisonne:
                 "des autres syndicats."
             )
 
+    @cached_property
+    def permission_policy(self):
+        """Les permissions Django du modèle, comme Wagtail 7.4 le faisait seul.
+
+        Wagtail 8 prend la politique enregistrée pour le modèle ; pour une page
+        (ArticlePage, ContentPage, SectionPage), c'est celle de l'arbre des
+        pages. Nos rédacteurs n'ont que des permissions de modèle : ils ne
+        voyaient plus leurs propres articles (essai de Wagtail 8, 27/10/2026).
+        Les autres modèles gardent la politique par défaut, qui est déjà celle-là.
+        """
+        if issubclass(self.model, Page):
+            return ModelPermissionPolicy(self.model)
+        return super().permission_policy
+
     def get_queryset(self, request):
         """Périmètre visible. Ne retourne jamais None (contrairement au défaut
         de SnippetViewSet) : les écrans par pk s'en servent pour arbitrer."""
@@ -273,4 +290,10 @@ class ViewSetCloisonne:
                 (*bases, view_class),
                 {'_viewset_cloisonne': self},
             )
+        if hasattr(view_class, 'permission_policy'):
+            # Wagtail 8 : chaque vue relit la politique dans un registre
+            # global, où une page relève de l'arbre des pages (voir
+            # `permission_policy` ci-dessus). On la fixe pour NOS écrans
+            # seulement : l'explorateur de pages, non cloisonné, n'en hérite pas.
+            kwargs.setdefault('permission_policy', self.permission_policy)
         return super().construct_view(view_class, **kwargs)
