@@ -66,7 +66,6 @@ INSTALLED_APPS = [
     'wagtail',
     'modelcluster',
     'taggit',
-    'wagtailseo',
     'wagtailmedia',
     'wagtail_2fa',
     'django_otp',

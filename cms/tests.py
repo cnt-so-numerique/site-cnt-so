@@ -3,7 +3,6 @@ Tests pour les fonctionnalités récentes :
 - Sous-site STUCS (vues, menu, catégories)
 - Modèle Event (agenda)
 - Champs SectionPage (linkstack, framaform, intro_text, rejoindre_text, agenda_text)
-- wagtail-seo (champs OG sur ArticlePage)
 - Recherche Wagtail FTS
 - Interface listes mails OVH + sync abonnés
 """
@@ -329,35 +328,6 @@ class StucsAgendaViewTest(TestCase):
         make_event(self.stucs, 'Concert', days_from_now=3, location='Salle Pleyel')
         r = self.client.get('/stucs/agenda/')
         self.assertContains(r, 'Salle Pleyel')
-
-
-# ── SEO — champs Open Graph ───────────────────────────────────────────────────
-
-class ArticlePageSeoTest(TestCase):
-
-    def test_og_image_field_exists(self):
-        art = make_article_page(title='Article SEO')
-        self.assertTrue(hasattr(art, 'og_image'))
-
-    def test_canonical_url_field_exists(self):
-        art = make_article_page(title='Article canonical')
-        self.assertTrue(hasattr(art, 'canonical_url'))
-
-    def test_seo_panels_in_promote(self):
-        from cms.models import ArticlePage
-        from wagtailseo.models import SeoMixin
-        # SeoMixin.seo_panels doit être dans la liste promote_panels
-        promote_str = repr(ArticlePage.promote_panels)
-        # Au moins un panel SEO doit être présent (canonical_url ou og_image)
-        self.assertTrue(
-            'canonical_url' in promote_str or 'og_image' in promote_str
-            or issubclass(ArticlePage, SeoMixin)
-        )
-
-    def test_seo_mixin_applied(self):
-        from wagtailseo.models import SeoMixin
-        from cms.models import ArticlePage
-        self.assertTrue(issubclass(ArticlePage, SeoMixin))
 
 
 # ── Recherche Wagtail ─────────────────────────────────────────────────────────

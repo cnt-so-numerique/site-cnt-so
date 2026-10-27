@@ -1,3 +1,53 @@
+# À faire — demandé le 27/10/2026 : retirer wagtail-seo et wagtail-2fa
+
+Constat : deux extensions à l'arrêt, qui bloquent seules Wagtail 8. Mesuré en
+prod le 27/10 : 0 appareil TOTP confirmé, 0 page avec `canonical_url` ou
+`og_image` (ArticlePage et SectionPage). Les gabarits n'utilisent aucune des deux :
+les balises de partage sont écrites à la main (base.html, article_detail.html).
+Aucune de nos migrations ne les importe.
+
+## 1. wagtail-seo — FAIT en dev le 27/10 (reste le déploiement)
+- [x] `SeoMixin` retiré de `SectionPage` et `ArticlePage` ; `promote_panels`
+      d'ArticlePage = `Page.promote_panels` + l'existant (les champs slug/seo_title/
+      search_description y apparaissaient en double)
+- [x] Migration `cms.0048_retrait_wagtailseo` (canonical_url, og_image)
+- [x] Aperçus : 200 (article et site) ; 302 anciennes révisions contenant
+      `og_image` se rechargent sans erreur
+- [x] `migrate wagtailseo zero` en dev (table SeoSettings vide), app retirée,
+      paquet désinstallé du venv, requirements.txt
+- [x] `ArticlePageSeoTest` supprimé : il ne testait que la présence du paquet ;
+      les balises réellement servies sont déjà couvertes (content/tests.py ~10353,
+      cms/tests.py ~2079). Suite complète : 1 638 tests OK
+- [ ] Prod : compter SeoSettings puis `migrate wagtailseo zero` AVEC L'ANCIEN
+      CODE, puis pull, `pip uninstall wagtail-seo`, migrate
+
+Constat hors lot : `seo_title` et `search_description` ne sont lus par AUCUN
+gabarit (le <title> et la meta description viennent du titre et de l'extrait).
+
+## 2. wagtail-2fa → double authentification maison sur django-otp
+Décidé le 27/10 : **obligatoire pour les superutilisateurs, facultative pour
+les rédacteurs** (bascule « obligatoire pour tous » = un réglage, plus tard).
+Comptes partagés dans les syndicats : un appareil TOTP **par personne** sur le
+même compte (nommé, révocable seul), pas un QR code commun.
+- [ ] Retirer `wagtail_2fa` (app, middleware, réglage) ; garder `django_otp`
+      + `otp_totp` + `otp_static` (tables vides en prod, rien à migrer)
+- [ ] Connexion /cms/ : après le mot de passe, étape « code à 6 chiffres » si
+      le compte a un appareil ; superutilisateur sans appareil → enrôlement forcé
+- [ ] Page « Double authentification » dans le compte : ajouter un appareil
+      (QR code + nom + confirmation par un code), lister, retirer ;
+      générer 10 codes de secours
+- [ ] Superutilisateur : retirer les appareils d'un autre compte (téléphone perdu)
+- [ ] Limiter les essais de code (django-otp a un throttling intégré : vérifier)
+- [ ] Tests : sans appareil, avec appareil (bon/mauvais code), superutilisateur
+      forcé, code de secours à usage unique, révocation ; mutation
+- [ ] Contrôle visuel : connexion superutilisateur + rédacteur, mobile compris
+- [ ] Courte notice pour les rédacteurs (comment activer, que faire si perte)
+
+## 3. Finir
+- [ ] requirements.txt, suite complète, contrôle visuel de l'admin
+- [ ] Déploiement : séquence annoncée (migrate zero AVANT le pull qui retire les apps)
+- [ ] Ensuite seulement : montée Wagtail 8 (chantier séparé)
+
 # À faire — demandé le 05/10/2026 : « Qui sommes-nous » modifiable
 
 Constat : texte écrit en dur dans `qui_sommes_nous.html` ; la page Wagtail

@@ -25,7 +25,6 @@ from wagtail.query import PageQuerySet
 from wagtail.search import index
 from wagtail.snippets.models import register_snippet
 from wagtail.admin.forms import WagtailAdminPageForm
-from wagtailseo.models import SeoMixin
 
 logger = logging.getLogger(__name__)
 
@@ -840,7 +839,7 @@ class HomePage(Page):
         return 'content/home.html'
 
 
-class SectionPage(SeoMixin, Page):
+class SectionPage(Page):
     """Représente un syndicat régional ou sectoriel."""
 
     SECTION_TYPE_CHOICES = [
@@ -1476,7 +1475,7 @@ class ArticlePageQuerySet(PageQuerySet):
         return self.live().exclude(section_slug__in=fermes)
 
 
-class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
+class ArticlePage(ContenuDeSyndicatMixin, Page):
     """Article de blog — remplace content.Article."""
 
     objects = PageManager.from_queryset(ArticlePageQuerySet)()
@@ -1638,7 +1637,7 @@ class ArticlePage(ContenuDeSyndicatMixin, SeoMixin, Page):
         index.FilterField('publication_date'),
     ]
 
-    promote_panels = SeoMixin.seo_panels + Page.promote_panels + [
+    promote_panels = Page.promote_panels + [
         FieldPanel('legacy_article_id'),
         FieldPanel('legacy_wp_id'),
     ]
