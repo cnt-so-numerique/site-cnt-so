@@ -42,14 +42,12 @@ pyee==14.0.0
 qrcode==8.2
 requests==2.34.2
 requests-oauthlib==2.0.0
-six==1.17.0
 soupsieve==3.0.4
 sqlparse==0.6.0
 telepath==0.3.1
 typing_extensions==4.16.0
 urllib3==2.8.0
 wagtail==7.4.4
-wagtail-2fa==1.8.0
 wagtailmedia==0.19.1
 whitenoise==6.12.0
 Willow==1.12.0

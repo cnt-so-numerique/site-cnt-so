@@ -2189,3 +2189,24 @@ class Event(models.Model):
     def is_past(self):
         from django.utils.timezone import now
         return self.date < now().date()
+
+
+class EchecsDoubleAuth(models.Model):
+    """Codes faux saisis pour un compte : la limitation des essais de cms/double_auth.py.
+
+    Par COMPTE et non par appareil, contrairement à django-otp : un compte
+    partagé porte un téléphone par personne, et chaque connexion réussie avec
+    l'un compterait sinon comme un échec sur tous les autres.
+    """
+
+    user = models.OneToOneField(
+        'auth.User', on_delete=models.CASCADE, related_name='echecs_double_auth')
+    nombre = models.PositiveIntegerField(default=0)
+    dernier = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Échecs de double authentification"
+        verbose_name_plural = "Échecs de double authentification"
+
+    def __str__(self):
+        return f"{self.user} : {self.nombre}"

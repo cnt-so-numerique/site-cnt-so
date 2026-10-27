@@ -3,4 +3,11 @@
 
 {% block extra_fields %}
     <li>{% formattedfield form.syndicats %}</li>
+    {% if request.user.is_superuser %}
+    <li>
+        <a class="button button-secondary" href="{% url 'cms_double_auth_compte' object.pk %}">
+            Double authentification : voir ou retirer ses téléphones
+        </a>
+    </li>
+    {% endif %}
 {% endblock extra_fields %}

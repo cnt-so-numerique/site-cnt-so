@@ -67,7 +67,6 @@ INSTALLED_APPS = [
     'modelcluster',
     'taggit',
     'wagtailmedia',
-    'wagtail_2fa',
     'django_otp',
     'django_otp.plugins.otp_totp',
     'django_otp.plugins.otp_static',
@@ -97,7 +96,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django_otp.middleware.OTPMiddleware',
-    'wagtail_2fa.middleware.VerifyUserPermissionsMiddleware',
+    'cms.double_auth.DoubleAuthMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -290,8 +289,20 @@ WAGTAIL_ALLOW_UNICODE_SLUGS = False
 # la prod doit la surcharger avec https://newsite.cnt-so.org (env ou local_settings).
 MAIN_SITE_BASE_URL = _os.environ.get('MAIN_SITE_BASE_URL', WAGTAILADMIN_BASE_URL)
 
-# ── wagtail-2fa ───────────────────────────────────────────────────────────────
-WAGTAIL_2FA_REQUIRED = False  # True = obligatoire pour tous les rédacteurs
+# ── Double authentification (cms/double_auth.py) ──────────────────────────────
+# 'superutilisateurs' : obligatoire pour eux, facultative pour les rédacteurs.
+# 'tous' : obligatoire pour tout compte qui entre dans /cms/.
+DOUBLE_AUTH_OBLIGATOIRE = 'superutilisateurs'
+# Pendant les tests : 'personne'. Une centaine de tests connectent un
+# superutilisateur pour tout autre chose ; ceux de la double authentification
+# remettent le réglage de prod (cms/tests_double_auth.py). Refusé hors DEBUG.
+if _sys.argv[1:2] == ['test']:
+    DOUBLE_AUTH_OBLIGATOIRE = 'personne'
+OTP_TOTP_ISSUER = 'CNT-SO'
+# La limitation des essais est faite par compte dans cms/double_auth.py : celle
+# de django-otp, par appareil, bloquerait les téléphones des comptes partagés.
+OTP_TOTP_THROTTLE_FACTOR = 0
+OTP_STATIC_THROTTLE_FACTOR = 0
 
 # Pas de circuit d'approbation : les rédacteurs publient directement
 # (le brouillon reste disponible comme état de travail). Le workflow Wagtail
@@ -535,6 +546,12 @@ if not DEBUG:
             "hCaptcha tourne avec les clés d'essai, qui valident n'importe "
             "quel jeton : définir HCAPTCHA_SITEKEY et HCAPTCHA_SECRET "
             "(variables d'environnement ou local_settings.py)."
+        )
+    if DOUBLE_AUTH_OBLIGATOIRE not in ('superutilisateurs', 'tous'):
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured(
+            "DOUBLE_AUTH_OBLIGATOIRE doit valoir 'superutilisateurs' ou 'tous' "
+            "en production ('personne' est réservé aux tests)."
         )
     # Cookies uniquement sur HTTPS
     SESSION_COOKIE_SECURE = True

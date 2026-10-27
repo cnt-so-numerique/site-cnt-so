@@ -719,3 +719,14 @@ champ sans révision sur une page sans brouillon ne se fait donc PAS effacer au
 premier « Publier ». J'avais affirmé le contraire (migration 0043, commande
 `remplit_qui_sommes_nous`) ; la mutation l'a démenti. Règle : un risque se
 prouve par une mutation qui échoue, pas par un commentaire.
+
+## 27/10/2026 — Mutation restaurée, mais Python exécute encore la mutation
+
+Mutation `OTP_TOTP_THROTTLE_FACTOR = 0` → `1` dans settings.py, puis
+restauration par `shutil.move` de la copie. Même taille, même seconde de
+modification : le `.pyc` de la mutation est resté valide aux yeux de Python, et
+TOUTES les mutations suivantes, puis la suite complète, ont tourné avec le
+facteur à 1. Symptôme : un test vert seul juste avant, rouge en continu après.
+Règle : lancer les mutations avec `PYTHONDONTWRITEBYTECODE=1` et purger les
+`__pycache__` avant ET après ; un test qui change d'avis sans changement de
+code → soupçonner un cache avant le code.

@@ -1,0 +1,58 @@
+{% extends parent %}
+{% load wagtailadmin_tags %}
+{% block titletag %}Ajouter un téléphone{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+  .double-auth-ajout { max-width: 40rem; }
+  .double-auth-ajout ol { padding-left: 1.25rem; }
+  .double-auth-ajout li { margin-bottom: .5rem; }
+  .double-auth-qr { width: 14rem; max-width: 100%; padding: .75rem; background: #fff;
+                    border-radius: 6px; margin: 1rem 0 .5rem; }
+  .double-auth-qr svg { display: block; width: 100%; height: auto; }
+  .double-auth-cle { font-family: monospace; font-size: 1.05rem; word-spacing: .3rem;
+                     user-select: all; }
+  .double-auth-ajout .help { color: var(--w-color-text-meta); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="{% if parent == 'wagtailadmin/base.html' %}nice-padding {% endif %}double-auth-ajout">
+  <h1 class="w-h1">Ajouter un téléphone</h1>
+
+  {% if premier %}
+  <p class="help">Ce compte doit être protégé par la double authentification :
+  à chaque connexion, on vous demandera en plus un code affiché par votre
+  téléphone. Comptez deux minutes pour l'installer.</p>
+  {% else %}
+  <p class="help">Chaque personne qui utilise ce compte peut enregistrer son
+  propre téléphone : on pourra retirer le sien sans toucher aux autres.</p>
+  {% endif %}
+
+  <ol>
+    <li>Installez une application d'authentification sur le téléphone, si ce
+      n'est pas déjà fait : <strong>Aegis</strong> ou <strong>FreeOTP</strong>
+      (Android), <strong>Google Authenticator</strong> ou l'app
+      <strong>Mots de passe</strong> de l'iPhone.</li>
+    <li>Dans l'application, choisissez « ajouter » puis scannez ce QR code :
+      <div class="double-auth-qr">{{ qr_code }}</div>
+      <span class="help">Impossible de scanner ? Saisissez cette clé à la main :</span><br>
+      <span class="double-auth-cle">{{ cle_lisible }}</span>
+    </li>
+    <li>Remplissez ce formulaire avec le code que l'application affiche alors.</li>
+  </ol>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    {% formattedfield form.nom %}
+    {% formattedfield form.mot_de_passe %}
+    {% formattedfield form.code %}
+    <footer class="form-actions">
+      <button type="submit" class="button">Enregistrer ce téléphone</button>
+      {% if not premier %}<a class="button button-secondary" href="{% url 'cms_double_auth' %}">Annuler</a>{% endif %}
+    </footer>
+  </form>
+</div>
+{% endblock %}

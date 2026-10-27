@@ -1,0 +1,79 @@
+{% extends "wagtailadmin/base.html" %}
+{% block titletag %}Double authentification{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+  .double-auth-appareils { max-width: 48rem; }
+  .double-auth-appareils .help { color: var(--w-color-text-meta); }
+  .double-auth-appareils h2 { font-size: 1.15rem; margin: 2rem 0 .75rem; }
+  .double-auth-table td { vertical-align: middle; }
+  .double-auth-table form { margin: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="nice-padding double-auth-appareils">
+  <h1 class="w-h1">Double authentification{% if not le_mien %} — {{ compte.get_username }}{% endif %}</h1>
+
+  {% if telephones %}
+  <p class="help">À chaque connexion, ce compte demande en plus un code donné par
+  l'un de ces téléphones.</p>
+  {% elif obligatoire %}
+  <p class="help">Ce compte doit être protégé, mais n'a pas encore de téléphone :
+  il devra en enregistrer un à sa prochaine connexion.</p>
+  {% else %}
+  <p class="help">Ce compte n'est protégé que par son mot de passe. Enregistrer un
+  téléphone ajoute un code à 6 chiffres à chaque connexion : un mot de passe
+  volé ne suffit plus pour entrer.</p>
+  {% endif %}
+
+  <h2>Téléphones</h2>
+  {% if telephones %}
+  <table class="listing double-auth-table">
+    <thead><tr><th>Nom</th><th>Ajouté le</th><th>Dernier code</th><th></th></tr></thead>
+    <tbody>
+    {% for telephone in telephones %}
+      <tr>
+        <td>{{ telephone.name }}</td>
+        <td>{{ telephone.created_at|date:"d/m/Y" }}</td>
+        <td>{{ telephone.last_used_at|date:"d/m/Y H:i"|default:"jamais" }}</td>
+        <td>
+          <form method="post" action="{% url 'cms_double_auth_retirer' telephone.pk %}"
+                onsubmit="return confirm('Retirer « {{ telephone.name|escapejs }} » ? Ce téléphone ne donnera plus de code valable.{% if telephones|length == 1 %} C\'est le dernier : les codes de secours seront effacés aussi.{% endif %}');">
+            {% csrf_token %}
+            <button type="submit" class="button button-small button-secondary no">Retirer</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>Aucun téléphone.</p>
+  {% endif %}
+
+  {% if le_mien %}
+  <p><a class="button" href="{% url 'cms_double_auth_ajouter' %}">Ajouter un téléphone</a></p>
+
+  {% if telephones %}
+  <h2>Codes de secours</h2>
+  <p>Il vous reste <strong>{{ codes_restants }}</strong> code{{ codes_restants|pluralize }} de secours.</p>
+  <form method="post" action="{% url 'cms_double_auth_codes' %}"
+        onsubmit="return confirm('Générer de nouveaux codes ? Les anciens ne marcheront plus.');">
+    {% csrf_token %}
+    <button type="submit" class="button button-secondary">Générer de nouveaux codes</button>
+  </form>
+  {% endif %}
+
+  <h2>Compte partagé ?</h2>
+  <p class="help">Quand une personne cesse d'utiliser ce compte : retirez son
+  téléphone <strong>et</strong> changez le mot de passe.</p>
+  {% else %}
+  <p class="help">Téléphone perdu, ou personne qui quitte le compte : retirez son
+  téléphone ici. Sans téléphone, le compte se connecte de nouveau au seul mot de
+  passe{% if obligatoire %} et devra en enregistrer un à la prochaine connexion{% endif %}.
+  Seule la personne elle-même peut ajouter un téléphone.</p>
+  {% endif %}
+</div>
+{% endblock %}

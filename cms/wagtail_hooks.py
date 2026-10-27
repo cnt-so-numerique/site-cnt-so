@@ -1464,6 +1464,7 @@ class MailingListDetailView(View):
 
 
 from cms.statistiques import RapportStatistiquesView, StatistiquesView  # noqa: E402
+from cms import double_auth  # noqa: E402
 
 
 @hooks.register('register_admin_urls')
@@ -1480,7 +1481,24 @@ def register_site_admin_urls():
         path('mailing-lists/<str:list_name>/', MailingListDetailView.as_view(), name='cms_mailing_list_detail'),
         path('statistiques/', StatistiquesView.as_view(), name='cms_statistiques'),
         path('statistiques/rapport/', RapportStatistiquesView.as_view(), name='cms_statistiques_rapport'),
+        path('double-auth/', double_auth.AppareilsView.as_view(), name='cms_double_auth'),
+        path('double-auth/code/', double_auth.CodeView.as_view(), name='cms_double_auth_code'),
+        path('double-auth/ajouter/', double_auth.AjouterTelephoneView.as_view(), name='cms_double_auth_ajouter'),
+        path('double-auth/codes-de-secours/', double_auth.CodesSecoursView.as_view(), name='cms_double_auth_codes'),
+        path('double-auth/telephone/<int:pk>/retirer/', double_auth.RetirerTelephoneView.as_view(),
+             name='cms_double_auth_retirer'),
+        path('double-auth/compte/<int:user_id>/', double_auth.AppareilsView.as_view(),
+             name='cms_double_auth_compte'),
     ]
+
+
+@hooks.register('register_account_menu_item')
+def entree_double_auth(request):
+    return {
+        'url': reverse('cms_double_auth'),
+        'label': "Double authentification",
+        'help_text': "Ajouter ou retirer les téléphones qui donnent le code de connexion.",
+    }
 
 
 class MoveMenuItemView(WagtailSyndicatRequiredMixin, View):

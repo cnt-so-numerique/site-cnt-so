@@ -1,0 +1,25 @@
+{% extends "cms/double_auth/sans_menu.html" %}
+{% load wagtailadmin_tags %}
+{% block titletag %}Code de connexion{% endblock %}
+
+{% block content %}
+<h1>Code de connexion</h1>
+<p class="help">Ouvrez l'application d'authentification de votre téléphone et
+tapez le code à 6 chiffres affiché pour « CNT-SO ». Sans téléphone sous la
+main : un de vos codes de secours.</p>
+
+<div class="messages" role="status">
+  {% if form.non_field_errors %}
+  <ul>{% for erreur in form.non_field_errors %}<li class="error">{{ erreur }}</li>{% endfor %}</ul>
+  {% endif %}
+</div>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next }}">
+  {% formattedfield form.code %}
+  <footer class="form-actions">
+    <button type="submit" class="button">Valider</button>
+  </footer>
+</form>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "wagtailadmin/admin_base.html" %}
+{% comment %}
+Mise en page des étapes de la double authentification qu'une session non
+vérifiée traverse : celle de la connexion de Wagtail, sans menu latéral.
+{% endcomment %}
+{% block bodyclass %}login{% endblock %}
+
+{% block furniture %}
+    <main class="content-wrapper double-auth" id="main">
+        {% block content %}{% endblock %}
+
+        <form class="double-auth-sortie" action="{% url 'wagtailadmin_logout' %}" method="post">
+            {% csrf_token %}
+            <button type="submit" class="button button-small button-secondary">Se déconnecter</button>
+        </form>
+    </main>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+  .double-auth .help { color: var(--w-color-text-meta); }
+  .double-auth-sortie { margin-top: 2rem; }
+</style>
+{% endblock %}

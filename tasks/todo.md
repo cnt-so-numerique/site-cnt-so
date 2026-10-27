@@ -27,22 +27,61 @@ gabarit (le <title> et la meta description viennent du titre et de l'extrait).
 
 ## 2. wagtail-2fa → double authentification maison sur django-otp
 Décidé le 27/10 : **obligatoire pour les superutilisateurs, facultative pour
-les rédacteurs** (bascule « obligatoire pour tous » = un réglage, plus tard).
-Comptes partagés dans les syndicats : un appareil TOTP **par personne** sur le
-même compte (nommé, révocable seul), pas un QR code commun.
-- [ ] Retirer `wagtail_2fa` (app, middleware, réglage) ; garder `django_otp`
-      + `otp_totp` + `otp_static` (tables vides en prod, rien à migrer)
-- [ ] Connexion /cms/ : après le mot de passe, étape « code à 6 chiffres » si
-      le compte a un appareil ; superutilisateur sans appareil → enrôlement forcé
-- [ ] Page « Double authentification » dans le compte : ajouter un appareil
-      (QR code + nom + confirmation par un code), lister, retirer ;
-      générer 10 codes de secours
-- [ ] Superutilisateur : retirer les appareils d'un autre compte (téléphone perdu)
-- [ ] Limiter les essais de code (django-otp a un throttling intégré : vérifier)
-- [ ] Tests : sans appareil, avec appareil (bon/mauvais code), superutilisateur
-      forcé, code de secours à usage unique, révocation ; mutation
-- [ ] Contrôle visuel : connexion superutilisateur + rédacteur, mobile compris
-- [ ] Courte notice pour les rédacteurs (comment activer, que faire si perte)
+les rédacteurs** ; « obligatoire pour tous » = un réglage, plus tard.
+Comptes partagés dans les syndicats : un appareil **par personne** sur le même
+compte (nommé, révocable seul), pas un QR code commun.
+
+Constats (27/10) : wagtail-2fa = ~600 lignes de tuyauterie sur django-otp
+(maintenu, limite déjà les essais) ; 0 appareil en prod ; 4 superutilisateurs
+et 15 comptes actifs en dev. Deux trous à ne pas reproduire :
+- `/admin/` (admin Django) n'est pas couvert : un superutilisateur y entre au
+  seul mot de passe ;
+- une session « mot de passe OK, code pas encore donné » garde ses droits sur le
+  site public (sites en test réservés aux rédacteurs, aperçus).
+
+### Règle centrale (middleware `cms.double_auth.DoubleAuthMiddleware`)
+Une session **doit être vérifiée** si le compte a au moins un appareil
+confirmé, ou s'il est superutilisateur (réglage `DOUBLE_AUTH_OBLIGATOIRE`,
+valeurs `'superutilisateurs'` | `'tous'`). Tant qu'elle ne l'est pas :
+- sur `/cms/` et `/admin/` → redirection vers la page du code (ou vers
+  l'enrôlement si le compte n'a pas encore d'appareil), en gardant `?next=` ;
+- partout ailleurs → la requête est traitée comme **anonyme** ;
+- toujours permis : page du code, enrôlement, déconnexion, fichiers de l'admin.
+Les sessions déjà ouvertes au déploiement passent par la même règle : les
+superutilisateurs seront invités à s'enrôler à leur prochain clic.
+
+### Écrans — FAIT le 27/10 (cms/double_auth.py, templates/cms/double_auth/)
+- [x] **Code** : `/cms/double-auth/code/` (TOTP ou code de secours) ; limitation
+      PAR COMPTE (`EchecsDoubleAuth`, 1 s, 2 s, 4 s… plafond 15 min) ; celle de
+      django-otp est coupée (`OTP_*_THROTTLE_FACTOR = 0`) : par appareil, elle
+      bloquait les téléphones des comptes partagés (prouvé par mutation)
+- [x] **Mes appareils** (menu du compte) : nom, ajout, dernière utilisation,
+      retirer. Pas de « renommer » : on retire et on rajoute (YAGNI)
+- [x] **Ajouter** : QR code SVG + clé en clair, nom, mot de passe, code ; la clé
+      vit en session, rien en base avant le bon code (`verify_token` aurait
+      enregistré un appareil confirmé sur un code faux)
+- [x] **Codes de secours** : 10, remis d'office au premier téléphone, affichés
+      une fois, régénérables ; effacés avec le dernier téléphone
+- [x] **Superutilisateur → autre compte** : lien sur la fiche utilisateur
+- [x] **Dernier recours** : `manage.py retire_double_auth <compte>`
+- [x] Tests : `cms/tests_double_auth.py` (20) + site en test dans
+      `SectionDomainMiddlewareTest` ; 14 mutations toutes tuées ; suite
+      complète 1 660 OK. Pendant les tests `DOUBLE_AUTH_OBLIGATOIRE='personne'`
+      (refusé hors DEBUG par settings.py)
+- [x] Contrôle navigateur (bureau + mobile) : enrôlement forcé, codes de
+      secours, page des appareils, code à la reconnexion, code de secours,
+      lien sur la fiche. **A trouvé un bug que les tests rataient** : la requête
+      de fond `current-site-fragment`, renvoyée vers l'enrôlement, tirait une
+      nouvelle clé → enrôlement impossible. Corrigé + test.
+- [ ] Courte notice pour les rédacteurs (activer, perte, départ d'une personne)
+
+### Retrait de wagtail-2fa — fait en dev
+- [x] App, middleware, réglage, requirements.txt (+ `six`, qui ne servait qu'à
+      lui) ; `migrate wagtail_2fa zero` en dev (permission `enable_2fa` : 0
+      groupe, 0 compte)
+- [ ] Prod : séquence annoncée (migrate zero AVANT le pull, puis
+      deploiement.sh, `pip uninstall -y wagtail-2fa six`), puis Arnaud
+      enregistre son téléphone TOUT DE SUITE
 
 ## 3. Finir
 - [ ] requirements.txt, suite complète, contrôle visuel de l'admin

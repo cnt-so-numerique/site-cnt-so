@@ -1836,6 +1836,20 @@ class SectionDomainMiddlewareTest(TestCase):
                 self.assertEqual(r.status_code, 503, (compte, chemin))
                 self.assertNotContains(r, 'Article middleware', status_code=503)
 
+    def test_site_en_test_ferme_a_une_session_sans_son_code(self):
+        # Mot de passe donné, code de double authentification pas encore :
+        # la session est anonyme hors de /cms/ (cms/double_auth.py).
+        from django.test import override_settings
+        from django_otp.plugins.otp_totp.models import TOTPDevice
+        self._en_test()
+        compte = self._compte('redacteur_stucs')
+        TOTPDevice.objects.create(user=compte, name='tél', confirmed=True)
+        self.client.force_login(compte)
+        with override_settings(DOUBLE_AUTH_OBLIGATOIRE='superutilisateurs'):
+            r = self.client.get('/stucs/')
+        self.assertEqual(r.status_code, 503)
+        self.assertNotContains(r, 'Article middleware', status_code=503)
+
     def test_site_en_test_refuse_les_formulaires_aux_autres(self):
         # La vue ne s'exécute pas : `process_view` tranche avant elle, et
         # `get_section_or_404` refuserait de toute façon le syndicat dépublié

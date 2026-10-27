@@ -1,0 +1,43 @@
+{% extends "wagtailadmin/base.html" %}
+{% block titletag %}Codes de secours{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+  .double-auth-codes { max-width: 40rem; }
+  .double-auth-codes .help { color: var(--w-color-text-meta); }
+  .double-auth-liste { list-style: none; padding: 1rem 1.25rem; margin: 1.5rem 0;
+                       display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+                       gap: .5rem 1.5rem; font-family: monospace; font-size: 1.15rem;
+                       border: 1px solid var(--w-color-border-furniture); border-radius: 6px; }
+  @media print {
+    .double-auth-codes .form-actions, .double-auth-codes .help { display: none; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="nice-padding double-auth-codes">
+  <h1 class="w-h1">Codes de secours</h1>
+  {% if premier %}
+  <p>Téléphone enregistré : ce compte est maintenant protégé.</p>
+  {% endif %}
+  <p>Sans téléphone sous la main, chacun de ces codes remplace <strong>une
+  fois</strong> le code de l'application. <strong>Ils ne seront plus jamais
+  affichés</strong> : imprimez-les et gardez-les en lieu sûr (au local du
+  syndicat, par exemple), pas dans le téléphone.</p>
+
+  <ul class="double-auth-liste">
+    {% for code in codes %}<li>{{ code }}</li>{% endfor %}
+  </ul>
+
+  {% if not premier %}
+  <p class="help">Les anciens codes de secours ne marchent plus.</p>
+  {% endif %}
+
+  <footer class="form-actions">
+    <button type="button" class="button button-secondary" onclick="window.print()">Imprimer</button>
+    <a class="button" href="{{ next }}">C'est noté, continuer</a>
+  </footer>
+</div>
+{% endblock %}
