@@ -1,7 +1,7 @@
 anyascii==0.3.3
-asgiref==3.12.1
+asgiref==3.13.0
 beautifulsoup4==4.15.0
-certifi==2026.10.19
+certifi==2026.10.23
 charset-normalizer==3.5.2
 coverage==7.17.0
 defusedxml==0.7.1
