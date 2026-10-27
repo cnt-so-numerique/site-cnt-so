@@ -73,15 +73,21 @@ superutilisateurs seront invités à s'enrôler à leur prochain clic.
       lien sur la fiche. **A trouvé un bug que les tests rataient** : la requête
       de fond `current-site-fragment`, renvoyée vers l'enrôlement, tirait une
       nouvelle clé → enrôlement impossible. Corrigé + test.
+- [x] 27/10 (soir) : obligatoire AUSSI pour les rédacteurs en chef (réglage
+      renommé `'chefs'`, règle `is_chef`), à la demande d'Arnaud, pour le compte
+      partagé `media`. Deuxième personne d'un compte partagé : entre par un code
+      de secours puis ajoute son téléphone (consigne sur la page du code, testé)
 - [ ] Courte notice pour les rédacteurs (activer, perte, départ d'une personne)
 
-### Retrait de wagtail-2fa — fait en dev
+### Retrait de wagtail-2fa — DÉPLOYÉ le 27/10 (5de754a)
 - [x] App, middleware, réglage, requirements.txt (+ `six`, qui ne servait qu'à
       lui) ; `migrate wagtail_2fa zero` en dev (permission `enable_2fa` : 0
       groupe, 0 compte)
-- [ ] Prod : séquence annoncée (migrate zero AVANT le pull, puis
-      deploiement.sh, `pip uninstall -y wagtail-2fa six`), puis Arnaud
-      enregistre son téléphone TOUT DE SUITE
+- [x] Prod : seul superutilisateur `arnaud`, permission `enable_2fa` sur 0
+      groupe/0 compte ; `migrate wagtail_2fa zero` avec l'ancien code,
+      deploiement.sh (code 0, cms.0049 appliquée), paquets désinstallés ;
+      /cms/login/, /admin/login/ et / en 200
+- [ ] Arnaud enregistre son téléphone TOUT DE SUITE (premier passage dans /cms/)
 
 ## 3. Finir
 - [ ] requirements.txt, suite complète, contrôle visuel de l'admin

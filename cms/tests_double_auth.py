@@ -3,7 +3,7 @@
 Les tests tournent avec `DOUBLE_AUTH_OBLIGATOIRE = 'personne'` (settings.py) ;
 ceux-ci remettent le réglage de prod.
 """
-from django.contrib.auth.models import Permission, User
+from django.contrib.auth.models import Group, Permission, User
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -33,7 +33,7 @@ def telephone(user, nom='téléphone de Sam'):
     return TOTPDevice.objects.create(user=user, name=nom, confirmed=True)
 
 
-@override_settings(DOUBLE_AUTH_OBLIGATOIRE='superutilisateurs')
+@override_settings(DOUBLE_AUTH_OBLIGATOIRE='chefs')
 class DoubleAuthTest(TestCase):
 
     def setUp(self):
@@ -106,7 +106,7 @@ class DoubleAuthTest(TestCase):
         self.assertRedirects(r, CODE + '?next=' + AJOUTER.replace('/', '%2F'),
                              fetch_redirect_response=False)
 
-    # ── Superutilisateurs : obligatoire, /admin/ compris ──────────────────
+    # ── Superutilisateurs et rédacteurs en chef : obligatoire ─────────────
 
     def test_superutilisateur_sans_telephone_doit_s_enroler(self):
         self.client.force_login(self.chef)
@@ -114,6 +114,27 @@ class DoubleAuthTest(TestCase):
             r = self.client.get(chemin)
             self.assertEqual(r.status_code, 302, chemin)
             self.assertTrue(r['Location'].startswith(AJOUTER), chemin)
+
+    def test_redacteur_en_chef_doit_s_enroler(self):
+        # Comme le compte partagé `media` (groupe redacteur_en_chef).
+        media = redacteur('media')
+        media.groups.add(Group.objects.get_or_create(name='redacteur_en_chef')[0])
+        self.client.force_login(media)
+        r = self.client.get('/cms/')
+        self.assertTrue(r['Location'].startswith(AJOUTER))
+
+    def test_compte_partage_obligatoire_entre_par_un_code_de_secours(self):
+        # La deuxième personne d'un compte obligatoire n'a pas de téléphone :
+        # un code de secours la fait entrer, puis elle ajoute le sien.
+        media = redacteur('media')
+        media.groups.add(Group.objects.get_or_create(name='redacteur_en_chef')[0])
+        self._enroler(media, 'mdp-redac')
+        secours = StaticToken.objects.filter(device__user=media).first().token
+        self.client.logout()
+        self.client.force_login(media)
+        self.assertContains(self.client.get(CODE), 'code de secours à la personne')
+        self.assertEqual(self._donner_code(secours).status_code, 302)
+        self.assertEqual(self.client.get(AJOUTER).status_code, 200)
 
     def _enroler(self, user, mdp, **modifs):
         self.client.force_login(user)

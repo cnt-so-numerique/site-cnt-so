@@ -4,9 +4,9 @@ wagtail-2fa n'était plus maintenu et empêchait de passer à Wagtail 8. Ce modu
 garde django-otp, qui l'est, et n'en reprend que ce qui sert ici.
 
 La règle tient en une phrase : une session DOIT donner son code si le compte a
-au moins un téléphone enregistré, ou s'il est superutilisateur
-(`settings.DOUBLE_AUTH_OBLIGATOIRE` : `'superutilisateurs'` ou `'tous'` ;
-`'personne'` pendant les tests). Tant
+au moins un téléphone enregistré, ou s'il est superutilisateur ou rédacteur en
+chef (`settings.DOUBLE_AUTH_OBLIGATOIRE` : `'chefs'` ou `'tous'` ; `'personne'`
+pendant les tests). Tant
 qu'elle ne l'a pas fait, elle n'entre ni dans /cms/ ni dans /admin/, et elle
 est ANONYME partout ailleurs. wagtail-2fa laissait deux trous que cette règle
 referme : `/admin/` s'ouvrait au seul mot de passe, et une session à demi
@@ -57,6 +57,8 @@ from django_otp.plugins.otp_static.models import StaticDevice, StaticToken
 from django_otp.plugins.otp_totp.models import TOTPDevice
 from django_otp.util import random_hex
 
+from content.admin_utils import is_chef
+
 from .models import EchecsDoubleAuth
 
 #: Nombre de codes de secours remis d'un coup.
@@ -87,11 +89,11 @@ def telephones(user):
 
 def est_obligatoire(user):
     """Le compte doit-il s'enrôler, même sans téléphone ?"""
-    reglage = getattr(settings, 'DOUBLE_AUTH_OBLIGATOIRE', 'superutilisateurs')
+    reglage = getattr(settings, 'DOUBLE_AUTH_OBLIGATOIRE', 'chefs')
     if reglage == 'tous':
-        return user.is_superuser or user.has_perm('wagtailadmin.access_admin')
-    if reglage == 'superutilisateurs':
-        return user.is_superuser
+        return is_chef(user) or user.has_perm('wagtailadmin.access_admin')
+    if reglage == 'chefs':
+        return is_chef(user)
     return False  # 'personne' : tests seulement (refusé en prod par settings.py)
 
 

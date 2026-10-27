@@ -290,9 +290,11 @@ WAGTAIL_ALLOW_UNICODE_SLUGS = False
 MAIN_SITE_BASE_URL = _os.environ.get('MAIN_SITE_BASE_URL', WAGTAILADMIN_BASE_URL)
 
 # ── Double authentification (cms/double_auth.py) ──────────────────────────────
-# 'superutilisateurs' : obligatoire pour eux, facultative pour les rédacteurs.
+# 'chefs' : obligatoire pour les superutilisateurs et les rédacteurs en chef
+# (groupe redacteur_en_chef, dont le compte partagé `media`), facultative pour
+# les autres rédacteurs.
 # 'tous' : obligatoire pour tout compte qui entre dans /cms/.
-DOUBLE_AUTH_OBLIGATOIRE = 'superutilisateurs'
+DOUBLE_AUTH_OBLIGATOIRE = 'chefs'
 # Pendant les tests : 'personne'. Une centaine de tests connectent un
 # superutilisateur pour tout autre chose ; ceux de la double authentification
 # remettent le réglage de prod (cms/tests_double_auth.py). Refusé hors DEBUG.
@@ -547,10 +549,10 @@ if not DEBUG:
             "quel jeton : définir HCAPTCHA_SITEKEY et HCAPTCHA_SECRET "
             "(variables d'environnement ou local_settings.py)."
         )
-    if DOUBLE_AUTH_OBLIGATOIRE not in ('superutilisateurs', 'tous'):
+    if DOUBLE_AUTH_OBLIGATOIRE not in ('chefs', 'tous'):
         from django.core.exceptions import ImproperlyConfigured
         raise ImproperlyConfigured(
-            "DOUBLE_AUTH_OBLIGATOIRE doit valoir 'superutilisateurs' ou 'tous' "
+            "DOUBLE_AUTH_OBLIGATOIRE doit valoir 'chefs' ou 'tous' "
             "en production ('personne' est réservé aux tests)."
         )
     # Cookies uniquement sur HTTPS

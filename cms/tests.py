@@ -1845,7 +1845,7 @@ class SectionDomainMiddlewareTest(TestCase):
         compte = self._compte('redacteur_stucs')
         TOTPDevice.objects.create(user=compte, name='tél', confirmed=True)
         self.client.force_login(compte)
-        with override_settings(DOUBLE_AUTH_OBLIGATOIRE='superutilisateurs'):
+        with override_settings(DOUBLE_AUTH_OBLIGATOIRE='chefs'):
             r = self.client.get('/stucs/')
         self.assertEqual(r.status_code, 503)
         self.assertNotContains(r, 'Article middleware', status_code=503)
