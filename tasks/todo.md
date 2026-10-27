@@ -6,7 +6,7 @@ prod le 27/10 : 0 appareil TOTP confirmé, 0 page avec `canonical_url` ou
 les balises de partage sont écrites à la main (base.html, article_detail.html).
 Aucune de nos migrations ne les importe.
 
-## 1. wagtail-seo — FAIT en dev le 27/10 (reste le déploiement)
+## 1. wagtail-seo — FAIT et DÉPLOYÉ le 27/10 (c44b8c5)
 - [x] `SeoMixin` retiré de `SectionPage` et `ArticlePage` ; `promote_panels`
       d'ArticlePage = `Page.promote_panels` + l'existant (les champs slug/seo_title/
       search_description y apparaissaient en double)
@@ -18,8 +18,9 @@ Aucune de nos migrations ne les importe.
 - [x] `ArticlePageSeoTest` supprimé : il ne testait que la présence du paquet ;
       les balises réellement servies sont déjà couvertes (content/tests.py ~10353,
       cms/tests.py ~2079). Suite complète : 1 638 tests OK
-- [ ] Prod : compter SeoSettings puis `migrate wagtailseo zero` AVEC L'ANCIEN
-      CODE, puis pull, `pip uninstall wagtail-seo`, migrate
+- [x] Prod : SeoSettings = 1 ligne aux valeurs par défaut (rien de renseigné),
+      `migrate wagtailseo zero` avec l'ancien code, déploiement (code 0),
+      paquet désinstallé ; article et /cms/login/ en 200, og:image présent
 
 Constat hors lot : `seo_title` et `search_description` ne sont lus par AUCUN
 gabarit (le <title> et la meta description viennent du titre et de l'extrait).
