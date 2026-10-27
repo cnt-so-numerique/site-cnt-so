@@ -19,7 +19,8 @@ htmlcov/
 *.bak
 
 # Environnement virtuel
-venv/
+venv
+venv-*/
 venv.py3*-old/
 env/
 .env
