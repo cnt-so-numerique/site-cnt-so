@@ -63,6 +63,15 @@ if [ "$taille" -lt 1000000 ]; then
     exit 1
 fi
 
+# Rotation : une sauvegarde complète par déploiement, jamais supprimée, gardait
+# indéfiniment ce que la purge RGPD efface de la base (audit du 28/10/2026). On
+# retire celles de plus de 30 jours, en gardant TOUJOURS les 10 dernières.
+ls -1t ~/cntso-*.sql.gz | tail -n +11 | while read -r vieille; do
+    if [ -n "$(find "$vieille" -mtime +30)" ]; then
+        rm -f -- "$vieille" && echo "   rotation : $(basename "$vieille") supprimée"
+    fi
+done
+
 echo "═══ 3. Code ═══"
 avant=$(git rev-parse --short HEAD)
 git fetch origin main
@@ -84,6 +93,19 @@ if ! python manage.py makemigrations --check --dry-run > /dev/null 2>&1; then
     exit 1
 fi
 echo "   ✓ aucune migration oubliée"
+
+# `migrate` passe AVANT le redémarrage : l'ancien code tourne encore. Une
+# migration qui retire une colonne ou une table le fait tomber en 500 jusqu'au
+# redémarrage (cas de cms 0048, audit du 28/10/2026). Celles-là se déploient en
+# deux temps : d'abord le code qui ne lit plus la colonne, puis la migration.
+# MIGRATION_DESTRUCTIVE_OK=1 pour passer outre en connaissance de cause.
+plan=$(python manage.py migrate --plan)
+if grep -qE 'Remove field|Delete model|Rename field|Rename model' <<< "$plan" \
+        && [ "${MIGRATION_DESTRUCTIVE_OK:-}" != "1" ]; then
+    echo "   ✗ ARRÊT : migration destructive, à déployer en deux temps :"
+    grep -E 'Remove field|Delete model|Rename field|Rename model' <<< "$plan" | sed 's/^/     /'
+    exit 1
+fi
 
 python manage.py migrate
 python manage.py collectstatic --noinput > /dev/null

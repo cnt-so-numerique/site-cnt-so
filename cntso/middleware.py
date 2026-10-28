@@ -76,11 +76,19 @@ class ContentSecurityPolicyMiddleware:
         "form-action 'self'",
     ])
 
+    #: Aucune page n'utilise caméra, micro, géolocalisation, paiement ni
+    #: périphériques : on les refuse, à la page comme aux vidéos intégrées.
+    #: Plein écran et lecture automatique restent permis — les embeds YouTube
+    #: en ont besoin (audit du 28/10/2026).
+    PERMISSIONS = ("camera=(), microphone=(), geolocation=(), payment=(), "
+                   "usb=(), serial=(), bluetooth=(), hid=(), display-capture=()")
+
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
         response = self.get_response(request)
+        response.setdefault('Permissions-Policy', self.PERMISSIONS)
         if request.path.startswith(self.EXEMPT_PREFIXES):
             return response
         # Uniquement sur du HTML : inutile (et parfois gênant) sur les images,

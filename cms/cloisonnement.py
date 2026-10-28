@@ -12,8 +12,9 @@ inventaire à maintenir — donc à oublier — alors que Wagtail en ajoute à c
 version.
 """
 from django import forms
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.http import Http404
+from django.urls import reverse
 from django.utils.functional import cached_property
 
 from wagtail.models import Page
@@ -297,3 +298,66 @@ class ViewSetCloisonne:
             # seulement : l'explorateur de pages, non cloisonné, n'en hérite pas.
             kwargs.setdefault('permission_policy', self.permission_policy)
         return super().construct_view(view_class, **kwargs)
+
+
+class RapportsReservesAuxChefs:
+    """Réserve les rapports Wagtail (`/cms/reports/…`) aux chefs confédéraux.
+
+    Aucun rapport n'est cloisonné par syndicat : le journal du site filtre par
+    type de contenu (`ModelLogEntry.viewable_by_user`), si bien qu'un rédacteur
+    y lisait l'adresse des abonnés d'un autre syndicat ; « types de pages »
+    affiche le titre des brouillons d'autrui (audit du 28/10/2026). Le menu
+    les masquait déjà aux rédacteurs (`hide_unused_wagtail_menus`), l'adresse
+    restait ouverte.
+
+    Un middleware et non une URL : celles de `register_admin_urls` passent
+    après celles de Wagtail et ne peuvent pas les intercepter.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if (request.path_info.startswith(reverse('wagtailadmin_home') + 'reports/')
+                and request.user.is_authenticated
+                and not _is_global_chef(request.user)):
+            raise PermissionDenied
+        return self.get_response(request)
+
+
+class SessionsDEditionCloisonnees:
+    """Borne `/cms/editing-sessions/ping/…` au périmètre du syndicat.
+
+    Wagtail n'y vérifie que la permission sur le MODÈLE : un rédacteur de A
+    pinguait l'abonné de B, apprenait qui l'éditait et s'y inscrivait comme
+    éditeur au passage (audit du 28/10/2026). Le périmètre est celui du
+    viewset du modèle, comme pour tous les autres écrans.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from django.apps import apps
+        from django.contrib.admin.utils import unquote
+        from django.urls import Resolver404, resolve
+
+        try:
+            route = resolve(request.path_info)
+        except Resolver404:
+            return self.get_response(request)
+        # Un chef confédéral va partout : son périmètre suit le syndicat de sa
+        # session, et deux onglets sur deux syndicats feraient échouer l'un.
+        if route.view_name == 'wagtailadmin_editing_sessions:ping' \
+                and request.user.is_authenticated \
+                and not _is_global_chef(request.user):
+            try:
+                modele = apps.get_model(route.kwargs['app_label'],
+                                        route.kwargs['model_name'])
+            except LookupError:
+                raise Http404
+            viewset = getattr(modele, 'snippet_viewset', None)
+            if isinstance(viewset, ViewSetCloisonne) and not viewset.get_queryset(
+                    request).filter(pk=unquote(route.kwargs['object_id'])).exists():
+                raise Http404("Contenu hors du périmètre de votre syndicat.")
+        return self.get_response(request)

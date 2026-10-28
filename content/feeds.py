@@ -95,8 +95,9 @@ class CategoryFeed(Feed):
         slug = kwargs.get('slug')
         from cms.models import CATEGORIES_CONF_RENOMMEES
         if slug in CATEGORIES_CONF_RENOMMEES:
-            return redirect('content:category_rss_feed',
-                            slug=CATEGORIES_CONF_RENOMMEES[slug], permanent=True)
+            from .views import _renommee
+            return _renommee(request, 'content:category_rss_feed',
+                             CATEGORIES_CONF_RENOMMEES[slug])
         if slug and not CmsCategory.objects.filter(
                 slug=slug, section_slug='principal').exists():
             ailleurs = CmsCategory.dun_syndicat_publie(slug)

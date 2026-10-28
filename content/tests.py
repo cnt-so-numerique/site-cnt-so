@@ -845,6 +845,16 @@ class ContentSecurityPolicyTest(TestCase):
         r = self.client.get('/cms/', follow=False)
         self.assertNotIn('Content-Security-Policy', r.headers)
 
+    def test_permissions_policy_partout(self):
+        """Caméra, micro, géolocalisation… refusés, admin comprise ; le
+        plein écran des vidéos intégrées reste permis (audit du 28/10/2026)."""
+        for url in ('/', '/cms/', '/sitemap.xml'):
+            with self.subTest(url=url):
+                politique = self.client.get(url).headers.get('Permissions-Policy', '')
+                for api in ('camera=()', 'microphone=()', 'geolocation=()'):
+                    self.assertIn(api, politique)
+                self.assertNotIn('fullscreen', politique)
+
 
 class CategoryDetailViewTest(TestCase):
     def setUp(self):
@@ -972,6 +982,15 @@ class SearchViewTest(TestCase):
     def test_context_has_query(self):
         response = self.client.get(reverse('content:search') + '?q=test')
         self.assertEqual(response.context['query'], 'test')
+
+    def test_l_octet_nul_est_retire(self):
+        """PostgreSQL refuse l'octet NUL : `?q=%00` donnait une 500 à volonté
+        en prod (audit du 28/10/2026). SQLite l'accepte, d'où le contrôle sur
+        la requête nettoyée et non sur le seul statut."""
+        response = self.client.get(reverse('content:search') + '?q=gr%00ève')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['query'], 'grève')
+        self.assertGreaterEqual(len(response.context['articles']), 1)
 
     def test_matching_excerpt_returns_results(self):
         make_article_page(section_slug='principal', title='Autre titre', slug='excerpt-search',
@@ -1366,6 +1385,17 @@ class PlanDuSiteViewTest(TestCase):
         response = self.client.get(reverse('content:plan_du_site'))
         self.assertIn('cat_groups', response.context)
         self.assertIn('pages', response.context)
+
+    def test_il_liste_les_pages_wagtail_et_pas_les_pages_wordpress(self):
+        """Les pages WordPress héritées menaient à des 301, voire à un 404
+        (`/page/espace-presse/`, audit du 28/10/2026)."""
+        from content.models import Page as PageWordPress
+        page = make_content_page(title='Permanences juridiques', slug='permanences')
+        PageWordPress.objects.create(site=self.site, title='Vieille page',
+                                     slug='vieille-page', status='publish')
+        r = self.client.get(reverse('content:plan_du_site'))
+        self.assertContains(r, f'href="{page.get_absolute_url()}"')
+        self.assertNotContains(r, '/page/vieille-page/')
 
     def test_main_site_includes_union_lists(self):
         make_site('reg', wp_blog_id=2, site_type='regional', name='Reg')
@@ -3971,6 +4001,32 @@ class NewsletterSyncViewTest(TestCase):
         r = self._post({'newsletter_conf': True})
         self.assertEqual(r.status_code, 400)
 
+    def _horodate(self, decalage=0):
+        import time
+        from django.core.cache import caches
+        caches['limites'].clear()
+        return {'email': 'rejeu@test.fr', 'newsletter_conf': True,
+                'horodatage': int(time.time()) + decalage}
+
+    def test_une_requete_horodatee_recente_passe(self):
+        self.assertEqual(self._post(self._horodate()).status_code, 200)
+
+    def test_une_requete_perimee_est_refusee(self):
+        """Une requête captée restait valable indéfiniment (audit du 28/10/2026)."""
+        r = self._post(self._horodate(decalage=-301))
+        self.assertEqual(r.status_code, 403)
+        self.assertFalse(Subscriber.objects.filter(email='rejeu@test.fr').exists())
+
+    def test_la_meme_requete_rejouee_est_refusee(self):
+        corps = self._horodate()
+        self.assertEqual(self._post(corps).status_code, 200)
+        self.assertEqual(self._post(corps).status_code, 403)
+
+    def test_sans_horodatage_refusee_quand_il_est_obligatoire(self):
+        with override_settings(ADHESION_WEBHOOK_HORODATAGE_OBLIGATOIRE=True):
+            r = self._post({'email': 'vieux@test.fr', 'newsletter_conf': True})
+        self.assertEqual(r.status_code, 403)
+
     def test_sync_newsletter_conf_subscribe(self):
         r = self._post({'email': 'conf@test.fr', 'newsletter_conf': True})
         self.assertEqual(r.status_code, 200)
@@ -4236,6 +4292,18 @@ class SubscriberExportViewTest(TestCase):
         self.assertIn('Alice', content)
 
     def test_csv_entete_colonnes(self):
+        self._entete_colonnes()
+
+    def test_un_nom_en_formule_est_neutralise(self):
+        """Le nom est saisi par le public ; un tableur exécute `=…` à
+        l'ouverture de l'export (audit du 28/10/2026)."""
+        from content.models import Subscriber
+        Subscriber.objects.create(site=self.site, email='piege@example.com',
+                                  name='=HYPERLINK("http://evil.example")', is_active=True)
+        content = _chef_client_with_site(self.site).get(self.url).content.decode('utf-8-sig')
+        self.assertIn('"\'=HYPERLINK(""http://evil.example"")"', content)
+
+    def _entete_colonnes(self):
         c = _chef_client_with_site(self.site)
         r = c.get(self.url)
         content = r.content.decode('utf-8-sig')
@@ -4589,7 +4657,24 @@ class CategorieRenommeeTest(TestCase):
         r = self.client.get('/categorie/actions/')
         self.assertRedirects(r, '/categorie/actions-et-actualites/', status_code=301)
 
+    def test_le_nom_d_avant_aout_ne_part_pas_chez_le_13(self):
+        """`actualites-luttes`, nom de la rubrique avant le 16/08/2026, menait
+        en 302 chez le 13, qui a une rubrique homonyme (audit du 28/10/2026)."""
+        make_site('13', wp_blog_id=13, site_type='regional', name='CNT-SO 13')
+        make_cms_category(name='Actualités luttes', slug='actualites-luttes',
+                          section_slug='13')
+        r = self.client.get('/categorie/actualites-luttes/')
+        self.assertRedirects(r, '/categorie/actions-et-actualites/', status_code=301)
+
     def test_le_flux_redirige_aussi(self):
+        self._flux_redirige()
+
+    def test_la_redirection_garde_la_page_demandee(self):
+        r = self.client.get('/categorie/actions/?page=2')
+        self.assertRedirects(r, '/categorie/actions-et-actualites/?page=2',
+                             status_code=301, fetch_redirect_response=False)
+
+    def _flux_redirige(self):
         r = self.client.get('/categorie/actions/feed/')
         self.assertRedirects(r, '/categorie/actions-et-actualites/feed/',
                              status_code=301, fetch_redirect_response=False)
@@ -8363,6 +8448,19 @@ class NewsletterDesabonnementTest(TestCase):
         from django.core.cache import caches
         caches['limites'].clear()
 
+    def _lien(self, email, prefixe=''):
+        """Demande le désabonnement, renvoie le chemin du lien reçu."""
+        from django.core import mail
+        from urllib.parse import urlparse
+        mail.outbox.clear()
+        self.client.post(f'{prefixe}/newsletter/desabonnement/', {'email': email})
+        self.assertEqual(len(mail.outbox), 1, "aucun lien de confirmation envoyé")
+        self.assertEqual(mail.outbox[0].to, [email.strip().lower()])
+        return urlparse(re.search(r'https?://\S+', mail.outbox[0].body).group()).path
+
+    def _se_desabonner(self, email, prefixe=''):
+        return self.client.post(self._lien(email, prefixe))
+
     def test_la_page_repond_en_get(self):
         r = self.client.get('/newsletter/desabonnement/')
         self.assertEqual(r.status_code, 200)
@@ -8424,18 +8522,29 @@ class NewsletterDesabonnementTest(TestCase):
 
     @patch('content.ovh_sync.ovh_unsubscribe')
     def test_le_desabonnement_retire_des_listes_ovh(self, retirer):
-        r = self.client.post('/newsletter/desabonnement/',
-                             {'email': 'Sortante@Example.org'})
+        r = self._se_desabonner('Sortante@Example.org')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'sortante@example.org')
         retirer.assert_called_once()
         self.assertEqual(retirer.call_args[0][1], 'sortante@example.org')
 
+    @patch('content.ovh_sync.ovh_unsubscribe', return_value=False)
+    def test_un_retrait_refuse_par_ovh_n_est_pas_annonce_comme_fait(self, retirer):
+        """Annoncer un retrait qui n'a pas eu lieu renvoie la personne vers le
+        bouton « indésirable » (audit du 28/10/2026)."""
+        abo = Subscriber.objects.create(site=self.site, email='sortante@example.org',
+                                        is_active=True)
+        r = self._se_desabonner('sortante@example.org')
+        self.assertTemplateUsed(r, 'content/newsletter_desabonnement_confirmer.html')
+        self.assertContains(r, "pas pu se faire")
+        abo.refresh_from_db()
+        self.assertFalse(abo.is_active, "le consentement est coupé quand même")
+
     @patch('content.ovh_sync.ovh_unsubscribe')
     def test_le_desabonnement_desactive_la_ligne_locale(self, retirer):
         abo = Subscriber.objects.create(site=self.site, email='sortante@example.org',
                                         is_active=True)
-        self.client.post('/newsletter/desabonnement/', {'email': 'sortante@example.org'})
+        self._se_desabonner('sortante@example.org')
         abo.refresh_from_db()
         self.assertFalse(abo.is_active)
 
@@ -8453,7 +8562,7 @@ class NewsletterDesabonnementTest(TestCase):
         """
         adhesion = Subscriber.objects.create(site=None, email='adherente@example.org',
                                              is_active=True)
-        self.client.post('/newsletter/desabonnement/', {'email': 'adherente@example.org'})
+        self._se_desabonner('adherente@example.org')
         adhesion.refresh_from_db()
         self.assertFalse(adhesion.is_active)
 
@@ -8463,7 +8572,7 @@ class NewsletterDesabonnementTest(TestCase):
         « Jean.Dupont@… » n'était jamais retrouvée."""
         abo = Subscriber.objects.create(site=self.site, email='Jean.Dupont@Example.org',
                                         is_active=True)
-        self.client.post('/newsletter/desabonnement/', {'email': 'jean.dupont@example.org'})
+        self._se_desabonner('jean.dupont@example.org')
         abo.refresh_from_db()
         self.assertFalse(abo.is_active)
 
@@ -8473,7 +8582,7 @@ class NewsletterDesabonnementTest(TestCase):
         autre = make_site(slug='marseille', name='CNT-SO 13', site_type='regional')
         ailleurs = Subscriber.objects.create(site=autre, email='partagee@example.org',
                                              is_active=True)
-        self.client.post('/newsletter/desabonnement/', {'email': 'partagee@example.org'})
+        self._se_desabonner('partagee@example.org')
         ailleurs.refresh_from_db()
         self.assertTrue(ailleurs.is_active)
 
@@ -8492,6 +8601,49 @@ class NewsletterDesabonnementTest(TestCase):
         self.assertContains(r, 'Trop de demandes')
         self.assertNotIn('tardive@example.org',
                          [c[0][1] for c in retirer.call_args_list])
+
+    @patch('content.ovh_sync.ovh_unsubscribe')
+    def test_la_demande_seule_ne_retire_personne(self, retirer):
+        """N'importe qui retirait n'importe quelle adresse de news et news2
+        (audit du 28/10/2026) : la demande ne fait plus qu'envoyer un lien."""
+        abo = Subscriber.objects.create(site=self.site, email='victime@example.org',
+                                        is_active=True)
+        r = self.client.post('/newsletter/desabonnement/', {'email': 'victime@example.org'})
+        self.assertTemplateUsed(r, 'content/newsletter_desabonnement_envoye.html')
+        retirer.assert_not_called()
+        abo.refresh_from_db()
+        self.assertTrue(abo.is_active)
+
+    @patch('content.ovh_sync.ovh_unsubscribe')
+    def test_ouvrir_le_lien_ne_retire_personne(self, retirer):
+        """Les antivirus de messagerie suivent les liens : le GET montre le
+        bouton, seul le POST retire."""
+        r = self.client.get(self._lien('sortante@example.org'))
+        self.assertContains(r, 'Confirmer mon désabonnement')
+        retirer.assert_not_called()
+
+    @patch('content.ovh_sync.ovh_unsubscribe')
+    def test_un_lien_forge_ou_expire_ne_retire_personne(self, retirer):
+        from django.core import signing
+        from content.views import SEL_DESABONNEMENT, DESABONNEMENT_VALIDITE
+        forge = signing.dumps({'e': 'victime@example.org', 's': 'principal'}, salt='autre')
+        r = self.client.post(f'/newsletter/desabonnement/confirmer/{forge}/')
+        self.assertEqual(r.status_code, 400)
+        with patch('django.core.signing.time.time',
+                   return_value=__import__('time').time() - DESABONNEMENT_VALIDITE - 60):
+            vieux = signing.dumps({'e': 'victime@example.org', 's': 'principal'},
+                                  salt=SEL_DESABONNEMENT)
+        r = self.client.post(f'/newsletter/desabonnement/confirmer/{vieux}/')
+        self.assertEqual(r.status_code, 400)
+        self.assertContains(r, 'Lien expiré', status_code=400)
+        retirer.assert_not_called()
+
+    @patch('content.ovh_sync.ovh_unsubscribe')
+    def test_le_lien_d_un_syndicat_retire_de_ses_listes(self, retirer):
+        marseille = make_site(slug='marseille', name='CNT-SO 13', site_type='regional')
+        self._se_desabonner('sortante@example.org', prefixe='/marseille')
+        retirer.assert_called_once()
+
 
 
 def _navigateur():
@@ -9167,9 +9319,11 @@ class MiseEnAvantDepuisLarticleTest(TestCase):
                                    in_manchette_conf=True)
         ArticlePage.objects.filter(pk=ancien.pk).update(
             last_published_at=maintenant - timedelta(days=30))
+        image = self._image()  # la une n'affiche pas un article de la conf sans image
         for i in range(MANCHETTE_MAX - 1):
             art = make_article_page(section_slug='principal', title=f'Conf {i}',
-                                    slug=f'conf-une-{i}', in_manchette=True)
+                                    slug=f'conf-une-{i}', in_manchette=True,
+                                    featured_image=image)
             ArticlePage.objects.filter(pk=art.pk).update(
                 last_published_at=maintenant - timedelta(days=10 - i))
         make_article_page(section_slug='stucs', title='Nouveau',
@@ -9181,6 +9335,22 @@ class MiseEnAvantDepuisLarticleTest(TestCase):
             Q(section_slug='principal', in_manchette=True) | Q(in_manchette_conf=True))
         self.assertEqual(a_la_une.count(), MANCHETTE_MAX)
 
+
+    def test_un_article_invisible_ne_prend_pas_de_place(self):
+        """Un article d'un syndicat fermé gardait sa case et chassait un
+        article visible (audit du 28/10/2026)."""
+        from cms.models import MANCHETTE_MAX
+        _ensure_section_page(slug='ferme-une', name='Fermé', live=False)
+        cache = make_article_page(section_slug='ferme-une', title='Caché',
+                                  slug='cache-une', in_manchette_conf=True)
+        visibles = [make_article_page(section_slug='stucs', title=f'Vu {i}',
+                                      slug=f'vu-une-{i}', in_manchette_conf=True)
+                    for i in range(MANCHETTE_MAX)]
+        self.assertEqual(ArticlePage.objects.filter(
+            pk__in=[a.pk for a in visibles], in_manchette_conf=True).count(),
+            MANCHETTE_MAX)
+        cache.refresh_from_db()
+        self.assertTrue(cache.in_manchette_conf, "sa case n'est pas touchée")
     def test_chaque_case_confederale_nomme_sa_zone(self):
         """« À la une de la confédération » remplissait le diaporama."""
         diaporama = ArticlePage._meta.get_field('featured_on_conf')
@@ -10641,6 +10811,59 @@ class PurgeDonneesPersonnellesTest(TestCase):
         self.assertIn('1 message(s)', sortie)
         self.assertTrue(ContactMessage.objects.filter(pk=vieux.pk).exists())
 
+    def _en_attente_de_retrait(self):
+        """Désinscrit dont OVH a refusé le retrait : `ovh_list` encore posé."""
+        site = make_site()
+        with patch('content.ovh_sync.ovh_subscribe', return_value='news3'):
+            abo = Subscriber.objects.create(site=site, email='coince@example.org',
+                                            is_active=True)
+        Subscriber.objects.filter(pk=abo.pk).update(is_active=False, ovh_list='news3')
+        self._vieillir(Subscriber, abo, 'subscribed_at', 31)
+        return abo
+
+    def test_une_ligne_en_attente_de_retrait_ovh_est_gardee(self):
+        """La supprimer effaçait la seule trace que la personne recevait
+        encore la lettre (audit du 28/10/2026)."""
+        abo = self._en_attente_de_retrait()
+        with patch('content.ovh_sync.ovh_unsubscribe', return_value=False):
+            self._purger()
+        self.assertTrue(Subscriber.objects.filter(pk=abo.pk).exists())
+
+    def test_le_retrait_retente_qui_aboutit_libere_la_ligne(self):
+        abo = self._en_attente_de_retrait()
+        with patch('content.ovh_sync.ovh_unsubscribe', return_value=True) as retirer:
+            self._purger()
+        retirer.assert_called_once()
+        self.assertEqual(retirer.call_args[0][1], 'coince@example.org')
+        self.assertFalse(Subscriber.objects.filter(pk=abo.pk).exists())
+
+    def test_un_vieux_commentaire_perd_adresse_et_ip_et_garde_son_texte(self):
+        site = make_site()
+        article = make_article(site, title='Legacy', slug='legacy')
+        vieux = Comment.objects.create(article=article, author_name='Camarade',
+                                       author_email='camarade@example.org',
+                                       author_ip='192.0.2.7', content='Bien vu.')
+        recent = Comment.objects.create(article=article, author_name='Autre',
+                                        author_email='autre@example.org',
+                                        author_ip='192.0.2.8', content='Oui.')
+        self._vieillir(Comment, vieux, 'created_at', 731)
+        self._purger()
+        vieux.refresh_from_db()
+        recent.refresh_from_db()
+        self.assertEqual((vieux.author_email, vieux.author_ip), ('', None))
+        self.assertEqual((vieux.author_name, vieux.content), ('Camarade', 'Bien vu.'))
+        self.assertEqual(recent.author_ip, '192.0.2.8')
+
+    def test_les_sessions_expirees_sont_videes(self):
+        from django.contrib.sessions.models import Session
+        Session.objects.create(session_key='expiree', session_data='',
+                               expire_date=timezone.now() - timedelta(days=1))
+        Session.objects.create(session_key='vivante', session_data='',
+                               expire_date=timezone.now() + timedelta(days=1))
+        self._purger()
+        self.assertEqual(list(Session.objects.values_list('session_key', flat=True)),
+                         ['vivante'])
+
 
 class SlugsAsciiTest(TestCase):
     """Un titre accentué ne doit pas produire une adresse que nos routes
@@ -10776,3 +10999,71 @@ class LienDeMenuVersLaNewsletterTest(TestCase):
         from cms.models import SectionPage
         SectionPage.objects.filter(slug='principal').update(newsletter_active=True)
         self.assertContains(self.client.get('/'), 'id="newsletter"')
+
+
+class DiaporamaSansSyndicatFermeTest(TestCase):
+    """Un article épinglé dans la fiche de la conf quitte le diaporama quand son
+    syndicat passe en test : le tri se faisait sur `live`, et le lien menait à
+    la page de maintenance (audit du 28/10/2026)."""
+
+    def setUp(self):
+        from cms.models import CarouselArticle
+        self.conf = make_site()
+        self.ferme = _ensure_section_page(slug='ferme-test', name='Syndicat fermé')
+        self.visible = make_article_page(title='Épinglé de la conf', slug='epingle-conf')
+        self.cache = make_article_page(section_slug='ferme-test',
+                                       title='Épinglé du fermé', slug='epingle-ferme')
+        CarouselArticle.objects.create(page=self.conf, article=self.cache, sort_order=0)
+        CarouselArticle.objects.create(page=self.conf, article=self.visible, sort_order=1)
+
+    def _diaporama(self):
+        return [a.pk for a in self.client.get('/').context['carousel_articles']]
+
+    def test_ouvert_l_epingle_y_est_dans_l_ordre_de_la_fiche(self):
+        self.assertEqual(self._diaporama(), [self.cache.pk, self.visible.pk])
+
+    def test_ferme_l_epingle_en_sort(self):
+        self.ferme.live = False
+        self.ferme.page_maintenance = True
+        self.ferme.save()
+        self.assertEqual(self._diaporama(), [self.visible.pk])
+
+
+class SaisiesDuPublicHorsDesRapportsDErreurTest(TestCase):
+    """Les courriels d'erreur 500 recopiaient tout le POST : adresse,
+    téléphone, message — une appartenance syndicale (audit du 28/10/2026)."""
+
+    def test_chaque_formulaire_public_masque_son_post(self):
+        from django.contrib.auth.models import AnonymousUser
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.contrib.sessions.backends.db import SessionStore
+        from django.views.debug import SafeExceptionReporterFilter
+
+        make_site()
+        from content import views
+        vues = [views.ContactView, views.NewsletterSubscribeView,
+                views.NewsletterSubscribeVerifyView, views.NewsletterDesabonnementView]
+        for vue in vues:
+            with self.subTest(vue=vue.__name__):
+                request = RequestFactory().post('/', {'email': 'militante@exemple.org',
+                                                      'message': 'Grève chez X'})
+                request.user = AnonymousUser()
+                request.session = SessionStore()
+                request._messages = FallbackStorage(request)
+                with patch('hcaptcha.fields.hCaptchaField.validate'):
+                    vue.as_view()(request)
+                filtrés = SafeExceptionReporterFilter().get_post_parameters(request)
+                self.assertNotIn('militante@exemple.org', filtrés.values())
+                self.assertNotIn('Grève chez X', filtrés.values())
+
+
+class BlocImageSansImageTest(TestCase):
+    """Une image supprimée de la médiathèque laissait `<img src="">` dans un
+    cadre vide (audit du 28/10/2026)."""
+
+    def test_rien_n_est_rendu(self):
+        from django.template.loader import render_to_string
+        html = render_to_string('cms/blocks/image_block.html', {'value': {
+            'image': None, 'alignment': 'center', 'largeur': '50', 'caption': 'Légende'}})
+        self.assertNotIn('<img', html)
+        self.assertNotIn('<figure', html)

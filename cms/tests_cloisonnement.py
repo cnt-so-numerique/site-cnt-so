@@ -614,3 +614,165 @@ class BalayageInterfaceInterneTest(TestCase):
             self.client.get(f'/cms/images/{chez_le_voisin.pk}/',
                             follow=False).status_code, 200,
             "l'image du syndicat voisin est modifiable")
+
+
+class RapportsReservesAuxChefsTest(TestCase):
+    """Les rapports Wagtail ne sont pas cloisonnés : le journal du site montrait
+    à un rédacteur l'adresse des abonnés d'un autre syndicat (audit du
+    28/10/2026). Le menu les masquait, l'adresse restait ouverte."""
+
+    ADRESSE = 'militante.b@exemple.org'
+
+    def setUp(self):
+        from cms.provisioning import provision_section
+        from django.contrib.auth.models import Group
+        self.a = _ensure_section_page(slug='rapports-a', name='Syndicat Rapports A')
+        self.b = _ensure_section_page(slug='rapports-b', name='Syndicat Rapports B')
+        provision_section(self.a)
+        provision_section(self.b)
+        self.redac_a = User.objects.create_user('redac-rapports-a', password='x')
+        self.redac_a.groups.add(Group.objects.get(name='redacteur_rapports-a'))
+        redac_b = User.objects.create_user('redac-rapports-b', password='x')
+        redac_b.groups.add(Group.objects.get(name='redacteur_rapports-b'))
+        # Par le vrai écran, pour que Wagtail écrive l'entrée du journal.
+        self.client.force_login(redac_b)
+        self.client.post(reverse('wagtailsnippets_content_subscriber:add'),
+                         {'email': self.ADRESSE, 'site': self.b.pk, 'is_active': 'on'})
+        self.assertTrue(Subscriber.objects.filter(email=self.ADRESSE).exists())
+        self.client.logout()
+
+    def test_le_redacteur_d_a_ne_lit_pas_le_journal(self):
+        self.client.force_login(self.redac_a)
+        for url in ('/cms/reports/site-history/', '/cms/reports/site-history/results/',
+                    '/cms/reports/page-types-usage/'):
+            with self.subTest(url=url):
+                r = self.client.get(url)
+                self.assertEqual(r.status_code, 403)
+                self.assertNotIn(self.ADRESSE, r.content.decode())
+
+    def test_le_chef_confederal_le_lit(self):
+        from content.tests import make_superuser
+        self.client.force_login(make_superuser(username='su-rapports'))
+        r = self.client.get('/cms/reports/site-history/')
+        self.assertContains(r, self.ADRESSE)
+
+
+class DocumentsExecutablesRefusesTest(TestCase):
+    """nginx sert `/media/` sous l'origine de `/cms/` : un `.html` ou un `.svg`
+    déposé comme document y lançait son script avec la session de qui ouvrait
+    le lien (audit du 28/10/2026)."""
+
+    def test_html_et_svg_refuses_pdf_accepte(self):
+        import tempfile
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+        from wagtail.documents import get_document_model
+        from content.tests import make_superuser
+
+        self.client.force_login(make_superuser(username='su-docs'))
+        with override_settings(MEDIA_ROOT=tempfile.mkdtemp()):
+            for nom, attendu in (('piege.html', False), ('piege.svg', False),
+                                 ('piege.htm', False), ('tract.pdf', True)):
+                with self.subTest(nom=nom):
+                    self.client.post('/cms/documents/add/', {
+                        'title': nom,
+                        'file': SimpleUploadedFile(nom, b'<script>alert(1)</script>'),
+                    })
+                    self.assertEqual(
+                        get_document_model().objects.filter(title=nom).exists(), attendu)
+
+
+class SelecteurDePagesCloisonneTest(TestCase):
+    """Le sélecteur de pages montrait le titre des brouillons d'un autre
+    syndicat (audit du 28/10/2026)."""
+
+    def setUp(self):
+        from cms.provisioning import provision_section
+        from django.contrib.auth.models import Group
+        self.a = _ensure_section_page(slug='choix-a', name='Syndicat Choix A')
+        self.b = _ensure_section_page(slug='choix-b', name='Syndicat Choix B')
+        provision_section(self.a)
+        self.brouillon_b = self.b.add_child(instance=ArticlePage(
+            title='Projet de grève chez Onet', slug='greve-onet',
+            section_slug='choix-b', live=False))
+        self.brouillon_a = self.a.add_child(instance=ArticlePage(
+            title='Projet de grève chez Lidl', slug='greve-lidl',
+            section_slug='choix-a', live=False))
+        self.publie_b = self.b.add_child(instance=ArticlePage(
+            title='Grève gagnée chez Onet', slug='greve-gagnee',
+            section_slug='choix-b', live=True))
+        redac = User.objects.create_user('redac-choix-a', password='x')
+        redac.groups.add(Group.objects.get(name='redacteur_choix-a'))
+        self.client.force_login(redac)
+
+    def _html(self, url):
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 200)
+        return r.json()['html'] if 'json' in r['Content-Type'] else r.content.decode()
+
+    def _recherche(self):
+        return self._html('/cms/choose-page/search/?q=grève')
+
+    def test_le_brouillon_du_voisin_n_apparait_pas(self):
+        for url in ('/cms/choose-page/search/?q=grève', f'/cms/choose-page/{self.b.pk}/'):
+            with self.subTest(url=url):
+                corps = self._html(url)
+                self.assertIn('Grève gagnée chez Onet', corps, "contrôle positif")
+                self.assertNotIn('Projet de grève chez Onet', corps)
+
+    def test_son_brouillon_et_le_publie_du_voisin_restent(self):
+        corps = self._recherche()
+        self.assertIn('Projet de grève chez Lidl', corps)
+        self.assertIn('Grève gagnée chez Onet', corps)
+
+    def test_un_syndicat_ferme_disparait_meme_publie(self):
+        self.b.live = False
+        self.b.page_maintenance = True
+        self.b.save()
+        self.assertNotIn('Grève gagnée chez Onet', self._recherche())
+
+
+class SessionsDEditionCloisonneesTest(TestCase):
+    """`/cms/editing-sessions/ping/…` ne vérifiait que la permission sur le
+    MODÈLE : un rédacteur de A pinguait l'abonné de B et apprenait qui
+    l'éditait, en s'y inscrivant au passage (audit du 28/10/2026)."""
+
+    def setUp(self):
+        from cms.provisioning import provision_section
+        from django.contrib.auth.models import Group
+        self.a = _ensure_section_page(slug='ping-a', name='Syndicat Ping A')
+        self.b = _ensure_section_page(slug='ping-b', name='Syndicat Ping B')
+        provision_section(self.a)
+        provision_section(self.b)
+        self.redac_a = User.objects.create_user('redac-ping-a', password='x')
+        self.redac_a.groups.add(Group.objects.get(name='redacteur_ping-a'))
+        self.redac_b = User.objects.create_user('redac-ping-b', password='x',
+                                                first_name='Militante', last_name='Bé')
+        self.redac_b.groups.add(Group.objects.get(name='redacteur_ping-b'))
+        self.abonne_b = Subscriber.objects.create(site=self.b, email='b@exemple.org')
+
+    def _ping(self, user, objet, app='content', modele='subscriber'):
+        self.client.force_login(user)
+        return self.client.post(reverse('wagtailadmin_editing_sessions:ping',
+                                        args=[app, modele, objet.pk, 0]))
+
+    def test_le_redacteur_de_b_pingue_son_abonne(self):
+        self.assertEqual(self._ping(self.redac_b, self.abonne_b).status_code, 200)
+
+    def test_le_redacteur_d_a_ne_pingue_pas_l_abonne_de_b(self):
+        from wagtail.admin.models import EditingSession
+        self._ping(self.redac_b, self.abonne_b)
+        r = self._ping(self.redac_a, self.abonne_b)
+        self.assertEqual(r.status_code, 404)
+        self.assertNotIn('Militante', r.content.decode())
+        self.assertFalse(EditingSession.objects.filter(user=self.redac_a).exists())
+
+    def test_ni_l_article_de_b(self):
+        article = make_article_page(section_slug='ping-b', title='Article B',
+                                    slug='article-ping-b')
+        self.assertEqual(self._ping(self.redac_a, article, 'cms', 'articlepage').status_code, 404)
+
+    def test_le_chef_confederal_pingue_partout(self):
+        from content.tests import make_superuser
+        self.assertEqual(self._ping(make_superuser(username='su-ping'),
+                                    self.abonne_b).status_code, 200)

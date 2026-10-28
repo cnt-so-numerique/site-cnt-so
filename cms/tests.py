@@ -682,6 +682,19 @@ class OvhClientTest(TestCase):
             '/email/domain/cnt-so.info/mailingList/actu-stucs-cntso/subscriber/alice@example.com'
         )
 
+    @patch('cms.ovh_client.get_client')
+    def test_remove_subscriber_encode_l_adresse(self, mock_get_client):
+        """Django accepte `#` dans une adresse : non encodé, il coupait le
+        chemin et le retrait visait une autre adresse (audit du 28/10/2026)."""
+        mock_client = self._make_client()
+        mock_get_client.return_value = mock_client
+        from cms.ovh_client import remove_subscriber
+        remove_subscriber('news', 'victime%40gmail.com#@evil.fr')
+        mock_client.delete.assert_called_once_with(
+            '/email/domain/cnt-so.info/mailingList/news/subscriber/'
+            'victime%2540gmail.com%23@evil.fr'
+        )
+
 
 # ── Vues CMS listes mails ─────────────────────────────────────────────────────
 
@@ -780,6 +793,52 @@ class MailingListDetailViewTest(TestCase):
 
 
 # ── Sync abonnés → OVH ────────────────────────────────────────────────────────
+
+class OvhUnsubscribeTest(TestCase):
+    """Le retrait n'est réussi que si AUCUNE liste ne porte plus l'adresse
+    (audit du 28/10/2026)."""
+
+    def _retirer(self, effets):
+        """`effets` : liste → exception levée par OVH, ou None (retirée)."""
+        from content.ovh_sync import ovh_unsubscribe
+
+        def retrait(liste, email):
+            if effets[liste]:
+                raise effets[liste]
+
+        with patch('content.ovh_sync.lists_for_site', return_value=list(effets)), \
+                patch('cms.ovh_client.remove_subscriber', side_effect=retrait):
+            return ovh_unsubscribe(object(), 'a@example.org')
+
+    def test_absente_d_une_liste_compte_comme_retiree(self):
+        import ovh.exceptions
+        absente = ovh.exceptions.ResourceNotFoundError('404')
+        self.assertTrue(self._retirer({'news': absente, 'news3': None}))
+
+    def test_un_echec_sur_une_liste_n_est_pas_couvert_par_les_autres(self):
+        import ovh.exceptions
+        self.assertFalse(self._retirer(
+            {'news': ovh.exceptions.APIError('500'), 'news3': None}))
+
+    def test_le_signal_garde_la_trace_si_le_retrait_echoue(self):
+        from content.models import Subscriber
+        from content.tests import make_site
+        site = make_site()
+        with patch('content.ovh_sync.ovh_subscribe', return_value='news3'):
+            abo = Subscriber.objects.create(site=site, email='a@example.org',
+                                            is_active=True)
+        abo.refresh_from_db()
+        self.assertEqual(abo.ovh_list, 'news3')
+        with patch('content.ovh_sync.ovh_unsubscribe', return_value=False):
+            abo.is_active = False
+            abo.save()
+        abo.refresh_from_db()
+        self.assertEqual(abo.ovh_list, 'news3')
+        with patch('content.ovh_sync.ovh_unsubscribe', return_value=True):
+            abo.save()
+        abo.refresh_from_db()
+        self.assertEqual(abo.ovh_list, '')
+
 
 class SubscriberOvhSyncTest(TestCase):
     """Signal post_save Subscriber → add_subscriber OVH."""

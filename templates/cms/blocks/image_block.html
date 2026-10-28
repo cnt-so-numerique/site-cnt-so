@@ -2,7 +2,10 @@
 {% comment %}
 `largeur` est absent des articles écrits avant le 15/08/2026 : StructBlock
 sert alors le défaut du bloc, jamais une chaîne vide.
+Une image supprimée de la médiathèque laisse le bloc sans image : rien n'est
+rendu, plutôt qu'un cadre vide (audit du 28/10/2026).
 {% endcomment %}
+{% if value.image %}
 <figure class="article-image align-{{ value.alignment }} l-{{ value.largeur|default:'50' }}">
   {% image value.image original as img %}
   <img src="{{ img.url }}" alt="{{ value.image.title }}" loading="lazy">
@@ -10,3 +13,4 @@ sert alors le défaut du bloc, jamais une chaîne vide.
     <figcaption>{{ value.caption }}</figcaption>
   {% endif %}
 </figure>
+{% endif %}

@@ -41,6 +41,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.db import transaction
+from django.db.models import F
 from django.http import HttpResponseForbidden, HttpResponseNotAllowed, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.urls import Resolver404, resolve, reverse
@@ -164,10 +165,11 @@ def attente_restante(user):
 
 
 def _noter_echec(user):
-    echecs, _ = EchecsDoubleAuth.objects.get_or_create(user=user)
-    echecs.nombre += 1
-    echecs.dernier = timezone.now()
-    echecs.save()
+    # `F()` : deux essais simultanés perdaient sinon un incrément, et
+    # l'attente avec (audit du 28/10/2026).
+    EchecsDoubleAuth.objects.get_or_create(user=user)
+    EchecsDoubleAuth.objects.filter(user=user).update(
+        nombre=F('nombre') + 1, dernier=timezone.now())
 
 
 def verifier_code(user, code):

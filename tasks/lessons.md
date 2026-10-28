@@ -750,3 +750,13 @@ conf sans vérifier. C'était SON syndicat. Le constat a voyagé dans trois bila
 et le plan avant d'être démenti. Règle : un identifiant se résout (titre, type,
 slug) avant d'écrire une conclusion dessus ; une fuite se prouve par un contenu
 d'AUTRUI effectivement affiché, pas par un nombre de lignes.
+
+## 28/10/2026 — « Il n'y a pas de petit défaut : une faille est une faille »
+
+Mon bilan d'audit rangeait en « faible » des titres de brouillons d'un autre
+syndicat lisibles par un rédacteur, un webhook rejouable, une injection de
+formules dans l'export CSV, et laissait trois « doutes non prouvés » de
+sécurité sans suite. Arnaud : pas de petite faille. Règle : un audit sépare
+*failles* (accès, fuite, contournement, injection, rejeu — toutes à corriger)
+et *défauts fonctionnels* ; un doute de sécurité se reproduit ou se réfute
+AVANT de rendre le bilan, il n'est jamais une conclusion.

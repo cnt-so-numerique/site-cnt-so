@@ -36,6 +36,39 @@ def _verify_adhesion_signature(request) -> bool:
     return hmac.compare_digest(expected, sig)
 
 
+#: Fenêtre d'acceptation d'une requête horodatée, en secondes.
+WEBHOOK_FENETRE = 300
+
+
+def _rejouee(request, data) -> str:
+    """Le motif de refus d'une requête rejouée, ou '' si elle est neuve.
+
+    La signature couvre le corps et rien d'autre : une requête captée restait
+    valable indéfiniment — réinscrire, des mois plus tard, quelqu'un qui
+    s'était désabonné (audit du 28/10/2026). D'où `horodatage` (secondes
+    Unix) dans le corps signé, et le refus d'un doublon dans la fenêtre.
+
+    Tant que cnt-adhesion ne l'envoie pas, l'horodatage reste facultatif :
+    `ADHESION_WEBHOOK_HORODATAGE_OBLIGATOIRE` le rend obligatoire.
+    """
+    from django.core.cache import caches
+    horodatage = data.get('horodatage')
+    if horodatage is None:
+        if getattr(settings, 'ADHESION_WEBHOOK_HORODATAGE_OBLIGATOIRE', False):
+            return 'horodatage manquant'
+        return ''
+    try:
+        ecart = abs(timezone.now().timestamp() - float(horodatage))
+    except (TypeError, ValueError):
+        return 'horodatage invalide'
+    if ecart > WEBHOOK_FENETRE:
+        return 'requête périmée'
+    signature = request.headers.get('X-Webhook-Secret', '')
+    if not caches['limites'].add(f'webhook-adhesion:{signature}', 1, 2 * WEBHOOK_FENETRE):
+        return 'requête déjà reçue'
+    return ''
+
+
 def _get_section_page(slug: str):
     try:
         from cms.models import SectionPage
@@ -144,6 +177,11 @@ class NewsletterSyncView(View):
             data = json.loads(request.body)
         except json.JSONDecodeError:
             return JsonResponse({'error': 'JSON invalide'}, status=400)
+
+        motif = _rejouee(request, data)
+        if motif:
+            logger.warning("Webhook adhésion refusé : %s.", motif)
+            return JsonResponse({'error': motif}, status=403)
 
         email = data.get('email', '').strip().lower()
         if not email:

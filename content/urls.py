@@ -90,6 +90,9 @@ urlpatterns = [
     # listes OVH, il n'y a donc pas de lien personnalisé à mettre en pied.
     path('newsletter/desabonnement/', views.NewsletterDesabonnementView.as_view(),
          name='newsletter_desabonnement'),
+    path('newsletter/desabonnement/confirmer/<str:jeton>/',
+         views.NewsletterDesabonnementConfirmView.as_view(),
+         name='newsletter_desabonnement_confirmer'),
 
     # Flux RSS
     path('feed/', LatestArticlesFeed(), name='rss_feed'),

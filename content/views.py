@@ -8,11 +8,13 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView, DetailView, View, CreateView, TemplateView
 from django.http import Http404
 from django.db.models import Q
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.contrib import messages
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.debug import sensitive_post_parameters
 from .models import (Page, ContactMessage, FormulaireContact, Subscriber,
                      ExternalArticle)
 from .courriel import destinataire_de_reponse
@@ -128,10 +130,16 @@ class HomeView(ListView):
         # Carousel : carousel_items du SectionPage principal, fallback articles récents avec image
         carousel = []
         if main_site:
+            # `publics()` et non `live` : un article épinglé dont le syndicat
+            # est passé en test restait au diaporama, son lien menant à la
+            # page de maintenance (audit du 28/10/2026).
+            visibles = set(ArticlePage.objects.publics().filter(
+                pk__in=main_site.carousel_items.values('article_id'),
+            ).values_list('pk', flat=True))
             carousel = [
                 ci.article for ci in
                 main_site.carousel_items.select_related('article__featured_image').all()
-                if ci.article and ci.article.live
+                if ci.article_id in visibles
             ]
         # Puis les articles hissés à la une par un chef, quel que soit le
         # syndicat qui les a écrits.
@@ -641,6 +649,17 @@ class ArticleTractView(View):
             or getattr(settings, 'DEFAULT_CONTACT_EMAIL', 'contact@cnt-so.org')
 
 
+def _renommee(request, nom_url, slug):
+    """301 vers la nouvelle adresse d'une catégorie renommée, paramètres
+    compris : `?page=2` retombait sinon sur la première page (audit du
+    28/10/2026)."""
+    from django.http import HttpResponsePermanentRedirect
+    url = reverse(nom_url, kwargs={'slug': slug})
+    if request.GET:
+        url += '?' + request.GET.urlencode()
+    return HttpResponsePermanentRedirect(url)
+
+
 class PageDetailView(View):
     """Redirige les anciennes URLs /page/<slug>/ vers cms.ContentPage si migré, sinon legacy."""
 
@@ -709,8 +728,8 @@ class CategoryDetailView(ListView):
         slug = kwargs['slug']
         from cms.models import CATEGORIES_CONF_RENOMMEES
         if slug in CATEGORIES_CONF_RENOMMEES:
-            return redirect('content:category_detail',
-                            slug=CATEGORIES_CONF_RENOMMEES[slug], permanent=True)
+            return _renommee(request, 'content:category_detail',
+                             CATEGORIES_CONF_RENOMMEES[slug])
         self.category = CmsCategory.objects.filter(
             slug=slug, section_slug='principal').first()
         if self.category is None:
@@ -894,9 +913,14 @@ class SearchView(ListView):
         # plutôt que de chercher le vide.
         return gardes or mots
 
+    def _requete(self):
+        # L'octet NUL est refusé par PostgreSQL : `?q=%00` donnait une 500 à
+        # volonté, et une alerte par worker (audit du 28/10/2026).
+        return self.request.GET.get('q', '').replace('\x00', '').strip()
+
     def get_queryset(self):
         from wagtail.search.backends import get_search_backend
-        query = self.request.GET.get('q', '').strip()
+        query = self._requete()
         if not query:
             return ArticlePage.objects.none()
         backend = get_search_backend()
@@ -908,7 +932,7 @@ class SearchView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        query = self.request.GET.get('q', '').strip()
+        query = self._requete()
         context['query'] = query
         context['site'] = SectionPage.objects.filter(slug='principal').first()
         # Le moteur exige que TOUS les mots figurent dans l'article. Sans le
@@ -1134,6 +1158,10 @@ class ContactFormMixin:
 CONTACT_MAX_PAR_IP = 5
 
 
+# Ce que le public saisit (adresse, téléphone, message : une appartenance
+# syndicale) ne doit pas partir dans les courriels d'erreur 500, qui échappent à
+# la purge (audit du 28/10/2026).
+@method_decorator(sensitive_post_parameters(), name='dispatch')
 class _BaseContactView(ContactFormMixin, View):
     """Vue de contact partagée (principal et sous-sites)."""
     template_name = 'content/contact.html'
@@ -1249,9 +1277,11 @@ class PlanDuSiteView(TemplateView):
                 cat_groups.append({'name': name, 'url': None, 'children': children})
         ctx['cat_groups'] = cat_groups
 
-        ctx['pages'] = Page.objects.filter(
-            site=current, status='publish'
-        ).select_related('site').order_by('title')
+        # Les pages Wagtail, et non les pages WordPress héritées : celles-ci
+        # menaient à des 301, voire à un 404 (audit du 28/10/2026).
+        from cms.models import ContentPage
+        ctx['pages'] = ContentPage.objects.live().filter(
+            section_slug__in=current.slugs_contenu).order_by('title')
         if site_slug == 'principal':
             ctx['unions_regionales'] = SectionPage.objects.filter(
                 live=True, section_type='regional'
@@ -1329,6 +1359,7 @@ def _trop_de_desabonnements(request):
     return _quota_epuise(request, 'newsletter-desabonnement', NEWSLETTER_MAX_DESABO_PAR_IP)
 
 
+@method_decorator(sensitive_post_parameters(), name='dispatch')
 class NewsletterSubscribeView(View):
     """Première étape de l'inscription : recueillir l'adresse.
 
@@ -1372,6 +1403,7 @@ class NewsletterSubscribeView(View):
         })
 
 
+@method_decorator(sensitive_post_parameters(), name='dispatch')
 class NewsletterSubscribeVerifyView(View):
     """Deuxième étape : le hCaptcha franchi, on inscrit et on envoie le courriel.
 
@@ -1475,6 +1507,7 @@ class NewsletterUnsubscribeView(View):
         })
 
 
+@method_decorator(sensitive_post_parameters(), name='dispatch')
 class NewsletterDesabonnementView(View):
     """Désabonnement sans jeton, à partir de la seule adresse.
 
@@ -1485,8 +1518,10 @@ class NewsletterDesabonnementView(View):
     Sans porte de sortie, le seul geste qui restait au lecteur était « signaler
     comme indésirable », le pire signal qui soit pour la délivrabilité.
 
-    Le retrait s'opère sur les listes OVH, où vivent les adresses, et sur la
-    ligne locale quand elle existe.
+    Cette vue ne retire rien : elle envoie à l'adresse un lien signé, et c'est
+    `NewsletterDesabonnementConfirmView` qui retire — des listes OVH, où vivent
+    les adresses, et de la ligne locale quand elle existe. Sans cette preuve de
+    possession, n'importe qui vidait les listes (audit du 28/10/2026).
     """
 
     def _site(self, site_slug=None):
@@ -1526,13 +1561,50 @@ class NewsletterDesabonnementView(View):
             return render(request, 'content/newsletter_desabonnement.html',
                           self._contexte(site, form))
 
-        from .ovh_sync import ovh_unsubscribe
-        ovh_unsubscribe(site_de_diffusion(site), email)
-        self._eteindre_les_lignes_locales(site, email)
-
-        return render(request, 'content/newsletter_desabonnement_done.html', {
+        if not self._envoyer_le_lien(request, site, email):
+            form.add_error(None, (
+                "Le courriel de confirmation n'a pas pu partir. Réessayez dans "
+                "quelques minutes, ou passez par le formulaire de contact "
+                "ci-dessous : nous vous retirerons de la liste à la main."))
+            return render(request, 'content/newsletter_desabonnement.html',
+                          self._contexte(site, form))
+        return render(request, 'content/newsletter_desabonnement_envoye.html', {
             'site': site, 'email': email,
         })
+
+    @staticmethod
+    def _envoyer_le_lien(request, site, email):
+        """Le lien de confirmation, à l'adresse même qu'on veut retirer.
+
+        Sans lui, n'importe qui retirait n'importe quelle adresse de news et
+        news2 — 5 895 sympathisants —, au seul frein de 20 demandes par heure
+        et par connexion (audit du 28/10/2026). Le lien est signé, porte
+        l'adresse et le syndicat, et vaut sept jours ; il part sur le site
+        principal, qui sert la confirmation de tous les syndicats.
+        """
+        from django.conf import settings
+        from django.core import signing
+        jeton = signing.dumps({'e': email, 's': site.slug}, salt=SEL_DESABONNEMENT)
+        lien = settings.MAIN_SITE_BASE_URL.rstrip('/') + reverse(
+            'content:newsletter_desabonnement_confirmer', args=[jeton])
+        texte = (f"Pour ne plus recevoir la newsletter {site.name}, confirmez ici "
+                 f"(lien valable sept jours) :\n{lien}\n\n"
+                 f"Vous n'avez rien demandé ? Ignorez ce message : rien ne change.")
+        try:
+            msg = EmailMultiAlternatives(
+                subject=f"Confirmez votre désabonnement — {site.name}",
+                body=texte, from_email=None, to=[email],
+                reply_to=destinataire_de_reponse(),
+            )
+            msg.attach_alternative(render_to_string(
+                'newsletter/desabonnement_email.html',
+                {'site': site, 'lien': lien}, request=request), 'text/html')
+            msg.send()
+        except Exception as e:
+            logger.error("Courriel de confirmation de désabonnement NON REMIS "
+                         "(syndicat %s) : %s", getattr(site, 'name', '?'), e)
+            return False
+        return True
 
     @staticmethod
     def _eteindre_les_lignes_locales(site, email):
@@ -1749,6 +1821,64 @@ class SiteRessourcesView(View):
         ctx.update(_sectoral_sidebar_context(site))
         return render(request, 'content/site_ressources.html', ctx)
 
+
+
+#: Sel et durée du lien de confirmation de désabonnement.
+SEL_DESABONNEMENT = 'content.newsletter.desabonnement'
+DESABONNEMENT_VALIDITE = 7 * 24 * 3600
+
+
+@method_decorator(sensitive_post_parameters(), name='dispatch')
+class NewsletterDesabonnementConfirmView(View):
+    """Seconde étape : la personne a ouvert le lien reçu à son adresse.
+
+    Le GET ne fait que montrer le bouton : les antivirus de messagerie
+    suivent les liens des courriels, et ils ne doivent désabonner personne.
+    """
+
+    gabarit = 'content/newsletter_desabonnement_confirmer.html'
+
+    def _lire(self, jeton):
+        from django.core import signing
+        try:
+            donnees = signing.loads(jeton, salt=SEL_DESABONNEMENT,
+                                    max_age=DESABONNEMENT_VALIDITE)
+        except signing.BadSignature:  # SignatureExpired en hérite
+            return None, None
+        site = (SectionPage.objects.filter(slug=donnees.get('s')).first()
+                or get_object_or_404(SectionPage, slug='principal'))
+        return site, donnees.get('e')
+
+    def _page(self, request, site, email, erreur=''):
+        principal = get_object_or_404(SectionPage, slug='principal')
+        return render(request, self.gabarit, {
+            'site': site or principal, 'email': email, 'erreur': erreur,
+            'url_contact': url_contact_du_syndicat(site or principal),
+        }, status=200 if email else 400)
+
+    def get(self, request, jeton):
+        site, email = self._lire(jeton)
+        return self._page(request, site, email)
+
+    def post(self, request, jeton):
+        site, email = self._lire(jeton)
+        if not email:
+            return self._page(request, site, email)
+        from .ovh_sync import ovh_unsubscribe
+        retire = ovh_unsubscribe(site_de_diffusion(site), email)
+        NewsletterDesabonnementView._eteindre_les_lignes_locales(site, email)
+        if not retire:
+            # Annoncer un retrait qui n'a pas eu lieu renverrait la personne
+            # vers le bouton « indésirable » (audit du 28/10/2026). Le
+            # consentement est quand même coupé en base, et la purge
+            # nocturne retente le retrait des lignes qui en ont une.
+            return self._page(request, site, email, erreur=(
+                "Le retrait n'a pas pu se faire pour l'instant. Réessayez dans "
+                "quelques minutes, ou passez par le formulaire de contact : "
+                "nous vous retirerons de la liste à la main."))
+        return render(request, 'content/newsletter_desabonnement_done.html', {
+            'site': site, 'email': email,
+        })
 
 def url_contact_du_syndicat(site):
     """Le formulaire de contact du syndicat, ou celui de la confédération.

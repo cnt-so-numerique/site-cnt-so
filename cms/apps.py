@@ -1,6 +1,26 @@
 from django.apps import AppConfig
 
 
+def listes_de_labonne(instance):
+    """Le syndicat dont les listes portent RÉELLEMENT cette adresse.
+
+    Deux redirections, et la seconde manquait ici :
+
+    1. `site` nul → abonné confédéral (webhook adhésion) → principal.
+    2. Syndicat **sans liste OVH** → ses inscrits vont sur celles de la
+       confédération (`site_de_diffusion`, règle du 17/08/2026). Sans
+       ce second saut, désactiver un abonné de Marseille — qui n'a pas
+       de liste — balayait une liste vide et le laissait sur `news3`.
+    """
+    from cms.models import SectionPage
+    from content.ovh_sync import site_de_diffusion
+
+    site = instance.site
+    if site is None:
+        site = SectionPage.objects.filter(slug='principal').first()
+    return site_de_diffusion(site) if site else None
+
+
 class CmsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'cms'
@@ -8,25 +28,6 @@ class CmsConfig(AppConfig):
 
     def ready(self):
         from django.db.models.signals import post_save, pre_delete
-
-        def _listes_de_labonne(instance):
-            """Le syndicat dont les listes portent RÉELLEMENT cette adresse.
-
-            Deux redirections, et la seconde manquait ici :
-
-            1. `site` nul → abonné confédéral (webhook adhésion) → principal.
-            2. Syndicat **sans liste OVH** → ses inscrits vont sur celles de la
-               confédération (`site_de_diffusion`, règle du 17/08/2026). Sans
-               ce second saut, désactiver un abonné de Marseille — qui n'a pas
-               de liste — balayait une liste vide et le laissait sur `news3`.
-            """
-            from cms.models import SectionPage
-            from content.ovh_sync import site_de_diffusion
-
-            site = instance.site
-            if site is None:
-                site = SectionPage.objects.filter(slug='principal').first()
-            return site_de_diffusion(site) if site else None
 
         def _sync_subscriber_to_ovh(sender, instance, created, **kwargs):
             """Répercute le consentement d'un abonné sur les listes OVH.
@@ -38,7 +39,7 @@ class CmsConfig(AppConfig):
             """
             from content.ovh_sync import ovh_subscribe, ovh_unsubscribe
 
-            site = _listes_de_labonne(instance)
+            site = listes_de_labonne(instance)
 
             if instance.is_active:
                 chosen = ovh_subscribe(site, instance.email)
@@ -47,8 +48,12 @@ class CmsConfig(AppConfig):
                     from content.models import Subscriber as Sub
                     Sub.objects.filter(pk=instance.pk).update(ovh_list=chosen)
             elif not created:
-                ovh_unsubscribe(site, instance.email)
-                if instance.ovh_list:
+                # `ovh_list` reste renseigné tant que le retrait n'a pas
+                # abouti : c'est la trace qui permet de le retenter (purge,
+                # suppression). Le vider sur un échec effaçait la seule preuve
+                # que la personne était encore sur une liste (audit du
+                # 28/10/2026).
+                if ovh_unsubscribe(site, instance.email) and instance.ovh_list:
                     from content.models import Subscriber as Sub
                     Sub.objects.filter(pk=instance.pk).update(ovh_list='')
 
@@ -86,7 +91,7 @@ class CmsConfig(AppConfig):
             from content.ovh_sync import ovh_unsubscribe
             if not instance.ovh_list:
                 return
-            site = _listes_de_labonne(instance)
+            site = listes_de_labonne(instance)
             if site is not None:
                 ovh_unsubscribe(site, instance.email)
 

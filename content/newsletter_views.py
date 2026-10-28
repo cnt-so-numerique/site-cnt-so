@@ -433,6 +433,12 @@ class NewsletterDebloquerView(NewsletterSendView):
         return redirect('/cms/snippets/content/newsletter/')
 
 
+def _cellule(texte):
+    """Neutralise une formule : le nom est saisi par le public, et un tableur
+    exécute `=…` à l'ouverture de l'export (audit du 28/10/2026)."""
+    return "'" + texte if texte[:1] in ('=', '+', '-', '@', '\t', '\r') else texte
+
+
 class SubscriberExportView(WagtailSyndicatRequiredMixin, View):
     """Export CSV des abonnés actifs du site courant."""
 
@@ -448,5 +454,6 @@ class SubscriberExportView(WagtailSyndicatRequiredMixin, View):
         writer = csv.writer(response)
         writer.writerow(['email', 'nom', 'date_inscription'])
         for s in subscribers:
-            writer.writerow([s.email, s.name, s.subscribed_at.strftime('%d/%m/%Y')])
+            writer.writerow([_cellule(s.email), _cellule(s.name),
+                             s.subscribed_at.strftime('%d/%m/%Y')])
         return response

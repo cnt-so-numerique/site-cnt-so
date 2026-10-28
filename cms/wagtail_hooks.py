@@ -1834,3 +1834,32 @@ def creer_par_l_ecran_snippet(request, parent_page, page_class):
     espace = _ECRANS_SNIPPET.get(page_class._meta.model_name)
     if espace:
         return redirect(reverse(f'{espace}:add'))
+
+
+@hooks.register('construct_page_chooser_queryset')
+def cloisonner_le_selecteur_de_pages(pages, request):
+    """Le sélecteur de pages (liens, épingles) montrait à un rédacteur le
+    titre des brouillons des autres syndicats — « Projet de grève chez Onet »
+    se lisait dans `/cms/choose-page/search/` (audit du 28/10/2026).
+
+    Un rédacteur y voit ses propres pages, brouillons compris, et ailleurs ce
+    que le public voit déjà : pages publiées, hors syndicats fermés. Il peut
+    donc toujours faire un lien vers un article de la conf.
+    """
+    from django.db.models import Q
+    from .models import ArticlePage, ContentPage, slugs_des_syndicats_fermes
+    from .site_context import _is_global_chef
+
+    if _is_global_chef(request.user):
+        return pages
+    site = get_current_site(request)
+    miens = site.slugs_contenu if site else set()
+    fermes = slugs_des_syndicats_fermes() - set(miens)
+    contenus = [ArticlePage, ContentPage]
+
+    def pks(slugs):
+        return Q(pk__in=[pk for modele in contenus for pk in
+                         modele.objects.filter(section_slug__in=slugs)
+                         .values_list('pk', flat=True)])
+
+    return pages.filter((Q(live=True) & ~pks(fermes)) | pks(miens))

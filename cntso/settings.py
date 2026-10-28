@@ -97,6 +97,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django_otp.middleware.OTPMiddleware',
     'cms.double_auth.DoubleAuthMiddleware',
+    'cms.cloisonnement.RapportsReservesAuxChefs',
+    'cms.cloisonnement.SessionsDEditionCloisonnees',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -272,6 +274,10 @@ OVH_LIST_CAP           = int(_os.environ.get('OVH_LIST_CAP', 4900))
 # ── Intégration cnt-adhesion ──────────────────────────────────────────────────
 # Secret partagé pour vérifier les webhooks venant de cnt-adhesion
 ADHESION_WEBHOOK_SECRET = _os.environ.get('ADHESION_WEBHOOK_SECRET', '')
+# Refuse un webhook sans `horodatage` signé (anti-rejeu, audit du 28/10/2026).
+# À passer à True quand cnt-adhesion l'envoie.
+ADHESION_WEBHOOK_HORODATAGE_OBLIGATOIRE = _os.environ.get(
+    'ADHESION_WEBHOOK_HORODATAGE_OBLIGATOIRE', 'false').lower() == 'true'
 # URL publique de l'app cnt-adhesion
 ADHESION_BASE_URL = _os.environ.get('ADHESION_BASE_URL', 'https://adhesion.cnt-so.org')
 # Mettre à True pour rediriger /adherer/<slug>/ vers la nouvelle app
@@ -284,6 +290,14 @@ WAGTAILADMIN_BASE_URL = 'https://cnt-so.org'
 # construire le lien fait planter la page entière — c'est ce qui est arrivé aux
 # mots-clés « rentrée » et « réformes » (500 sur les articles, 24/09/2026).
 WAGTAIL_ALLOW_UNICODE_SLUGS = False
+# Documents : liste fermée, sans aucun format qu'un navigateur exécute. Wagtail
+# accepte tout par défaut, et nginx sert `/media/` sous l'origine de `/cms/` :
+# un `.html` ou un `.svg` déposé par un rédacteur y lançait son script avec la
+# session de qui ouvrait le lien (audit du 28/10/2026).
+WAGTAILDOCS_EXTENSIONS = [
+    'pdf', 'odt', 'ods', 'odp', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+    'rtf', 'txt', 'csv', 'epub', 'zip',
+]
 # Origine publique du site principal — utilisée par les domaines de fédérations
 # pour renvoyer vers le site confédéral. Tant que la bascule DNS n'est pas faite,
 # la prod doit la surcharger avec https://newsite.cnt-so.org (env ou local_settings).

@@ -1,4 +1,6 @@
 """Client OVH partagé — listes mails cnt-so.info."""
+from urllib.parse import quote
+
 import ovh
 from django.conf import settings
 from django.core.cache import cache
@@ -77,7 +79,10 @@ def add_subscriber(list_name, email):
 
 def remove_subscriber(list_name, email):
     """Supprime un abonné d'une liste OVH."""
+    # Encodée : Django accepte `#`, `?`, `/` et `%` dans une adresse, qui
+    # tronquaient ou détournaient le chemin de l'API (audit du 28/10/2026).
     get_client().delete(
-        f'/email/domain/{get_domain()}/mailingList/{list_name}/subscriber/{email}'
+        f'/email/domain/{get_domain()}/mailingList/{list_name}'
+        f'/subscriber/{quote(email, safe="@")}'
     )
     _invalidate_subscribers(list_name)

@@ -127,12 +127,21 @@ def ovh_subscribe(site, email):
 
 
 def ovh_unsubscribe(site, email):
-    ok = False
+    """Retire l'adresse de toutes les listes du site.
+
+    Vrai seulement si AUCUNE liste ne la porte plus à l'issue : retirée, ou
+    déjà absente (404). Un retrait réussi sur `news3` ne couvre pas un échec sur
+    `news` — la personne continuerait de recevoir (audit du 28/10/2026).
+    """
+    from ovh.exceptions import ResourceNotFoundError
+    from cms.ovh_client import remove_subscriber
+    complet = True
     for name in lists_for_site(site):
         try:
-            from cms.ovh_client import remove_subscriber
             remove_subscriber(name, email)
-            ok = True
+        except ResourceNotFoundError:
+            pass
         except Exception as e:
+            complet = False
             logger.warning("Retrait de la liste OVH %s impossible pour %s : %s", name, email, e)
-    return ok
+    return complet

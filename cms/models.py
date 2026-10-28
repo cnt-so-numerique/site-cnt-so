@@ -95,6 +95,9 @@ def _cle_de_nom(valeur):
 #: vue renvoie un slug inconnu vers le syndicat homonyme avant d'en arriver là.
 CATEGORIES_CONF_RENOMMEES = {
     'actions': 'actions-et-actualites',  # 05/10/2026
+    # Nom d'avant le 16/08/2026 : sans cette ligne, l'adresse partait chez le
+    # syndicat du 13, qui a une rubrique de ce nom (audit du 28/10/2026).
+    'actualites-luttes': 'actions-et-actualites',
 }
 
 
@@ -1771,8 +1774,12 @@ class ArticlePage(ContenuDeSyndicatMixin, Page):
         Un article de syndicat qui sort ne perd que sa case confédérale : sa
         place à la une de SON syndicat ne regarde pas la conf.
         """
-        autres = list(ArticlePage.objects.filter(
-            models.Q(section_slug='principal', in_manchette=True)
+        # Ne compte que ce que la une affiche (`HomeView`) : un article de
+        # syndicat fermé, ou de la conf sans image, y prenait une place et en
+        # chassait un visible (audit du 28/10/2026).
+        autres = list(ArticlePage.objects.publics().filter(
+            models.Q(section_slug='principal', in_manchette=True,
+                     featured_image__isnull=False)
             | models.Q(in_manchette_conf=True),
         ).exclude(pk=self.pk).order_by('-last_published_at', '-pk')
             .values_list('pk', flat=True))
