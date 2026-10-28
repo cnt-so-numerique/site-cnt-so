@@ -437,11 +437,14 @@ LOGGING = {
             'level': 'ERROR',
             'include_html': True,
         },
+        # Rotation par logrotate (`/etc/logrotate.d/cntso`, 14 jours, comme le
+        # promettent les mentions légales) et non par taille : 5 Mo × 3 ne
+        # disait rien de la durée, et les journaux portent des adresses
+        # (audit du 28/10/2026). `Watched` rouvre le fichier quand logrotate
+        # l'a déplacé, ce que trois workers gunicorn exigent.
         'file': {
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': 'logging.handlers.WatchedFileHandler',
             'filename': LOGS_DIR / 'django.log',
-            'maxBytes': 5 * 1024 * 1024,
-            'backupCount': 3,
             'formatter': 'verbose',
         },
         'console': {
