@@ -66,7 +66,11 @@ fi
 # Rotation : une sauvegarde complète par déploiement, jamais supprimée, gardait
 # indéfiniment ce que la purge RGPD efface de la base (audit du 28/10/2026). On
 # retire celles de plus de 30 jours, en gardant TOUJOURS les 10 dernières.
-ls -1t ~/cntso-*.sql.gz | tail -n +11 | while read -r vieille; do
+# Seules les sauvegardes AUTOMATIQUES de ce script (`cntso-AAAAMMJJ-HHMM`) sont
+# concernées : celles qu'on nomme à la main avant une opération délicate
+# (`cntso-avant-…`) ne partent jamais seules (Arnaud, 28/10/2026).
+ls -1t ~/cntso-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9].sql.gz \
+        | tail -n +11 | while read -r vieille; do
     if [ -n "$(find "$vieille" -mtime +30)" ]; then
         rm -f -- "$vieille" && echo "   rotation : $(basename "$vieille") supprimée"
     fi
