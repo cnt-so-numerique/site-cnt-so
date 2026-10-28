@@ -37,9 +37,6 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "draftjs_exporter"
         update-types: ["version-update:semver-major"]
-      # Borné par Playwright (1.64 : pyee 14) ; il monte avec lui.
-      - dependency-name: "pyee"
-        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
