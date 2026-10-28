@@ -730,3 +730,14 @@ facteur à 1. Symptôme : un test vert seul juste avant, rouge en continu après
 Règle : lancer les mutations avec `PYTHONDONTWRITEBYTECODE=1` et purger les
 `__pycache__` avant ET après ; un test qui change d'avis sans changement de
 code → soupçonner un cache avant le code.
+
+## 28/10/2026 — Un réglage « refusé hors DEBUG » a cassé la CI
+
+J'ai posé `DOUBLE_AUTH_OBLIGATOIRE = 'personne'` en mode test ET un garde-fou
+qui le refuse quand DEBUG est faux. En local DEBUG est vrai (local_settings) :
+tout était vert. La CI tourne exprès avec DEBUG faux, comme la prod → rouge
+avant même le premier test. Règle : tout changement de `settings.py` se
+vérifie aussi en régime CI — sans local_settings, DJANGO_DEBUG=False, les
+variables de `.github/workflows/tests.yml` — en chargeant les réglages ET en
+lançant la suite (module de réglages qui injecte un `cntso.local_settings`
+vide dans `sys.modules`, puis `from cntso.settings import *`).

@@ -549,7 +549,10 @@ if not DEBUG:
             "quel jeton : définir HCAPTCHA_SITEKEY et HCAPTCHA_SECRET "
             "(variables d'environnement ou local_settings.py)."
         )
-    if DOUBLE_AUTH_OBLIGATOIRE not in ('chefs', 'tous'):
+    # Sauf sous `manage.py test` : la CI tourne avec DEBUG faux, comme la prod,
+    # et c'est là que 'personne' est posé (28/10/2026, CI rouge).
+    if (DOUBLE_AUTH_OBLIGATOIRE not in ('chefs', 'tous')
+            and _sys.argv[1:2] != ['test']):
         from django.core.exceptions import ImproperlyConfigured
         raise ImproperlyConfigured(
             "DOUBLE_AUTH_OBLIGATOIRE doit valoir 'chefs' ou 'tous' "

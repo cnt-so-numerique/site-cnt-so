@@ -23,7 +23,9 @@ Aucune de nos migrations ne les importe.
       paquet désinstallé ; article et /cms/login/ en 200, og:image présent
 
 Constat hors lot : `seo_title` et `search_description` ne sont lus par AUCUN
-gabarit (le <title> et la meta description viennent du titre et de l'extrait).
+gabarit (le <title> et la meta description viennent du titre et de l'extrait),
+et aucun écran d'édition ne les montre (0 page remplie). **Décision d'Arnaud,
+28/10/2026 : ne rien faire** — le titre et l'extrait suffisent.
 
 ## 2. wagtail-2fa → double authentification maison sur django-otp
 Décidé le 27/10 : **obligatoire pour les superutilisateurs, facultative pour
@@ -77,7 +79,7 @@ superutilisateurs seront invités à s'enrôler à leur prochain clic.
       renommé `'chefs'`, règle `is_chef`), à la demande d'Arnaud, pour le compte
       partagé `media`. Deuxième personne d'un compte partagé : entre par un code
       de secours puis ajoute son téléphone (consigne sur la page du code, testé)
-- [ ] Courte notice pour les rédacteurs (activer, perte, départ d'une personne)
+- [x] Notice pour les rédacteurs : document « Double authentification — notice pour les rédacteurs » (Claude Docs, 27/10)
 
 ### Retrait de wagtail-2fa — DÉPLOYÉ le 27/10 (5de754a)
 - [x] App, middleware, réglage, requirements.txt (+ `six`, qui ne servait qu'à
@@ -89,7 +91,7 @@ superutilisateurs seront invités à s'enrôler à leur prochain clic.
       /cms/login/, /admin/login/ et / en 200
 - [ ] Arnaud enregistre son téléphone TOUT DE SUITE (premier passage dans /cms/)
 
-## 3. Wagtail 8 — branche `wagtail-8` (27/10/2026), PAS encore fusionnée
+## 3. Wagtail 8 — DÉPLOYÉ le 28/10/2026 (ff19711)
 - [x] Dépendances : wagtail 8.0.1, draftjs_exporter 5.2 → 7.3.1, + django-ninja,
       pydantic (+ core, annotated-types, typing-inspection), swapper ;
       wagtailmedia 0.19.1 passe. Une seule migration : wagtailcore.0098_apitoken
@@ -104,9 +106,11 @@ superutilisateurs seront invités à s'enrôler à leur prochain clic.
 - [x] Contrôle navigateur en rédacteur (copie de la base migrée en 8) : menu
       identique à la 7.4, liste et édition de ses articles, bouton Publier ;
       articles d'un autre syndicat en 404 ; explorateur de pages : tout refus
-- [ ] Déploiement : sauvegarde de la base, fusion, deploiement.sh (pip +
-      migrate), contrôle ; retour arrière = revenir au commit précédent,
-      `pip install -r requirements.txt`, `migrate wagtailcore 0097`
+- [x] Déploiement 28/10 : sauvegarde ~/cntso-avant-wagtail8-20261028-0617.sql.gz
+      (13 Mo, 88 tables), deploiement.sh code 0, wagtailcore.0098 appliquée,
+      Wagtail 8.0.1 en prod ; accueil, article, recherche, /cms/login/,
+      /admin/login/ en 200, aucune erreur au journal. Retour arrière si besoin :
+      commit 8f24ea5, `pip install -r requirements.txt`, `migrate wagtailcore 0097`
 - Constat hors chantier, IDENTIQUE en 7.4 : un rédacteur voit en lecture la
   liste de l'explorateur sous le site confédéral (titres des brouillons des
   autres syndicats compris). À trancher à part.
