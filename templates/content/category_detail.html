@@ -15,10 +15,11 @@
 {% endif %}
 
 {% if category.slug == 'banque-dimage' %}
+<style>.carte-banque:hover { box-shadow: 0 4px 12px rgba(0,0,0,.12); }</style>
 <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:1rem;">
     {% for article in articles %}
     <a href="{{ article.get_absolute_url }}" style="text-decoration:none; display:block;">
-        <div style="border:1px solid var(--border-color); border-radius:4px; overflow:hidden; background:var(--bg-light); transition:box-shadow .2s;" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow=''">
+        <div style="border:1px solid var(--border-color); border-radius:4px; overflow:hidden; background:var(--bg-light); transition:box-shadow .2s;" class="carte-banque">
             {% with img=article.any_image_url %}
             {% if img %}
             <img src="{{ img }}" alt="{{ article.title }}"

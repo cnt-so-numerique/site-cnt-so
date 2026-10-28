@@ -86,7 +86,7 @@
 .si-share     { background: #374151; }
 </style>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     var shareData = { title: '{{ article.title|escapejs }}', url: window.location.href };
     var igBtn = document.getElementById('btn-ig-share');

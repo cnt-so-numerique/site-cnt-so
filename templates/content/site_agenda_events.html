@@ -80,7 +80,7 @@
   {% for event in geo_events %}{% if event.latitude and event.longitude %}{% if forloop.first %}
   <div id="agenda-map"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLs=" crossorigin=""></script>
-  <script>
+  <script nonce="{{ csp_nonce }}">
   (function(){
     var map = L.map('agenda-map');
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

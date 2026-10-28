@@ -183,7 +183,7 @@
 </section>
 
 <script src="{% static 'js/carrousel-auto.js' %}"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function(){
   var wrap = document.getElementById('sc-wrap');
   if (!wrap) return;

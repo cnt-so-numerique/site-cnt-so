@@ -760,3 +760,17 @@ sécurité sans suite. Arnaud : pas de petite faille. Règle : un audit sépare
 *failles* (accès, fuite, contournement, injection, rejeu — toutes à corriger)
 et *défauts fonctionnels* ; un doute de sécurité se reproduit ou se réfute
 AVANT de rendre le bilan, il n'est jamais une conclusion.
+
+## 28/10/2026 — Deux détecteurs aveugles en une heure
+
+1. **`chrome --headless --enable-logging=stderr --dump-dom` n'écrit PAS les
+   refus CSP** : 0 refus mesuré sur une page dont j'avais retiré le nonce.
+   Seule la mutation l'a montré. Détecteur qui marche : puppeteer avec
+   `evaluateOnNewDocument` + écouteur `securitypolicyviolation` posé AVANT le
+   chargement (script dans le scratchpad, `executablePath` = Chrome 150 de
+   `~/.cache/puppeteer`, le puppeteer de npx cherchant un Chrome 131 absent).
+2. **`pkill -f "runserver 127.0.0.1:8765"` a tué ma propre commande**, qui
+   contenait ce motif — en plein milieu d'une mutation : `base.html` est resté
+   muté. Rattrapé parce que j'avais copié le fichier avant. Règle : un serveur
+   lancé pour un essai s'arrête par son PID (`echo $! > fichier`), jamais par
+   motif ; toute mutation se fait sur copie, restaurée dans un `finally`.

@@ -2311,7 +2311,7 @@
         </div>
     </footer>
 
-    <script>
+    <script nonce="{{ csp_nonce }}">
         // Dropdown toggle — niveau 1
         document.querySelectorAll('.nav-item > a').forEach(function(link) {
             link.addEventListener('click', function(e) {
@@ -2438,7 +2438,7 @@
         <button id="lightbox-next" aria-label="Suivant">&#8250;</button>
     </div>
 
-    <script>
+    <script nonce="{{ csp_nonce }}">
     (function () {
         let galleryImgs = [];
         let current = 0;
@@ -2513,7 +2513,7 @@
         });
     })();
     </script>
-<script>
+<script nonce="{{ csp_nonce }}">
 /* Menu mobile : un panneau qui recouvre, pas un bloc qui pousse.
 
    Le bouton portait un `onclick` en ligne qui basculait une classe : rien
@@ -2585,7 +2585,7 @@
   });
 })();
 </script>
-<script>
+<script nonce="{{ csp_nonce }}">
 /* Un formulaire ne part qu'une fois : un double clic sur « Envoyer »
    expédiait deux messages de contact, ou deux demandes d'inscription.
 

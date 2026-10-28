@@ -970,7 +970,7 @@
 {% block extra_js %}
 {% if carousel_articles|length > 1 %}
 <script src="{% static 'js/carrousel-auto.js' %}"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     var track = document.getElementById('hp-carousel-track');
     if (!track) return;

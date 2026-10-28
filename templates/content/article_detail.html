@@ -205,7 +205,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function () {
     function buildPdfViewer(container, pdfUrl, pdfName) {
         container.className = 'wp-block-file';

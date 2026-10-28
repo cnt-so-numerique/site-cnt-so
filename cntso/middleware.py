@@ -42,26 +42,24 @@ class ContentSecurityPolicyMiddleware:
     Le périmètre public n'a, lui, qu'un jeu borné d'hôtes externes (hCaptcha,
     Leaflet/unpkg, Google Fonts).
 
-    `script-src`/`style-src` gardent `'unsafe-inline'` : une douzaine de blocs
-    inline (JSON-LD, init de carte, boutons de partage…) en dépendent. Le gain
-    n'est donc pas de bloquer le script injecté *inline* — l'échappement Django
-    s'en charge déjà — mais de fermer les vecteurs qui ne coûtent rien à
-    verrouiller : `object-src`, `base-uri`, `frame-ancestors`, `form-action`,
-    et le refus de charger un script/style depuis un hôte non listé.
+    `script-src` n'a plus `'unsafe-inline'` (audit du 28/10/2026) : chaque
+    bloc inline porte le nonce de la requête (`nonce="{{ csp_nonce }}"`,
+    processeur `cntso.context_processors.csp`), si bien qu'un script injecté
+    dans une page — par un contenu mal échappé — ne s'exécute pas. Aucun
+    gestionnaire `on…=` ni lien `javascript:` sur le site public : ils
+    seraient refusés. `style-src` garde `'unsafe-inline'` (43 gabarits en
+    attributs `style=`), une feuille injectée ne pouvant pas exécuter de code.
 
     `frame-src` et `img-src` restent larges (`https:`) à dessein : un rédacteur
     intègre des vidéos (EmbedBlock) et des images d'origine libre ; les brider
     à une liste figée casserait le prochain embed d'un fournisseur non prévu.
-
-    Passer à une politique par nonce (sans `'unsafe-inline'`) suppose d'ajouter
-    un nonce à chaque bloc inline — chantier séparé.
     """
 
     EXEMPT_PREFIXES = ('/cms/', '/cms', '/admin/', '/admin', '/django-admin')
 
     POLICY = "; ".join([
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' https://js.hcaptcha.com "
+        "script-src 'self' 'nonce-{nonce}' https://js.hcaptcha.com "
         "https://*.hcaptcha.com https://unpkg.com",
         "style-src 'self' 'unsafe-inline' https://unpkg.com https://*.hcaptcha.com",
         "img-src 'self' data: https:",
@@ -87,6 +85,8 @@ class ContentSecurityPolicyMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        import secrets
+        request.csp_nonce = secrets.token_urlsafe(16)
         response = self.get_response(request)
         response.setdefault('Permissions-Policy', self.PERMISSIONS)
         if request.path.startswith(self.EXEMPT_PREFIXES):
@@ -95,7 +95,8 @@ class ContentSecurityPolicyMiddleware:
         # flux RSS, JSON, fichiers servis…
         ctype = response.get('Content-Type', '')
         if ctype.startswith('text/html') and not response.has_header('Content-Security-Policy'):
-            response['Content-Security-Policy'] = self.POLICY
+            response['Content-Security-Policy'] = self.POLICY.format(
+                nonce=request.csp_nonce)
         return response
 
 

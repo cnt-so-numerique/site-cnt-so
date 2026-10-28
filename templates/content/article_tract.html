@@ -191,7 +191,7 @@ h1 {
   </span>
   <span>
     <a class="retour" href="{{ article.get_absolute_url }}">← Revenir à l'article</a>
-    <button class="imprimer" onclick="window.print()">Imprimer / Enregistrer en PDF</button>
+    <button class="imprimer" type="button">Imprimer / Enregistrer en PDF</button>
   </span>
 </div>
 
@@ -229,7 +229,7 @@ h1 {
   </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 /* Pagination réelle : le texte est réparti dans des pages A4 fermées, une par
    feuille. Ce que l'écran montre est ce qui s'imprime — la version précédente
    laissait couler le texte et mesurait sa hauteur, ce qui ignorait les
@@ -238,6 +238,10 @@ h1 {
 
    On cherche le plus petit nombre de pages, au plus gros corps qui y tienne :
    le texte grossit pour remplir, au lieu de rétrécir pour tenir. */
+// Pas de `onclick=` : la CSP du site public refuse les gestionnaires inline.
+document.querySelector('.imprimer').addEventListener('click', function () {
+  window.print();
+});
 (function () {
   var PAGES_VISEES = [1, 2];
   var PT_MIN = 8, PT_MAX = 12.6, PAS = 0.2;

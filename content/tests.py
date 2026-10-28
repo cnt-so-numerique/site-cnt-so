@@ -856,6 +856,67 @@ class ContentSecurityPolicyTest(TestCase):
                 self.assertNotIn('fullscreen', politique)
 
 
+class ScriptsInlineSousNonceTest(TestCase):
+    """`script-src` sans `'unsafe-inline'` (audit du 28/10/2026) : tout script
+    inline exécutable des pages publiques porte le nonce de SA requête, et
+    aucun `on…=` ni lien `javascript:` ne subsiste — la CSP les refuserait et
+    la page perdrait sa fonction sans bruit."""
+
+    def setUp(self):
+        self.site = make_site()
+        self.syndicat = make_site('bordeaux-csp', wp_blog_id=33, site_type='sectoral',
+                                  name='CNT-SO Bordeaux')
+        self.article = make_article_page(title='Grève au dépôt', slug='greve-csp',
+                                         fiche_pratique=True)
+        self.banque = make_cms_category(name="Banque d'image", slug='banque-dimage',
+                                        section_slug='principal')
+
+    PAGES = ('/', '/article/greve-csp/', '/article/greve-csp/tract/',
+             '/bordeaux-csp/', '/bordeaux-csp/agenda/', '/categorie/banque-dimage/',
+             '/recherche/?q=grève', '/contact/', '/page-qui-n-existe-pas/')
+
+    def _analyser(self, html):
+        from html.parser import HTMLParser
+
+        class Analyse(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.scripts, self.gestionnaires, self.liens_js = [], [], []
+
+            def handle_starttag(self, tag, attrs):
+                attrs = dict(attrs)
+                self.gestionnaires += [f'{tag} {nom}' for nom in attrs
+                                       if nom.startswith('on')]
+                if (attrs.get('href') or '').strip().lower().startswith('javascript:'):
+                    self.liens_js.append(attrs['href'])
+                if tag == 'script' and 'src' not in attrs \
+                        and attrs.get('type', 'text/javascript') in ('text/javascript', 'module'):
+                    self.scripts.append(attrs.get('nonce'))
+
+        analyse = Analyse()
+        analyse.feed(html)
+        return analyse
+
+    def test_chaque_page_publique_tient_sous_la_csp(self):
+        for url in self.PAGES:
+            with self.subTest(url=url):
+                r = self.client.get(url)
+                self.assertEqual(r.status_code, 404 if 'n-existe-pas' in url else 200)
+                csp = r.headers['Content-Security-Policy']
+                script_src = next(d for d in csp.split('; ') if d.startswith('script-src'))
+                self.assertNotIn("'unsafe-inline'", script_src)
+                nonce = re.search(r"'nonce-([^']+)'", script_src).group(1)
+                analyse = self._analyser(r.content.decode())
+                self.assertEqual([n for n in analyse.scripts if n != nonce], [],
+                                 "script inline sans le nonce de la requête")
+                self.assertEqual(analyse.gestionnaires, [])
+                self.assertEqual(analyse.liens_js, [])
+
+    def test_le_nonce_change_a_chaque_requete(self):
+        entetes = {self.client.get('/').headers['Content-Security-Policy'] for _ in range(3)}
+        self.assertEqual(len(entetes), 3)
+
+
 class CategoryDetailViewTest(TestCase):
     def setUp(self):
         self.site = make_site()
