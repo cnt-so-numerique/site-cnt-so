@@ -130,6 +130,8 @@ Attend `manchette_articles`.
 
         {% if manchette_articles %}
         <div class="hp-manchette-section">
+            {% comment %}Titre de section pour les lecteurs d'écran : sur un accueil de syndicat sans diaporama, les cartes (h3) suivaient directement le h1 (audit du 28/10/2026).{% endcomment %}
+            <h2 class="sr-only">À la une</h2>
             <div class="hp-section-body">
                 <div class="hp-manchette">
                     {% for article in manchette_articles %}

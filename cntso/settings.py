@@ -300,8 +300,8 @@ WAGTAILDOCS_EXTENSIONS = [
     'rtf', 'txt', 'csv', 'epub', 'zip',
 ]
 # Origine publique du site principal — utilisée par les domaines de fédérations
-# pour renvoyer vers le site confédéral. Tant que la bascule DNS n'est pas faite,
-# la prod doit la surcharger avec https://newsite.cnt-so.org (env ou local_settings).
+# pour renvoyer vers le site confédéral, et pour les liens des courriels
+# (désabonnement). Depuis la bascule DNS du 12/09/2026, c'est cnt-so.org.
 MAIN_SITE_BASE_URL = _os.environ.get('MAIN_SITE_BASE_URL', WAGTAILADMIN_BASE_URL)
 
 # ── Double authentification (cms/double_auth.py) ──────────────────────────────

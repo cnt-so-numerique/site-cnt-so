@@ -31,11 +31,12 @@ celui du paginateur.
     {% for article in articles %}
     <article class="article-list-item">
         <div class="article-list-image">
-            {% if article.featured_image %}
+            {% comment %}Version réduite, comme partout : l'original pesait jusqu'à 2 Mo par résultat (audit du 28/10/2026).{% endcomment %}
+            {% with img=article.any_image_url %}{% if img %}
             <a href="{{ article.get_absolute_url }}">
-                <img src="{{ article.featured_image.file.url }}" alt="{{ article.title }}">
+                <img src="{{ img }}" alt="{{ article.title }}" loading="lazy">
             </a>
-            {% endif %}
+            {% endif %}{% endwith %}
         </div>
         <div class="article-list-content">
             <h2 class="article-list-title">

@@ -128,7 +128,7 @@ sleep 5
 sudo supervisorctl status cntso
 
 echo "═══ 6. Contrôle ═══"
-base=https://newsite.cnt-so.org
+base=https://cnt-so.org
 souci=0
 for chemin in / /13/ /education/ /contact/ /categorie/droit/ /sitemap.xml; do
     code=$(curl -s -o /dev/null -m 20 -L -w '%{http_code}' "$base$chemin")

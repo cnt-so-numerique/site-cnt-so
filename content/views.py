@@ -101,6 +101,52 @@ def _sectoral_sidebar_context(site):
     return ctx
 
 
+def diaporama_de_la_conf(main_site):
+    """Les articles du diaporama de cnt-so.org, dans l'ordre où l'accueil les
+    montre. Partagé avec l'avertissement de l'écran d'édition
+    (`cms.wagtail_hooks`), qui doit dire exactement ce que l'accueil fera."""
+    carousel = []
+    if main_site:
+        # `publics()` et non `live` : un article épinglé dont le syndicat
+        # est passé en test restait au diaporama, son lien menant à la
+        # page de maintenance (audit du 28/10/2026).
+        visibles = set(ArticlePage.objects.publics().filter(
+            pk__in=main_site.carousel_items.values('article_id'),
+        ).values_list('pk', flat=True))
+        carousel = [
+            ci.article for ci in
+            main_site.carousel_items.select_related('article__featured_image').all()
+            if ci.article_id in visibles
+        ]
+    # Puis les articles hissés à la une par un chef, quel que soit le
+    # syndicat qui les a écrits.
+    #
+    # `featured_on_conf` alimentait `HomePage.get_context`, dont le contexte
+    # ne sortait nulle part : `/` est servi par cette vue-ci, et
+    # `content/home.html` n'a jamais lu `featured_article` ni
+    # `hero_mini_cards`. La case existait, son aide la décrivait, et cocher
+    # ne produisait rien (relevé le 31/08/2026, 0 article sur 1710 cochés).
+    #
+    # Les épinglés de la fiche passent devant : c'est un ordre choisi
+    # explicitement, il ne doit pas se faire doubler.
+    deja = {a.pk for a in carousel}
+    for article in (ArticlePage.objects.publics()
+                    .filter(featured_on_conf=True)
+                    .order_by('-publication_date', '-first_published_at')
+                    .select_related('featured_image')
+                    .prefetch_related('cms_categories')):
+        if article.pk not in deja:
+            carousel.append(article)
+            deja.add(article.pk)
+
+    # Les choisis SEULS, 5 au plus et sans minimum (Arnaud, 03/10/2026 :
+    # « on supprime l'obligation de 5 articles, pas de min »). Le
+    # complément automatique remontait l'article le plus récent même
+    # décoché partout : on le décochait, il restait au diaporama. Aucun
+    # choisi : pas de diaporama du tout (`{% if carousel_articles %}`).
+    return carousel[:CAROUSEL_MAX]
+
+
 class HomeView(ListView):
     """Page d'accueil - derniers articles du site principal"""
     model = ArticlePage
@@ -127,47 +173,7 @@ class HomeView(ListView):
                    .select_related('featured_image')
                    .prefetch_related('cms_categories'))
 
-        # Carousel : carousel_items du SectionPage principal, fallback articles récents avec image
-        carousel = []
-        if main_site:
-            # `publics()` et non `live` : un article épinglé dont le syndicat
-            # est passé en test restait au diaporama, son lien menant à la
-            # page de maintenance (audit du 28/10/2026).
-            visibles = set(ArticlePage.objects.publics().filter(
-                pk__in=main_site.carousel_items.values('article_id'),
-            ).values_list('pk', flat=True))
-            carousel = [
-                ci.article for ci in
-                main_site.carousel_items.select_related('article__featured_image').all()
-                if ci.article_id in visibles
-            ]
-        # Puis les articles hissés à la une par un chef, quel que soit le
-        # syndicat qui les a écrits.
-        #
-        # `featured_on_conf` alimentait `HomePage.get_context`, dont le contexte
-        # ne sortait nulle part : `/` est servi par cette vue-ci, et
-        # `content/home.html` n'a jamais lu `featured_article` ni
-        # `hero_mini_cards`. La case existait, son aide la décrivait, et cocher
-        # ne produisait rien (relevé le 31/08/2026, 0 article sur 1710 cochés).
-        #
-        # Les épinglés de la fiche passent devant : c'est un ordre choisi
-        # explicitement, il ne doit pas se faire doubler.
-        deja = {a.pk for a in carousel}
-        for article in (ArticlePage.objects.publics()
-                        .filter(featured_on_conf=True)
-                        .order_by('-publication_date', '-first_published_at')
-                        .select_related('featured_image')
-                        .prefetch_related('cms_categories')):
-            if article.pk not in deja:
-                carousel.append(article)
-                deja.add(article.pk)
-
-        # Les choisis SEULS, 5 au plus et sans minimum (Arnaud, 03/10/2026 :
-        # « on supprime l'obligation de 5 articles, pas de min »). Le
-        # complément automatique remontait l'article le plus récent même
-        # décoché partout : on le décochait, il restait au diaporama. Aucun
-        # choisi : pas de diaporama du tout (`{% if carousel_articles %}`).
-        carousel = carousel[:CAROUSEL_MAX]
+        carousel = diaporama_de_la_conf(main_site)
         context['carousel_articles'] = carousel
         excl = [a.pk for a in carousel]
 

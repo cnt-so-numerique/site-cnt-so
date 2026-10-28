@@ -1863,3 +1863,26 @@ def cloisonner_le_selecteur_de_pages(pages, request):
                          .values_list('pk', flat=True)])
 
     return pages.filter((Q(live=True) & ~pks(fermes)) | pks(miens))
+
+
+@hooks.register('after_create_snippet')
+@hooks.register('after_edit_snippet')
+def prevenir_si_absent_du_diaporama_de_la_conf(request, instance):
+    """« Diaporama de la confédération » coché, mais l'article n'y figurera
+    pas : les épingles de la fiche de la conf passent devant (décision du
+    03/10/2026) et prennent parfois les cinq places. La case était alors
+    ignorée sans un mot (audit du 28/10/2026) : on le dit à l'enregistrement.
+    """
+    from django.contrib import messages
+    from content.views import diaporama_de_la_conf
+
+    if not isinstance(instance, ArticlePage) or not instance.featured_on_conf \
+            or not instance.live:
+        return
+    conf = SectionPage.objects.filter(slug='principal').first()
+    if conf and instance.pk not in {a.pk for a in diaporama_de_la_conf(conf)}:
+        messages.warning(request, (
+            f"« {instance.title} » est coché « Diaporama de la confédération », "
+            f"mais il n'y apparaîtra pas : les articles épinglés dans la fiche "
+            f"de la confédération occupent déjà les {len(diaporama_de_la_conf(conf))} places. "
+            f"Retirez une épingle de la fiche pour lui faire de la place."))

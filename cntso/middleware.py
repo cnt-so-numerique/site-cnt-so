@@ -232,8 +232,15 @@ class SectionDomainMiddleware:
         permanente : republier la section doit rouvrir le domaine, ce qu'un 301
         gardé en cache par les navigateurs empêcherait.
         """
-        from django.http import Http404, HttpResponseRedirect
+        from django.http import Http404, HttpResponse, HttpResponseRedirect
         path = request.path_info
+        # Ni plan du site ni exploration : laissés passer comme des fichiers,
+        # ils servaient ceux de la conf réécrits sur l'hôte du syndicat fermé —
+        # 742 adresses en 503 annoncées aux moteurs (audit du 28/10/2026).
+        if path == '/sitemap.xml':
+            raise Http404('Syndicat fermé')
+        if path == '/robots.txt':
+            return HttpResponse('User-agent: *\nDisallow: /\n', content_type='text/plain')
         if path.startswith(self.EXEMPT_PREFIXES):
             return self.get_response(request)
         if path.startswith(self.ADMIN_PREFIXES):

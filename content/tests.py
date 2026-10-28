@@ -9322,6 +9322,36 @@ class MiseEnAvantDepuisLarticleTest(TestCase):
         pks = [a.pk for a in r.context['carousel_articles']]
         self.assertLess(pks.index(epingle.pk), pks.index(promu.pk))
 
+    def _avertissements(self, article):
+        from django.contrib.messages import get_messages
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.contrib.sessions.backends.db import SessionStore
+        from wagtail import hooks
+        request = RequestFactory().post('/cms/')
+        request.session = SessionStore()
+        request._messages = FallbackStorage(request)
+        for hook in hooks.get_hooks('after_edit_snippet'):
+            hook(request, article)
+        return [str(m) for m in get_messages(request)]
+
+    def test_la_case_ignoree_faute_de_place_est_signalee(self):
+        """Cinq épingles prennent toutes les places : la case « Diaporama de
+        la confédération » était ignorée sans un mot (audit du 28/10/2026)."""
+        from cms.models import CarouselArticle, CAROUSEL_MAX
+        for i in range(CAROUSEL_MAX):
+            epingle = make_article_page(section_slug='principal', title=f'Épinglé {i}',
+                                        slug=f'epingle-plein-{i}')
+            CarouselArticle.objects.create(page=self.conf, article=epingle, sort_order=i)
+        promu = make_article_page(section_slug='stucs', title='Promu sans place',
+                                  slug='promu-sans-place', featured_on_conf=True)
+        self.assertTrue(any('Promu sans place' in m and "n'y apparaîtra pas" in m
+                            for m in self._avertissements(promu)))
+
+    def test_pas_d_avertissement_quand_il_reste_de_la_place(self):
+        promu = make_article_page(section_slug='stucs', title='Promu avec place',
+                                  slug='promu-avec-place', featured_on_conf=True)
+        self.assertEqual(self._avertissements(promu), [])
+
     def test_un_article_recent_decoche_nest_pas_au_carrousel_de_la_conf(self):
         """« À partir du 29 septembre », décoché partout, restait au
         diaporama de cnt-so.org : le complément y remontait l'article
@@ -11128,3 +11158,125 @@ class BlocImageSansImageTest(TestCase):
             'image': None, 'alignment': 'center', 'largeur': '50', 'caption': 'Légende'}})
         self.assertNotIn('<img', html)
         self.assertNotIn('<figure', html)
+
+
+class ImagesReduitesTest(TestCase):
+    """La recherche, le visuel du formulaire de contact et l'aperçu de partage
+    des pages servaient le fichier déposé : jusqu'à 2 Mo par résultat de
+    recherche (audit du 28/10/2026). Aucune page publique ne doit plus
+    pointer vers `original_images/`."""
+
+    def setUp(self):
+        from wagtail.images.models import Image
+        from wagtail.images.tests.utils import get_test_image_file
+        self.site = make_site()
+        self.image = Image.objects.create(title='Affiche',
+                                          file=get_test_image_file(filename='affiche.png'))
+
+    def _sans_original(self, url):
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertNotIn('original_images/', html)
+        return html
+
+    def test_recherche(self):
+        make_article_page(title='Grève illustrée', slug='greve-illustree',
+                          featured_image=self.image)
+        self.assertIn('format-webp', self._sans_original('/recherche/?q=grève'))
+
+    def test_visuel_du_contact(self):
+        from content.models import FormulaireContact
+        FormulaireContact.objects.update_or_create(
+            site=self.site, defaults={'featured_image': self.image})
+        self.assertIn('format-webp', self._sans_original('/contact/'))
+
+    def test_apercu_de_partage_d_une_page(self):
+        """Rendu direct : en test, Wagtail ne sert pas `cms/content_page.html`
+        (pas de `Site` sur l'arbre d'essai, voir plus haut)."""
+        from django.template.loader import render_to_string
+        page = make_content_page(title='Nos droits', slug='nos-droits-img',
+                                 featured_image=self.image)
+        html = render_to_string('cms/content_page.html',
+                                {'page': page, 'site_base_url': 'https://cnt-so.org'},
+                                request=RequestFactory().get('/nos-droits-img/'))
+        self.assertNotIn('original_images/', html)
+        self.assertRegex(html, r'og:image" content="[^"]+format-jpeg')
+        self.assertRegex(html, r'twitter:image" content="[^"]+format-jpeg')
+
+
+@override_settings(ALLOWED_HOSTS=['ferme.cnt-so.org', 'testserver'])
+class DomaineFermeSansPlanDuSiteTest(TestCase):
+    """`stucs.cnt-so.org/sitemap.xml` servait le plan de la conf réécrit sur
+    l'hôte du syndicat fermé : 742 adresses en 503 annoncées aux moteurs
+    (audit du 28/10/2026)."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        make_site()
+        make_article_page(title='Article de la conf', slug='article-conf-plan')
+        self.ferme = _ensure_section_page(slug='ferme-plan', name='Syndicat fermé')
+        self.ferme.custom_domain = 'ferme.cnt-so.org'
+        self.ferme.live = False
+        self.ferme.page_maintenance = True
+        self.ferme.save()
+        cache.clear()
+
+    def test_pas_de_plan_du_site(self):
+        r = self.client.get('/sitemap.xml', HTTP_HOST='ferme.cnt-so.org')
+        self.assertEqual(r.status_code, 404)
+        self.assertNotIn('article-conf-plan', r.content.decode())
+
+    def test_robots_interdit_tout(self):
+        r = self.client.get('/robots.txt', HTTP_HOST='ferme.cnt-so.org')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('Disallow: /\n', r.content.decode())
+
+    def test_le_plan_de_la_conf_reste_sur_son_hote(self):
+        self.assertContains(self.client.get('/sitemap.xml'), 'article-conf-plan')
+
+
+class OrdreDesTitresTest(TestCase):
+    """Un lecteur d'écran parcourt la page par ses titres : sur l'accueil d'un
+    syndicat, les cartes de la une (h3) suivaient directement le h1 (audit du
+    28/10/2026)."""
+
+    def setUp(self):
+        from wagtail.images.models import Image
+        from wagtail.images.tests.utils import get_test_image_file
+        make_site()
+        self.syndicat = make_site('titres-synd', wp_blog_id=44, site_type='sectoral',
+                                  name='CNT-SO Titres')
+        image = Image.objects.create(title='Affiche', file=get_test_image_file())
+        for i in range(3):
+            make_article_page(section_slug='titres-synd', title=f'Grève {i}',
+                              slug=f'greve-titres-{i}', featured_image=image,
+                              in_manchette=True)
+            make_article_page(title=f'Conf {i}', slug=f'conf-titres-{i}',
+                              featured_image=image, in_manchette=True)
+
+    def _niveaux(self, url):
+        from html.parser import HTMLParser
+
+        class Titres(HTMLParser):
+            niveaux = []
+
+            def handle_starttag(self, tag, attrs):
+                if re.fullmatch(r'h[1-6]', tag):
+                    self.niveaux.append(int(tag[1]))
+
+        analyse = Titres()
+        analyse.niveaux = []
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 200)
+        analyse.feed(r.content.decode())
+        return analyse.niveaux
+
+    def test_aucun_niveau_saute(self):
+        for url in ('/', '/titres-synd/'):
+            with self.subTest(url=url):
+                niveaux = self._niveaux(url)
+                self.assertIn(3, niveaux, "la une n'est pas rendue : test à vide")
+                self.assertEqual(niveaux[0], 1)
+                sauts = [(a, b) for a, b in zip(niveaux, niveaux[1:]) if b > a + 1]
+                self.assertEqual(sauts, [])
