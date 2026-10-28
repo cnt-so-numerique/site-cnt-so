@@ -111,9 +111,12 @@ superutilisateurs seront invités à s'enrôler à leur prochain clic.
       Wagtail 8.0.1 en prod ; accueil, article, recherche, /cms/login/,
       /admin/login/ en 200, aucune erreur au journal. Retour arrière si besoin :
       commit 8f24ea5, `pip install -r requirements.txt`, `migrate wagtailcore 0097`
-- Constat hors chantier, IDENTIQUE en 7.4 : un rédacteur voit en lecture la
-  liste de l'explorateur sous le site confédéral (titres des brouillons des
-  autres syndicats compris). À trancher à part.
+- ~~Constat : un rédacteur verrait l'explorateur sous le site confédéral~~
+  **FAUX, vérifié le 28/10** : la page 4 était SON syndicat (CNT-SO 13), pas la
+  conf. Wagtail le confine à son sous-arbre (accueil, autres sites, articles des
+  autres → renvoyé sur sa page) ; aucune page rangée sous le syndicat d'un autre
+  (1 782 pages : 700 hors de tout syndicat, sous l'accueil, invisibles des
+  rédacteurs). Rien à corriger.
 - Plus tard (Wagtail 9) : tests qui importent `wagtail.images.permissions.
   permission_policy` / `wagtail.documents…` (avertissements RemovedInWagtail90)
 

@@ -741,3 +741,12 @@ vérifie aussi en régime CI — sans local_settings, DJANGO_DEBUG=False, les
 variables de `.github/workflows/tests.yml` — en chargeant les réglages ET en
 lançant la suite (module de réglages qui injecte un `cntso.local_settings`
 vide dans `sys.modules`, puis `from cntso.settings import *`).
+
+## 28/10/2026 — « Fuite » annoncée sur un identifiant mal lu
+
+J'ai signalé qu'un rédacteur voyait l'explorateur « sous le site confédéral »
+parce que `/cms/pages/` le renvoyait vers `/cms/pages/4/`, que j'ai pris pour la
+conf sans vérifier. C'était SON syndicat. Le constat a voyagé dans trois bilans
+et le plan avant d'être démenti. Règle : un identifiant se résout (titre, type,
+slug) avant d'écrire une conclusion dessus ; une fuite se prouve par un contenu
+d'AUTRUI effectivement affiché, pas par un nombre de lignes.
