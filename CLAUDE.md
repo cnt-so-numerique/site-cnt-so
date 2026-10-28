@@ -23,7 +23,7 @@ Déploiement prod : voir `!DEPLOIEMENT.md` (serveur `debian@51.91.242.64`, `/var
 
 ## Architecture overview
 
-Django 6.0 + **Wagtail 7.4** CMS for the CNT-SO (anarcho-syndicalist union) website, migrated from a WordPress multisite. SQLite in development, Python 3.12, venv at `venv/`. `/cms/` (Wagtail admin) is the only editorial interface — the old `redaction/` app was removed and `/redac/` permanently redirects to `/cms/`.
+Django 6.1 + **Wagtail 8.0** CMS for the CNT-SO (anarcho-syndicalist union) website, migrated from a WordPress multisite. SQLite in development (PostgreSQL in prod and CI), Python 3.14, venv at `venv/` (a symlink to `venv-31410`). `/cms/` (Wagtail admin) is the only editorial interface — the old `redaction/` app was removed and `/redac/` permanently redirects to `/cms/`.
 
 ### Multisite model
 
@@ -60,7 +60,8 @@ Editorial groups (`redacteur`, `redacteur_en_chef`) are created on `post_migrate
 ### Key integrations
 
 - **hCaptcha** on public forms (test keys by default; mock `hcaptcha.fields.hCaptchaField.validate` in tests).
-- **wagtail-2fa** (`WAGTAIL_2FA_REQUIRED = False` for now), **wagtailseo**.
+- **Double authentification** in-house on django-otp (`cms/double_auth.py`, replaced wagtail-2fa on 27/10/2026): mandatory for superusers and `redacteur_en_chef` (`DOUBLE_AUTH_OBLIGATOIRE = 'chefs'`), optional for other editors, one phone per person on shared accounts, per-account throttling (`EchecsDoubleAuth`). Tests run with `'personne'` (refused outside `manage.py test`); 2FA tests override it. Last resort: `manage.py retire_double_auth <user>`. wagtailseo was removed (unused).
+- **Wagtail 8 permissions**: policies come from a global registry, and for page models (ArticlePage, ContentPage, SectionPage) it is the page-tree policy. `ViewSetCloisonne` injects `ModelPermissionPolicy` into its own views only — never register it globally: the page explorer is not scoped per syndicat.
 - **Pas de cache de pages** : `wagtail-cache` était réglé mais jamais branché (aucun middleware), donc inerte — retiré le 27/08/2026. La prod tourne à trois workers gunicorn : un cache mémoire ne serait purgé que sur l'un d'eux. Voir le commentaire dans `settings.py` avant d'en rajouter un.
 - **OVH** : newsletter sending throttled (`NEWSLETTER_SEND_DELAY`), mailing-list API via env keys (`OVH_*`). Guide: `docs/newsletter-ovh-guide.md`.
 - **cnt-adhesion** (separate app at `/home/arnaud/PycharmProjects/cnt-adhesion`) : `ADHESION_WEBHOOK_SECRET`, `ADHESION_BASE_URL`.
@@ -74,7 +75,7 @@ Editorial groups (`redacteur`, `redacteur_en_chef`) are created on `post_migrate
 
 ### Tests
 
-`content/tests.py` (~4300 lines) and `cms/tests.py` (~950 lines), ~550 tests. Factories at the top of `content/tests.py`: `make_site` (SectionPage), `make_article_page`, `make_content_page`, `make_cms_category`… Gotchas: dynamic contact forms require `objet` by default (`field_objet=True`); hCaptcha must be mocked; Wagtail pages are created via `add_child` under the `home-test` HomePage.
+`content/tests.py` (~10 800 lines), `cms/tests.py` (~8 600 lines), plus `cms/tests_cloisonnement.py`, `cms/tests_double_auth.py`, `cms/tests_integrite_cdn.py` — ~1 660 tests. CI runs with `DEBUG=False` and no `local_settings.py`: check settings changes under that regime too. Factories at the top of `content/tests.py`: `make_site` (SectionPage), `make_article_page`, `make_content_page`, `make_cms_category`… Gotchas: dynamic contact forms require `objet` by default (`field_objet=True`); hCaptcha must be mocked; Wagtail pages are created via `add_child` under the `home-test` HomePage.
 
 ---
 

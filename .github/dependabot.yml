@@ -24,14 +24,14 @@ updates:
       # Django et Wagtail : les correctifs (x.y.Z) arrivent seuls ; changer de
       # série se décide en lisant les notes de version, pas en fusionnant une
       # demande — Wagtail suit Django de près, les deux montent ensemble.
-      # Wagtail 8 (sorti) attend wagtail-seo : sa 3.1.1 exige wagtail < 8
-      # (relevé le 23/10/2026).
+      # Passé en Wagtail 8 le 28/10/2026, une fois wagtail-seo et wagtail-2fa
+      # retirés (ils exigeaient wagtail < 8).
       - dependency-name: "Django"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "wagtail"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
-      # Bornés par Wagtail lui-même (7.4 : treebeard < 6, draftjs_exporter
-      # < 6) : une majeure proposée seule ne s'installe pas. Ils montent avec
+      # Bornés par Wagtail lui-même (8.0 : treebeard < 6, draftjs_exporter
+      # < 8) : une majeure proposée seule ne s'installe pas. Ils montent avec
       # Wagtail, jamais avant (demande groupée en échec, 23/10/2026).
       - dependency-name: "django-treebeard"
         update-types: ["version-update:semver-major"]

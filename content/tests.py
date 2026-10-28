@@ -2435,6 +2435,19 @@ class SectionAutonomyPermissionsTest(TestCase):
         self.assertEqual([s.slug for s in qs], ['other'])
 
 
+def _politique_medias(sorte):
+    """La politique de permissions des images ou des documents.
+
+    `wagtail.images.permissions.permission_policy` (et son pendant des
+    documents) disparaît en Wagtail 9 : le registre la remplace.
+    """
+    from wagtail.documents import get_document_model
+    from wagtail.images import get_image_model
+    from wagtail.permissions import policy_registry
+    modele = get_image_model() if sorte == 'images' else get_document_model()
+    return policy_registry.get_by_type(modele)
+
+
 class MediaCollectionsTest(TestCase):
     """Lot 7 du chantier autonomie : médias cloisonnés par syndicat.
 
@@ -2461,7 +2474,7 @@ class MediaCollectionsTest(TestCase):
         self.assertTrue({'Commun', 'CNT-SO', 'Other'} <= names, names)
 
     def test_redacteur_adds_only_in_own_collection(self):
-        from wagtail.images.permissions import permission_policy
+        permission_policy = _politique_medias('images')
         user = self._member('redac-a', 'redacteur_principal')
         self.assertTrue(permission_policy.user_has_permission(user, 'add'))
         names = {c.name for c in
@@ -2469,14 +2482,14 @@ class MediaCollectionsTest(TestCase):
         self.assertEqual(names, {'CNT-SO'})
 
     def test_redacteur_chooses_own_collection_and_commun_only(self):
-        from wagtail.images.permissions import permission_policy
+        permission_policy = _politique_medias('images')
         user = self._member('redac-a2', 'redacteur_principal')
         names = {c.name for c in
                  permission_policy.collections_user_has_permission_for(user, 'choose')}
         self.assertEqual(names, {'CNT-SO', 'Commun'})
 
     def test_documents_same_scoping(self):
-        from wagtail.documents.permissions import permission_policy
+        permission_policy = _politique_medias('documents')
         user = self._member('redac-a3', 'redacteur_principal')
         self.assertTrue(permission_policy.user_has_permission(user, 'add'))
         names = {c.name for c in
@@ -2485,7 +2498,7 @@ class MediaCollectionsTest(TestCase):
 
     def test_cross_site_image_not_choosable(self):
         from wagtail.images.models import Image
-        from wagtail.images.permissions import permission_policy
+        permission_policy = _politique_medias('images')
         from wagtail.images.tests.utils import get_test_image_file
         from wagtail.models import Collection
         img = Image.objects.create(
@@ -2497,14 +2510,14 @@ class MediaCollectionsTest(TestCase):
         self.assertNotIn(img.pk, [i.pk for i in choosable])
 
     def test_chef_global_has_access_everywhere(self):
-        from wagtail.images.permissions import permission_policy
+        permission_policy = _politique_medias('images')
         chef = self._member('chef-glob', 'redacteur_en_chef')
         names = {c.name for c in
                  permission_policy.collections_user_has_permission_for(chef, 'add')}
         self.assertTrue({'Root', 'Commun', 'CNT-SO', 'Other'} <= names, names)
 
     def test_generic_redacteur_reads_commun_only(self):
-        from wagtail.images.permissions import permission_policy
+        permission_policy = _politique_medias('images')
         user = self._member('redac-nu', 'redacteur')
         self.assertFalse(permission_policy.user_has_permission(user, 'add'))
         names = {c.name for c in
@@ -2638,7 +2651,7 @@ class SectionAutoProvisioningTest(TestCase):
         self.assertTrue(group.permissions.filter(codename='access_admin').exists())
 
     def test_provisioned_user_can_choose_media(self):
-        from wagtail.images.permissions import permission_policy
+        permission_policy = _politique_medias('images')
         make_site(slug='tout-neuf2', name='Tout Neuf 2',
                   site_type='regional', wp_blog_id=96)
         u = User.objects.create_user('redac-neuf', password='pass')
