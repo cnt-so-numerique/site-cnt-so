@@ -463,32 +463,60 @@ class ApiAdminPagesCloisonneeTest(TestCase):
         from io import StringIO
         self.mien = _ensure_section_page(slug='api-a', name='Syndicat API A')
         self.voisin = _ensure_section_page(slug='api-b', name='Syndicat API B')
-        self.chez_moi = make_article_page(section_slug='api-a', title='Chez moi',
-                                          slug='api-chez-moi')
-        self.chez_le_voisin = make_article_page(
-            section_slug='api-b', title='Secret du voisin', slug='api-secret')
+        # Rangés sous leur syndicat, comme sur le site : c'est là que portent
+        # les droits d'arbre du rédacteur (make_article_page les met sous la
+        # HomePage de test, hors de tout périmètre).
+        self.chez_moi = self.mien.add_child(instance=ArticlePage(
+            title='Chez moi', slug='api-chez-moi', section_slug='api-a', live=True))
+        self.chez_le_voisin = self.voisin.add_child(instance=ArticlePage(
+            title='Secret du voisin', slug='api-secret', section_slug='api-b',
+            live=True))
         call_command('setup_cms_permissions', verbosity=0, stdout=StringIO())
         redacteur = User.objects.create_user('redac-api', password='pass')
         redacteur.groups.add(Group.objects.get(name='redacteur_api-a'))
         self.client.force_login(User.objects.get(pk=redacteur.pk))
 
-    def _titres_du_listing(self):
-        import json
-        reponse = self.client.get('/cms/api/main/pages/')
-        self.assertEqual(reponse.status_code, 200)
-        return [item['title'] for item in json.loads(reponse.content)['items']]
+    # Wagtail 8.1 a retiré cette API (`/cms/api/main/pages/`) au profit de
+    # `/cms/api/explorer/<id>/` (django-ninja), qui nourrit l'explorateur de la
+    # barre latérale. L'ancienne adresse rend désormais 404 pour tout le monde :
+    # un test qui n'attendrait qu'un 404 passerait sans rien prouver. D'où les
+    # témoins positifs ci-dessous — la page du rédacteur DOIT être servie.
 
-    def test_le_listing_ne_montre_pas_le_syndicat_voisin(self):
-        titres = self._titres_du_listing()
+    def _explorer(self, page_id):
+        return self.client.get(f'/cms/api/explorer/{page_id}/')
+
+    def _titres_de_larbre(self):
+        """Parcourt tout ce que l'API montre sous le parent des deux syndicats."""
+        import json
+        titres, a_voir = [], [self.mien.get_parent().pk]
+        while a_voir:
+            reponse = self._explorer(a_voir.pop())
+            self.assertEqual(reponse.status_code, 200)
+            for enfant in json.loads(reponse.content)['children']['items']:
+                titres.append(enfant['title'])
+                a_voir.append(enfant['id'])
+        return titres
+
+    def test_larbre_montre_le_syndicat_du_redacteur(self):
+        titres = self._titres_de_larbre()
+        self.assertIn('Syndicat API A', titres)
+        self.assertIn('Chez moi', titres)
+
+    def test_larbre_ne_montre_pas_le_syndicat_voisin(self):
+        titres = self._titres_de_larbre()
         self.assertNotIn('Syndicat API B', titres)
         self.assertNotIn('Secret du voisin', titres)
 
-    def test_la_page_du_voisin_nest_pas_lisible_par_sa_cle(self):
-        reponse = self.client.get(f'/cms/api/main/pages/{self.chez_le_voisin.pk}/')
-        self.assertEqual(
-            reponse.status_code, 404,
-            "l'API interne sert la page d'un autre syndicat — vérifier la "
-            "version de Wagtail (CVE-2026-55468, corrigée en 7.4.3)")
+    def test_la_page_du_redacteur_est_lisible_par_sa_cle(self):
+        self.assertEqual(self._explorer(self.chez_moi.pk).status_code, 200)
+
+    def test_les_pages_du_voisin_ne_sont_pas_lisibles_par_leur_cle(self):
+        for page in (self.voisin, self.chez_le_voisin):
+            with self.subTest(page=page.title):
+                self.assertEqual(
+                    self._explorer(page.pk).status_code, 404,
+                    "l'API interne sert une page d'un autre syndicat — vérifier "
+                    "la version de Wagtail (CVE-2026-55468, corrigée en 7.4.3)")
 
 
 class VersionDeWagtailSansFailleConnueTest(TestCase):
@@ -503,7 +531,7 @@ class VersionDeWagtailSansFailleConnueTest(TestCase):
         version = tuple(int(n) for n in wagtail.__version__.split('.')[:3])
         self.assertGreaterEqual(
             version, (7, 4, 3),
-            f"Wagtail {wagtail.__version__} : l'API interne /cms/api/main/pages/ "
+            f"Wagtail {wagtail.__version__} : l'API interne des pages "
             "renvoie les pages de tous les syndicats (CVE-2026-55468).")
 
 
