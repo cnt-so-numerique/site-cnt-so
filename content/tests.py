@@ -975,6 +975,28 @@ class SiteCategoryDetailViewTest(TestCase):
         url = reverse('content:site_category_detail', kwargs={'site_slug': 'sub', 'slug': 'news'})
         self.assertEqual(self.client.get(url).status_code, 200)
 
+    def test_la_rubrique_homonyme_dit_son_secteur(self):
+        """Au 13, sept rubriques s'appellent « Actualités - luttes » : avec le
+        seul nom, un rédacteur les a crues toutes identiques (11/11/2026)."""
+        btp = make_cms_category(name='BTP', slug='btp', section_slug='sub')
+        make_cms_category(name='Actualités - luttes', slug='actu-btp',
+                          section_slug='sub', parent=btp)
+        url = reverse('content:site_category_detail',
+                      kwargs={'site_slug': 'sub', 'slug': 'actu-btp'})
+        html = self.client.get(url).content.decode()
+        h1 = re.search(r'<h1[^>]*>(.*?)</h1>', html, re.S).group(1)
+        self.assertEqual(re.sub(r'<[^>]+>', '', h1), 'BTP › Actualités - luttes')
+        self.assertIn('<title>Actualités - luttes · BTP - Sub', html)
+        self.assertIn(f'<a href="{btp.get_absolute_url()}">BTP</a>', html)
+        # L'accueil du fil d'Ariane est celui du syndicat, pas de la conf.
+        self.assertIn(f'<a href="{self.sub.get_absolute_url()}">Accueil</a>', html)
+
+    def test_rubrique_sans_parent_titre_inchange(self):
+        url = reverse('content:site_category_detail', kwargs={'site_slug': 'sub', 'slug': 'news'})
+        html = self.client.get(url).content.decode()
+        h1 = re.search(r'<h1[^>]*>(.*?)</h1>', html, re.S).group(1)
+        self.assertEqual(h1, 'News')
+
 
 class TagDetailViewTest(TestCase):
     def setUp(self):

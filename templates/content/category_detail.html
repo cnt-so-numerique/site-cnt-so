@@ -1,14 +1,23 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ category.name }} - {{ site.name }}{% endblock %}
+{% comment %}
+Le parent (le secteur) est affiché partout : au 13, sept rubriques s'appellent
+« Actualités - luttes » (BTP, Nettoyage, Transports…). Avec le seul nom, elles
+semblaient toutes renvoyer à la même page (signalé par un rédacteur, 11/11/2026).
+{% endcomment %}
+{% block title %}{{ category.name }}{% if category.parent and category.parent.name != category.name %} · {{ category.parent.name }}{% endif %} - {{ site.name }}{% endblock %}
 
 {% block content %}
+<style>.categorie-parent { color: var(--text-muted); font-weight: normal; }</style>
 <div class="breadcrumb">
-    <a href="{% url 'content:home' %}">Accueil</a> /
+    <a href="{{ site.get_absolute_url|default:'/' }}">Accueil</a> /
+    {% if category.parent and category.parent.name != category.name %}
+    <a href="{{ category.parent.get_absolute_url }}">{{ category.parent.name }}</a> /
+    {% endif %}
     <span>{{ category.name }}</span>
 </div>
 
-<h1 class="section-title">{{ category.name }}</h1>
+<h1 class="section-title">{% if category.parent and category.parent.name != category.name %}<span class="categorie-parent">{{ category.parent.name }} › </span>{% endif %}{{ category.name }}</h1>
 
 {% if category.description %}
 <p style="color: var(--text-muted); margin-bottom: 2rem;">{{ category.description }}</p>
