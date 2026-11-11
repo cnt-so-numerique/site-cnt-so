@@ -101,10 +101,10 @@ Attend `manchette_articles`.
 }
 
 .hp-mcard-cat {
-    font-size: var(--texte-courant);
-    color: var(--primary-color);
+    font-size: .85rem;
+    color: var(--text-muted);
     display: block;
-    margin-bottom: .3rem;
+    margin-top: .35rem;
 }
 
 .hp-mcard-title {
@@ -142,12 +142,12 @@ Attend `manchette_articles`.
                         <div class="hp-mcard-noimg"></div>
                         {% endif %}
                         <div class="hp-mcard-body">
-                            {% for cat in article.cms_categories.all|slice:":1" %}
-                            <span class="hp-mcard-cat">{{ cat.name }}</span>
-                            {% endfor %}
                             <h3 class="hp-mcard-title">
                                 <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
                             </h3>
+                            {% with cat=article.categorie_affichee %}{% if cat %}
+                            <span class="hp-mcard-cat">{{ cat.name }}</span>
+                            {% endif %}{% endwith %}
                         </div>
                     </article>
                     {% endfor %}

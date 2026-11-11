@@ -1,3 +1,54 @@
+# À faire — demandé le 01/11/2026 : retours du STUCS sur son site
+
+Source : pad https://annuel.framapad.org/p/site-internet-stucs-retours-combines-aoac
+Plan à valider par Arnaud avant de coder. Mesuré en prod le 01/11 : 36 articles,
+0 en Communiqués, 5 sans catégorie, diaporama vide, téléphone/ville/secteur actifs
+au contact.
+
+Décisions d'Arnaud (01/11) : téléphone et titres pour TOUS les syndicats ; le STUCS
+trie lui-même ses articles ; pas d'adresse e-mail visible (formulaire allégé).
+
+## 0. Avant de coder
+- [x] Lire le brouillon non publié du STUCS (01/11 : aucun écart de contenu repéré,
+      seul `rejoindre_text` signalé, sans doute par le format de comparaison)
+- [x] Mesurer l'état actuel à 390 px en local (01/11, base de dev, images cassées,
+      hauteurs approximatives) : marges 12 px ; logo 44 px de haut ; « Menu » à gauche
+      à 162 px du haut, panneau ouvert depuis la droite ; 1er lien « Adhérer » vers
+      4 380 px sur 6 192 ; étiquette rouge = nom long de la catégorie confédérale.
+      Aucun débordement horizontal
+
+## 1. Code, STUCS seul (case par syndicat, décochée par défaut) — CODÉ en local, non commité
+- [x] Case « Accueil avec présentation » sur `SectionPage` (migration) : affiche
+      `intro_text`, le bouton ADHÉRER et les réseaux sociaux en tête d'accueil, masque
+      la manchette. Les autres syndicats, dont l'Éducation, ne changent pas
+- [x] Moyen de masquer « Notre banque d'images » (décocher renvoie à celle de la conf)
+- [x] Caisse d'actions : champs lien et texte par syndicat (migration), bloc en barre
+      latérale à la place de « Soutenir la CNT-SO » s'ils sont remplis
+
+## 2. Code, tous les syndicats — CODÉ en local, non commité
+- [x] Listes : titre au premier plan, catégorie discrète ; ne plus afficher une
+      catégorie de la confédération sur un syndicat
+- [x] Page d'adhésion : « Pourquoi adhérer » au-dessus du bandeau « Adhérer »
+- [x] Téléphone : marges des cartes, logo et nom en grand, bouton CNT dessous,
+      menu cohérent et accessible au pouce
+
+## 3. Réglages du STUCS en prod (séquence annoncée, à faire à la réouverture ou avant
+selon le brouillon)
+- [ ] Menu : Accueil / Actualités / Ressources / Agenda / Adhérer, sans Fanzine
+- [ ] Créer la catégorie Actualités (le tri des articles revient au STUCS)
+- [ ] Présentation dans `intro_text`, caisse d'actions, cases cochées
+- [ ] Contact : ne garder que nom, e-mail et message (décocher téléphone, ville,
+      secteur et objet ; décision d'Arnaud, 01/11)
+- [ ] Texte de présentation : retirer le `*`, « antisexiste » ; description du site
+      en « Travailleur·euses » (validé par Arnaud, 01/11)
+
+## 4. Vérification
+- [ ] Tests ajoutés et validés par mutation, suite complète, y compris `DEBUG=False`
+- [ ] Contrôle à 390 px sur le STUCS et sur un autre syndicat, puis déploiement annoncé
+- [ ] Le STUCS relit sur le site en test avant réouverture
+
+---
+
 # À faire — demandé le 27/10/2026 : retirer wagtail-seo et wagtail-2fa
 
 Constat : deux extensions à l'arrêt, qui bloquent seules Wagtail 8. Mesuré en

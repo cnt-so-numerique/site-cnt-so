@@ -152,6 +152,9 @@ def banque_images_url(site=None):
     """
     from cms.models import CmsCategory
 
+    if site is not None and getattr(site, 'banque_images_masquee', False):
+        return ''
+
     if site is not None and getattr(site, 'banque_images_propre', False):
         propre = CmsCategory.objects.filter(
             slug='banque-dimage', section_slug__in=site.slugs_contenu).first()

@@ -16,8 +16,11 @@
 </div>
 {% endif %}
 
+{# La présentation d'accueil les affiche déjà, juste à côté. #}
+{% if not presentation_accueil %}
 <!-- Réseaux sociaux -->
 <div style="margin-top:1rem;">{% with s=site %}{% include "content/_social_icons.html" %}{% endwith %}</div>
+{% endif %}
 
 <!-- Inscription newsletter -->
 {% if site.slug and site.slug != 'principal' %}
@@ -45,6 +48,16 @@
 {% endif %}
 
 <!-- Nous soutenir -->
+{% if site.caisse_url %}
+<div style="background:var(--dark-bg);padding:1.25rem;text-align:center;margin-top:1rem;">
+    <h2 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">{{ site.caisse_titre|default:"Soutenir nos luttes" }}</h2>
+    {% if site.caisse_texte %}<p style="color:rgba(255,255,255,.7);font-size: var(--texte-courant);line-height:1.5;margin-bottom:.85rem;">{{ site.caisse_texte }}</p>{% endif %}
+    <a href="{{ site.caisse_url }}" target="_blank" rel="noopener noreferrer"
+       style="display:block;padding:.6rem;background:var(--primary-color);color:#fff;font-weight:700;font-size: var(--texte-courant);font-family:var(--font-body);text-align:center;text-decoration:none;">
+        Faire un don<span class="sr-only"> (ouvre un autre site dans un nouvel onglet)</span>
+    </a>
+</div>
+{% else %}
 <div style="background:var(--dark-bg);padding:1.25rem;text-align:center;margin-top:1rem;">
     <h2 style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;margin-bottom:.5rem;line-height:1.15;">Soutenir la CNT-SO&nbsp;?</h2>
     <p style="color:rgba(255,255,255,.7);font-size: var(--texte-courant);line-height:1.5;margin-bottom:.85rem;">Faites un don pour soutenir nos actions syndicales.</p>
@@ -53,6 +66,8 @@
         Nous soutenir
     </a>
 </div>
+
+{% endif %}
 
 <!-- Dernières nouvelles de la confédération -->
 <div class="hp-bloc-campagnes" style="margin-top:1rem;">

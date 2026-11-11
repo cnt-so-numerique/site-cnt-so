@@ -522,9 +522,23 @@
 
         @media (max-width: 900px) {
             :root { --texte-courant: 16px; }
+            /* En bas à droite, à portée de pouce, et du côté où s'ouvre le
+               panneau. Il était en haut, pleine largeur, écrit à gauche pour un
+               panneau venu de droite (01/11/2026). */
             .menu-toggle {
                 display: block;
+                position: fixed;
+                right: 1rem;
+                bottom: calc(1rem + env(safe-area-inset-bottom));
+                z-index: 1500;
+                width: auto;
+                min-height: 48px;
+                padding: .75rem 1.5rem;
+                text-align: center;
+                box-shadow: 0 2px 10px rgba(0,0,0,.35);
             }
+            /* Le bouton ne doit pas masquer le bas du pied de page. */
+            .footer { padding-bottom: 5rem; }
             /* Le menu RECOUVRE la page au lieu de la pousser vers le bas.
                Déplié en flux, il allongeait la page et le contenu remontait à
                la fermeture : on ne retrouvait pas l'endroit où on lisait
@@ -549,8 +563,12 @@
                 overflow-y: auto;
                 overscroll-behavior: contain;
                 box-shadow: -4px 0 28px rgba(0,0,0,.28);
-                padding: 3.25rem 0 2rem;
+                padding: 1rem 0 5rem;
             }
+            /* Les entrées se calent en bas, près du pouce. `margin-top: auto`
+               plutôt que `justify-content: flex-end` : ce dernier rendrait
+               inaccessible le haut d'une liste plus longue que l'écran. */
+            .main-nav-content.active > :first-child { margin-top: auto; }
             /* Le voile : il assombrit la page et se ferme au clic. */
             .voile-menu {
                 position: fixed;
@@ -561,18 +579,20 @@
                 padding: 0;
             }
             /* Fermeture, en haut du panneau. */
+            /* Là où était le bouton « Menu » : le pouce n'a pas à se déplacer. */
             .fermer-menu {
                 position: fixed;
-                top: .5rem;
-                right: .5rem;
+                right: 1rem;
+                bottom: calc(1rem + env(safe-area-inset-bottom));
                 z-index: 2001;
-                background: none;
+                background: var(--primary-color);
                 border: none;
                 font-size: 28px;
                 line-height: 1;
-                padding: .35rem .6rem;
+                width: 48px;
+                height: 48px;
                 cursor: pointer;
-                color: var(--text-color);
+                color: var(--white);
             }
             /* Quand le menu est ouvert, la page dessous ne défile plus.
                `overflow: hidden` seul remet le défilement à zéro : on fige donc
@@ -1946,10 +1966,14 @@
             .logo-subtitle { display: none; }
             .search-box { display: none; } /* remplacée par la top-bar */
 
-            .subsite-header-main { padding: .75rem; gap: .6rem; }
+            /* Le bouton de retour passe dessous : sur la même ligne, il prenait
+               la moitié de la largeur et réduisait le logo et le nom (01/11/2026). */
+            .subsite-header-main { flex-direction: column; align-items: stretch; padding: 1rem 1.25rem; gap: .75rem; }
             .subsite-logo { gap: .75rem; }
-            .subsite-logo img { height: 44px; }
-            .subsite-name { font-size: 1.15rem; }
+            .subsite-logo img { height: 64px; max-width: 45%; object-fit: contain; }
+            .subsite-logo-info { min-width: 0; }
+            .subsite-name { font-size: 1.4rem; }
+            .subsite-back-btn { align-self: flex-start; }
             .subsite-logo-info { padding-left: .75rem; }
             .subsite-back-btn { font-size: 13px; padding: .35rem .6rem; }
 
@@ -1973,7 +1997,7 @@
             .hero-excerpt { font-size: var(--texte-courant); }
 
             /* Container */
-            .container { padding: 1rem .75rem; }
+            .container { padding: 1rem 1.25rem; }
 
             /* PDF embed */
             .wp-block-file__embed { height: 300px; }

@@ -19,6 +19,40 @@
 
 <h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">{{ site.name }}</h1>
 
+{% if presentation_accueil %}
+<style>
+.ac-presentation {
+    background: var(--bg-light);
+    border-left: 4px solid var(--primary-color);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+.ac-presentation-texte { line-height: 1.7; }
+.ac-presentation-texte p { margin-bottom: .9rem; }
+.ac-bouton {
+    display: block;
+    margin: 1.5rem 0;
+    padding: 1.1rem 1.5rem;
+    background: var(--primary-color);
+    color: #fff;
+    font-family: var(--font-body);
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    text-decoration: none;
+}
+.ac-bouton:hover, .ac-bouton:focus-visible { background: var(--primary-dark); color: #fff; }
+</style>
+<section class="ac-presentation">
+  <h2 class="sr-only">Présentation</h2>
+  {% if site.intro_text %}<div class="ac-presentation-texte">{{ site.intro_text }}</div>{% endif %}
+  <a href="{{ rejoindre_url|default:site.get_rejoindre_url }}" class="ac-bouton">{% if site.peut_adherer %}{{ site.accueil_bouton_libelle }}{% else %}Nous contacter{% endif %}</a>
+  {% with s=site %}{% include "content/_social_icons.html" %}{% endwith %}
+</section>
+{% endif %}
+
 {% if carousel_articles %}
 <style>
 /* ──────────────────────────────────────────────────────────────

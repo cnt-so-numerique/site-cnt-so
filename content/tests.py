@@ -11302,3 +11302,135 @@ class OrdreDesTitresTest(TestCase):
                 self.assertEqual(niveaux[0], 1)
                 sauts = [(a, b) for a, b in zip(niveaux, niveaux[1:]) if b > a + 1]
                 self.assertEqual(sauts, [])
+
+
+class RetoursStucsTest(TestCase):
+    """Retours du STUCS sur son site (pad reçu le 01/11/2026)."""
+
+    PRESENTATION = [('contenu', '<p>Ici on n\'est pas corpo.</p>')]
+
+    def setUp(self):
+        make_site(slug='principal', name='CNT-SO')
+        self.site = make_site(slug='stucs', name='CNT-SO STUCS', site_type='sectoral')
+
+    def _regler(self, **champs):
+        for champ, valeur in champs.items():
+            setattr(self.site, champ, valeur)
+        self.site.save()
+
+    def _accueil(self, adresse='/stucs/'):
+        return self.client.get(adresse)
+
+    def _article_illustre(self, slug='illustre'):
+        from wagtail.images.tests.utils import Image, get_test_image_file
+        image = Image.objects.create(title=slug, file=get_test_image_file())
+        return make_article_page(section_slug='stucs', title=f'Article {slug}',
+                                 slug=slug, featured_image=image)
+
+    # ── Présentation en tête d'accueil ───────────────────────────────────────
+
+    def test_la_case_affiche_la_presentation_et_le_bouton(self):
+        self._regler(accueil_presentation=True, intro_text=self.PRESENTATION,
+                     accueil_bouton='Adhérer au STUCS')
+        html = self._accueil().content.decode()
+        self.assertIn('pas corpo', html)
+        self.assertRegex(
+            html, r'<a href="[^"]*/stucs/rejoindre/" class="ac-bouton">Adhérer au STUCS</a>')
+
+    def test_un_texte_rempli_sans_la_case_reste_invisible(self):
+        """L'Éducation a rempli ce champ : son accueil ne doit pas changer."""
+        self._regler(intro_text=self.PRESENTATION)
+        html = self._accueil().content.decode()
+        self.assertNotIn('corpo', html)
+        self.assertNotIn('ac-bouton', html)
+
+    def test_le_bouton_reprend_celui_de_la_page_rejoindre_par_defaut(self):
+        self._regler(accueil_presentation=True, rejoindre_bouton='Nous rejoindre vite')
+        self.assertContains(self._accueil(), 'class="ac-bouton">Nous rejoindre vite</a>')
+
+    def test_une_union_regionale_ne_propose_pas_d_adherer(self):
+        self._regler(accueil_presentation=True, section_type='regional',
+                     accueil_bouton='Adhérer')
+        self.assertContains(self._accueil(), 'class="ac-bouton">Nous contacter</a>')
+
+    def test_la_case_retire_la_manchette_mais_pas_les_articles(self):
+        article = self._article_illustre()
+        self.assertEqual(list(self._accueil().context['manchette_articles']), [article])
+
+        self._regler(accueil_presentation=True)
+        reponse = self._accueil()
+        self.assertEqual(list(reponse.context['manchette_articles']), [])
+        self.assertIn(article, reponse.context['articles'])
+
+    def test_la_presentation_ne_se_repete_pas_en_page_2(self):
+        self._regler(accueil_presentation=True, intro_text=self.PRESENTATION)
+        for i in range(11):
+            make_article_page(section_slug='stucs', title=f'Article {i}', slug=f'article-{i}')
+        self.assertContains(self._accueil(), 'class="ac-presentation"')
+        self.assertNotContains(self._accueil('/stucs/?page=2'), 'class="ac-presentation"')
+
+    # ── Barre latérale ───────────────────────────────────────────────────────
+
+    def test_les_reseaux_ne_sont_pas_affiches_deux_fois(self):
+        def dans_la_colonne():
+            html = self._accueil().content.decode()
+            return html[html.index('<aside'):html.index('</aside>')].count('exemple.org/@stucs')
+
+        self._regler(social_mastodon='https://exemple.org/@stucs')
+        self.assertEqual(dans_la_colonne(), 1)
+        self._regler(accueil_presentation=True)
+        self.assertEqual(dans_la_colonne(), 0)
+        self.assertContains(self._accueil(), 'class="ac-presentation"')
+
+    def test_la_banque_d_images_peut_etre_masquee(self):
+        make_cms_category(name="Banque d'images", slug='banque-dimage', section_slug='principal')
+        self.assertContains(self._accueil(), "Notre banque d'images")
+        self._regler(banque_images_masquee=True)
+        self.assertNotContains(self._accueil(), "Notre banque d'images")
+
+    def test_la_caisse_remplace_soutenir_la_cnt_so(self):
+        self.assertContains(self._accueil(), 'Soutenir la CNT-SO')
+        self._regler(caisse_url='https://exemple.org/caisse', caisse_titre='Caisse du STUCS',
+                     caisse_texte='Pour les actions de terrain.')
+        reponse = self._accueil()
+        self.assertNotContains(reponse, 'Soutenir la CNT-SO')
+        self.assertContains(reponse, 'Caisse du STUCS')
+        self.assertContains(reponse, 'Pour les actions de terrain.')
+        self.assertContains(reponse, 'href="https://exemple.org/caisse"')
+
+    # ── Étiquettes ───────────────────────────────────────────────────────────
+
+    def test_une_categorie_confederale_n_etiquette_pas_un_article_de_syndicat(self):
+        conf = make_cms_category(name='Rubrique de la conf', slug='rubrique-conf',
+                                 section_slug='principal')
+        propre = make_cms_category(name='Grève', slug='greve', section_slug='stucs')
+        seul_conf = make_article_page(section_slug='stucs', title='A', slug='a', categories=[conf])
+        les_deux = make_article_page(section_slug='stucs', title='B', slug='b',
+                                     categories=[conf, propre])
+        de_la_conf = make_article_page(section_slug='principal', title='C', slug='c',
+                                       categories=[conf])
+        self.assertIsNone(seul_conf.categorie_affichee)
+        self.assertEqual(les_deux.categorie_affichee, propre)
+        self.assertEqual(de_la_conf.categorie_affichee, conf)
+        # Hors de la colonne : « Nouvelles de la confédération » y garde la sienne.
+        html = self._accueil().content.decode()
+        self.assertNotIn('Rubrique de la conf', html[:html.index('<aside')])
+
+    def test_le_titre_precede_la_categorie_dans_la_liste(self):
+        propre = make_cms_category(name='Grève', slug='greve', section_slug='stucs')
+        make_article_page(section_slug='stucs', title='Mon titre', slug='mon-titre',
+                          categories=[propre])
+        html = self._accueil().content.decode()
+        self.assertLess(html.index('<h3 class="ab-titre">Mon titre'),
+                        html.index('>Grève</a>', html.index('class="ab-liste"')))
+
+    # ── Page d'adhésion ──────────────────────────────────────────────────────
+
+    def test_pourquoi_adherer_vient_avant_le_bouton_d_adhesion(self):
+        self._regler(rejoindre_text=[('contenu', '<h3>Pourquoi adhérer ?</h3>')])
+        html = self.client.get('/stucs/rejoindre/').content.decode()
+        pourquoi = html.index('Pourquoi adhérer ?')
+        adherer = html.index('class="rj-adherer-banner"')
+        question = html.index("Une question avant d'adhérer")
+        self.assertLess(pourquoi, adherer)
+        self.assertLess(adherer, question)

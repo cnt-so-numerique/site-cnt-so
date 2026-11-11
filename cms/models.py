@@ -885,11 +885,44 @@ class SectionPage(Page):
                   "latérale mène à la banque de ce syndicat. Décoché : il "
                   "renvoie à celle de la confédération.",
     )
+    banque_images_masquee = models.BooleanField(
+        default=False,
+        verbose_name="Masquer le bloc « Notre banque d'images »",
+        help_text="Coché : le bloc disparaît de la barre latérale de ce syndicat, "
+                  "quel que soit le réglage ci-dessus.",
+    )
+    accueil_presentation = models.BooleanField(
+        default=False,
+        verbose_name="Accueil avec présentation",
+        help_text="Coché : l'accueil s'ouvre sur la présentation ci-dessous, un "
+                  "bouton d'adhésion et les réseaux sociaux, et n'affiche plus "
+                  "la sélection d'articles « À la une ».",
+    )
+    accueil_bouton = models.CharField(
+        max_length=80, blank=True,
+        verbose_name="Texte du bouton de l'accueil",
+        help_text="Ex. : Adhérer au STUCS. Vide : le même texte que sur la page "
+                  "Nous rejoindre.",
+    )
+    caisse_url = models.URLField(
+        blank=True,
+        verbose_name="Lien de la caisse d'actions",
+        help_text="Rempli : le bloc de la caisse remplace « Soutenir la CNT-SO » "
+                  "dans la barre latérale de ce syndicat.",
+    )
+    caisse_titre = models.CharField(
+        max_length=200, blank=True,
+        verbose_name="Titre du bloc de la caisse",
+    )
+    caisse_texte = models.TextField(
+        blank=True,
+        verbose_name="Texte du bloc de la caisse",
+    )
     intro_text = StreamField(
         [('contenu', blocks.RichTextBlock(features=RICHTEXT_FEATURES, label="Contenu")),
          ('liste', blocks.ListBlock(blocks.CharBlock(label="Item"), label="Liste à puces"))],
         blank=True, verbose_name="Présentation + revendications (page accueil)",
-        help_text="Affiché sur la page d'accueil du sous-site après l'accroche",
+        help_text="Affiché seulement si « Accueil avec présentation » est coché.",
         use_json_field=True,
     )
     rejoindre_text = StreamField(
@@ -935,6 +968,10 @@ class SectionPage(Page):
     @property
     def rejoindre_bouton_libelle(self):
         return self.rejoindre_bouton.strip() or REJOINDRE_BOUTON_DEFAUT
+
+    @property
+    def accueil_bouton_libelle(self):
+        return self.accueil_bouton.strip() or self.rejoindre_bouton_libelle
 
     @property
     def peut_adherer(self):
@@ -1040,7 +1077,17 @@ class SectionPage(Page):
         FieldPanel('linkstack_url'),
         FieldPanel('framaform_url'),
         FieldPanel('banque_images_propre'),
-        FieldPanel('intro_text'),
+        FieldPanel('banque_images_masquee'),
+        MultiFieldPanel([
+            FieldPanel('accueil_presentation'),
+            FieldPanel('accueil_bouton'),
+            FieldPanel('intro_text'),
+        ], heading="Page d'accueil"),
+        MultiFieldPanel([
+            FieldPanel('caisse_url'),
+            FieldPanel('caisse_titre'),
+            FieldPanel('caisse_texte'),
+        ], heading="Caisse d'actions"),
         MultiFieldPanel([
             FieldPanel('adhesion_en_ligne'),
             FieldPanel('rejoindre_accroche'),
@@ -1926,6 +1973,21 @@ class ArticlePage(ContenuDeSyndicatMixin, Page):
             logger.warning("Rendition %s impossible pour l'image %s",
                            filtre, self.featured_image_id, exc_info=True)
             return self.featured_image.file.url
+
+    @property
+    def categorie_affichee(self):
+        """L'étiquette de l'article dans les listes.
+
+        Les articles repris d'un syndicat gardent souvent la catégorie
+        confédérale qui les rangeait sous son nom. Sur le STUCS, le libellé
+        « Syndicat des travailleur·euses uni·es de la culture et du spectacle
+        (STUCS) » passait ainsi pour le titre de l'article (retours du STUCS,
+        01/11/2026). Elle n'apprend rien au lecteur d'un syndicat : on l'écarte.
+        """
+        for categorie in self.cms_categories.all():
+            if self.section_slug == 'principal' or categorie.section_slug != 'principal':
+                return categorie
+        return None
 
     @property
     def any_image_url(self):

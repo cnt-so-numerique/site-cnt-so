@@ -57,13 +57,8 @@ Articles 4+ : grille 3 colonnes
     flex-wrap: wrap;
 }
 .une-hero-meta .cat-badge {
-    background: var(--primary-color);
-    color: #fff;
-    font-size: .8rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    padding: .2rem .55rem;
+    color: var(--text-muted);
+    font-size: .85rem;
     text-decoration: none;
 }
 .une-hero-meta .date { color: var(--text-muted, #666); font-size: .85rem; }
@@ -149,9 +144,7 @@ Articles 4+ : grille 3 colonnes
 .une-card-meta a {
     position: relative;
     z-index: 2;
-    color: var(--primary-color);
-    font-weight: 700;
-    text-transform: uppercase;
+    color: var(--text-muted);
     font-size: .8rem;
     text-decoration: none;
 }
@@ -204,11 +197,11 @@ Articles 4+ : grille 3 colonnes
     {% else %}<div class="une-hero-img" style="background:var(--primary-color);"></div>
     {% endif %}{% endwith %}
     <div class="une-hero-body">
+        <h2 class="une-hero-title">{{ article.title }}</h2>
         <div class="une-hero-meta">
-            {% for cat in article.cms_categories.all|slice:":2" %}<span class="cat-badge">{% libelle_categorie cat %}</span>{% endfor %}
+            {% with cat=article.categorie_affichee %}{% if cat %}<span class="cat-badge">{% libelle_categorie cat %}</span>{% endif %}{% endwith %}
             <span class="date">{{ article.published_at|date:"d F Y" }}</span>
         </div>
-        <h2 class="une-hero-title">{{ article.title }}</h2>
         {% if article.excerpt %}<p class="une-hero-excerpt">{{ article.excerpt|striptags|truncatewords:25 }}</p>{% endif %}
     </div>
 </a>
@@ -222,11 +215,11 @@ Articles 4+ : grille 3 colonnes
     <div class="une-card-img"><img src="{{ img }}" alt="{{ article.title }}"></div>
     {% endif %}{% endwith %}
     <div class="une-card-body">
+        <h3 class="une-card-title">{{ article.title }}</h3>
         <div class="une-card-meta">
-            {% for cat in article.cms_categories.all|slice:":1" %}<a href="{{ cat.get_absolute_url }}">{% libelle_categorie cat %}</a>{% endfor %}
+            {% with cat=article.categorie_affichee %}{% if cat %}<a href="{{ cat.get_absolute_url }}">{% libelle_categorie cat %}</a>{% endif %}{% endwith %}
             <span>{{ article.published_at|date:"d F Y" }}</span>
         </div>
-        <h3 class="une-card-title">{{ article.title }}</h3>
         {% if article.excerpt %}<p class="une-card-excerpt">{{ article.excerpt|striptags|truncatewords:18 }}</p>{% endif %}
     </div>
 </div>
@@ -241,11 +234,11 @@ Articles 4+ : grille 3 colonnes
     <div class="une-card-img"><img src="{{ img }}" alt="{{ article.title }}"></div>
     {% endif %}{% endwith %}
     <div class="une-card-body">
+        <h3 class="une-card-title">{{ article.title }}</h3>
         <div class="une-card-meta">
-            {% for cat in article.cms_categories.all|slice:":1" %}<a href="{{ cat.get_absolute_url }}">{% libelle_categorie cat %}</a>{% endfor %}
+            {% with cat=article.categorie_affichee %}{% if cat %}<a href="{{ cat.get_absolute_url }}">{% libelle_categorie cat %}</a>{% endif %}{% endwith %}
             <span>{{ article.published_at|date:"d F Y" }}</span>
         </div>
-        <h3 class="une-card-title">{{ article.title }}</h3>
         {% if article.excerpt %}<p class="une-card-excerpt">{{ article.excerpt|striptags|truncatewords:15 }}</p>{% endif %}
     </div>
 </div>
@@ -259,11 +252,11 @@ Articles 4+ : grille 3 colonnes
     <div class="une-card-img"><img src="{{ img }}" alt="{{ article.title }}"></div>
     {% endif %}{% endwith %}
     <div class="une-card-body">
+        <h3 class="une-card-title">{{ article.title }}</h3>
         <div class="une-card-meta">
-            {% for cat in article.cms_categories.all|slice:":1" %}<a href="{{ cat.get_absolute_url }}">{% libelle_categorie cat %}</a>{% endfor %}
+            {% with cat=article.categorie_affichee %}{% if cat %}<a href="{{ cat.get_absolute_url }}">{% libelle_categorie cat %}</a>{% endif %}{% endwith %}
             <span>{{ article.published_at|date:"d F Y" }}</span>
         </div>
-        <h3 class="une-card-title">{{ article.title }}</h3>
         {% if article.excerpt %}<p class="une-card-excerpt">{{ article.excerpt|striptags|truncatewords:18 }}</p>{% endif %}
     </div>
 </div>

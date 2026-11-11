@@ -412,6 +412,12 @@ class SiteHomeView(ListView):
         carousel = [ci.article for ci in
                     site.carousel_items.select_related('article').all()
                     if ci.article and ci.article.live][:CAROUSEL_MAX]
+        # La présentation ouvre l'accueil et la liste suit : une manchette entre
+        # les deux répéterait les mêmes articles en grand (retours du STUCS,
+        # 01/11/2026).
+        if site.accueil_presentation:
+            self._vitrine_cache = (carousel, [])
+            return self._vitrine_cache
         candidats = [
             a for a in ArticlePage.objects.live()
             .filter(section_slug__in=site.slugs_contenu)
@@ -489,6 +495,10 @@ class SiteHomeView(ListView):
             # (Arnaud, 31/08/2026 : « il faut que les sites des syndicats aient
             # eux aussi une une »).
             context['manchette_articles'] = manchette
+            context['presentation_accueil'] = (
+                self.current_site.accueil_presentation
+                and context['page_obj'].number == 1
+            )
             context.update(_sectoral_sidebar_context(self.current_site))
         else:
             context.update(_sidebar_context(self.current_site.slug))

@@ -5,7 +5,8 @@
 
 {% block extra_head %}
 <style>
-.rj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; }
+.rj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 2.5rem; }
+.rj-grid > :only-child { grid-column: 1 / -1; }
 
 /* Un encadré par bloc de la page « Nous rejoindre » : le texte vient du CMS,
    l'habillage reste ici, pour qu'un rédacteur ne puisse pas le casser. */
@@ -112,7 +113,16 @@
 <div class="s-page">
   <h1 class="s-section-title" style="margin-bottom:1.5rem;">Nous rejoindre</h1>
 
-  <!-- Bandeau Adhérer : priorité visuelle maximale, pleine largeur -->
+  {% if site.rejoindre_text %}
+  <h2 class="sr-only">Pourquoi nous rejoindre</h2>
+  <div class="rj-grid">
+    {% for bloc in site.rejoindre_text %}
+    <div class="rj-info-card">{{ bloc }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Bandeau Adhérer, pleine largeur : après les raisons d'adhérer (01/11/2026) -->
   <div class="rj-adherer-banner">
     <div class="rj-adherer-text">
       <h2>Adhérer {% if site.name %}à {{ site.name }}{% endif %}</h2>
@@ -128,24 +138,10 @@
     </a>
   </div>
 
-  <div class="rj-grid">
-
-    <!-- Colonne gauche : le corps de la page, un encadré par bloc -->
-    <div>
-      {% for bloc in site.rejoindre_text %}
-      <div class="rj-info-card">{{ bloc }}</div>
-      {% endfor %}
-    </div>
-
-    <!-- Colonne droite : une question avant d'adhérer -->
-    <div>
-      <div class="rj-info-card">
-        <h3>Une question avant d'adhérer ?</h3>
-        <p>Écris-nous : on te répond avant que tu t'engages.</p>
-        <a href="{{ rj_contact_url }}" class="rj-contact-btn">Poser une question</a>
-      </div>
-    </div>
-
+  <div class="rj-info-card">
+    <h3>Une question avant d'adhérer ?</h3>
+    <p>Écris-nous : on te répond avant que tu t'engages.</p>
+    <a href="{{ rj_contact_url }}" class="rj-contact-btn">Poser une question</a>
   </div>
 </div>
 {% endblock %}
