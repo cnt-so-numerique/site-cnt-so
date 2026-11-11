@@ -34,12 +34,13 @@ trie lui-même ses articles ; pas d'adresse e-mail visible (formulaire allégé)
 
 ## 3. Réglages du STUCS en prod (séquence annoncée, à faire à la réouverture ou avant
 selon le brouillon)
-- [ ] Menu : Accueil / Actualités / Ressources / Agenda / Adhérer, sans Fanzine
-- [ ] Créer la catégorie Actualités (le tri des articles revient au STUCS)
-- [ ] Présentation dans `intro_text`, caisse d'actions, cases cochées
-- [ ] Contact : ne garder que nom, e-mail et message (décocher téléphone, ville,
+- [x] Menu : Accueil / Actualités / Ressources / Agenda / Adhérer, Fanzine désactivé (11/11)
+- [x] Catégorie Actualités créée (id 347, vide : le tri des articles revient au STUCS)
+- [x] Présentation dans `intro_text` + case « Accueil avec présentation » (prod, 11/11 ;
+      fiche et révision 1610, site toujours en test). Caisse d'actions, banque d'images masquée, bouton « Adhérer au STUCS » : faits
+- [x] Contact : ne garder que nom, e-mail et message (décocher téléphone, ville,
       secteur et objet ; décision d'Arnaud, 01/11)
-- [ ] Texte de présentation : retirer le `*`, « antisexiste » ; description du site
+- [x] Texte de présentation : retirer le `*`, « antisexiste » ; description du site
       en « Travailleur·euses » (validé par Arnaud, 01/11)
 
 ## 4. Vérification

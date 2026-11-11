@@ -774,3 +774,14 @@ AVANT de rendre le bilan, il n'est jamais une conclusion.
    muté. Rattrapé parce que j'avais copié le fichier avant. Règle : un serveur
    lancé pour un essai s'arrête par son PID (`echo $! > fichier`), jamais par
    motif ; toute mutation se fait sur copie, restaurée dans un `finally`.
+
+## 11/11/2026 — Écrire un champ en prod par `manage.py shell` : vérifier son TYPE, et la révision avant de valider
+J'ai mis une chaîne HTML dans `SectionPage.intro_text`, qui est un StreamField (un
+`intro_text` TextField existe plus haut dans models.py, sur un autre modèle). La révision
+illisible a cassé TOUT le site pendant ~1 min 30 (500 sur chaque `/<segment>/`) : le
+middleware de maintenance relit la dernière révision de chaque syndicat en test à chaque
+requête.
+- Avant d'écrire : `Model._meta.get_field(nom)` → type exact ; StreamField = `[('bloc', valeur)]`.
+- Toute écriture de révision dans `transaction.atomic()`, suivie de
+  `page.get_latest_revision_as_object()` DANS la transaction ; exception → rollback.
+- Juste après : curl sur `/`, `/<syndicat>/` et une page en `/<segment>/` (pas seulement le site visé).

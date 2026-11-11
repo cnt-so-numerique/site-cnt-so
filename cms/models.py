@@ -1260,10 +1260,16 @@ class SectionPage(Page):
         « Enregistrer le brouillon » n'écrit que la révision, pas la ligne en
         base (`Page.save_revision`) — lire le champ seul obligerait à
         republier le site pour cocher la case.
+
+        La case est lue dans le JSON de la révision, sans reconstruire la page :
+        le middleware appelle cette méthode à chaque requête, et une révision
+        dont un autre champ est illisible faisait tomber tout le site en 500
+        (11/11/2026, une chaîne brute dans le StreamField `intro_text`).
         """
         return [s for s in cls.objects.filter(live=False)
-                if getattr(s.get_latest_revision_as_object(),
-                           'page_maintenance', s.page_maintenance)]
+                .select_related('latest_revision')
+                if (s.latest_revision.content if s.latest_revision else {})
+                .get('page_maintenance', s.page_maintenance)]
 
     def get_absolute_url(self):
         from django.urls import reverse, NoReverseMatch

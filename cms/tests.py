@@ -1895,6 +1895,26 @@ class SectionDomainMiddlewareTest(TestCase):
                 self.assertEqual(r.status_code, 503, (compte, chemin))
                 self.assertNotContains(r, 'Article middleware', status_code=503)
 
+    def test_revision_illisible_ne_fait_pas_tomber_le_site(self):
+        # Incident du 11/11/2026 : une chaîne brute écrite dans le StreamField
+        # `intro_text` de la dernière révision du STUCS, en test. `en_test()`
+        # reconstruisait la page entière pour lire une case : TypeError, et 500
+        # sur toutes les adresses en /<segment>/ pendant 1 min 30.
+        from django.core.cache import cache
+        self._en_test()
+        self.stucs.refresh_from_db()
+        brouillon = self.stucs.get_latest_revision_as_object()
+        brouillon.intro_text = '<p>Texte brut</p>'  # le geste exact du 11/11
+        brouillon.save_revision()
+        self.stucs.refresh_from_db()
+        cache.clear()
+        with self.assertRaises(TypeError):  # la révision est bien illisible
+            self.stucs.get_latest_revision_as_object()
+        self.assertEqual(self.client.get('/mw-autre/').status_code, 200)
+        self.assertEqual(self.client.get('/stucs/').status_code, 503)
+        self.client.force_login(self._compte('redacteur_stucs'))
+        self.assertContains(self.client.get('/stucs/'), 'Site en test')
+
     def test_site_en_test_ferme_a_une_session_sans_son_code(self):
         # Mot de passe donné, code de double authentification pas encore :
         # la session est anonyme hors de /cms/ (cms/double_auth.py).
