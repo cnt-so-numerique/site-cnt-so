@@ -1,3 +1,4 @@
+{% load categorie_tags %}
 {% comment %}
 Liste d'articles en bandes — image à gauche, texte à droite.
 
@@ -137,7 +138,7 @@ Attend `articles`.
     <div class="ab-texte">
       <div class="ab-meta">
         {% for cat in article.cms_categories.all|slice:":1" %}
-        <a href="{{ cat.get_absolute_url }}">{{ cat.name }}</a>
+        <a href="{{ cat.get_absolute_url }}">{% libelle_categorie cat %}</a>
         {% endfor %}
         <span class="ab-date">{{ article.published_at|date:"d F Y" }}</span>
       </div>

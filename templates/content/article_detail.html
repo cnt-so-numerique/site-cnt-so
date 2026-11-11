@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load content_tags %}
+{% load content_tags categorie_tags %}
 
 {% block title %}{{ article.title }} - {{ site.name }}{% endblock %}
 {% block meta_description %}{{ article.meta_description|default:article.title|truncatechars:160 }}{% endblock %}
@@ -69,7 +69,7 @@
             <a href="{{ site.get_absolute_url }}">{{ site.name }}</a> /
             {% endif %}
             {% for cat in article.cms_categories.all|slice:":1" %}
-            <a href="{{ cat.get_absolute_url }}">{{ cat.name }}</a> /
+            <a href="{{ cat.get_absolute_url }}">{% libelle_categorie cat %}</a> /
             {% endfor %}
             <span>{{ article.title|truncatewords:5 }}</span>
         </div>
@@ -82,7 +82,7 @@
 
         <div style="margin-bottom: 1rem;">
             {% for cat in article.cms_categories.all %}
-                <a href="{{ cat.get_absolute_url }}" class="category-tag">{{ cat.name }}</a>
+                <a href="{{ cat.get_absolute_url }}" class="category-tag">{% libelle_categorie cat %}</a>
             {% endfor %}
         </div>
     </header>
@@ -308,7 +308,7 @@ document.addEventListener('DOMContentLoaded', function () {
 {% if category_latest %}
 <div class="widget">
     <h3 class="widget-title">
-        {% if first_category %}<a href="{{ first_category.get_absolute_url }}" style="color:inherit;">{{ first_category.name }}</a>{% endif %}
+        {% if first_category %}<a href="{{ first_category.get_absolute_url }}" style="color:inherit;">{% libelle_categorie first_category %}</a>{% endif %}
     </h3>
     <ul style="list-style:none;padding:0;margin:0;">
         {% for a in category_latest %}

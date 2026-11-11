@@ -1,4 +1,4 @@
-{% load content_tags %}
+{% load content_tags categorie_tags %}
 {% if not on_rejoindre_page %}
 <!-- Nous rejoindre -->
 <div style="background:var(--primary-color);padding:1.25rem;text-align:center;">
@@ -68,7 +68,7 @@
                     <a href="{{ article.get_absolute_url }}">{{ article.title }}</a>
                 </div>
                 <div class="hp-sidebar-item-cat">
-                    {% for cat in article.cms_categories.all|slice:":1" %}{{ cat.name }}{% endfor %}
+                    {% for cat in article.cms_categories.all|slice:":1" %}{% libelle_categorie cat %}{% endfor %}
                 </div>
             </div>
         </div>
