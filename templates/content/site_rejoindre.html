@@ -1,109 +1,89 @@
 {% extends "content/site_subpage_base.html" %}
-{% load content_tags %}
+{% load content_tags wagtailimages_tags %}
 {% block nav_rejoindre %}class="active"{% endblock %}
 {% block title %}Nous rejoindre — {{ site.name }}{% endblock %}
 
 {% block extra_head %}
 <style>
-.rj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 2.5rem; }
-.rj-grid > :only-child { grid-column: 1 / -1; }
+/* Mise en page du 13/11/2026 : bannière, texte, puis deux cadres côte à côte
+   (adhésion, question avant d'adhérer). Le texte vient du CMS, l'habillage
+   reste ici, pour qu'un rédacteur ne puisse pas le casser. */
 
-/* Un encadré par bloc de la page « Nous rejoindre » : le texte vient du CMS,
-   l'habillage reste ici, pour qu'un rédacteur ne puisse pas le casser. */
-.rj-info-card {
+/* La bannière est une affiche : affichée entière, jamais recadrée. */
+.rj-banniere { margin: 0 0 1.75rem; }
+.rj-banniere img { display: block; width: 100%; height: auto; }
+
+.rj-texte { margin-bottom: 2rem; }
+.rj-texte > :last-child { margin-bottom: 0; }
+.rj-texte h2, .rj-texte h3, .rj-texte h4, .rj-texte h5 {
+  font-family: var(--font-heading);
+  font-size: 1.2rem;
+  color: var(--text-color);
+  margin: 1.5rem 0 .75rem;
+}
+.rj-texte > :first-child h2, .rj-texte > :first-child h3,
+.rj-texte > h2:first-child, .rj-texte > h3:first-child { margin-top: 0; }
+.rj-texte p { line-height: 1.75; margin-bottom: .9rem; }
+.rj-texte strong, .rj-texte b { color: var(--text-color); }
+.rj-texte ul { list-style: none; margin: 0 0 1rem; }
+.rj-texte ul li {
+  line-height: 1.6;
+  padding: .3rem 0 .3rem 1.5rem;
+  position: relative;
+}
+.rj-texte ul li::before { content: '→'; position: absolute; left: 0; color: var(--primary-color); font-weight: 700; }
+.rj-texte ol { padding-left: 1.4rem; margin-bottom: 1rem; }
+.rj-texte ol li { line-height: 1.6; margin-bottom: .3rem; }
+
+.rj-cadres { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.rj-cadre {
+  display: flex;
+  flex-direction: column;
   background: var(--bg-light);
   border: 1px solid var(--border-color);
+  border-top: 4px solid var(--text-color);
   padding: 1.75rem;
-  margin-bottom: 1.5rem;
 }
-.rj-info-card > :last-child { margin-bottom: 0; }
-.rj-info-card h2, .rj-info-card h3, .rj-info-card h4, .rj-info-card h5 {
+.rj-cadre--adherer { border-top-color: var(--primary-color); }
+.rj-cadre h2 {
   font-family: var(--font-heading);
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   color: var(--text-color);
   margin-bottom: 1rem;
-  padding-bottom: .6rem;
-  border-bottom: 1px solid var(--border-color);
 }
-.rj-info-card p { font-size: .9rem; color: var(--text-secondary); line-height: 1.75; margin-bottom: .75rem; }
-.rj-info-card strong, .rj-info-card b { color: var(--text-color); }
-.rj-info-card ul { list-style: none; }
-.rj-info-card ul li {
-  font-size: .88rem; color: var(--text-secondary); line-height: 1.6;
-  padding: .35rem 0 .35rem 1.4rem; position: relative;
-  border-bottom: 1px solid var(--border-color);
+.rj-cadre p { font-size: .92rem; color: var(--text-secondary); line-height: 1.7; margin-bottom: .75rem; }
+.rj-atouts { list-style: none; margin: .25rem 0 .75rem; }
+.rj-atouts li {
+  font-size: .9rem;
+  color: var(--text-secondary);
+  padding: .2rem 0 .2rem 1.4rem;
+  position: relative;
 }
-.rj-info-card ul li:last-child { border-bottom: none; }
-.rj-info-card ul li::before { content: '→'; position: absolute; left: 0; color: var(--primary-color); font-size: .875rem; top: .45rem; }
-.rj-info-card ol { padding-left: 1.4rem; }
-.rj-info-card ol li { font-size: .88rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: .3rem; }
+.rj-atouts li::before { content: '✓'; position: absolute; left: 0; font-weight: 700; color: var(--primary-color); }
 
-.rj-contact-btn {
+/* Le bouton descend au pied du cadre : les deux boutons restent alignés,
+   quelle que soit la longueur des textes. */
+.rj-bouton {
   display: block;
-  margin-top: 1.25rem;
-  padding: .8rem 1.25rem;
-  background: var(--primary-color);
-  color: #fff;
+  margin-top: auto;
+  padding: .9rem 1.25rem;
   font-weight: 700;
   font-size: .95rem;
   text-align: center;
   text-decoration: none;
   text-transform: uppercase;
   letter-spacing: .03em;
+  border: 2px solid var(--primary-color);
   transition: transform .15s, box-shadow .15s;
 }
-.rj-contact-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,.2); }
+.rj-cadre > :nth-last-child(2) { margin-bottom: 1.25rem; }
+.rj-bouton:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,.2); }
+.rj-bouton--plein { background: var(--primary-color); color: #fff; }
+.rj-bouton--plein:hover { color: #fff; }
+.rj-bouton--contour { background: transparent; color: var(--text-color); border-color: var(--text-color); }
 
-.rj-adherer-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 2rem;
-  background: var(--primary-color);
-  color: #fff;
-  padding: 1.75rem 2rem;
-  margin-bottom: 2.5rem;
-  box-shadow: 0 4px 18px rgba(0,0,0,.18);
-}
-.rj-adherer-text h2 { font-family: var(--font-heading); font-size: 1.3rem; margin-bottom: .4rem; }
-.rj-adherer-text p { font-size: .9rem; color: rgba(255,255,255,.9); margin-bottom: .6rem; }
-.rj-adherer-perks {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: .4rem 1.5rem;
-}
-.rj-adherer-perks li {
-  font-size: .82rem;
-  color: rgba(255,255,255,.92);
-  padding-left: 1.3rem;
-  position: relative;
-}
-.rj-adherer-perks li::before { content: '✓'; position: absolute; left: 0; font-weight: 700; }
-.rj-adherer-btn {
-  display: block;
-  flex-shrink: 0;
-  padding: 1rem 1.75rem;
-  background: #fff;
-  color: var(--primary-color);
-  font-weight: 700;
-  font-size: 1rem;
-  text-align: center;
-  text-decoration: none;
-  text-transform: uppercase;
-  letter-spacing: .03em;
-  white-space: nowrap;
-  transition: transform .15s, box-shadow .15s;
-}
-.rj-adherer-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,.25); }
-
-@media (max-width: 700px) {
-  .rj-adherer-banner { flex-direction: column; align-items: stretch; text-align: center; }
-  .rj-adherer-perks { justify-content: center; }
-}
-
-@media (max-width: 900px) {
-  .rj-grid { grid-template-columns: 1fr; }
+@media (max-width: 760px) {
+  .rj-cadres { grid-template-columns: 1fr; }
 }
 </style>
 {% endblock %}
@@ -111,37 +91,39 @@
 {% block content %}
 {% if site.slug and site.slug != 'principal' %}{% section_url 'content:site_contact' site as rj_contact_url %}{% else %}{% url 'content:contact' as rj_contact_url %}{% endif %}
 <div class="s-page">
-  <h1 class="s-section-title" style="margin-bottom:1.5rem;">Nous rejoindre</h1>
+  {% if site.rejoindre_banniere %}
+  {% image site.rejoindre_banniere max-1600x1600 as banniere %}
+  <figure class="rj-banniere">
+    <img src="{{ banniere.url }}" width="{{ banniere.width }}" height="{{ banniere.height }}" alt="{{ site.rejoindre_banniere.default_alt_text }}">
+  </figure>
+  {% endif %}
+
+  {# Titre retiré de l'écran le 13/11/2026 (la bannière tient ce rôle), gardé pour les lecteurs d'écran. #}
+  <h1 class="sr-only">Nous rejoindre</h1>
 
   {% if site.rejoindre_text %}
-  <h2 class="sr-only">Pourquoi nous rejoindre</h2>
-  <div class="rj-grid">
-    {% for bloc in site.rejoindre_text %}
-    <div class="rj-info-card">{{ bloc }}</div>
-    {% endfor %}
+  <div class="rj-texte">
+    {% for bloc in site.rejoindre_text %}{{ bloc }}{% endfor %}
   </div>
   {% endif %}
 
-  <!-- Bandeau Adhérer, pleine largeur : après les raisons d'adhérer (01/11/2026) -->
-  <div class="rj-adherer-banner">
-    <div class="rj-adherer-text">
-      <h2>Adhérer {% if site.name %}à {{ site.name }}{% endif %}</h2>
-      {% if site.rejoindre_accroche %}<p>{{ site.rejoindre_accroche }}</p>{% endif %}
+  <div class="rj-cadres">
+    <section class="rj-cadre rj-cadre--adherer">
+      <h2>{{ site.rejoindre_adherer_titre_affiche }}</h2>
+      {% if site.rejoindre_accroche %}{{ site.rejoindre_accroche|linebreaks }}{% endif %}
       {% if site.rejoindre_atouts_lignes %}
-      <ul class="rj-adherer-perks">
+      <ul class="rj-atouts">
         {% for atout in site.rejoindre_atouts_lignes %}<li>{{ atout }}</li>{% endfor %}
       </ul>
       {% endif %}
-    </div>
-    <a href="{% url 'adherer' site_slug=site.slug %}" class="rj-adherer-btn">
-      {{ site.rejoindre_bouton_libelle }}
-    </a>
-  </div>
+      <a href="{% url 'adherer' site_slug=site.slug %}" class="rj-bouton rj-bouton--plein">{{ site.rejoindre_bouton_libelle }}</a>
+    </section>
 
-  <div class="rj-info-card">
-    <h3>Une question avant d'adhérer ?</h3>
-    <p>Écris-nous : on te répond avant que tu t'engages.</p>
-    <a href="{{ rj_contact_url }}" class="rj-contact-btn">Poser une question</a>
+    <section class="rj-cadre rj-cadre--question">
+      <h2>{{ site.rejoindre_question_titre_affiche }}</h2>
+      {% if site.rejoindre_question_texte %}{{ site.rejoindre_question_texte|linebreaks }}{% endif %}
+      <a href="{{ rj_contact_url }}" class="rj-bouton rj-bouton--contour">Poser une question</a>
+    </section>
   </div>
 </div>
 {% endblock %}

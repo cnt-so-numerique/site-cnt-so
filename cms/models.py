@@ -280,6 +280,7 @@ COULEUR_CHARTE = '#E81C24'
 # Libellé de repli du bouton d'adhésion : vidé par mégarde, le bouton doit
 # rester cliquable — c'est le seul chemin vers le formulaire d'adhésion.
 REJOINDRE_BOUTON_DEFAUT = 'Adhérer maintenant'
+REJOINDRE_QUESTION_TITRE_DEFAUT = "Une question avant d'adhérer ?"
 
 # Largeurs proposées, en pourcentage de la colonne de texte. Des paliers
 # plutôt qu'un curseur libre : une image à 37 % ne veut rien dire de plus
@@ -929,36 +930,74 @@ class SectionPage(Page):
         [('contenu', blocks.RichTextBlock(features=RICHTEXT_FEATURES, label="Contenu")),
          ('liste', blocks.ListBlock(blocks.CharBlock(label="Item"), label="Liste à puces"))],
         blank=True, verbose_name="Page Nous rejoindre",
-        help_text="Corps de la page d'adhésion. Chaque bloc s'affiche dans son "
-                  "propre encadré : un bloc « pourquoi adhérer », un bloc "
-                  "« comment ça marche »…",
+        help_text="Texte de la page d'adhésion, sous la bannière et au-dessus "
+                  "des deux cadres (adhésion, contact) : pourquoi adhérer, "
+                  "à qui s'adresse le syndicat…",
         use_json_field=True,
+    )
+    # Mise en page du 13/11/2026 (demande du STUCS) : bannière, texte, puis
+    # deux cadres côte à côte, l'adhésion et la question avant d'adhérer.
+    rejoindre_banniere = models.ForeignKey(
+        'wagtailimages.Image',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='+',
+        verbose_name="Bannière",
+        help_text="Affichée entière en haut de la page, sans recadrage. Le texte "
+                  "alternatif est la description de l'image (à défaut, son "
+                  "titre) : y recopier ce que dit la bannière.",
     )
     # Les trois champs du bandeau arrivent avec le texte qui était écrit en dur
     # dans le gabarit : les fiches existantes ne bougent pas d'un mot, mais le
     # texte devient visible et modifiable dans /cms/ au lieu d'être invisible.
-    rejoindre_accroche = models.CharField(
-        max_length=300, blank=True,
+    rejoindre_adherer_titre = models.CharField(
+        max_length=120, blank=True,
+        verbose_name="Cadre adhésion : titre",
+        help_text="Ex. : Comment ça marche ? Vide : « Adhérer à » suivi du nom "
+                  "du syndicat.",
+    )
+    rejoindre_accroche = models.TextField(
+        blank=True,
         default="Remplis le formulaire d'adhésion en ligne, paiement de la cotisation inclus.",
-        verbose_name="Bandeau : phrase d'accroche",
-        help_text="Sous le titre « Adhérer à … », en haut de la page. "
-                  "Vide : aucune phrase.",
+        verbose_name="Cadre adhésion : texte",
+        help_text="Sous le titre du cadre. Une ligne vide sépare deux "
+                  "paragraphes. Vide : aucun texte.",
     )
     rejoindre_atouts = models.TextField(
         blank=True,
         default="Formulaire en ligne, 5 minutes\n"
                 "Cotisation solidaire\n"
                 "Un·e militant·e te recontacte pour finaliser",
-        verbose_name="Bandeau : arguments",
+        verbose_name="Cadre adhésion : arguments",
         help_text="Une ligne par argument, chacun précédé d'une coche. "
                   "Vide : aucun argument affiché.",
     )
     rejoindre_bouton = models.CharField(
         max_length=60, blank=True, default=REJOINDRE_BOUTON_DEFAUT,
-        verbose_name="Bandeau : libellé du bouton",
+        verbose_name="Cadre adhésion : libellé du bouton",
         help_text="Vidé, le bouton reprend « Adhérer maintenant » : il ne peut "
                   "pas disparaître, c'est le seul chemin vers l'adhésion.",
     )
+    rejoindre_question_titre = models.CharField(
+        max_length=120, blank=True, default=REJOINDRE_QUESTION_TITRE_DEFAUT,
+        verbose_name="Cadre contact : titre",
+        help_text="Vide : « Une question avant d'adhérer ? ».",
+    )
+    rejoindre_question_texte = models.TextField(
+        blank=True, default="Écris-nous : on te répond avant que tu t'engages.",
+        verbose_name="Cadre contact : texte",
+        help_text="Une ligne vide sépare deux paragraphes. Le bouton mène "
+                  "au formulaire de contact du syndicat.",
+    )
+
+    @property
+    def rejoindre_adherer_titre_affiche(self):
+        titre = self.rejoindre_adherer_titre.strip()
+        return titre or (f"Adhérer à {self.name}" if self.name else "Adhérer")
+
+    @property
+    def rejoindre_question_titre_affiche(self):
+        return self.rejoindre_question_titre.strip() or REJOINDRE_QUESTION_TITRE_DEFAUT
 
     @property
     def rejoindre_atouts_lignes(self):
@@ -1090,10 +1129,14 @@ class SectionPage(Page):
         ], heading="Caisse d'actions"),
         MultiFieldPanel([
             FieldPanel('adhesion_en_ligne'),
+            FieldPanel('rejoindre_banniere'),
+            FieldPanel('rejoindre_text'),
+            FieldPanel('rejoindre_adherer_titre'),
             FieldPanel('rejoindre_accroche'),
             FieldPanel('rejoindre_atouts'),
             FieldPanel('rejoindre_bouton'),
-            FieldPanel('rejoindre_text'),
+            FieldPanel('rejoindre_question_titre'),
+            FieldPanel('rejoindre_question_texte'),
         ], heading="Page Nous rejoindre"),
         FieldPanel('agenda_text'),
         FieldPanel('logo'),

@@ -238,7 +238,63 @@ class StucsRejoindreViewTest(TestCase):
         self.stucs.save()
         r = self.client.get('/stucs/rejoindre/')
         self.assertContains(r, 'Un texte à nous.')
-        self.assertContains(r, 'rj-info-card')
+        self.assertContains(r, 'class="rj-texte"')
+
+    # ── Mise en page du 13/11/2026 : bannière, texte, deux cadres ───────────
+
+    def test_banniere_affichee_entiere_avec_sa_description(self):
+        from wagtail.images import get_image_model
+        from wagtail.images.tests.utils import get_test_image_file
+        image = get_image_model().objects.create(
+            title='banniere-stucs.png', file=get_test_image_file(),
+            description='Soutiens tes camarades de luth, soutiens le STUCS CNT-SO')
+        self.stucs.rejoindre_banniere = image
+        self.stucs.save()
+        html = self.client.get('/stucs/rejoindre/').content.decode()
+        self.assertIn('class="rj-banniere"', html)
+        self.assertIn('alt="Soutiens tes camarades de luth, soutiens le STUCS CNT-SO"', html)
+        # Une affiche ne se recadre pas : jamais de rendu « fill ».
+        self.assertNotIn('.fill-', html[html.index('rj-banniere"'):])
+        # La bannière vient avant le titre de la page.
+        self.assertLess(html.index('class="rj-banniere"'), html.index('Nous rejoindre</h1>'))
+
+    def test_sans_banniere_pas_de_cadre_vide(self):
+        r = self.client.get('/stucs/rejoindre/')
+        self.assertNotContains(r, 'class="rj-banniere"')
+
+    def test_texte_puis_les_deux_cadres_cote_a_cote(self):
+        self.stucs.rejoindre_text = [('contenu', RichText('<p>Pourquoi nous ?</p>'))]
+        self.stucs.save()
+        html = self.client.get('/stucs/rejoindre/').content.decode()
+        texte = html.index('Pourquoi nous ?')
+        cadres = html.index('class="rj-cadres"')
+        adherer = html.index('/adherer/stucs/', cadres)
+        contact = html.index('/stucs/contact/', cadres)
+        self.assertLess(texte, cadres)
+        self.assertLess(adherer, contact)
+
+    def test_les_titres_et_textes_des_cadres_viennent_du_cms(self):
+        self.stucs.rejoindre_adherer_titre = 'Comment ça marche ?'
+        self.stucs.rejoindre_accroche = 'Premier paragraphe.\nLa cotisation est à partir de 4 €.'
+        self.stucs.rejoindre_atouts = ''
+        self.stucs.rejoindre_question_titre = 'Une question ?'
+        self.stucs.rejoindre_question_texte = 'Des militant·es du STUCS te répondent.'
+        self.stucs.save()
+        html = self.client.get('/stucs/rejoindre/').content.decode()
+        self.assertIn('<h2>Comment ça marche ?</h2>', html)
+        # Un retour à la ligne passe à la ligne, sans casser le paragraphe.
+        self.assertIn('<p>Premier paragraphe.<br>La cotisation est à partir de 4 €.</p>', html)
+        self.assertNotIn('class="rj-atouts"', html)
+        self.assertIn('<h2>Une question ?</h2>', html)
+        self.assertIn('Des militant·es du STUCS te répondent.', html)
+
+    def test_titres_vides_retombent_sur_les_libelles_par_defaut(self):
+        self.stucs.rejoindre_adherer_titre = ''
+        self.stucs.rejoindre_question_titre = '  '
+        self.stucs.save()
+        html = self.client.get('/stucs/rejoindre/').content.decode()
+        self.assertIn(f'<h2>Adhérer à {self.stucs.name}</h2>', html)
+        self.assertIn("<h2>Une question avant d&#x27;adhérer ?</h2>", html)
 
     def test_corps_vide_laisse_la_page_debout(self):
         # Le corps est facultatif : le bandeau d'adhésion et le lien de contact
