@@ -377,6 +377,13 @@ CACHES = {
         'LOCATION': 'cache_limites',
     },
 }
+# Pendant les tests, Wagtail ne met pas les renditions en cache (il prend
+# `renditions` s'il existe, sinon `default`). La base est remise à zéro entre
+# deux tests, pas le cache en mémoire : sous SQLite, une image reprend le
+# numéro de celle du test précédent et recevait son URL (clé : numéro +
+# empreinte, vide dans les tests). Échecs aléatoires en parallèle, 13/11/2026.
+if _sys.argv[1:2] == ['test']:
+    CACHES['renditions'] = {'BACKEND': 'django.core.cache.backends.dummy.DummyCache'}
 
 # ── Pas de cache de pages, et c'est délibéré ──────────────────────────────────
 # `wagtail-cache` était installé et réglé (`WAGTAILCACHE_CACHE`,

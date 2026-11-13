@@ -549,6 +549,26 @@ class AnyImageUrlTest(TestCase):
         self.assertIsNotNone(url)
         self.assertIn('test_any', url)
 
+    def test_un_numero_d_image_repris_ne_sert_pas_l_ancienne_rendition(self):
+        # Entre deux tests, la base est remise à zéro mais pas le cache : sous
+        # SQLite, l'image suivante reprend le même numéro, et le cache des
+        # renditions (clé : numéro + empreinte, vide dans les tests) servait
+        # l'URL de l'image du test précédent. Échecs aléatoires d'AnyImageUrlTest
+        # et de CarouselHomeViewTest en parallèle (13/11/2026).
+        from wagtail.images import get_image_model
+        from wagtail.images.tests.utils import get_test_image_file
+        Image = get_image_model()
+        ancienne = Image.objects.create(title='a', file=get_test_image_file('ancienne.png'))
+        numero = ancienne.pk
+        art = make_article_page(title='Avant', slug='avant', featured_image=ancienne)
+        self.assertIn('ancienne', art.any_image_url)
+        art.delete()
+        ancienne.delete()  # comme le retour arrière de la base en fin de test
+        nouvelle = Image.objects.create(pk=numero, title='n',
+                                        file=get_test_image_file('nouvelle.png'))
+        art = make_article_page(title='Après', slug='apres', featured_image=nouvelle)
+        self.assertIn('nouvelle', art.any_image_url)
+
 
 # ── section_slug preservation ─────────────────────────────────────────────────
 

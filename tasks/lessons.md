@@ -785,3 +785,9 @@ requête.
 - Toute écriture de révision dans `transaction.atomic()`, suivie de
   `page.get_latest_revision_as_object()` DANS la transaction ; exception → rollback.
 - Juste après : curl sur `/`, `/<syndicat>/` et une page en `/<segment>/` (pas seulement le site visé).
+
+## 13/11/2026 — Une autre session édite les mêmes fichiers : `git add -p`, jamais le fichier entier
+Mon `git add content/tests.py` (ac67238) a embarqué un test en cours d'une autre session,
+dont le gabarit n'est arrivé qu'au commit suivant : CI rouge sur ac67238. Avant chaque
+commit : `git diff --stat` ; une ligne que je n'ai pas écrite → `git add -p` (ou demander).
+Et avant `deploiement.sh` : `git log <prod>..origin/main` — l'autre session peut avoir poussé.
