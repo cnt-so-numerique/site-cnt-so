@@ -991,6 +991,79 @@ class SiteCategoryDetailViewTest(TestCase):
         # L'accueil du fil d'Ariane est celui du syndicat, pas de la conf.
         self.assertIn(f'<a href="{self.sub.get_absolute_url()}">Accueil</a>', html)
 
+    # ── Filtre par tag (retours du STUCS, 13/11/2026) ──────────────────────
+
+    def _tague(self, titre, tag, categorie=None):
+        art = make_article_page(section_slug='sub', title=titre,
+                                categories=[categorie or self.cat])
+        art.cms_tags.add(tag)
+        art.save()
+        return art
+
+    def _url(self, **params):
+        from urllib.parse import urlencode
+        url = reverse('content:site_category_detail',
+                      kwargs={'site_slug': 'sub', 'slug': 'news'})
+        return f'{url}?{urlencode(params)}' if params else url
+
+    def test_pastilles_des_seuls_tags_de_la_rubrique(self):
+        self._tague('Article greve', 'Grève')
+        self._tague('Article antifa', 'Antifascisme')
+        autre = make_cms_category(name='Autre', slug='autre', section_slug='sub')
+        self._tague('Article ailleurs', 'Hors rubrique', categorie=autre)
+        r = self.client.get(self._url())
+        self.assertEqual([t.name for t in r.context['tags_rubrique']],
+                         ['Antifascisme', 'Grève'])
+        nav = re.search(r'<nav aria-label="Filtrer par thème">.*?</nav>',
+                        r.content.decode(), re.S).group(0)
+        self.assertIn('>Grève</a>', nav)
+        self.assertNotIn('Hors rubrique', nav)
+        self.assertIn('<a href="?" aria-current="page">Tous</a>', nav)
+
+    def test_filtre_par_tag(self):
+        from urllib.parse import quote
+        greve = self._tague('Article greve', 'Grève')
+        antifa = self._tague('Article antifa', 'Antifascisme')
+        slug = greve.cms_tags.get().slug
+        r = self.client.get(self._url(tag=slug))
+        self.assertEqual(list(r.context['articles']), [greve])
+        self.assertNotIn(antifa, r.context['articles'])
+        self.assertContains(r, f'<a href="?tag={quote(slug)}" aria-current="page">Grève</a>')
+        self.assertNotContains(r, 'aria-current="page">Tous</a>')
+
+    def test_tag_inconnu_montre_tout(self):
+        a = self._tague('Article greve', 'Grève')
+        b = self._tague('Article antifa', 'Antifascisme')
+        r = self.client.get(self._url(tag='nimporte-quoi'))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(set(r.context['articles']), {a, b})
+        self.assertIsNone(r.context['tag_actif'])
+
+    def test_un_tag_dune_autre_rubrique_ne_filtre_pas(self):
+        # Sinon ?tag=hors donnerait une page vide sans pastille active.
+        a = self._tague('Article greve', 'Grève')
+        autre = make_cms_category(name='Autre', slug='autre', section_slug='sub')
+        hors = self._tague('Article ailleurs', 'Hors rubrique', categorie=autre)
+        r = self.client.get(self._url(tag=hors.cms_tags.get().slug))
+        self.assertEqual(list(r.context['articles']), [a])
+
+    def test_la_pagination_garde_le_tag(self):
+        for i in range(11):
+            dernier = self._tague(f'Greve {i}', 'Grève')
+        slug = dernier.cms_tags.get().slug
+        self._tague('Article antifa', 'Antifascisme')
+        r = self.client.get(self._url(tag=slug))
+        self.assertEqual(r.context['paginator'].count, 11)
+        self.assertEqual(slug, 'grève')  # taggit garde l'accent
+        self.assertContains(r, 'href="?tag=gr%C3%A8ve&amp;page=2"')
+        r2 = self.client.get(self._url(tag=slug, page=2))
+        self.assertEqual(len(r2.context['articles']), 1)
+
+    def test_sans_tag_pas_de_pastilles(self):
+        make_article_page(section_slug='sub', title='Sans tag', categories=[self.cat])
+        r = self.client.get(self._url())
+        self.assertNotContains(r, 'Filtrer par thème')
+
     def test_rubrique_sans_parent_titre_inchange(self):
         url = reverse('content:site_category_detail', kwargs={'site_slug': 'sub', 'slug': 'news'})
         html = self.client.get(url).content.decode()
@@ -11430,7 +11503,7 @@ class RetoursStucsTest(TestCase):
         self._regler(rejoindre_text=[('contenu', '<h3>Pourquoi adhérer ?</h3>')])
         html = self.client.get('/stucs/rejoindre/').content.decode()
         pourquoi = html.index('Pourquoi adhérer ?')
-        adherer = html.index('class="rj-adherer-banner"')
-        question = html.index("Une question avant d'adhérer")
+        adherer = html.index('class="rj-cadre rj-cadre--adherer"')
+        question = html.index('class="rj-cadre rj-cadre--question"')
         self.assertLess(pourquoi, adherer)
         self.assertLess(adherer, question)

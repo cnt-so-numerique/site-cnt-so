@@ -23,6 +23,23 @@ semblaient toutes renvoyer à la même page (signalé par un rédacteur, 11/11/2
 <p style="color: var(--text-muted); margin-bottom: 2rem;">{{ category.description }}</p>
 {% endif %}
 
+{% if tags_rubrique %}
+<style>
+.filtre-tags { display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:1.5rem; padding:0; list-style:none; }
+.filtre-tags a { display:inline-block; padding:.35rem .85rem; border:1px solid var(--border-color); border-radius:999px; color:var(--text-color); text-decoration:none; font-size:.9rem; }
+.filtre-tags a:hover, .filtre-tags a:focus-visible { border-color:var(--primary-color); color:var(--primary-color); }
+.filtre-tags a[aria-current] { background:var(--primary-color); border-color:var(--primary-color); color:#fff; }
+</style>
+<nav aria-label="Filtrer par thème">
+<ul class="filtre-tags">
+    <li><a href="?"{% if not tag_actif %} aria-current="page"{% endif %}>Tous</a></li>
+    {% for t in tags_rubrique %}
+    <li><a href="?tag={{ t.slug|urlencode }}"{% if tag_actif == t %} aria-current="page"{% endif %}>{{ t.name }}</a></li>
+    {% endfor %}
+</ul>
+</nav>
+{% endif %}
+
 {% if category.slug == 'banque-dimage' %}
 <style>.carte-banque:hover { box-shadow: 0 4px 12px rgba(0,0,0,.12); }</style>
 <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:1rem;">
@@ -48,12 +65,12 @@ semblaient toutes renvoyer à la même page (signalé par un rédacteur, 11/11/2
     <p style="color:var(--text-muted);">Aucun article dans cette catégorie.</p>
     {% endfor %}
 </div>
-{% with query_string="" %}{% include "content/_pagination.html" %}{% endwith %}
+{% include "content/_pagination.html" %}
 
 {% else %}
 {% with empty_message="Aucun article dans cette catégorie." %}
 {% include "content/_article_listing.html" %}
 {% endwith %}
-{% with query_string="" %}{% include "content/_pagination.html" %}{% endwith %}
+{% include "content/_pagination.html" %}
 {% endif %}
 {% endblock %}

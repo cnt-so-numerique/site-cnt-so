@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import quote
 from datetime import datetime, timezone as dt_timezone
 from itertools import chain
 
@@ -796,8 +797,19 @@ class SiteCategoryDetailView(ListView):
         # Le tri « illustrés d'abord » y produisait le même effet que sur les
         # accueils de syndicat — un article récent sans visuel repoussé derrière
         # tous les autres (voir le commentaire de `SiteHomeView.get_queryset`).
-        return (ArticlePage.objects.publics(sauf=self.current_site)
-                .filter(cms_categories=self.category)
+        articles = (ArticlePage.objects.publics(sauf=self.current_site)
+                    .filter(cms_categories=self.category))
+        # Filtre par tag (?tag=greve) : les pastilles ne proposent que les tags
+        # présents dans la rubrique, et un tag inconnu montre tout, sans 404
+        # (retours du STUCS, 13/11/2026 : « Actualités, tri par tag »).
+        self.tags = list(TaggitTag.objects
+                         .filter(cms_cmsarticletag_items__content_object__in=articles)
+                         .distinct().order_by('name'))
+        self.tag_actif = next((t for t in self.tags
+                               if t.slug == self.request.GET.get('tag')), None)
+        if self.tag_actif:
+            articles = articles.filter(cms_tags=self.tag_actif)
+        return (articles
                 .select_related('featured_image')
                 .prefetch_related('cms_categories')
                 .order_by('-publication_date', '-first_published_at'))
@@ -806,6 +818,11 @@ class SiteCategoryDetailView(ListView):
         context = super().get_context_data(**kwargs)
         context['category'] = self.category
         context['site'] = self.current_site
+        context['tags_rubrique'] = self.tags
+        context['tag_actif'] = self.tag_actif
+        # Les slugs de taggit gardent leurs accents (« grève ») : à encoder.
+        context['query_string'] = (f'tag={quote(self.tag_actif.slug)}&'
+                                   if self.tag_actif else '')
         context.update(_sidebar_context(self.current_site.slug))
         return context
 
