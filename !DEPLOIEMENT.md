@@ -28,11 +28,14 @@ ssh-add ~/.ssh/id_ed25519
 ```bash
 cd "/home/arnaud/PycharmProjects/site cnt"
 git push cnt main
+git push origin main
 ```
 
-Le serveur tire `origin`, noté `arnaud2riviere/site-cnt` : c'est l'ancienne
-adresse du même dépôt, que GitHub redirige vers `cnt-so-numerique/site-cnt-so`.
-Pousser sur l'un met l'autre à jour — inutile de pousser deux fois.
+**Pousser sur les deux.** `cnt` (`cnt-so-numerique/site-cnt-so`) et `origin`
+(`arnaud2riviere/site-cnt`) sont **deux dépôts distincts** (identifiants GitHub
+différents, vérifié le 14/11/2026 : une poussée sur `cnt` seul a laissé
+`origin` un commit en retard). Le serveur tire `origin` : sans la seconde
+poussée, son `git pull` ne voit rien de nouveau.
 
 ⚠️ Un `git pull` lancé juste après la poussée peut ne pas encore voir le
 nouveau commit, et répondre sans rien signaler. Constaté le 14/09/2026 : il a
