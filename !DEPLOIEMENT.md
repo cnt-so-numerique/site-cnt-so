@@ -49,11 +49,20 @@ cd /var/www/cntso
 sudo -u postgres pg_dump cntso | gzip > ~/cntso-$(date +%Y%m%d-%H%M).sql.gz
 git pull --ff-only
 source venv/bin/activate
+pip install -r requirements.txt
+pip check
 python manage.py migrate
 python manage.py collectstatic --noinput
 python manage.py fix_cms_sessions --dry-run   # puis sans --dry-run si besoin
 sudo supervisorctl restart cntso
 ```
+
+`pip install -r requirements.txt` à **chaque** déploiement, même sans
+dépendance changée à sa connaissance : il ne fait rien si tout est à jour. Le
+`git pull` change `requirements.txt` sans rien installer ; une mise à jour de
+sécurité (soupsieve 4.1, 13/11/2026) poussée et « déployée » sans cette ligne
+laisserait l'ancienne version vulnérable tourner en production, CI au vert.
+`pip check` doit répondre « No broken requirements found ».
 
 ### 4. Vérifier que c'est bien le bon commit qui tourne
 ```bash
@@ -63,8 +72,8 @@ git rev-parse --short HEAD          # en local : les deux doivent être égaux
 
 Un `git pull` sans erreur ne prouve rien : il peut ne pas avoir vu la poussée.
 Seule la comparaison des deux commits dit que la production tourne sur le code
-voulu. S'ils diffèrent : relancer `git pull --ff-only`, puis `migrate` et le
-redémarrage.
+voulu. S'ils diffèrent : relancer `git pull --ff-only`, puis `pip install -r
+requirements.txt`, `migrate` et le redémarrage.
 
 ⚠️ **La sauvegarde doit passer par `sudo -u postgres`.** La base appartient au
 rôle `cntso` ; un `pg_dump cntso` lancé tel quel par l'utilisateur `debian`
