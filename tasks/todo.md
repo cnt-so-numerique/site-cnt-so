@@ -34,8 +34,17 @@ trie lui-même ses articles ; pas d'adresse e-mail visible (formulaire allégé)
 
 ## 3. Réglages du STUCS en prod (séquence annoncée, à faire à la réouverture ou avant
 selon le brouillon)
-- [x] Menu : Accueil / Actualités / Ressources / Agenda / Adhérer, Fanzine désactivé (11/11)
-- [x] Catégorie Actualités créée (id 347, vide : le tri des articles revient au STUCS)
+- [x] Menu (refait le 13/11) : Accueil / Actualités / Ressources (Vidéos, Droit du travail,
+      Visuels à télécharger, Revue de presse) / Agenda / Adhésion / Contact ; Communiqués,
+      Grève, Antifascisme et Fanzine désactivés (pas supprimés)
+- [x] Catégorie Actualités (id 347) : les 35 articles y sont (13/11) ; Grève et Antifascisme
+      devenus des tags, filtrés par pastilles (`?tag=`, ac67238) ; Communiqués retiré des
+      articles ; tag « manchette » hérité de WordPress retiré ; sauvegarde
+      /home/debian/sauvegarde-rangement-stucs-20261113-230637.json
+- [x] Doublon 844/1960 (même article WP 3170) : 844 supprimé, son PDF reporté sur 1960,
+      redirection 301 de son adresse
+- [x] Droit du travail créée (id 348), VIDE : au STUCS d'y ranger
+- [x] Accueil sans cadre gris ni barre rouge : chapô, bouton et réseaux sur une ligne (f378045)
 - [x] Présentation dans `intro_text` + case « Accueil avec présentation » (prod, 11/11 ;
       fiche et révision 1610, site toujours en test). Caisse d'actions, banque d'images masquée, bouton « Adhérer au STUCS » : faits
 - [x] Contact : ne garder que nom, e-mail et message (décocher téléphone, ville,
@@ -44,9 +53,15 @@ selon le brouillon)
       en « Travailleur·euses » (validé par Arnaud, 01/11)
 
 ## 4. Vérification
-- [ ] Tests ajoutés et validés par mutation, suite complète, y compris `DEBUG=False`
-- [ ] Contrôle à 390 px sur le STUCS et sur un autre syndicat, puis déploiement annoncé
+- [x] Tests ajoutés et validés par mutation, suite complète (1 748), CI verte (14/11)
+- [x] Contrôle à 390 px du STUCS (rendu prod, 13/11) ; déployé. Reste un coup d'œil sur un
+      vrai téléphone
 - [ ] Le STUCS relit sur le site en test avant réouverture
+
+## 5. En attente du STUCS (Arnaud, 13/11 : « c'est eux qui vont trancher »)
+- [ ] Bloc rouge « Nous rejoindre ? » de la colonne de droite : garder, retirer de
+      l'accueil seulement, ou de tout le site — NE PAS y toucher avant leur réponse
+- [ ] Ranger des articles dans « Droit du travail »
 
 ---
 

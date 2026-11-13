@@ -75,7 +75,7 @@ Editorial groups (`redacteur`, `redacteur_en_chef`) are created on `post_migrate
 
 ### Tests
 
-`content/tests.py` (~10 800 lines), `cms/tests.py` (~8 600 lines), plus `cms/tests_cloisonnement.py`, `cms/tests_double_auth.py`, `cms/tests_integrite_cdn.py` — ~1 660 tests. CI runs with `DEBUG=False` and no `local_settings.py`: check settings changes under that regime too. Factories at the top of `content/tests.py`: `make_site` (SectionPage), `make_article_page`, `make_content_page`, `make_cms_category`… Gotchas: dynamic contact forms require `objet` by default (`field_objet=True`); hCaptcha must be mocked; Wagtail pages are created via `add_child` under the `home-test` HomePage.
+`content/tests.py` (~10 800 lines), `cms/tests.py` (~8 600 lines), plus `cms/tests_cloisonnement.py`, `cms/tests_double_auth.py`, `cms/tests_integrite_cdn.py` — ~1 750 tests. CI runs with `DEBUG=False` and no `local_settings.py`: check settings changes under that regime too. Factories at the top of `content/tests.py`: `make_site` (SectionPage), `make_article_page`, `make_content_page`, `make_cms_category`… Gotchas: dynamic contact forms require `objet` by default (`field_objet=True`); hCaptcha must be mocked; renditions are not cached under `manage.py test` (SQLite reuses image pks between tests); Wagtail pages are created via `add_child` under the `home-test` HomePage.
 
 ---
 

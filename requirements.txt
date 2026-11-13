@@ -4,7 +4,7 @@ asgiref==3.13.0
 beautifulsoup4==4.15.0
 certifi==2026.10.23
 charset-normalizer==3.5.2
-coverage==7.17.2
+coverage==7.17.3
 defusedxml==0.7.1
 django-ninja==1.8.0
 Django==6.1.3
