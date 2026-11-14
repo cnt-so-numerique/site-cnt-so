@@ -17,8 +17,8 @@ semblaient toutes renvoyer à la même page (signalé par un rédacteur, 11/11/2
     <span>{{ category.name }}</span>
 </div>
 
-{# Titres masqués sur les sites des syndicats, fils d'Ariane gardés (Arnaud, 14/11/2026) ; le titre reste pour les lecteurs d'écran. #}
-<h1 class="{% if site and site.slug != 'principal' %}sr-only{% else %}section-title{% endif %}">{% if category.parent and category.parent.name != category.name %}<span class="categorie-parent">{{ category.parent.name }} › </span>{% endif %}{{ category.name }}</h1>
+{# Titres masqués partout (conf comprise), fils d'Ariane gardés (Arnaud, 14/11/2026) ; le titre reste pour les lecteurs d'écran. #}
+<h1 class="sr-only">{% if category.parent and category.parent.name != category.name %}<span class="categorie-parent">{{ category.parent.name }} › </span>{% endif %}{{ category.name }}</h1>
 
 {% if category.description %}
 <p style="color: var(--text-muted); margin-bottom: 2rem;">{{ category.description }}</p>

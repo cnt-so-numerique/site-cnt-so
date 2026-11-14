@@ -11462,21 +11462,18 @@ class RetoursStucsTest(TestCase):
         self.assertEqual(dans_la_colonne(), 0)
         self.assertContains(self._accueil(), 'class="ac-presentation"')
 
-    def test_titres_masques_et_fils_d_ariane_gardes_sur_les_syndicats(self):
-        """Arnaud, 14/11/2026 : titres retirés, fils d'Ariane gardés."""
+    def test_titres_masques_et_fils_d_ariane_gardes(self):
+        """Arnaud, 14/11/2026 : titres retirés, fils d'Ariane gardés, conf comprise."""
         import re
         make_cms_category(name='Actualités', slug='actualites', section_slug='stucs')
-        make_cms_category(name='Commerce', slug='commerce', section_slug='principal')
+        make_cms_category(name='Réflexions', slug='reflexions', section_slug='principal')
         for adresse in ('/stucs/categorie/actualites/', '/stucs/contact/',
-                        '/stucs/agenda/', '/stucs/ressources/'):
+                        '/stucs/agenda/', '/stucs/ressources/',
+                        '/categorie/reflexions/', '/contact/'):
             with self.subTest(adresse):
                 html = self.client.get(adresse).content.decode()
                 self.assertEqual(re.findall(r'<h1 class="([^"]*)"', html), ['sr-only'])
                 self.assertIn('class="breadcrumb"', html)
-        for adresse in ('/categorie/commerce/', '/contact/'):
-            with self.subTest(adresse):
-                html = self.client.get(adresse).content.decode()
-                self.assertIn('<h1 class="section-title"', html)
 
     def test_la_banque_d_images_peut_etre_masquee(self):
         make_cms_category(name="Banque d'images", slug='banque-dimage', section_slug='principal')
