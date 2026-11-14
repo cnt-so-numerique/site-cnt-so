@@ -20,34 +20,31 @@
 <h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">{{ site.name }}</h1>
 
 {% if presentation_accueil %}
-{% comment %}Maquette B2 (14/11/2026) : le chapô (premier paragraphe, séparé
-dans la vue par `_separer_chapo`) et le bouton d'adhésion dans un bandeau noir,
-la suite du texte sur toute la largeur de la colonne, les réseaux centrés
-dessous. La colonne de droite n'est pas touchée (consigne d'Arnaud).{% endcomment %}
+{% comment %}Mise en page « journal » (13/11/2026) : le cadre gris à barre
+rouge déplaisait. Pas de cadre, un chapô (premier paragraphe du premier bloc),
+le bouton et les réseaux sur une même ligne.
+Le tout centré, sur toute la largeur de la colonne (14/11/2026, après essai
+d'un bandeau noir jugé moche).{% endcomment %}
 <style>
 .ac-presentation { margin-bottom: 2.5rem; }
-.ac-bandeau {
-    background: #141414;
-    color: #fff;
-    padding: 2.5rem 2rem;
-    margin-bottom: 2.2rem;
-    text-align: center;
-}
-.ac-chapo {
-    font-size: 1.5rem;
-    line-height: 1.4;
-    font-weight: 700;
-    margin: 0 0 1.6rem;
+.ac-presentation-texte { text-align: center; font-size: 1.05rem; line-height: 1.7; }
+.ac-presentation-texte p { margin-bottom: .9rem; }
+.ac-presentation-texte > :first-child > p:first-child {
+    font-size: 1.35rem;
+    line-height: 1.45;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 1.2rem;
 }
 @media (max-width: 600px) {
-    .ac-bandeau { padding: 1.8rem 1.2rem; }
-    .ac-chapo { font-size: 1.2rem; }
+    .ac-presentation-texte > :first-child > p:first-child { font-size: 1.2rem; }
 }
-.ac-presentation-texte { font-size: 1.05rem; line-height: 1.7; }
-.ac-presentation-texte p { margin-bottom: .9rem; }
 .ac-actions {
     display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     justify-content: center;
+    gap: 1rem 2rem;
     margin-top: 1.5rem;
 }
 .ac-bouton {
@@ -79,12 +76,9 @@ dessous. La colonne de droite n'est pas touchée (consigne d'Arnaud).{% endcomme
 </style>
 <section class="ac-presentation">
   <h2 class="sr-only">Présentation</h2>
-  <div class="ac-bandeau">
-    {% if presentation_chapo %}<p class="ac-chapo">{{ presentation_chapo }}</p>{% endif %}
-    <a href="{{ rejoindre_url|default:site.get_rejoindre_url }}" class="ac-bouton">{% if site.peut_adherer %}{{ site.accueil_bouton_libelle }}{% else %}Nous contacter{% endif %}</a>
-  </div>
-  {% if presentation_suite %}<div class="ac-presentation-texte">{{ presentation_suite }}</div>{% endif %}
+  {% if site.intro_text %}<div class="ac-presentation-texte">{{ site.intro_text }}</div>{% endif %}
   <div class="ac-actions">
+    <a href="{{ rejoindre_url|default:site.get_rejoindre_url }}" class="ac-bouton">{% if site.peut_adherer %}{{ site.accueil_bouton_libelle }}{% else %}Nous contacter{% endif %}</a>
     {% with s=site %}{% include "content/_social_icons.html" %}{% endwith %}
   </div>
 </section>
