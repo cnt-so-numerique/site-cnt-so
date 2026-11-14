@@ -93,7 +93,8 @@
     <span>Contact</span>
 </div>
 
-<h1 class="section-title">Nous contacter</h1>
+{# Titres masqués sur les sites des syndicats, fils d'Ariane gardés (Arnaud, 14/11/2026) ; le titre reste pour les lecteurs d'écran. #}
+<h1 class="{% if site and site.slug != 'principal' %}sr-only{% else %}section-title{% endif %}">Nous contacter</h1>
 
 {% if formulaire and formulaire.featured_image %}
 {% image formulaire.featured_image max-1600x1600 format-webp as visuel %}

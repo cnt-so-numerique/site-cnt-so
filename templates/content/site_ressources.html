@@ -34,9 +34,13 @@
 
 {% block content %}
 <div class="s-page">
-  <h1 class="s-section-title">
-    Ressources{% if active_cat %} <span style="color:var(--muted);font-size:1rem;font-family:var(--body);font-weight:400;">— {{ active_cat.name }}</span>{% endif %}
-  </h1>
+  {# Titres masqués sur les sites des syndicats, fils d'Ariane gardés (Arnaud, 14/11/2026) ; le titre reste pour les lecteurs d'écran. #}
+  <div class="breadcrumb">
+    <a href="{{ site.get_absolute_url }}">Accueil</a> /
+    {% if active_cat %}<a href="{% section_url 'content:site_ressources' site %}">Ressources</a> /
+    <span>{{ active_cat.name }}</span>{% else %}<span>Ressources</span>{% endif %}
+  </div>
+  <h1 class="sr-only">Ressources{% if active_cat %} — {{ active_cat.name }}{% endif %}</h1>
 
   <!-- Filtres catégories -->
   <div class="s-cat-bar">

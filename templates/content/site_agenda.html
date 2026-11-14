@@ -35,7 +35,8 @@
     <span>Agenda</span>
 </div>
 
-<h1 class="section-title">Agenda — {{ site.name }}</h1>
+{# Titres masqués sur les sites des syndicats, fils d'Ariane gardés (Arnaud, 14/11/2026) ; le titre reste pour les lecteurs d'écran. #}
+<h1 class="sr-only">Agenda — {{ site.name }}</h1>
 
 <div class="agenda-iframe-wrapper">
     <iframe

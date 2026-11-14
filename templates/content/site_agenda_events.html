@@ -68,12 +68,17 @@
 
 {% block content %}
 <div class="s-page">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;">
-    <h1 class="s-section-title" style="margin-bottom:0;">Agenda</h1>
-    {% if user.is_authenticated %}
-    <a href="/cms/snippets/cms/event/add/" class="btn-red" style="font-size:.875rem;padding:.45rem .9rem;">+ Ajouter un événement</a>
-    {% endif %}
+  {# Titres masqués sur les sites des syndicats, fils d'Ariane gardés (Arnaud, 14/11/2026) ; le titre reste pour les lecteurs d'écran. #}
+  <div class="breadcrumb">
+    <a href="{{ site.get_absolute_url }}">Accueil</a> /
+    <span>Agenda</span>
   </div>
+  <h1 class="sr-only">Agenda</h1>
+  {% if user.is_authenticated %}
+  <div style="display:flex;justify-content:flex-end;margin-bottom:2rem;">
+    <a href="/cms/snippets/cms/event/add/" class="btn-red" style="font-size:.875rem;padding:.45rem .9rem;">+ Ajouter un événement</a>
+  </div>
+  {% endif %}
 
   {# Carte Leaflet si au moins un événement géolocalisé #}
   {% with geo_events=upcoming_events %}
