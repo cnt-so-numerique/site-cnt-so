@@ -8844,17 +8844,24 @@ def _pages_du_tract(test, url):
         # Pas de `--user-data-dir` : ce Chrome (150) reste pendu indéfiniment
         # quand on lui en impose un, profil pré-créé ou non — mesuré le
         # 26/08/2026. Le profil par défaut convient, `--dump-dom` n'écrit rien.
-        try:
-            sortie = subprocess.run(
-                [chrome, '--headless', '--disable-gpu', '--no-sandbox',
-                 '--virtual-time-budget=5000', '--dump-dom', f'file://{fichier}'],
-                capture_output=True, text=True, timeout=60,
-            ).stdout
-        except subprocess.TimeoutExpired:
-            # Ne pas transformer ça en test sauté : une mise en pages qui ne
-            # rend jamais la main est précisément le défaut à attraper.
-            test.fail("Le navigateur n'a pas rendu la main en 60 s : la mise "
-                      "en pages du tract ne termine pas.")
+        # Deux essais : le Chromium de la CI s'est figé une fois en ~335
+        # exécutions (14/11/2026), sur un commit passé dans l'autre dépôt.
+        # Une mise en pages qui boucle vraiment échoue aux deux essais.
+        for essai in (1, 2):
+            try:
+                sortie = subprocess.run(
+                    [chrome, '--headless', '--disable-gpu', '--no-sandbox',
+                     '--virtual-time-budget=5000', '--dump-dom', f'file://{fichier}'],
+                    capture_output=True, text=True, timeout=60,
+                ).stdout
+                break
+            except subprocess.TimeoutExpired:
+                if essai == 2:
+                    # Ne pas transformer ça en test sauté : une mise en pages
+                    # qui ne rend jamais la main est le défaut à attraper.
+                    test.fail("Le navigateur n'a pas rendu la main en 60 s, "
+                              "deux fois : la mise en pages du tract ne "
+                              "termine pas.")
     trouve = re.search(r'data-pages="(\d+)"', sortie)
     test.assertIsNotNone(
         trouve, "Le script du tract n'a pas fini sa mise en pages : aucun "
