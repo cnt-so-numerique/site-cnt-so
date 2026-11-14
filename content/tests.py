@@ -11417,6 +11417,30 @@ class RetoursStucsTest(TestCase):
         self.assertRegex(
             html, r'<a href="[^"]*/stucs/rejoindre/" class="ac-bouton">Adhérer au STUCS</a>')
 
+    def test_le_premier_paragraphe_passe_dans_le_bandeau_avec_le_bouton(self):
+        """Maquette B2 (14/11/2026) : chapô + bouton dans le bandeau noir."""
+        self._regler(accueil_presentation=True, accueil_bouton='Adhérer au STUCS',
+                     intro_text=[('contenu', '<p>Le <b>STUCS</b> s\'organise.</p>'
+                                             '<p>Ici on n\'est pas corpo.</p>')])
+        html = self._accueil().content.decode()
+        bandeau = html[html.index('class="ac-bandeau"'):html.index('class="ac-presentation-texte"')]
+        self.assertIn('<p class="ac-chapo">Le <b>STUCS</b> s\'organise.</p>', bandeau)
+        self.assertIn('class="ac-bouton">Adhérer au STUCS</a>', bandeau)
+        self.assertNotIn('corpo', bandeau)
+        suite = html[html.index('class="ac-presentation-texte"'):html.index('class="ac-actions"')]
+        self.assertIn('corpo', suite)
+        self.assertNotIn("s'organise", suite)
+        self.assertNotIn('s&#x27;organise', suite)
+
+    def test_separer_chapo_cas_limites(self):
+        from content.views import _separer_chapo
+        self.assertEqual(_separer_chapo(None), ('', ''))
+        self.assertEqual(_separer_chapo('<h2>Titre</h2><p>Texte</p>'),
+                         ('', '<h2>Titre</h2><p>Texte</p>'))
+        self.assertEqual(_separer_chapo('<p>Seul</p>'), ('Seul', ''))
+        self.assertEqual(_separer_chapo('<div class="b"><p>Un</p><p>Deux</p></div>'),
+                         ('Un', '<div class="b"><p>Deux</p></div>'))
+
     def test_un_texte_rempli_sans_la_case_reste_invisible(self):
         """L'Éducation a rempli ce champ : son accueil ne doit pas changer."""
         self._regler(intro_text=self.PRESENTATION)

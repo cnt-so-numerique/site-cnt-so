@@ -84,6 +84,26 @@ def _sidebar_context(section_slug):
     }
 
 
+def _separer_chapo(texte):
+    """(chapô, suite) d'une présentation d'accueil, en HTML prêt à afficher.
+
+    Le chapô est le premier paragraphe : il passe dans le bandeau noir avec le
+    bouton d'adhésion, la suite reste dessous (maquette B2 validée par Arnaud
+    le 14/11/2026). Sans paragraphe en tête, tout reste dans la suite.
+    """
+    from bs4 import BeautifulSoup
+    from django.utils.safestring import mark_safe
+    soupe = BeautifulSoup(str(texte or ''), 'html.parser')
+    premier = soupe.find(True)
+    if premier is not None and premier.name != 'p':
+        premier = premier.find(True)
+    if premier is None or premier.name != 'p':
+        return '', mark_safe(str(soupe).strip())
+    chapo = premier.extract().decode_contents()
+    # Le HTML vient du rendu Wagtail (déjà assaini) et n'est que redécoupé.
+    return mark_safe(chapo), mark_safe(str(soupe).strip())
+
+
 def _sectoral_sidebar_context(site):
     """Contexte commun pour la sidebar des sous-sites sectoriel/régional."""
     ctx = _sidebar_context(site.slug)
@@ -500,6 +520,9 @@ class SiteHomeView(ListView):
                 self.current_site.accueil_presentation
                 and context['page_obj'].number == 1
             )
+            if context['presentation_accueil']:
+                context['presentation_chapo'], context['presentation_suite'] = \
+                    _separer_chapo(self.current_site.intro_text)
             context.update(_sectoral_sidebar_context(self.current_site))
         else:
             context.update(_sidebar_context(self.current_site.slug))
