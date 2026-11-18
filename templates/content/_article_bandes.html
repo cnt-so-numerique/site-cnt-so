@@ -42,11 +42,11 @@ Attend `articles`.
       overflow: hidden;
   }
 
+  /* Sans cadre ni fond : l'affiche seule (Arnaud, 18/11/2026). Un fond blanc
+     redessinait un rectangle au survol de la bande. */
   .ab-visuel {
       flex: 0 0 190px;
       height: 130px;
-      background: var(--white);
-      border: 1px solid var(--border-color);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -65,7 +65,6 @@ Attend `articles`.
       flex: 0 0 190px;
       height: 130px;
       background: var(--bg-lighter);
-      border: 1px solid var(--border-color);
   }
 
   .ab-texte { flex: 1; min-width: 0; }
