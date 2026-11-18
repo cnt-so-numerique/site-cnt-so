@@ -783,7 +783,7 @@ class SiteCategoryDetailView(ListView):
     model = ArticlePage
     template_name = 'content/category_detail.html'
     context_object_name = 'articles'
-    paginate_by = 10
+    paginate_by = 11  # 1 grand + 4 vignettes + 2 rangées de 3 (18/11/2026)
 
     def get(self, request, *args, **kwargs):
         self.current_site = get_section_or_404(kwargs['site_slug'], request=request)
@@ -820,6 +820,9 @@ class SiteCategoryDetailView(ListView):
         context['site'] = self.current_site
         context['tags_rubrique'] = self.tags
         context['tag_actif'] = self.tag_actif
+        # Un grand article, quatre petits à droite, le reste en grille
+        # (Arnaud, 18/11/2026, page Actualités du STUCS).
+        context['une_laterale'] = True
         # Les slugs de taggit gardent leurs accents (« grève ») : à encoder.
         context['query_string'] = (f'tag={quote(self.tag_actif.slug)}&'
                                    if self.tag_actif else '')

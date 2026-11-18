@@ -184,9 +184,85 @@ Articles 4+ : grille 3 colonnes
 @media (max-width: 480px) {
     .une-grid { grid-template-columns: 1fr; }
 }
+
+/* ---- Variante `une_laterale` (rubriques des syndicats, 18/11/2026) ----
+   Un grand article à gauche, les quatre suivants empilés à droite, le reste
+   en grille 3 colonnes comme d'habitude. */
+.une-laterale {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    align-items: start;
+}
+.une-laterale .une-hero { margin-bottom: 0; }
+.une-laterale .une-hero-img { height: 360px; }
+.une-laterale .une-hero-title { font-size: 1.6rem; }
+.une-lat-side { display: flex; flex-direction: column; gap: 1rem; }
+.une-lat-item { flex-direction: row; }
+.une-lat-item .une-card-img { width: 130px; height: 120px; }
+.une-lat-item .une-card-body { padding: .7rem .9rem; }
+.une-lat-item .une-card-title { font-size: 1rem; flex: 0 0 auto; }
+@media (max-width: 768px) {
+    .une-laterale { grid-template-columns: 1fr; }
+    .une-laterale .une-hero-img { height: auto; max-height: 340px; }
+}
 </style>
 
-{% if articles %}
+{% if une_laterale and articles|length > 1 %}
+<div class="une-laterale">
+    {% with article=articles.0 %}
+    <a href="{{ article.get_absolute_url }}" class="une-hero">
+        {% with img=article.any_image_url %}
+        {% if img %}<img src="{{ img }}" alt="{{ article.title }}" class="une-hero-img">
+        {% else %}<div class="une-hero-img" style="background:var(--primary-color);"></div>
+        {% endif %}{% endwith %}
+        <div class="une-hero-body">
+            <h2 class="une-hero-title">{{ article.title }}</h2>
+            <div class="une-hero-meta">
+                {% with cat=article.categorie_affichee %}{% if cat %}<span class="cat-badge">{% libelle_categorie cat %}</span>{% endif %}{% endwith %}
+                <span class="date">{{ article.published_at|date:"d F Y" }}</span>
+            </div>
+            {% if article.excerpt %}<p class="une-hero-excerpt">{{ article.excerpt|striptags|truncatewords:25 }}</p>{% endif %}
+        </div>
+    </a>
+    {% endwith %}
+    <div class="une-lat-side">
+        {% for article in articles|slice:"1:5" %}
+        <div class="une-card une-lat-item">
+            <a href="{{ article.get_absolute_url }}" class="une-card-link">{{ article.title }}</a>
+            {% with img=article.any_image_url %}{% if img %}
+            <div class="une-card-img"><img src="{{ img }}" alt="{{ article.title }}"></div>
+            {% endif %}{% endwith %}
+            <div class="une-card-body">
+                <h3 class="une-card-title">{{ article.title }}</h3>
+                <div class="une-card-meta"><span>{{ article.published_at|date:"d F Y" }}</span></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% if articles|length > 5 %}
+<div class="une-grid">
+    {% for article in articles|slice:"5:" %}
+    <div class="une-card">
+        <a href="{{ article.get_absolute_url }}" class="une-card-link">{{ article.title }}</a>
+        {% with img=article.any_image_url %}{% if img %}
+        <div class="une-card-img"><img src="{{ img }}" alt="{{ article.title }}"></div>
+        {% endif %}{% endwith %}
+        <div class="une-card-body">
+            <h3 class="une-card-title">{{ article.title }}</h3>
+            <div class="une-card-meta">
+                {% with cat=article.categorie_affichee %}{% if cat %}<a href="{{ cat.get_absolute_url }}">{% libelle_categorie cat %}</a>{% endif %}{% endwith %}
+                <span>{{ article.published_at|date:"d F Y" }}</span>
+            </div>
+            {% if article.excerpt %}<p class="une-card-excerpt">{{ article.excerpt|striptags|truncatewords:18 }}</p>{% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% elif articles %}
 {% for article in articles %}
 
 {% if forloop.counter == 1 %}

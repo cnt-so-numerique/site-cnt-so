@@ -1048,12 +1048,12 @@ class SiteCategoryDetailViewTest(TestCase):
         self.assertEqual(list(r.context['articles']), [a])
 
     def test_la_pagination_garde_le_tag(self):
-        for i in range(11):
+        for i in range(12):  # 11 par page depuis le 18/11/2026
             dernier = self._tague(f'Greve {i}', 'Grève')
         slug = dernier.cms_tags.get().slug
         self._tague('Article antifa', 'Antifascisme')
         r = self.client.get(self._url(tag=slug))
-        self.assertEqual(r.context['paginator'].count, 11)
+        self.assertEqual(r.context['paginator'].count, 12)
         self.assertEqual(slug, 'grève')  # taggit garde l'accent
         self.assertContains(r, 'href="?tag=gr%C3%A8ve&amp;page=2"')
         r2 = self.client.get(self._url(tag=slug, page=2))
@@ -11474,6 +11474,36 @@ class RetoursStucsTest(TestCase):
                 html = self.client.get(adresse).content.decode()
                 self.assertEqual(re.findall(r'<h1 class="([^"]*)"', html), ['sr-only'])
                 self.assertIn('class="breadcrumb"', html)
+
+    def test_rubrique_un_grand_quatre_vignettes_puis_la_grille(self):
+        """Arnaud, 18/11/2026 : un grand article, 4 vignettes à droite, le reste
+        en grille ; 11 par page pour que la grille tombe sur 2 rangées pleines."""
+        import re
+        from datetime import timedelta
+        from django.utils import timezone
+        cat = make_cms_category(name='Actualités', slug='actualites', section_slug='stucs')
+        maintenant = timezone.now()
+        for i in range(12):  # art-00 le plus récent
+            make_article_page(section_slug='stucs', title=f'Art {i:02d}', slug=f'art-{i:02d}',
+                              categories=[cat], publication_date=maintenant - timedelta(days=i))
+
+        html = self.client.get('/stucs/categorie/actualites/').content.decode()
+        bloc = html[html.index('class="une-laterale"'):]
+        grand, cote = bloc.split('class="une-lat-side"', 1)
+        cote, grille = cote.split('class="une-grid"', 1)
+        titres = lambda morceau: re.findall(r'<h[23] class="une-[a-z-]*title">Art (\d\d)', morceau)
+        self.assertEqual(titres(grand), ['00'])
+        self.assertEqual(titres(cote), ['01', '02', '03', '04'])
+        self.assertEqual(titres(grille.split('</main>')[0]), ['05', '06', '07', '08', '09', '10'])
+        self.assertIn('Art 11', self.client.get('/stucs/categorie/actualites/?page=2')
+                      .content.decode())
+
+        # Les rubriques de la conf gardent leur présentation.
+        conf = make_cms_category(name='Réflexions', slug='reflexions', section_slug='principal')
+        make_article_page(title='Conf 1', slug='conf-1', categories=[conf])
+        make_article_page(title='Conf 2', slug='conf-2', categories=[conf])
+        self.assertNotIn('class="une-laterale"',
+                         self.client.get('/categorie/reflexions/').content.decode())
 
     def test_la_banque_d_images_peut_etre_masquee(self):
         make_cms_category(name="Banque d'images", slug='banque-dimage', section_slug='principal')
