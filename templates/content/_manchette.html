@@ -48,11 +48,11 @@ Attend `manchette_articles`.
     }
 }
 
+/* Sans cadre ni fond : l'affiche sur le blanc de la page, le titre dessous
+   (Arnaud, 18/11/2026, « c'est bc mieux, partout »). */
 .hp-mcard {
     display: flex;
     flex-direction: column;
-    background: var(--white);
-    border: 1px solid var(--bg-lighter);
 }
 
 .hp-mcard > a { display: block; }
@@ -65,7 +65,6 @@ Attend `manchette_articles`.
     height: 220px;
     object-fit: contain;
     object-position: center;
-    background: var(--white);
 }
 
 /* Les deux cartes de tête ouvrent la sélection : leur affiche mérite plus de
@@ -96,8 +95,7 @@ Attend `manchette_articles`.
 .hp-mcard-body {
     display: flex;
     flex-direction: column;
-    padding: .8rem .9rem 1rem;
-    border-top: 1px solid var(--bg-lighter);
+    padding: .8rem 0 1rem;
 }
 
 .hp-mcard-cat {

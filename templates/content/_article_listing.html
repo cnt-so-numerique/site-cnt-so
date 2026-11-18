@@ -27,8 +27,6 @@ Articles 4+ : grille 3 colonnes
     display: block;
     text-decoration: none;
     color: inherit;
-    background: var(--white);
-    border: 1px solid var(--bg-lighter);
 }
 .une-hero-img {
     width: 100%;
@@ -37,7 +35,6 @@ Articles 4+ : grille 3 colonnes
     height: 420px;
     object-fit: contain;
     object-position: center;
-    background: var(--white);
     display: block;
 }
 @media (max-width: 480px) {
@@ -46,8 +43,7 @@ Articles 4+ : grille 3 colonnes
     .une-hero-img { height: auto; max-height: 420px; }
 }
 .une-hero-body {
-    padding: 1rem 1.25rem 1.25rem;
-    border-top: 1px solid var(--bg-lighter);
+    padding: 1rem 0 1.25rem;
 }
 .une-hero-meta {
     display: flex;
@@ -87,16 +83,14 @@ Articles 4+ : grille 3 colonnes
 }
 
 /* ---- Card commune (duo + grille) ---- */
+/* Sans cadre ni fond : l'affiche sur le blanc de la page, le titre dessous
+   (Arnaud, 18/11/2026, « c'est bc mieux, partout »). */
 .une-card {
     position: relative;
-    border: 1px solid var(--border-color);
-    background: var(--white);
     display: flex;
     flex-direction: column;
-    transition: box-shadow .2s;
     overflow: hidden;
 }
-.une-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,.09); }
 
 /* cover-link : couvre toute la carte */
 .une-card-link {
@@ -120,14 +114,13 @@ Articles 4+ : grille 3 colonnes
     display: block;
     object-fit: contain;
     object-position: center;
-    background: var(--white);
 }
 
 .une-duo .une-card-img { height: 220px; }
 .une-grid .une-card-img { height: 175px; }
 
 .une-card-body {
-    padding: .9rem 1.1rem 1.2rem;
+    padding: .9rem 0 1.2rem;
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -201,7 +194,7 @@ Articles 4+ : grille 3 colonnes
 .une-lat-side { display: flex; flex-direction: column; gap: 1rem; }
 .une-lat-item { flex-direction: row; }
 .une-lat-item .une-card-img { width: 130px; height: 120px; }
-.une-lat-item .une-card-body { padding: .7rem .9rem; }
+.une-lat-item .une-card-body { padding: 0 0 0 1rem; }
 .une-lat-item .une-card-title { font-size: 1rem; flex: 0 0 auto; }
 @media (max-width: 768px) {
     .une-laterale { grid-template-columns: 1fr; }
