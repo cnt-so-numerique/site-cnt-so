@@ -1518,6 +1518,19 @@ class ArticlePageForm(WagtailAdminPageForm):
         texte = re.sub(r'<[^>]+>', '', source)
         return not texte.replace('&nbsp;', ' ').replace('\xa0', ' ').strip()
 
+    def clean_cms_tags(self):
+        """« Greve », « #grève » ou « grêve » rejoignent le tag « grève » existant.
+
+        Un mot vraiment nouveau reste permis : chaque syndicat crée ses tags.
+        Voir `cms/tags.py` (Arnaud, 18/11/2026).
+        """
+        from cms.tags import rapproche
+        # Un article neuf n'a pas encore de `section_slug` : son parent est le
+        # syndicat. Ce n'est qu'une préférence entre variantes existantes.
+        parent = getattr(self, 'parent_page', None)
+        section = self.instance.section_slug or getattr(parent, 'slug', None)
+        return rapproche(self.cleaned_data.get('cms_tags') or [], section)
+
     def clean(self):
         donnees = super().clean()
 
