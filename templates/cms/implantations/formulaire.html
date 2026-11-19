@@ -1,0 +1,173 @@
+{% extends "wagtailadmin/base.html" %}
+
+{% block titletag %}{% if objet %}Modifier {{ objet.nom }}{% else %}Ajouter une implantation{% endif %}{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+  .impl-form { max-width: 60rem; }
+  .impl-form .champ { margin-bottom: 1.25rem; }
+  .impl-form label { display: block; font-weight: 700; margin-bottom: .3rem; }
+  .impl-form input[type=text], .impl-form input[type=email], .impl-form input[type=number],
+  .impl-form select, .impl-form textarea { width: 100%; }
+  .impl-form .aide { color: var(--w-color-text-meta); font-size: .9em; margin-top: .25rem; }
+  .impl-form .erreur { color: var(--w-color-critical-200, #cd4444); margin-top: .25rem; }
+  .impl-form .rangee { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 40em) { .impl-form .rangee { grid-template-columns: 1fr; } }
+  .impl-recherche { display: flex; gap: .5rem; }
+  .impl-recherche input { flex: 1; }
+  #resultats { list-style: none; padding: 0; margin: .5rem 0 0; }
+  #resultats button { all: unset; cursor: pointer; display: block; width: 100%; padding: .4rem .6rem;
+                      border: 1px solid var(--w-color-border-furniture); border-radius: 4px; margin-bottom: .25rem; }
+  #resultats button:hover, #resultats button:focus-visible { background: var(--w-color-surface-menus, #eee);
+                                                            outline: 2px solid var(--w-color-focus, #3b82f6); }
+  #mini-carte { height: 22rem; border-radius: 6px; border: 1px solid var(--w-color-border-furniture); margin: .75rem 0; }
+  .impl-actions { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-top: 2rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="nice-padding impl-form">
+  <p><a href="{% url 'cms_implantations' %}">← Retour à la carte</a></p>
+  <h1 class="w-h1">{% if objet %}Modifier « {{ objet.nom }} »{% else %}Ajouter une implantation{% endif %}</h1>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="erreur">{{ form.non_field_errors }}</div>{% endif %}
+
+    {% include "cms/implantations/_champ.html" with champ=form.syndicat %}
+    {% include "cms/implantations/_champ.html" with champ=form.nom %}
+    <div class="rangee">
+      {% include "cms/implantations/_champ.html" with champ=form.type_implantation %}
+      {% include "cms/implantations/_champ.html" with champ=form.entreprise %}
+    </div>
+    <datalist id="types-connus">{% for t in types_connus %}<option value="{{ t }}">{% endfor %}</datalist>
+    <datalist id="entreprises-connues">{% for e in entreprises_connues %}<option value="{{ e }}">{% endfor %}</datalist>
+
+    <div class="champ">
+      <label for="{{ form.adresse.id_for_label }}">{{ form.adresse.label }}</label>
+      <div class="impl-recherche">
+        {{ form.adresse }}
+        <button type="button" class="button button-secondary" id="chercher">Chercher sur la carte</button>
+      </div>
+      <p class="aide">{{ form.adresse.help_text }} La recherche interroge le service public d'adresses
+        (Géoplateforme de l'IGN). Ensuite, cliquez sur la carte ou faites glisser le point pour l'ajuster.</p>
+      {% for e in form.adresse.errors %}<p class="erreur">{{ e }}</p>{% endfor %}
+      <p id="statut-recherche" class="aide" aria-live="polite"></p>
+      <ul id="resultats"></ul>
+    </div>
+
+    <div id="mini-carte" role="region" aria-label="Position de l'implantation"></div>
+    <div class="rangee">
+      {% include "cms/implantations/_champ.html" with champ=form.latitude %}
+      {% include "cms/implantations/_champ.html" with champ=form.longitude %}
+    </div>
+
+    <h2 class="w-h2">Contact</h2>
+    {% include "cms/implantations/_champ.html" with champ=form.contact_nom %}
+    <div class="rangee">
+      {% include "cms/implantations/_champ.html" with champ=form.telephone %}
+      {% include "cms/implantations/_champ.html" with champ=form.email %}
+    </div>
+    {% include "cms/implantations/_champ.html" with champ=form.texte_libre %}
+
+    <div class="impl-actions">
+      <button type="submit" class="button">Enregistrer</button>
+      <a href="{% url 'cms_implantations' %}">Annuler</a>
+      {% if objet %}
+        <a class="button button-secondary no" href="{% url 'cms_implantation_supprimer' objet.pk %}">Supprimer</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+// Wagtail place ce bloc AVANT le contenu de la page : on attend qu'elle soit lue.
+document.addEventListener('DOMContentLoaded', function () {
+  'use strict';
+  var champLat = document.getElementById('{{ form.latitude.id_for_label }}');
+  var champLng = document.getElementById('{{ form.longitude.id_for_label }}');
+  var champAdresse = document.getElementById('{{ form.adresse.id_for_label }}');
+  var statut = document.getElementById('statut-recherche');
+  var resultats = document.getElementById('resultats');
+
+  var carte = L.map('mini-carte');
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(carte);
+  var point = null;
+
+  function placer(lat, lng, zoom) {
+    lat = Math.round(lat * 1e6) / 1e6;
+    lng = Math.round(lng * 1e6) / 1e6;
+    champLat.value = lat;
+    champLng.value = lng;
+    if (!point) {
+      point = L.marker([lat, lng], {draggable: true}).addTo(carte);
+      point.on('dragend', function () {
+        var p = point.getLatLng();
+        placer(p.lat, p.lng);
+      });
+    } else {
+      point.setLatLng([lat, lng]);
+    }
+    if (zoom) carte.setView([lat, lng], zoom);
+  }
+
+  var lat0 = parseFloat(champLat.value), lng0 = parseFloat(champLng.value);
+  if (!isNaN(lat0) && !isNaN(lng0)) placer(lat0, lng0, 14);
+  else carte.setView([46.6, 2.4], 6);
+
+  carte.on('click', function (ev) { placer(ev.latlng.lat, ev.latlng.lng); });
+  [champLat, champLng].forEach(function (c) {
+    c.addEventListener('change', function () {
+      var la = parseFloat(champLat.value), ln = parseFloat(champLng.value);
+      if (!isNaN(la) && !isNaN(ln)) placer(la, ln, carte.getZoom());
+    });
+  });
+
+  // Géocodage : seulement au clic sur « Chercher », jamais à la frappe —
+  // l'adresse ne part chez l'IGN que quand on le demande.
+  function chercher() {
+    var q = champAdresse.value.trim();
+    resultats.textContent = '';
+    if (q.length < 3) { statut.textContent = 'Tapez au moins trois caractères (une ville suffit).'; return; }
+    statut.textContent = 'Recherche…';
+    fetch('https://data.geopf.fr/geocodage/search?limit=6&q=' + encodeURIComponent(q), {credentials: 'omit'})
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (donnees) {
+        var trouves = (donnees.features || []);
+        if (!trouves.length) { statut.textContent = 'Aucun résultat : placez le point en cliquant sur la carte.'; return; }
+        statut.textContent = trouves.length > 1 ? 'Choisissez le bon résultat :' : '';
+        trouves.forEach(function (f) {
+          var li = document.createElement('li');
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.textContent = f.properties.label + (f.properties.context ? ' — ' + f.properties.context : '');
+          b.addEventListener('click', function () {
+            var c = f.geometry.coordinates;
+            // Une commune seule : zoom plus large, le point est au centre de la ville.
+            placer(c[1], c[0], f.properties.type === 'municipality' ? 12 : 17);
+            resultats.textContent = '';
+            statut.textContent = 'Point placé. Faites-le glisser pour l\'ajuster si besoin.';
+          });
+          li.appendChild(b);
+          resultats.appendChild(li);
+        });
+        if (trouves.length === 1) resultats.querySelector('button').click();
+      })
+      .catch(function () { statut.textContent = 'Le service d\'adresses ne répond pas : placez le point en cliquant sur la carte.'; });
+  }
+  document.getElementById('chercher').addEventListener('click', chercher);
+  champAdresse.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); chercher(); }
+  });
+});
+</script>
+{% endblock %}

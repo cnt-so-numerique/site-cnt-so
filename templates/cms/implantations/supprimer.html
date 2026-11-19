@@ -1,0 +1,16 @@
+{% extends "wagtailadmin/base.html" %}
+
+{% block titletag %}Supprimer {{ objet.nom }}{% endblock %}
+
+{% block content %}
+<div class="nice-padding">
+  <h1 class="w-h1">Supprimer « {{ objet.nom }} » ?</h1>
+  <p>{{ objet.syndicat.title }}{% if objet.adresse %} — {{ objet.adresse }}{% endif %}</p>
+  <p>L'implantation disparaîtra de la carte, avec ses coordonnées et son texte libre. C'est définitif.</p>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="button no">Oui, supprimer</button>
+    <a class="button button-secondary" href="{% url 'cms_implantation_modifier' objet.pk %}">Non, revenir</a>
+  </form>
+</div>
+{% endblock %}

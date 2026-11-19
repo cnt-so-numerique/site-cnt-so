@@ -94,7 +94,9 @@ def est_obligatoire(user):
     if reglage == 'tous':
         return is_chef(user) or user.has_perm('wagtailadmin.access_admin')
     if reglage == 'chefs':
-        return is_chef(user)
+        # La carte des implantations expose des lieux et des téléphones de
+        # camarades : qui y a accès est traité comme un chef.
+        return is_chef(user) or user.has_perm('cms.acceder_carte_implantations')
     return False  # 'personne' : tests seulement (refusé en prod par settings.py)
 
 

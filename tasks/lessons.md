@@ -791,3 +791,10 @@ Mon `git add content/tests.py` (ac67238) a embarqué un test en cours d'une autr
 dont le gabarit n'est arrivé qu'au commit suivant : CI rouge sur ac67238. Avant chaque
 commit : `git diff --stat` ; une ligne que je n'ai pas écrite → `git add -p` (ou demander).
 Et avant `deploiement.sh` : `git log <prod>..origin/main` — l'autre session peut avoir poussé.
+
+## 15/11/2026 — L'adresse publique d'un article n'est pas `get_url()`
+Pour une redirection vers un article, `page.get_url()` rend le chemin de l'arbre Wagtail
+(`https://rhone-alpes.cnt-so.org/rhone-alpes/<slug>/`), pas l'adresse publique
+(`/article/<slug>/`) : la 301 du doublon Perrache a abouti, mais par deux sauts et sur une
+adresse secondaire. Utiliser `get_absolute_url()` (ou écrire l'adresse publique en dur),
+et SUIVRE la redirection avec `curl -sL` dans la simulation, avant d'écrire.

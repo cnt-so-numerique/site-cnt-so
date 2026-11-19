@@ -2341,3 +2341,51 @@ class EchecsDoubleAuth(models.Model):
 
     def __str__(self):
         return f"{self.user} : {self.nombre}"
+
+
+class Implantation(models.Model):
+    """Un lieu où un syndicat est implanté — carte interne, /cms/implantations/.
+
+    Données sensibles (lieux, noms, téléphones de camarades) : jamais servies
+    hors de /cms/, et seulement aux comptes qui ont `acceder_carte_implantations`
+    (groupe « Carte des implantations », double authentification obligatoire).
+
+    `type_implantation` et `entreprise` sont libres, avec suggestions : la carte
+    regroupe sans tenir compte de la casse ni des espaces (« Amazon » = « amazon »).
+    """
+
+    syndicat = models.ForeignKey(
+        SectionPage, on_delete=models.PROTECT, related_name='implantations',
+        verbose_name="Syndicat")
+    nom = models.CharField("Nom", max_length=200)
+    type_implantation = models.CharField(
+        "Type d'implantation", max_length=100, blank=True,
+        help_text="Ex. : local syndical, section syndicale, adhérent·es sans section…")
+    entreprise = models.CharField(
+        "Entreprise / employeur", max_length=200, blank=True,
+        help_text="Pour retrouver d'un coup toutes les implantations chez un même employeur.")
+    adresse = models.CharField(
+        "Adresse ou ville", max_length=300, blank=True,
+        help_text="Une ville suffit si l'adresse précise n'est pas connue.")
+    latitude = models.FloatField("Latitude")
+    longitude = models.FloatField("Longitude")
+    contact_nom = models.CharField("Personne à contacter", max_length=200, blank=True)
+    telephone = models.CharField("Téléphone", max_length=40, blank=True)
+    email = models.EmailField("E-mail", blank=True)
+    texte_libre = models.TextField("Texte libre", blank=True)
+    modifie_le = models.DateTimeField("Modifié le", auto_now=True)
+    modifie_par = models.ForeignKey(
+        'auth.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+', verbose_name="Modifié par")
+
+    class Meta:
+        verbose_name = "Implantation"
+        verbose_name_plural = "Implantations"
+        ordering = ['syndicat__title', 'nom']
+        permissions = [
+            ('acceder_carte_implantations',
+             "Peut voir et modifier la carte des implantations"),
+        ]
+
+    def __str__(self):
+        return self.nom

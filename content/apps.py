@@ -3,6 +3,10 @@ from django.apps import AppConfig
 from wagtail.users.apps import WagtailUsersAppConfig
 
 
+#: Groupe qui donne accès à la carte interne des implantations.
+GROUPE_CARTE = 'Carte des implantations'
+
+
 class CustomUsersAppConfig(WagtailUsersAppConfig):
     """Remplace 'wagtail.users' dans INSTALLED_APPS : formulaires
     utilisateur avec champ « Syndicat » (fiche Author synchronisée)."""
@@ -199,3 +203,11 @@ def create_editorial_groups(sender, **kwargs):
         redacteur_group.permissions.remove(*retirees)
         for group in section_groups:
             group.permissions.remove(*retirees)
+
+    # Carte des implantations (/cms/implantations/) : groupe à part, que l'on
+    # donne à quelques personnes seulement — ni les chefs ni les rédacteurs ne
+    # l'ont d'office. `access_admin` pour qu'une personne qui n'est pas
+    # rédactrice puisse quand même entrer dans /cms/.
+    carte_group, _ = Group.objects.get_or_create(name=GROUPE_CARTE)
+    carte_group.permissions.add(*get_permissions([
+        'cms.acceder_carte_implantations', 'wagtailadmin.access_admin']))

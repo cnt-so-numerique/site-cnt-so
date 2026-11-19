@@ -26,3 +26,21 @@ class LesFichiersDeCDNPortentLeurEmpreinte(SimpleTestCase):
                 if CDN.search(texte) and not ('integrity=' in texte and 'crossorigin' in texte):
                     sans.append(f'{gabarit.relative_to(settings.BASE_DIR)} : {texte}')
         self.assertEqual(sans, [], 'balises CDN sans empreinte')
+
+    def test_chaque_empreinte_a_la_bonne_longueur(self):
+        """Défaut réel, trouvé le 15/11/2026 : l'empreinte de leaflet.js était
+        tronquée (43 caractères au lieu de 44). Le navigateur refusait le
+        fichier et la carte de l'agenda public ne s'est jamais affichée.
+        Une empreinte sha256/384/512 décodée fait 32/48/64 octets, pas autre chose."""
+        import base64
+        tailles = {'sha256': 32, 'sha384': 48, 'sha512': 64}
+        fausses = []
+        for gabarit in Path(settings.BASE_DIR, 'templates').rglob('*.html'):
+            for algo, valeur in re.findall(r'integrity="(sha\d+)-([^"]*)"', gabarit.read_text()):
+                try:
+                    bonne = len(base64.b64decode(valeur, validate=True)) == tailles.get(algo)
+                except ValueError:
+                    bonne = False
+                if not bonne:
+                    fausses.append(f'{gabarit.relative_to(settings.BASE_DIR)} : {algo}-{valeur}')
+        self.assertEqual(fausses, [], 'empreintes mal formées')

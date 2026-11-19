@@ -1,0 +1,264 @@
+{% extends "wagtailadmin/base.html" %}
+
+{% block titletag %}Implantations{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+  .impl { max-width: 90rem; }
+  .impl-tete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
+  .impl-aide { color: var(--w-color-text-meta); margin: .25rem 0 1.5rem; }
+  .impl-corps { display: grid; grid-template-columns: 18rem 1fr; gap: 1.5rem; align-items: start; }
+  @media (max-width: 50em) { .impl-corps { grid-template-columns: 1fr; } }
+  .impl-filtres fieldset { border: 1px solid var(--w-color-border-furniture); border-radius: 6px;
+                           padding: .75rem 1rem; margin: 0 0 1rem; }
+  .impl-filtres legend { font-weight: 700; padding: 0 .25rem; }
+  .impl-filtres label { display: flex; align-items: center; gap: .5rem; padding: .2rem 0; cursor: pointer; }
+  .impl-filtres .nb { color: var(--w-color-text-meta); margin-left: auto; font-size: .85em; }
+  .impl-filtres select { width: 100%; }
+  .impl-tout { display: flex; gap: .5rem; margin-bottom: .5rem; }
+  .impl-tout button { font-size: .85em; }
+  .pastille { display: inline-block; width: .9rem; height: .9rem; border-radius: 50%;
+              border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.35); flex: none; }
+  #carte { height: 70vh; min-height: 24rem; border-radius: 6px; border: 1px solid var(--w-color-border-furniture); }
+  .impl-compte { margin: .75rem 0; color: var(--w-color-text-meta); }
+  .impl-liste { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  .impl-liste th, .impl-liste td { text-align: left; padding: .45rem .6rem;
+                                   border-bottom: 1px solid var(--w-color-border-furniture); vertical-align: top; }
+  .impl-liste td:first-child { white-space: nowrap; }
+  .impl-tri { display: flex; align-items: center; gap: .5rem; margin-top: 2rem; }
+  .bulle h3 { margin: 0 0 .25rem; font-size: 1.05rem; }
+  .bulle .meta { color: #555; margin: 0 0 .5rem; }
+  .bulle p { margin: .2rem 0; }
+  .bulle .notes { white-space: pre-line; border-top: 1px solid #ddd; margin-top: .5rem; padding-top: .5rem;
+                  max-height: 12rem; overflow: auto; }
+  .bulle a.modifier { display: inline-block; margin-top: .5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="nice-padding impl">
+  <div class="impl-tete">
+    <h1 class="w-h1">Implantations</h1>
+    <a class="button bicolor button--icon" href="{% url 'cms_implantation_ajouter' %}">
+      <span class="icon-wrapper"><svg class="icon icon-plus icon" aria-hidden="true"><use href="#icon-plus"></use></svg></span>Ajouter une implantation
+    </a>
+  </div>
+  <p class="impl-aide">
+    Carte interne, visible des seules personnes du groupe « Carte des implantations ».
+    Cliquez sur un point pour voir les coordonnées de contact.
+  </p>
+
+  {% if not points %}
+    <p>Aucune implantation pour l'instant. Commencez par en <a href="{% url 'cms_implantation_ajouter' %}">ajouter une</a>.</p>
+  {% else %}
+  <div class="impl-corps">
+    <form class="impl-filtres" id="filtres" aria-controls="carte liste">
+      <fieldset>
+        <legend>Syndicats</legend>
+        <div class="impl-tout">
+          <button type="button" class="button button-small button-secondary" data-tout="syndicat">Tous</button>
+          <button type="button" class="button button-small button-secondary" data-aucun="syndicat">Aucun</button>
+        </div>
+        {% for s in syndicats %}
+          <label><input type="checkbox" name="syndicat" value="{{ s.pk }}" checked>
+            <span class="pastille" style="background: {{ s.couleur }}"></span>{{ s.nom }}
+            <span class="nb">{{ s.nombre }}</span></label>
+        {% endfor %}
+      </fieldset>
+
+      <fieldset>
+        <legend>Types</legend>
+        {% for t in types %}
+          <label><input type="checkbox" name="type" value="{{ t.cle }}" checked>{{ t.nom }}
+            <span class="nb">{{ t.nombre }}</span></label>
+        {% endfor %}
+        {% if sans_type %}
+          <label><input type="checkbox" name="type" value="" checked><em>Sans type</em>
+            <span class="nb">{{ sans_type }}</span></label>
+        {% endif %}
+      </fieldset>
+
+      <fieldset>
+        <legend><label for="filtre-entreprise">Entreprise</label></legend>
+        <select id="filtre-entreprise" name="entreprise">
+          <option value="*">Toutes</option>
+          {% for e in entreprises %}
+            <option value="{{ e.cle }}">{{ e.nom }} ({{ e.nombre }})</option>
+          {% endfor %}
+          <option value="">Sans entreprise</option>
+        </select>
+      </fieldset>
+    </form>
+
+    <div>
+      <div id="carte" role="region" aria-label="Carte des implantations"></div>
+      <p class="impl-compte" id="compte" aria-live="polite"></p>
+
+      <div class="impl-tri">
+        <label for="tri">Trier la liste par</label>
+        <select id="tri">
+          <option value="syndicat_nom">Syndicat</option>
+          <option value="entreprise_nom">Entreprise</option>
+          <option value="type_nom">Type</option>
+          <option value="adresse">Adresse / ville</option>
+          <option value="nom">Nom</option>
+        </select>
+      </div>
+      <table class="impl-liste" id="liste">
+        <thead><tr><th>Nom</th><th>Syndicat</th><th>Type</th><th>Entreprise</th><th>Adresse / ville</th><th>Contact</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  {{ points|json_script:"implantations-donnees" }}
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+{% if points %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+// Wagtail place ce bloc AVANT le contenu de la page : on attend qu'elle soit lue.
+document.addEventListener('DOMContentLoaded', function () {
+  'use strict';
+  var points = JSON.parse(document.getElementById('implantations-donnees').textContent);
+  var form = document.getElementById('filtres');
+
+  var carte = L.map('carte');
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(carte);
+  carte.setView([46.6, 2.4], 6);
+
+  // Tout est construit en DOM et rempli par textContent : un nom ou une note
+  // contenant du HTML s'affiche tel quel, il n'est jamais interprété.
+  function el(balise, texte, classe) {
+    var e = document.createElement(balise);
+    if (texte) e.textContent = texte;
+    if (classe) e.className = classe;
+    return e;
+  }
+  function lien(href, texte) {
+    var a = el('a', texte);
+    a.href = href;
+    return a;
+  }
+
+  function bulle(p) {
+    var div = el('div', null, 'bulle');
+    div.appendChild(el('h3', p.nom));
+    div.appendChild(el('p', [p.syndicat_nom, p.type_nom, p.entreprise_nom].filter(Boolean).join(' · '), 'meta'));
+    if (p.adresse) div.appendChild(el('p', p.adresse));
+    if (p.contact) div.appendChild(el('p', 'Contact : ' + p.contact));
+    if (p.telephone) {
+      var tel = el('p', 'Tél. : ');
+      tel.appendChild(lien('tel:' + p.telephone.replace(/[^+0-9]/g, ''), p.telephone));
+      div.appendChild(tel);
+    }
+    if (p.email) {
+      var mail = el('p', 'E-mail : ');
+      mail.appendChild(lien('mailto:' + p.email, p.email));
+      div.appendChild(mail);
+    }
+    if (p.notes) div.appendChild(el('div', p.notes, 'notes'));
+    var modifier = lien(p.modifier, 'Modifier');
+    modifier.className = 'modifier';
+    div.appendChild(modifier);
+    return div;
+  }
+
+  points.forEach(function (p) {
+    p.marqueur = L.circleMarker([p.lat, p.lng], {
+      radius: 8, color: '#fff', weight: 2, fillColor: p.couleur, fillOpacity: 0.95,
+    }).bindPopup(function () { return bulle(p); }, {maxWidth: 320});
+    p.marqueur.bindTooltip(p.nom);
+  });
+
+  function coches(nom) {
+    return Array.prototype.filter.call(form.querySelectorAll('input[name="' + nom + '"]'),
+      function (c) { return c.checked; }).map(function (c) { return c.value; });
+  }
+
+  function visibles() {
+    var syndicats = coches('syndicat');
+    var types = form.querySelector('input[name="type"]') ? coches('type') : null;
+    var entreprise = form.elements.entreprise.value;
+    return points.filter(function (p) {
+      return syndicats.indexOf(String(p.syndicat)) !== -1
+        && (types === null || types.indexOf(p.type) !== -1)
+        && (entreprise === '*' || p.entreprise === entreprise);
+    });
+  }
+
+  function cellule(tr, texte) { tr.appendChild(el('td', texte || '—')); }
+
+  function remplirListe(liste) {
+    var cle = document.getElementById('tri').value;
+    var tbody = document.querySelector('#liste tbody');
+    tbody.textContent = '';
+    liste.slice().sort(function (a, b) {
+      return (a[cle] || '￿').localeCompare(b[cle] || '￿', 'fr', {sensitivity: 'base'})
+        || a.nom.localeCompare(b.nom, 'fr', {sensitivity: 'base'});
+    }).forEach(function (p) {
+      var tr = document.createElement('tr');
+      var td = el('td');
+      var bouton = lien('#carte', p.nom);
+      bouton.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        // Sans animation : la bulle peut alors recadrer la carte pour tenir entière.
+        carte.setView(p.marqueur.getLatLng(), Math.max(carte.getZoom(), 13), {animate: false});
+        p.marqueur.openPopup();
+        document.getElementById('carte').scrollIntoView({behavior: 'smooth', block: 'center'});
+      });
+      td.appendChild(bouton);
+      tr.appendChild(td);
+      var syndicat = el('td', p.syndicat_nom);
+      var pastille = el('span', null, 'pastille');
+      pastille.style.background = p.couleur;
+      pastille.style.marginRight = '.4rem';
+      syndicat.insertBefore(pastille, syndicat.firstChild);
+      tr.appendChild(syndicat);
+      cellule(tr, p.type_nom);
+      cellule(tr, p.entreprise_nom);
+      cellule(tr, p.adresse);
+      cellule(tr, [p.contact, p.telephone].filter(Boolean).join(' — '));
+      tbody.appendChild(tr);
+    });
+  }
+
+  function actualiser(recadrer) {
+    var liste = visibles();
+    points.forEach(function (p) {
+      if (liste.indexOf(p) !== -1) p.marqueur.addTo(carte); else p.marqueur.remove();
+    });
+    document.getElementById('compte').textContent =
+      liste.length + ' implantation' + (liste.length > 1 ? 's' : '') + ' affichée' + (liste.length > 1 ? 's' : '')
+      + ' sur ' + points.length;
+    remplirListe(liste);
+    if (recadrer && liste.length) {
+      var groupe = L.featureGroup(liste.map(function (p) { return p.marqueur; }));
+      carte.fitBounds(groupe.getBounds().pad(0.2), {maxZoom: 13});
+    }
+  }
+
+  form.addEventListener('change', function () { actualiser(true); });
+  form.addEventListener('submit', function (ev) { ev.preventDefault(); });
+  form.querySelectorAll('[data-tout], [data-aucun]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var nom = b.dataset.tout || b.dataset.aucun;
+      form.querySelectorAll('input[name="' + nom + '"]').forEach(function (c) { c.checked = !!b.dataset.tout; });
+      actualiser(true);
+    });
+  });
+  document.getElementById('tri').addEventListener('change', function () { remplirListe(visibles()); });
+
+  actualiser(true);
+});
+</script>
+{% endif %}
+{% endblock %}

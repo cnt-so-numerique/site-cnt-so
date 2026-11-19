@@ -1,3 +1,73 @@
+# À faire — demandé le 15/11/2026 : carte interne des implantations
+
+Carte dans /cms/, réservée à quelques personnes : les implantations de chaque
+syndicat, un filtre par syndicat (tous ensemble ou au choix), et au clic les
+coordonnées de contact + un texte libre. **Codé et vérifié en local le 15/11/2026, non commité, non déployé.**
+
+Décisions d'Arnaud (15/11) : accès par une permission dédiée (pas « chefs ») ;
+qui voit la carte peut aussi saisir/modifier toutes les implantations ; placement
+par adresse (api-adresse.data.gouv.fr) puis ajustement à la souris.
+
+## 1. Modèle (`cms/models.py` + migration)
+- [x] `Implantation` : `syndicat` (FK SectionPage, PROTECT), `nom`, `adresse`,
+      `latitude`/`longitude` (obligatoires), `contact_nom`, `telephone`, `email`,
+      `texte_libre` (TextField), `modifie_le` (auto_now), `modifie_par` (FK user, null)
+- [x] Permission propre dans `Meta.permissions` : `acceder_carte_implantations`
+      (« Peut voir et modifier la carte des implantations ») ; les superutilisateurs l'ont d'office
+- [x] Groupe « Carte des implantations » créé au `post_migrate` (comme les groupes
+      éditoriaux) avec cette seule permission → on y ajoute les personnes depuis Utilisateurs
+
+## 2. Écrans (`cms/implantations.py`, branchés dans `register_admin_urls`)
+- [x] `/cms/implantations/` : carte Leaflet 1.9.4 (même fichier + empreinte que l'agenda),
+      une couleur par syndicat, cases à cocher par syndicat + « Tous » / « Aucun »,
+      recadrage sur les points visibles, liste textuelle sous la carte (accessibilité)
+- [x] Bulle au clic : nom, syndicat, adresse, contact, téléphone (`tel:`), e-mail
+      (`mailto:`), texte libre avec retours à la ligne, lien « Modifier »
+- [x] Données passées par `json_script`, bulles construites en DOM (`textContent`),
+      jamais par concaténation HTML
+- [x] Ajouter / modifier / supprimer (confirmation) : formulaire Django dans le gabarit
+      admin Wagtail, mini-carte avec bouton « Chercher l'adresse » puis point déplaçable
+- [x] Entrée de menu « Implantations » visible seulement avec la permission ;
+      toute vue sans la permission → 403 (même pour un rédacteur en chef)
+
+## 3. Faille repérée au passage
+- [x] `templates/content/site_agenda_events.html` : bulles construites avec `escapejs`
+      → HTML d'un titre/lieu d'événement injecté dans la page publique. Passer aux
+      mêmes bulles en `textContent` + test de non-régression
+
+## 4. Vérification
+- [x] Tests : accès refusé sans permission (rédacteur, chef), accordé via le groupe,
+      menu masqué/affiché, création/modification/suppression, filtre présent par syndicat,
+      contenu piégé `<img src=x onerror=…>` non interprété — tests validés par mutation
+- [x] Vérification navigateur en local : filtre, bulles, géocodage, déplacement du point
+- [x] Suite complète verte (1 773 tests)
+- [ ] Commit + déploiement (migration `cms.0052_implantation`), puis ajouter les personnes au groupe dans /cms/users/
+
+## Points d'attention
+- Données sensibles (lieux, noms, téléphones) : uniquement derrière /cms/ (connexion +
+  double authentification des chefs), aucune URL publique, rien dans le sitemap
+- L'adresse tapée part chez api-adresse.data.gouv.fr au moment de la recherche (choix
+  validé) ; les tuiles viennent d'OpenStreetMap, qui voit la zone affichée, pas les données
+
+
+Ajouts d'Arnaud (15/11) : une ville suffit si pas d'adresse précise ; type d'implantation ;
+filtre par entreprise (« toutes les implantations Amazon »). Faits : type et entreprise
+libres avec suggestions, regroupés sans casse ; liste triable (syndicat, entreprise, type, ville).
+
+## Revue
+- Accès : permission `cms.acceder_carte_implantations` via le groupe « Carte des implantations »
+  (créé au post_migrate), proposé aux SEULS superusers dans le formulaire utilisateur (un chef
+  qui édite un membre ne lui retire pas l'accès) ; double authentification obligatoire pour ce groupe
+- Géocodage : data.geopf.fr (successeur d'api-adresse.data.gouv.fr, même format), au clic seulement
+- Trouvé en route : l'empreinte `integrity` de leaflet.js était TRONQUÉE depuis 60d0da2 → la carte
+  de l'agenda public ne s'est jamais affichée. Corrigée ; nouveau test sur la longueur des empreintes
+- Faille agenda (escapejs + HTML) corrigée, test validé par mutation (ancien gabarit → échec)
+- Piège : Wagtail met `extra_js` AVANT le contenu → scripts sous DOMContentLoaded
+- Vérifié au navigateur (puppeteer, session de test) : carte, filtre Amazon, bulle, texte piégé
+  affiché en clair, recherche « Montreuil » (6 choix), enregistrement ; données d'essai supprimées
+
+---
+
 # À faire — demandé le 01/11/2026 : retours du STUCS sur son site
 
 Source : pad https://annuel.framapad.org/p/site-internet-stucs-retours-combines-aoac

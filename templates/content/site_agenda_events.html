@@ -80,13 +80,15 @@
   </div>
   {% endif %}
 
-  {# Carte Leaflet si au moins un événement géolocalisé #}
-  {% with geo_events=upcoming_events %}
-  {% for event in geo_events %}{% if event.latitude and event.longitude %}{% if forloop.first %}
+  {% comment %}Carte Leaflet si au moins un événement géolocalisé. Bulles construites en
+     DOM : un titre ou un lieu contenant du HTML s'affiche tel quel.{% endcomment %}
+  {% if agenda_points %}
   <div id="agenda-map"></div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLs=" crossorigin=""></script>
+  {{ agenda_points|json_script:"agenda-points" }}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script nonce="{{ csp_nonce }}">
   (function(){
+    var points = JSON.parse(document.getElementById('agenda-points').textContent);
     var map = L.map('agenda-map');
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -100,31 +102,43 @@
       iconAnchor: [7,7],
     });
 
-    var markers = [];
-    {% for ev in upcoming_events %}{% if ev.latitude and ev.longitude %}
-    (function(){
-      var m = L.marker([{{ ev.latitude }}, {{ ev.longitude }}], {icon: icon}).addTo(map);
-      var dateStr = '{{ ev.date|date:"d/m/Y" }}';
-      {% if ev.time %}var timeStr = ' à {{ ev.time|time:"H\hi" }}';{% else %}var timeStr = '';{% endif %}
-      var locStr = {% if ev.location %}'{{ ev.location|escapejs }}'{% else %}''{% endif %};
-      var popup = '<strong>{{ ev.title|escapejs }}</strong><br>' + dateStr + timeStr;
-      if (locStr) popup += '<br><small>' + locStr + '</small>';
-      {% if ev.url %}popup += '<br><a href="{{ ev.url|escapejs }}" target="_blank" rel="noopener">Plus d\'infos</a>';{% endif %}
-      m.bindPopup(popup);
-      markers.push(m);
-    })();
-    {% endif %}{% endfor %}
+    function bulle(p) {
+      var div = document.createElement('div');
+      var titre = document.createElement('strong');
+      titre.textContent = p.titre;
+      div.appendChild(titre);
+      div.appendChild(document.createElement('br'));
+      div.appendChild(document.createTextNode(p.quand));
+      if (p.lieu) {
+        var lieu = document.createElement('small');
+        lieu.textContent = p.lieu;
+        div.appendChild(document.createElement('br'));
+        div.appendChild(lieu);
+      }
+      if (/^https?:\/\//i.test(p.url || '')) {
+        var a = document.createElement('a');
+        a.href = p.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = "Plus d'infos";
+        div.appendChild(document.createElement('br'));
+        div.appendChild(a);
+      }
+      return div;
+    }
+
+    var markers = points.map(function (p) {
+      return L.marker([p.lat, p.lng], {icon: icon}).addTo(map).bindPopup(bulle(p));
+    });
 
     if (markers.length === 1) {
       map.setView(markers[0].getLatLng(), 13);
-    } else if (markers.length > 1) {
-      var group = L.featureGroup(markers);
-      map.fitBounds(group.getBounds().pad(0.2));
+    } else {
+      map.fitBounds(L.featureGroup(markers).getBounds().pad(0.2));
     }
   })();
   </script>
-  {% endif %}{% endif %}{% endfor %}
-  {% endwith %}
+  {% endif %}
 
   {% if upcoming_events %}
     <div class="event-list">

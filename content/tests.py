@@ -1529,6 +1529,25 @@ class SiteAgendaViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['agenda_url'], 'https://agenda.example.com')
 
+    def test_carte_titre_et_lieu_pieges_non_interpretes(self):
+        """Les bulles étaient concaténées en HTML avec `escapejs`, qui n'échappe
+        pas pour le HTML : un `<img onerror>` dans le titre entrait dans la page."""
+        from cms.models import Event
+        piege = '<img src=x onerror="alert(1)">'
+        Event.objects.create(section=self.sub, title=piege, location=piege,
+                             date=timezone.now().date() + timedelta(days=3),
+                             latitude=48.85, longitude=2.35)
+        url = reverse('content:site_agenda', kwargs={'site_slug': 'sub'})
+        response = self.client.get(url)
+        self.assertEqual(response.context['agenda_points'][0]['titre'], piege)
+        page = response.content.decode()
+        self.assertNotIn('<img src=x', page)
+        # Le texte ne vit que dans le bloc de données JSON, jamais dans un
+        # script exécutable (où l'ancien code le recollait en HTML).
+        executables = re.findall(r'<script nonce=[^>]*>(.*?)</script>', page, re.S)
+        self.assertTrue(executables)
+        self.assertFalse([js for js in executables if 'onerror' in js])
+
 
 class PlanDuSiteViewTest(TestCase):
     def setUp(self):

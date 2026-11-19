@@ -42,6 +42,18 @@ class SyndicatFormMixin(forms.Form):
         if 'groups' in self.fields:
             self.fields['groups'].queryset = (
                 self.fields['groups'].queryset.exclude(name='redacteur'))
+        # Le groupe de la carte des implantations n'est donné que par un
+        # superuser : un chef gestionnaire de comptes ne peut ni s'y ajouter
+        # ni y ajouter quelqu'un. S'il édite un compte qui en fait partie,
+        # l'appartenance est conservée (cf. save) : le champ ne la montre pas,
+        # il ne doit pas l'effacer.
+        self._garder_carte = False
+        if 'groups' in self.fields and not getattr(self._request_user, 'is_superuser', False):
+            from .apps import GROUPE_CARTE
+            self.fields['groups'].queryset = (
+                self.fields['groups'].queryset.exclude(name=GROUPE_CARTE))
+            self._garder_carte = bool(getattr(self.instance, 'pk', None)) and (
+                self.instance.groups.filter(name=GROUPE_CARTE).exists())
         if getattr(self.instance, 'pk', None):
             self.fields['syndicats'].initial = self._current_sites_of(self.instance)
 
@@ -57,6 +69,10 @@ class SyndicatFormMixin(forms.Form):
         if commit:
             self._sync_author_profile(user)
             self._sync_section_group(user)
+            if self._garder_carte:
+                from django.contrib.auth.models import Group
+                from .apps import GROUPE_CARTE
+                user.groups.add(Group.objects.get(name=GROUPE_CARTE))
         return user
 
     def _sync_section_group(self, user):

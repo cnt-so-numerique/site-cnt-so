@@ -245,6 +245,14 @@ class SiteAgendaView(TemplateView):
                 Event.objects.filter(section=self.site_obj, date__gte=today)
                 .order_by('date', 'time')
             )
+            # Points de la carte, passés par json_script : le gabarit construit
+            # les bulles en DOM (textContent), jamais en concaténant du HTML.
+            context['agenda_points'] = [{
+                'lat': ev.latitude, 'lng': ev.longitude, 'titre': ev.title,
+                'quand': ev.date.strftime('%d/%m/%Y') + (
+                    f" à {ev.time.strftime('%Hh%M')}" if ev.time else ''),
+                'lieu': ev.location, 'url': ev.url,
+            } for ev in context['upcoming_events'] if ev.latitude and ev.longitude]
             context['past_events'] = (
                 Event.objects.filter(section=self.site_obj, date__lt=today)
                 .order_by('-date', '-time')[:10]

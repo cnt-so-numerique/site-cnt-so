@@ -842,6 +842,23 @@ def add_statistiques_menu_item():
     )
 
 
+class CarteImplantationsMenuItem(WagtailMenuItem):
+    """Visible des seuls comptes qui ont la permission de la carte (pas des chefs d'office)."""
+    def is_shown(self, request):
+        return request.user.has_perm('cms.acceder_carte_implantations')
+
+
+@hooks.register('register_admin_menu_item')
+def add_implantations_menu_item():
+    return CarteImplantationsMenuItem(
+        'Implantations',
+        '/cms/implantations/',
+        name='implantations',
+        icon_name='site',
+        order=175,
+    )
+
+
 # "Menus" supprimé — "Navigation" redirige vers /cms/menus/ (voir MenuItemViewSet)
 
 
@@ -1465,6 +1482,7 @@ class MailingListDetailView(View):
 
 from cms.statistiques import RapportStatistiquesView, StatistiquesView  # noqa: E402
 from cms import double_auth  # noqa: E402
+from cms import implantations  # noqa: E402
 
 
 @hooks.register('register_admin_urls')
@@ -1481,6 +1499,13 @@ def register_site_admin_urls():
         path('mailing-lists/<str:list_name>/', MailingListDetailView.as_view(), name='cms_mailing_list_detail'),
         path('statistiques/', StatistiquesView.as_view(), name='cms_statistiques'),
         path('statistiques/rapport/', RapportStatistiquesView.as_view(), name='cms_statistiques_rapport'),
+        path('implantations/', implantations.CarteView.as_view(), name='cms_implantations'),
+        path('implantations/ajouter/', implantations.ImplantationEditView.as_view(),
+             name='cms_implantation_ajouter'),
+        path('implantations/<int:pk>/', implantations.ImplantationEditView.as_view(),
+             name='cms_implantation_modifier'),
+        path('implantations/<int:pk>/supprimer/', implantations.ImplantationSupprimerView.as_view(),
+             name='cms_implantation_supprimer'),
         path('double-auth/', double_auth.AppareilsView.as_view(), name='cms_double_auth'),
         path('double-auth/code/', double_auth.CodeView.as_view(), name='cms_double_auth_code'),
         path('double-auth/ajouter/', double_auth.AjouterTelephoneView.as_view(), name='cms_double_auth_ajouter'),
