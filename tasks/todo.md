@@ -326,3 +326,18 @@ Aussi : le bloc « Citation » n'avait aucun style sur tout le site (corrigé da
 - **Piège trouvé au passage** : `{# … #}` sur plusieurs lignes n'est PAS un
   commentaire Django — le texte s'affichait dans la page. Utiliser
   `{% comment %}`. C'est un test qui l'a attrapé.
+
+# Vidéos Facebook dans le bloc « Vidéo / iFrame » — 19/11/2026
+
+Un collègue n'arrivait pas à intégrer une vidéo Facebook : Wagtail ne connaît plus
+Facebook (oEmbed sous clé Meta depuis 2020), le lien était refusé à l'enregistrement.
+
+- [x] `cms/embeds.py` : finder maison → lecteur sans clé `facebook.com/plugins/video.php`
+      (pas de script Facebook, CSP inchangée). Pages `/…/videos/…`, `watch?v=`, `video.php`,
+      reels (format vertical) ; liens courts `fb.watch` / `share/v|r` dépliés à l'enregistrement
+- [x] `WAGTAILEMBEDS_FINDERS` : Facebook puis oEmbed Wagtail
+- [x] `cms/tests_embeds.py` (15 tests, sans réseau, validés par mutation) ; suite complète verte
+- [x] Lecteur vérifié dans un navigateur (vidéo publique de la page Facebook officielle)
+- [ ] Essayer le lien réel du collègue (liens courts non vérifiés contre le vrai Facebook)
+- [ ] Commit + déploiement (aucune migration)
+- Limite : seules les vidéos publiques s'affichent ; le cadre dépose les cookies Facebook

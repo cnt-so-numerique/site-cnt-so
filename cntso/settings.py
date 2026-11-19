@@ -339,6 +339,14 @@ WAGTAIL_WORKFLOW_ENABLED = False
 # cette ligne à True suffit : rien d'autre n'en dépend.
 WAGTAILADMIN_COMMENTS_ENABLED = False
 
+# Vidéos intégrées (bloc « Vidéo / iFrame ») : Facebook d'abord, par son
+# lecteur sans clé (voir cms/embeds.py), puis la liste oEmbed de Wagtail
+# (YouTube, Vimeo, Dailymotion…).
+WAGTAILEMBEDS_FINDERS = [
+    {'class': 'cms.embeds'},
+    {'class': 'wagtail.embeds.finders.oembed'},
+]
+
 # ── hCaptcha ──────────────────────────────────────────────────────────────────
 # Clés de test (toujours valides en dev — remplacer en prod via local_settings.py)
 # Créer un compte sur https://dashboard.hcaptcha.com/
